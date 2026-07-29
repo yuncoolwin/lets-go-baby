@@ -8,12 +8,48 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Network } from '@/network'
 import { useAppStore } from '@/store/app'
+import { Baby, Search, UserPlus } from 'lucide-react-taro'
+
+const relationshipOptions = [
+  { value: 'father', label: '父亲' },
+  { value: 'mother', label: '母亲' },
+  { value: 'grandfather', label: '爷爷/外公' },
+  { value: 'grandmother', label: '奶奶/外婆' },
+  { value: 'other', label: '其他' },
+]
 
 export default function BindingPage() {
-  const { currentRole } = useAppStore()
+  const { currentRole, userId } = useAppStore()
+  const [step, setStep] = useState<'search' | 'form'>('search')
+  const [searchName, setSearchName] = useState('')
   const [childName, setChildName] = useState('')
   const [relationship, setRelationship] = useState('father')
+  const [customRelationship, setCustomRelationship] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [searchResult, setSearchResult] = useState<Array<{ id: string; name: string; gender: string }> | null>(null)
+
+  const handleSearch = async () => {
+    if (!searchName.trim()) {
+      Taro.showToast({ title: '请输入幼儿姓名', icon: 'none' })
+      return
+    }
+
+    // Mock 搜索已有档案
+    // 在实际应用中，应该调用后端接口搜索
+    setSearchResult([
+      { id: 'child_1', name: searchName, gender: 'male' },
+    ])
+  }
+
+  const handleSelectChild = (child: { id: string; name: string }) => {
+    setChildName(child.name)
+    setStep('form')
+  }
+
+  const handleCreateNew = () => {
+    setChildName(searchName)
+    setStep('form')
+  }
 
   const handleSubmit = async () => {
     if (!childName.trim()) {
@@ -24,6 +60,10 @@ export default function BindingPage() {
       Taro.showToast({ title: '请先登录', icon: 'none' })
       return
     }
+    if (relationship === 'other' && !customRelationship.trim()) {
+      Taro.showToast({ title: '请输入具体关系', icon: 'none' })
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -31,14 +71,18 @@ export default function BindingPage() {
         url: '/api/parent/binding-request',
         method: 'POST',
         data: {
+          user_id: userId,
           parent_role_id: currentRole.id,
           child_name: childName.trim(),
-          relationship,
+          relationship: relationship === 'other' ? 'other' : relationship,
+          custom_relationship: relationship === 'other' ? customRelationship.trim() : null,
         },
       })
       console.log('[Binding] submit:', res.data)
-      Taro.showToast({ title: '申请已提交', icon: 'success' })
-      setTimeout(() => Taro.navigateBack(), 1500)
+      Taro.showToast({ title: '申请已提交，等待审核', icon: 'success' })
+      setTimeout(() => {
+        Taro.navigateBack()
+      }, 1500)
     } catch (err) {
       console.error('[Binding] error:', err)
       Taro.showToast({ title: '提交失败', icon: 'none' })
@@ -50,58 +94,152 @@ export default function BindingPage() {
     <View className="min-h-screen bg-background p-4">
       <Text className="block text-lg font-bold text-foreground mb-2">绑定幼儿</Text>
       <Text className="block text-sm text-muted-foreground mb-6">
-        填写幼儿信息，提交后等待管理员审核
+        {step === 'search' ? '搜索已有幼儿档案或创建新档案' : '填写关系信息，提交后等待管理员审核'}
       </Text>
 
-      <Card className="bg-white rounded-xl border-0 shadow-sm mb-6">
-        <CardContent className="p-4 space-y-4">
-          <View>
-            <Label className="text-sm text-foreground mb-2">
-              <Text>幼儿姓名</Text>
-            </Label>
-            <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
-              <Input
-                className="w-full bg-transparent"
-                placeholder="请输入幼儿真实姓名"
-                value={childName}
-                onInput={(e) => setChildName(e.detail.value)}
-              />
-            </View>
-          </View>
+      {step === 'search' ? (
+        <>
+          {/* 搜索步骤 */}
+          <Card className="bg-white rounded-xl border-0 shadow-sm mb-4">
+            <CardContent className="p-4">
+              <Label className="text-sm text-foreground mb-2">
+                <Text>搜索幼儿</Text>
+              </Label>
+              <View className="flex gap-2 mt-2">
+                <View className="flex-1 bg-gray-50 rounded-xl px-4 py-3">
+                  <Input
+                    className="w-full bg-transparent"
+                    placeholder="输入幼儿姓名搜索"
+                    value={searchName}
+                    onInput={(e) => setSearchName(e.detail.value)}
+                  />
+                </View>
+                <Button
+                  className="bg-primary text-white rounded-xl px-4"
+                  onClick={handleSearch}
+                >
+                  <Search size={18} color="#ffffff" />
+                </Button>
+              </View>
+            </CardContent>
+          </Card>
 
-          <View>
-            <Label className="text-sm text-foreground mb-2">
-              <Text>与幼儿关系</Text>
-            </Label>
-            <RadioGroup
-              className="flex gap-4 mt-2"
-              value={relationship}
-              onValueChange={setRelationship}
+          {/* 搜索结果 */}
+          {searchResult && searchResult.length > 0 && (
+            <Card className="bg-white rounded-xl border-0 shadow-sm mb-4">
+              <CardContent className="p-4">
+                <Text className="block text-sm font-medium text-foreground mb-3">
+                  找到以下幼儿档案：
+                </Text>
+                {searchResult.map((child) => (
+                  <View
+                    key={child.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2"
+                    onClick={() => handleSelectChild(child)}
+                  >
+                    <View className="flex items-center gap-3">
+                      <View className="w-10 h-10 rounded-full bg-primary bg-opacity-10 flex items-center justify-center">
+                        <Baby size={20} color="#E8651A" />
+                      </View>
+                      <View>
+                        <Text className="block text-sm font-medium text-foreground">{child.name}</Text>
+                        <Text className="block text-xs text-muted-foreground">
+                          {child.gender === 'male' ? '男' : '女'}
+                        </Text>
+                      </View>
+                    </View>
+                    <Button variant="outline" size="sm">
+                      <Text className="text-xs">选择</Text>
+                    </Button>
+                  </View>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 创建新档案按钮 */}
+          <Button
+            variant="outline"
+            className="w-full rounded-xl py-3 gap-2"
+            onClick={handleCreateNew}
+          >
+            <UserPlus size={18} color="#E8651A" />
+            <Text className="text-primary">未找到？创建新档案</Text>
+          </Button>
+        </>
+      ) : (
+        <>
+          {/* 表单步骤 */}
+          <Card className="bg-white rounded-xl border-0 shadow-sm mb-6">
+            <CardContent className="p-4 space-y-4">
+              <View>
+                <Label className="text-sm text-foreground mb-2">
+                  <Text>幼儿姓名</Text>
+                </Label>
+                <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
+                  <Input
+                    className="w-full bg-transparent"
+                    placeholder="请输入幼儿真实姓名"
+                    value={childName}
+                    onInput={(e) => setChildName(e.detail.value)}
+                  />
+                </View>
+              </View>
+
+              <View>
+                <Label className="text-sm text-foreground mb-2">
+                  <Text>与幼儿关系</Text>
+                </Label>
+                <RadioGroup
+                  className="flex flex-wrap gap-3 mt-2"
+                  value={relationship}
+                  onValueChange={setRelationship}
+                >
+                  {relationshipOptions.map((opt) => (
+                    <View key={opt.value} className="flex items-center gap-2">
+                      <RadioGroupItem value={opt.value} />
+                      <Text className="text-sm text-foreground">{opt.label}</Text>
+                    </View>
+                  ))}
+                </RadioGroup>
+              </View>
+
+              {relationship === 'other' && (
+                <View>
+                  <Label className="text-sm text-foreground mb-2">
+                    <Text>具体关系</Text>
+                  </Label>
+                  <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
+                    <Input
+                      className="w-full bg-transparent"
+                      placeholder="请输入具体关系，如：叔叔、阿姨等"
+                      value={customRelationship}
+                      onInput={(e) => setCustomRelationship(e.detail.value)}
+                    />
+                  </View>
+                </View>
+              )}
+            </CardContent>
+          </Card>
+
+          <View className="flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1 rounded-xl py-3"
+              onClick={() => setStep('search')}
             >
-              <View className="flex items-center gap-2">
-                <RadioGroupItem value="father" />
-                <Text className="text-sm text-foreground">父亲</Text>
-              </View>
-              <View className="flex items-center gap-2">
-                <RadioGroupItem value="mother" />
-                <Text className="text-sm text-foreground">母亲</Text>
-              </View>
-              <View className="flex items-center gap-2">
-                <RadioGroupItem value="guardian" />
-                <Text className="text-sm text-foreground">监护人</Text>
-              </View>
-            </RadioGroup>
+              <Text>上一步</Text>
+            </Button>
+            <Button
+              className="flex-1 bg-primary text-primary-foreground rounded-xl py-3"
+              disabled={submitting}
+              onClick={handleSubmit}
+            >
+              <Text>{submitting ? '提交中...' : '提交申请'}</Text>
+            </Button>
           </View>
-        </CardContent>
-      </Card>
-
-      <Button
-        className="w-full bg-primary text-primary-foreground rounded-xl py-3"
-        disabled={submitting}
-        onClick={handleSubmit}
-      >
-        <Text className="text-primary-foreground">{submitting ? '提交中...' : '提交申请'}</Text>
-      </Button>
+        </>
+      )}
     </View>
   )
 }

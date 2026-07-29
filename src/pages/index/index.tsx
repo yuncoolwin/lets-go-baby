@@ -31,14 +31,19 @@ interface ClassOverview {
 }
 
 export default function IndexPage() {
-  const { isLoggedIn, currentRole, isLoading, fetchUserInfo } = useAppStore()
+  const { isLoggedIn, currentRole, isLoading, fetchUserInfo, children, currentChildIndex, setCurrentChild } = useAppStore()
   const [babyStatus, setBabyStatus] = useState<BabyStatus | null>(null)
   const [classList, setClassList] = useState<ClassOverview[]>([])
   const [pendingCount, setPendingCount] = useState(0)
   const [pageLoading, setPageLoading] = useState(true)
+  const currentChild = children[currentChildIndex] || null
 
   useEffect(() => {
+    // 检查登录状态
     if (!isLoggedIn) {
+      // 未登录，跳转到登录页
+      Taro.redirectTo({ url: '/pages/login/index' })
+    } else {
       fetchUserInfo()
     }
   }, [])
@@ -179,6 +184,28 @@ export default function IndexPage() {
           </Text>
         </View>
 
+        {/* 多孩切换 */}
+        {children.length > 0 && (
+          <View className="mb-4 flex gap-2 overflow-x-auto">
+            {children.map((child, index) => (
+              <View
+                key={child.id}
+                className={`flex items-center gap-2 px-3 py-2 rounded-full ${
+                  index === currentChildIndex
+                    ? 'bg-primary text-white'
+                    : 'bg-white text-foreground'
+                }`}
+                onClick={() => setCurrentChild(index)}
+              >
+                <View className="w-6 h-6 rounded-full bg-white bg-opacity-30 flex items-center justify-center">
+                  <Baby size={14} color={index === currentChildIndex ? '#ffffff' : '#E8651A'} />
+                </View>
+                <Text className="text-sm font-medium">{child.name}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         {/* 宝宝状态卡片 */}
         {babyStatus && (
           <Card className="mb-4 bg-white rounded-xl border-0 shadow-sm">
@@ -189,8 +216,16 @@ export default function IndexPage() {
                 </View>
                 <View className="flex-1">
                   <Text className="block text-base font-semibold text-foreground">
-                    {babyStatus.child_name}
+                    {currentChild?.name || babyStatus.child_name}
                   </Text>
+                  {currentChild && (
+                    <Text className="block text-xs text-muted-foreground mt-1">
+                      {currentChild.relationship === 'father' ? '爸爸' :
+                       currentChild.relationship === 'mother' ? '妈妈' :
+                       currentChild.relationship === 'grandfather' ? '爷爷' :
+                       currentChild.relationship === 'grandmother' ? '奶奶' : '家长'}的宝宝
+                    </Text>
+                  )}
                   <Badge className={`${getStatusColor(babyStatus.attendance_status)} text-xs mt-1`}>
                     <Text className="text-xs">{getStatusText(babyStatus.attendance_status)}</Text>
                   </Badge>
@@ -236,6 +271,23 @@ export default function IndexPage() {
                   )}
                 </View>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 未绑定孩子提示 */}
+        {children.length === 0 && (
+          <Card className="mb-4 bg-yellow-50 border-0 rounded-xl">
+            <CardContent className="p-4 flex flex-col items-center">
+              <Text className="block text-sm text-yellow-800 text-center mb-3">
+                您还没有绑定幼儿，请先绑定后才能查看宝宝信息
+              </Text>
+              <Button
+                className="bg-primary text-white rounded-lg px-6"
+                onClick={() => Taro.navigateTo({ url: '/pages/binding/index' })}
+              >
+                <Text>立即绑定</Text>
+              </Button>
             </CardContent>
           </Card>
         )}
@@ -433,6 +485,18 @@ export default function IndexPage() {
                 <UserCheck size={24} color="#22C55E" />
               </View>
               <Text className="text-sm text-foreground">幼儿管理</Text>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="bg-white rounded-xl border-0 shadow-sm"
+            onClick={() => Taro.navigateTo({ url: '/pages/teacher-manage/index' })}
+          >
+            <CardContent className="p-4 flex flex-col items-center">
+              <View className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center mb-2">
+                <Users size={24} color="#8B5CF6" />
+              </View>
+              <Text className="text-sm text-foreground">教师管理</Text>
             </CardContent>
           </Card>
 

@@ -76,4 +76,33 @@ export class TeacherService {
 
     return { success: true, count: insertData.length };
   }
+
+  async submitFeedback(data: {
+    child_id: string;
+    teacher_role_id?: string;
+    meal_status: string;
+    sleep_status: string;
+    mood_status: string;
+    activities?: string;
+    notes?: string;
+  }) {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const { error } = await this.client
+      .from('daily_feedbacks')
+      .insert({
+        child_id: data.child_id,
+        teacher_role_id: data.teacher_role_id || null,
+        feedback_date: today,
+        meal_status: data.meal_status,
+        sleep_status: data.sleep_status,
+        mood_status: data.mood_status,
+        activities: data.activities || null,
+        notes: data.notes || null,
+      });
+
+    if (error) throw new Error(`提交反馈失败: ${error.message}`);
+
+    return { success: true };
+  }
 }

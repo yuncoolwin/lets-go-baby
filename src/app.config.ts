@@ -2,6 +2,8 @@ export default typeof defineAppConfig === 'function'
   ? defineAppConfig({
     pages: [
       'pages/index/index',
+      'pages/login/index',
+      'pages/role-select/index',
       'pages/records/index',
       'pages/messages/index',
       'pages/profile/index',
@@ -11,6 +13,7 @@ export default typeof defineAppConfig === 'function'
       'pages/class-detail/index',
       'pages/binding/index',
       'pages/review/index',
+    'pages/teacher-manage/index',
     ],
     tabBar: {
       color: '#999999',
@@ -54,6 +57,8 @@ export default typeof defineAppConfig === 'function'
   : {
     pages: [
       'pages/index/index',
+      'pages/login/index',
+      'pages/role-select/index',
       'pages/records/index',
       'pages/messages/index',
       'pages/profile/index',

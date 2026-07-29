@@ -39,6 +39,7 @@ interface AppStore {
   // 登录状态
   isLoggedIn: boolean
   isLoading: boolean
+  needRoleSelection: boolean
 
   // Actions
   setLoginInfo: (info: {
@@ -47,12 +48,20 @@ interface AppStore {
     avatarUrl: string | null
     phone: string | null
     roles: UserRole[]
+    children: ChildInfo[]
   }) => void
   setCurrentRole: (index: number) => void
   setCurrentChild: (index: number) => void
   setChildren: (children: ChildInfo[]) => void
+  setNeedRoleSelection: (need: boolean) => void
   logout: () => void
+  wxLogin: (code: string, mockRole?: string) => Promise<{
+    needRoleSelection: boolean
+    targetRole: string | null
+    hasBoundChildren: boolean
+  }>
   fetchUserInfo: () => Promise<void>
+  selectRole: (roleType: string) => Promise<void>
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -67,6 +76,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   currentChildIndex: 0,
   isLoggedIn: false,
   isLoading: false,
+  needRoleSelection: false,
 
   setLoginInfo: (info) => {
     const currentRole = info.roles.length > 0 ? info.roles[0] : null
@@ -78,7 +88,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
       roles: info.roles,
       currentRole,
       currentRoleIndex: 0,
+      children: info.children,
+      currentChildIndex: 0,
       isLoggedIn: true,
+      isLoading: false,
+      needRoleSelection: false,
     })
   },
 
@@ -100,6 +114,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({ children })
   },
 
+  setNeedRoleSelection: (need) => {
+    set({ needRoleSelection: need })
+  },
+
   logout: () => {
     set({
       userId: null,
@@ -112,36 +130,107 @@ export const useAppStore = create<AppStore>((set, get) => ({
       children: [],
       currentChildIndex: 0,
       isLoggedIn: false,
+      isLoading: false,
+      needRoleSelection: false,
     })
   },
 
-  fetchUserInfo: async () => {
+  wxLogin: async (code, mockRole) => {
     set({ isLoading: true })
     try {
-      const res = await Network.request({
-        url: '/api/auth/user-info',
-        method: 'GET',
-      })
-      console.log('[Auth] fetchUserInfo response:', res.data)
+      const url = mockRole
+        ? `/api/auth/wx-login?code=${code}&mock_role=${mockRole}`
+        : `/api/auth/wx-login?code=${code}`
+
+      const res = await Network.request({ url, method: 'GET' })
+      console.log('[Auth] wxLogin response:', res.data)
+
       const data = res.data?.data
       if (data) {
         const roles = (data.roles || []) as UserRole[]
-        const currentRole = roles.length > 0 ? roles[0] : null
+        const children = (data.children || []) as ChildInfo[]
+
         set({
           userId: data.user?.id || null,
           nickname: data.user?.nickname || '',
           avatarUrl: data.user?.avatar_url || null,
           phone: data.user?.phone || null,
           roles,
+          children,
+          currentChildIndex: 0,
+          isLoading: false,
+        })
+
+        return {
+          needRoleSelection: data.need_role_selection || false,
+          targetRole: data.target_role || null,
+          hasBoundChildren: data.has_bound_children || false,
+        }
+      }
+      set({ isLoading: false })
+      return { needRoleSelection: false, targetRole: null, hasBoundChildren: false }
+    } catch (err) {
+      console.error('[Auth] wxLogin error:', err)
+      set({ isLoading: false })
+      return { needRoleSelection: false, targetRole: null, hasBoundChildren: false }
+    }
+  },
+
+  fetchUserInfo: async () => {
+    const { userId } = get()
+    if (!userId) return
+
+    set({ isLoading: true })
+    try {
+      const res = await Network.request({
+        url: `/api/auth/user-info?user_id=${userId}`,
+        method: 'GET',
+      })
+      console.log('[Auth] fetchUserInfo response:', res.data)
+
+      const data = res.data?.data
+      if (data) {
+        const roles = (data.roles || []) as UserRole[]
+        const children = (data.children || []) as ChildInfo[]
+        const currentRole = roles.length > 0 ? roles[0] : null
+
+        set({
+          roles,
           currentRole,
           currentRoleIndex: 0,
-          isLoggedIn: true,
+          children,
+          currentChildIndex: 0,
           isLoading: false,
         })
       }
     } catch (err) {
       console.error('[Auth] fetchUserInfo error:', err)
       set({ isLoading: false })
+    }
+  },
+
+  selectRole: async (roleType) => {
+    const { userId, roles } = get()
+    if (!userId) return
+
+    try {
+      const res = await Network.request({
+        url: '/api/auth/select-role',
+        method: 'POST',
+        data: { user_id: userId, role_type: roleType },
+      })
+      console.log('[Auth] selectRole response:', res.data)
+
+      const index = roles.findIndex(r => r.role_type === roleType)
+      if (index >= 0) {
+        set({
+          currentRole: roles[index],
+          currentRoleIndex: index,
+          needRoleSelection: false,
+        })
+      }
+    } catch (err) {
+      console.error('[Auth] selectRole error:', err)
     }
   },
 }))

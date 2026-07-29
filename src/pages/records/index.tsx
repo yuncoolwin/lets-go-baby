@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { BookOpen, Plus } from 'lucide-react-taro'
+import { BookOpen, Plus, X } from 'lucide-react-taro'
 
 interface FeedbackItem {
   id: string
@@ -20,13 +20,31 @@ interface FeedbackItem {
   teacher_name: string
 }
 
+interface Student {
+  id: string
+  child_name: string
+  avatar_url: string | null
+}
+
 export default function RecordsPage() {
   const { currentRole } = useAppStore()
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [students, setStudents] = useState<Student[]>([])
+  const [selectedChildId, setSelectedChildId] = useState('')
+  const [mealStatus, setMealStatus] = useState('good')
+  const [sleepStatus, setSleepStatus] = useState('good')
+  const [moodStatus, setMoodStatus] = useState('happy')
+  const [activities, setActivities] = useState('')
+  const [notes, setNotes] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     loadFeedbacks()
+    if (currentRole?.role_type === 'teacher') {
+      loadStudents()
+    }
   }, [currentRole])
 
   const loadFeedbacks = async () => {
@@ -44,6 +62,53 @@ export default function RecordsPage() {
       console.error('[Records] error:', err)
     }
     setLoading(false)
+  }
+
+  const loadStudents = async () => {
+    try {
+      const res = await Network.request({
+        url: '/api/teacher/class-students',
+        method: 'GET',
+        data: { class_id: 'demo-class-1' }
+      })
+      console.log('[Records] students:', res.data)
+      if (res.data?.data) {
+        setStudents(res.data.data)
+      }
+    } catch (err) {
+      console.error('[Records] load students error:', err)
+    }
+  }
+
+  const handleSubmitFeedback = async () => {
+    if (!selectedChildId) return
+    setSubmitting(true)
+    try {
+      const res = await Network.request({
+        url: '/api/teacher/feedback',
+        method: 'POST',
+        data: {
+          child_id: selectedChildId,
+          teacher_role_id: currentRole?.id,
+          meal_status: mealStatus,
+          sleep_status: sleepStatus,
+          mood_status: moodStatus,
+          activities: activities || null,
+          notes: notes || null,
+        }
+      })
+      console.log('[Records] submit feedback:', res.data)
+      if (res.data?.code === 200) {
+        setShowAddModal(false)
+        setSelectedChildId('')
+        setActivities('')
+        setNotes('')
+        loadFeedbacks()
+      }
+    } catch (err) {
+      console.error('[Records] submit error:', err)
+    }
+    setSubmitting(false)
   }
 
   const getStatusLabel = (status: string | null) => {
@@ -78,15 +143,13 @@ export default function RecordsPage() {
   // 教师端：可以查看和新增记录
   if (currentRole?.role_type === 'teacher') {
     return (
-      <View className="min-h-screen bg-background p-4">
+      <View className="min-h-screen bg-background p-4 pb-20">
         <View className="flex items-center justify-between mb-4">
           <Text className="block text-lg font-bold text-foreground">日常记录</Text>
           <Button
             size="sm"
             className="bg-primary text-primary-foreground rounded-lg"
-            onClick={() => {
-              // TODO: 打开新增记录弹窗
-            }}
+            onClick={() => setShowAddModal(true)}
           >
             <Plus size={14} className="mr-1" color="#fff" />
             <Text className="text-xs text-primary-foreground">新增</Text>
@@ -103,30 +166,32 @@ export default function RecordsPage() {
             {feedbacks.map((item) => (
               <Card key={item.id} className="bg-white rounded-xl border-0 shadow-sm">
                 <CardContent className="p-4">
-                  <View className="flex items-center justify-between mb-2">
+                  <View className="flex items-center justify-between mb-3">
                     <Text className="block text-base font-semibold text-foreground">
                       {item.child_name}
                     </Text>
-                    <Text className="text-xs text-muted-foreground">{item.feedback_date}</Text>
+                    <Text className="block text-xs text-muted-foreground">
+                      {item.feedback_date}
+                    </Text>
                   </View>
-                  <View className="flex gap-2 mb-2">
-                    <Badge className={`${getStatusBadge(item.meal_status)} text-xs`}>
-                      <Text className="text-xs">饮食: {getStatusLabel(item.meal_status)}</Text>
+                  <View className="flex flex-wrap gap-2 mb-3">
+                    <Badge className={`rounded-full text-xs ${getStatusBadge(item.meal_status)}`}>
+                      餐食: {getStatusLabel(item.meal_status)}
                     </Badge>
-                    <Badge className={`${getStatusBadge(item.sleep_status)} text-xs`}>
-                      <Text className="text-xs">睡眠: {getStatusLabel(item.sleep_status)}</Text>
+                    <Badge className={`rounded-full text-xs ${getStatusBadge(item.sleep_status)}`}>
+                      午睡: {getStatusLabel(item.sleep_status)}
                     </Badge>
-                    <Badge className={`${getStatusBadge(item.mood_status)} text-xs`}>
-                      <Text className="text-xs">情绪: {getStatusLabel(item.mood_status)}</Text>
+                    <Badge className={`rounded-full text-xs ${getStatusBadge(item.mood_status)}`}>
+                      情绪: {getStatusLabel(item.mood_status)}
                     </Badge>
                   </View>
                   {item.activities && (
-                    <Text className="block text-sm text-foreground mt-2">
+                    <Text className="block text-sm text-foreground mb-1">
                       活动: {item.activities}
                     </Text>
                   )}
                   {item.notes && (
-                    <Text className="block text-xs text-muted-foreground mt-1">
+                    <Text className="block text-sm text-muted-foreground">
                       备注: {item.notes}
                     </Text>
                   )}
@@ -135,19 +200,119 @@ export default function RecordsPage() {
             ))}
           </View>
         )}
+
+        {/* 新增记录弹窗 */}
+        {showAddModal && (
+          <View
+            style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000,
+              display: 'flex', alignItems: 'flex-end'
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: '#fff', width: '100%', borderRadius: '16px 16px 0 0',
+                padding: '20px', maxHeight: '80vh', overflowY: 'auto'
+              }}
+            >
+              <View className="flex items-center justify-between mb-4">
+                <Text className="block text-lg font-bold">新增日常记录</Text>
+                <Button variant="ghost" size="sm" onClick={() => setShowAddModal(false)}>
+                  <X size={20} color="#999" />
+                </Button>
+              </View>
+
+              {/* 选择幼儿 */}
+              <Text className="block text-sm font-medium mb-2">选择幼儿</Text>
+              <View className="flex flex-wrap gap-2 mb-4">
+                {students.map((s) => (
+                  <Button
+                    key={s.id}
+                    variant={selectedChildId === s.id ? 'default' : 'outline'}
+                    size="sm"
+                    className={`rounded-full ${selectedChildId === s.id ? 'bg-primary' : ''}`}
+                    onClick={() => setSelectedChildId(s.id)}
+                  >
+                    <Text>{s.child_name}</Text>
+                  </Button>
+                ))}
+              </View>
+
+              {/* 餐食 */}
+              <Text className="block text-sm font-medium mb-2">餐食</Text>
+              <View className="flex gap-2 mb-4">
+                {[['good', '好'], ['normal', '一般'], ['poor', '差']].map(([val, label]) => (
+                  <Button
+                    key={val}
+                    variant={mealStatus === val ? 'default' : 'outline'}
+                    size="sm"
+                    className={`flex-1 rounded-lg ${mealStatus === val ? 'bg-primary' : ''}`}
+                    onClick={() => setMealStatus(val)}
+                  >
+                    <Text>{label}</Text>
+                  </Button>
+                ))}
+              </View>
+
+              {/* 午睡 */}
+              <Text className="block text-sm font-medium mb-2">午睡</Text>
+              <View className="flex gap-2 mb-4">
+                {[['good', '好'], ['normal', '一般'], ['poor', '差']].map(([val, label]) => (
+                  <Button
+                    key={val}
+                    variant={sleepStatus === val ? 'default' : 'outline'}
+                    size="sm"
+                    className={`flex-1 rounded-lg ${sleepStatus === val ? 'bg-primary' : ''}`}
+                    onClick={() => setSleepStatus(val)}
+                  >
+                    <Text>{label}</Text>
+                  </Button>
+                ))}
+              </View>
+
+              {/* 情绪 */}
+              <Text className="block text-sm font-medium mb-2">情绪</Text>
+              <View className="flex gap-2 mb-4">
+                {[['happy', '开心'], ['normal', '一般'], ['upset', '低落']].map(([val, label]) => (
+                  <Button
+                    key={val}
+                    variant={moodStatus === val ? 'default' : 'outline'}
+                    size="sm"
+                    className={`flex-1 rounded-lg ${moodStatus === val ? 'bg-primary' : ''}`}
+                    onClick={() => setMoodStatus(val)}
+                  >
+                    <Text>{label}</Text>
+                  </Button>
+                ))}
+              </View>
+
+              {/* 提交 */}
+              <Button
+                className="w-full bg-primary text-primary-foreground rounded-xl h-11 mt-4"
+                disabled={!selectedChildId || submitting}
+                onClick={handleSubmitFeedback}
+              >
+                <Text className="text-base font-medium text-primary-foreground">
+                  {submitting ? '提交中...' : '提交记录'}
+                </Text>
+              </Button>
+            </View>
+          </View>
+        )}
       </View>
     )
   }
 
-  // 家长端：查看每日反馈
+  // 家长端：查看反馈
   return (
-    <View className="min-h-screen bg-background p-4">
+    <View className="min-h-screen bg-background p-4 pb-20">
       <Text className="block text-lg font-bold text-foreground mb-4">每日反馈</Text>
 
       {feedbacks.length === 0 ? (
         <View className="flex flex-col items-center py-16">
           <BookOpen size={48} color="#999999" />
-          <Text className="block text-sm text-muted-foreground mt-3">暂无反馈记录</Text>
+          <Text className="block text-sm text-muted-foreground mt-3">暂无反馈</Text>
         </View>
       ) : (
         <View className="space-y-3">
@@ -155,40 +320,33 @@ export default function RecordsPage() {
             <Card key={item.id} className="bg-white rounded-xl border-0 shadow-sm">
               <CardContent className="p-4">
                 <View className="flex items-center justify-between mb-3">
-                  <Text className="text-xs text-muted-foreground">{item.feedback_date}</Text>
-                  <Text className="text-xs text-muted-foreground">{item.teacher_name}</Text>
+                  <Text className="block text-base font-semibold text-foreground">
+                    {item.child_name}
+                  </Text>
+                  <Text className="block text-xs text-muted-foreground">
+                    {item.feedback_date}
+                  </Text>
                 </View>
-                <View className="space-y-2">
-                  <View className="flex items-center justify-between">
-                    <Text className="text-sm text-foreground">饮食</Text>
-                    <Badge className={`${getStatusBadge(item.meal_status)} text-xs`}>
-                      <Text className="text-xs">{getStatusLabel(item.meal_status)}</Text>
-                    </Badge>
-                  </View>
-                  <View className="flex items-center justify-between">
-                    <Text className="text-sm text-foreground">睡眠</Text>
-                    <Badge className={`${getStatusBadge(item.sleep_status)} text-xs`}>
-                      <Text className="text-xs">{getStatusLabel(item.sleep_status)}</Text>
-                    </Badge>
-                  </View>
-                  <View className="flex items-center justify-between">
-                    <Text className="text-sm text-foreground">情绪</Text>
-                    <Badge className={`${getStatusBadge(item.mood_status)} text-xs`}>
-                      <Text className="text-xs">{getStatusLabel(item.mood_status)}</Text>
-                    </Badge>
-                  </View>
+                <View className="flex flex-wrap gap-2 mb-3">
+                  <Badge className={`rounded-full text-xs ${getStatusBadge(item.meal_status)}`}>
+                    餐食: {getStatusLabel(item.meal_status)}
+                  </Badge>
+                  <Badge className={`rounded-full text-xs ${getStatusBadge(item.sleep_status)}`}>
+                    午睡: {getStatusLabel(item.sleep_status)}
+                  </Badge>
+                  <Badge className={`rounded-full text-xs ${getStatusBadge(item.mood_status)}`}>
+                    情绪: {getStatusLabel(item.mood_status)}
+                  </Badge>
                 </View>
                 {item.activities && (
-                  <View className="mt-3 pt-3 border-t border-border">
-                    <Text className="block text-xs text-muted-foreground mb-1">今日活动</Text>
-                    <Text className="block text-sm text-foreground">{item.activities}</Text>
-                  </View>
+                  <Text className="block text-sm text-foreground mb-1">
+                    活动: {item.activities}
+                  </Text>
                 )}
                 {item.notes && (
-                  <View className="mt-2">
-                    <Text className="block text-xs text-muted-foreground mb-1">老师备注</Text>
-                    <Text className="block text-sm text-foreground">{item.notes}</Text>
-                  </View>
+                  <Text className="block text-sm text-muted-foreground">
+                    备注: {item.notes}
+                  </Text>
                 )}
               </CardContent>
             </Card>

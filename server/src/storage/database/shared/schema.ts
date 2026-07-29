@@ -42,6 +42,16 @@ export const user_roles = pgTable(
   ]
 );
 
+// ========== 家庭表 ==========
+export const families = pgTable(
+  "families",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+    name: varchar("name", { length: 64 }).notNull(),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  }
+);
+
 // ========== 幼儿表 ==========
 export const children = pgTable(
   "children",
@@ -51,27 +61,35 @@ export const children = pgTable(
     gender: varchar("gender", { length: 10 }).notNull().default("unknown"), // 'male', 'female', 'unknown'
     birth_date: date("birth_date"),
     avatar_url: varchar("avatar_url", { length: 512 }),
+    family_id: varchar("family_id", { length: 36 }).references(() => families.id),
     notes: text("notes"),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("children_name_idx").on(table.name),
+    index("children_family_id_idx").on(table.family_id),
   ]
 );
 
-// ========== 家长-幼儿关系表 ==========
+// ========== 家长-幼儿关系表（绑定层） ==========
 export const parent_child_relations = pgTable(
   "parent_child_relations",
   {
     id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+    user_id: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
     parent_role_id: varchar("parent_role_id", { length: 36 }).notNull().references(() => user_roles.id),
     child_id: varchar("child_id", { length: 36 }).notNull().references(() => children.id),
-    relationship: varchar("relationship", { length: 20 }).notNull(), // 'father', 'mother', 'guardian'
+    relationship: varchar("relationship", { length: 20 }).notNull(), // 'father', 'mother', 'grandfather', 'grandmother', 'other'
+    custom_relationship: varchar("custom_relationship", { length: 32 }),
     is_primary: boolean("is_primary").default(false).notNull(),
     status: varchar("status", { length: 20 }).notNull().default("pending"), // 'pending', 'approved', 'rejected'
+    reject_reason: text("reject_reason"),
+    approved_by: varchar("approved_by", { length: 36 }),
+    approved_at: timestamp("approved_at", { withTimezone: true }),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
+    index("pcr_user_id_idx").on(table.user_id),
     index("pcr_parent_role_id_idx").on(table.parent_role_id),
     index("pcr_child_id_idx").on(table.child_id),
     index("pcr_status_idx").on(table.status),
