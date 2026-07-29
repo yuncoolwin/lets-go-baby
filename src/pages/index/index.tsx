@@ -485,7 +485,7 @@ export default function IndexPage() {
 
           <Card
             className="bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => Taro.navigateTo({ url: '/pages/binding/index' })}
+            onClick={() => Taro.navigateTo({ url: '/pages/admin/children/index' })}
           >
             <CardContent className="p-4 flex flex-col items-center">
               <View className="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center mb-2">
@@ -497,7 +497,7 @@ export default function IndexPage() {
 
           <Card
             className="bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => Taro.navigateTo({ url: '/pages/teacher-manage/index' })}
+            onClick={() => Taro.navigateTo({ url: '/pages/admin/teacher-manage/index' })}
           >
             <CardContent className="p-4 flex flex-col items-center">
               <View className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center mb-2">
@@ -509,13 +509,13 @@ export default function IndexPage() {
 
           <Card
             className="bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => Taro.switchTab({ url: '/pages/messages/index' })}
+            onClick={() => Taro.navigateTo({ url: '/pages/admin/notification-manage/index' })}
           >
             <CardContent className="p-4 flex flex-col items-center">
               <View className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center mb-2">
                 <BookOpen size={24} color="#8B5CF6" />
               </View>
-              <Text className="text-sm text-foreground">发布通知</Text>
+              <Text className="text-sm text-foreground">通知管理</Text>
             </CardContent>
           </Card>
         </View>

@@ -16,6 +16,10 @@ export default typeof defineAppConfig === 'function'
       'pages/teacher-manage/index',
       'pages/admin/class-manage/index',
       'pages/admin/class-edit/index',
+      'pages/admin/children/index',
+      'pages/admin/teacher-manage/index',
+      'pages/admin/notification-manage/index',
+      'pages/admin/notification-edit/index',
     ],
     tabBar: {
       color: '#999999',
@@ -73,6 +77,10 @@ export default typeof defineAppConfig === 'function'
       'pages/teacher-manage/index',
       'pages/admin/class-manage/index',
       'pages/admin/class-edit/index',
+      'pages/admin/children/index',
+      'pages/admin/teacher-manage/index',
+      'pages/admin/notification-manage/index',
+      'pages/admin/notification-edit/index',
     ],
     tabBar: {
       color: '#999999',
