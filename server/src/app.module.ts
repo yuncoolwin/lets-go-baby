@@ -11,8 +11,8 @@ import { AdminController } from '@/admin/admin.controller';
 import { AdminService } from '@/admin/admin.service';
 import { NotificationController } from '@/notification/notification.controller';
 import { NotificationService } from '@/notification/notification.service';
-import { ClassController } from '@/class/class.controller';
-import { ClassService } from '@/class/class.service';
+import { ClassesController } from '@/classes/classes.controller';
+import { ClassesService } from '@/classes/classes.service';
 
 @Module({
   imports: [],
@@ -23,7 +23,7 @@ import { ClassService } from '@/class/class.service';
     TeacherController,
     AdminController,
     NotificationController,
-    ClassController,
+    ClassesController,
   ],
   providers: [
     AppService,
@@ -32,7 +32,7 @@ import { ClassService } from '@/class/class.service';
     TeacherService,
     AdminService,
     NotificationService,
-    ClassService,
+    ClassesService,
   ],
 })
 export class AppModule {}
