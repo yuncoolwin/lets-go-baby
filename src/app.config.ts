@@ -13,7 +13,9 @@ export default typeof defineAppConfig === 'function'
       'pages/class-detail/index',
       'pages/binding/index',
       'pages/review/index',
-    'pages/teacher-manage/index',
+      'pages/teacher-manage/index',
+      'pages/admin/class-manage/index',
+      'pages/admin/class-edit/index',
     ],
     tabBar: {
       color: '#999999',
@@ -68,6 +70,9 @@ export default typeof defineAppConfig === 'function'
       'pages/class-detail/index',
       'pages/binding/index',
       'pages/review/index',
+      'pages/teacher-manage/index',
+      'pages/admin/class-manage/index',
+      'pages/admin/class-edit/index',
     ],
     tabBar: {
       color: '#999999',

@@ -473,7 +473,7 @@ export default function IndexPage() {
 
           <Card
             className="bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => Taro.navigateTo({ url: '/pages/class-detail/index' })}
+            onClick={() => Taro.navigateTo({ url: '/pages/admin/class-manage/index' })}
           >
             <CardContent className="p-4 flex flex-col items-center">
               <View className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center mb-2">
