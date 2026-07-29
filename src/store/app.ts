@@ -141,19 +141,20 @@ export const useAppStore = create<AppStore>()(
 
   wxLogin: async (code, mockRole) => {
     set({ isLoading: true })
-    try {
-      const url = mockRole
-        ? `/api/auth/wx-login?code=${code}&mock_role=${mockRole}`
-        : `/api/auth/wx-login?code=${code}`
+    const url = mockRole
+      ? `/api/auth/wx-login?code=${code}&mock_role=${mockRole}`
+      : `/api/auth/wx-login?code=${code}`
+    console.log('[Auth] wxLogin request:', { url, code, mockRole })
 
+    try {
       const res = await Network.request({ url, method: 'GET' })
-      console.log('[Auth] wxLogin response:', res.data)
+      console.log('[Auth] wxLogin response:', { statusCode: res.statusCode, data: res.data })
 
       // 检查 HTTP 状态码
       if (res.statusCode !== 200) {
         console.error('[Auth] wxLogin bad status:', res.statusCode)
         set({ isLoading: false })
-        Taro.showToast({ title: '登录失败，请重试', icon: 'none' })
+        Taro.showToast({ title: `登录失败(${res.statusCode})`, icon: 'none' })
         return { needRoleSelection: false, targetRole: null, hasBoundChildren: false, error: true }
       }
 
@@ -179,6 +180,8 @@ export const useAppStore = create<AppStore>()(
           needRoleSelection: data.need_role_selection || false,
         })
 
+        console.log('[Auth] wxLogin success:', { userId: data.user?.id, roles: roles.length, children: children.length })
+
         return {
           needRoleSelection: data.need_role_selection || false,
           targetRole: data.target_role || null,
@@ -186,13 +189,15 @@ export const useAppStore = create<AppStore>()(
         }
       }
       // data 为空，返回 error 标记
+      console.error('[Auth] wxLogin empty data:', res.data)
       set({ isLoading: false })
       Taro.showToast({ title: '登录数据异常', icon: 'none' })
       return { needRoleSelection: false, targetRole: null, hasBoundChildren: false, error: true }
     } catch (err) {
       console.error('[Auth] wxLogin error:', err)
       set({ isLoading: false })
-      Taro.showToast({ title: '网络错误，请重试', icon: 'none' })
+      const errMsg = err instanceof Error ? err.message : '网络错误'
+      Taro.showToast({ title: `网络错误: ${errMsg}`, icon: 'none' })
       return { needRoleSelection: false, targetRole: null, hasBoundChildren: false, error: true }
     }
   },

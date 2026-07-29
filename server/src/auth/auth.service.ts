@@ -12,9 +12,12 @@ export class AuthService {
    * 流程：微信授权 → 查users表 → 已注册则查角色 → 未注册则创建user+parent角色
    */
   async wxLogin(code: string, mockRole?: string) {
+    console.log('[AuthService] wxLogin called:', { code: code?.substring(0, 10) + '...', mockRole });
+
     // 在真实环境中，这里会调用微信API获取openid
     // Mock模式：使用code作为openid
     const openid = `mock_openid_${code}`;
+    console.log('[AuthService] Generated openid:', openid);
 
     // 1. 查找已有用户
     const { data: existingUser } = await this.client
@@ -23,6 +26,8 @@ export class AuthService {
       .eq('openid', openid)
       .maybeSingle();
 
+    console.log('[AuthService] Existing user:', existingUser ? `id=${existingUser.id}` : 'not found');
+
     let userId: string;
     let user: { id: string; openid: string; nickname: string; avatar_url: string | null; phone: string | null };
 
@@ -30,8 +35,10 @@ export class AuthService {
       // 已注册，直接使用
       userId = existingUser.id;
       user = existingUser;
+      console.log('[AuthService] Using existing user:', userId);
     } else {
       // 未注册，创建新用户
+      console.log('[AuthService] Creating new user with openid:', openid);
       const { data: newUser, error } = await this.client
         .from('users')
         .insert({
@@ -41,9 +48,13 @@ export class AuthService {
         .select('id, openid, nickname, avatar_url, phone')
         .single();
 
-      if (error) throw new Error(`创建用户失败: ${error.message}`);
+      if (error) {
+        console.error('[AuthService] Create user error:', error);
+        throw new Error(`创建用户失败: ${error.message}`);
+      }
       userId = newUser.id;
       user = newUser;
+      console.log('[AuthService] Created new user:', userId);
 
       // 自动创建parent角色
       await this.client.from('user_roles').insert({

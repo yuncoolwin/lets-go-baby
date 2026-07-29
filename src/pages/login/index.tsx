@@ -12,12 +12,15 @@ export default function LoginPage() {
   const [loginMode, setLoginMode] = useState<'normal' | 'mock'>('normal')
 
   const handleWxLogin = async () => {
+    console.log('[Login] handleWxLogin called, env:', Taro.getEnv())
     // 在真实小程序环境中调用微信登录
     if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
       Taro.login({
         success: async (res) => {
+          console.log('[Login] wx.login success, code:', res.code)
           try {
             const result = await wxLogin(res.code)
+            console.log('[Login] wxLogin result:', result)
             handleLoginResult(result)
           } catch (err) {
             console.error('[Login] wxLogin error:', err)
@@ -26,11 +29,13 @@ export default function LoginPage() {
         },
         fail: (err) => {
           console.error('[Login] wx.login failed:', err)
-          Taro.showToast({ title: '登录失败', icon: 'none' })
+          const errMsg = err?.errMsg || '未知错误'
+          Taro.showToast({ title: `微信登录失败: ${errMsg}`, icon: 'none' })
         },
       })
     } else {
       // H5 环境：使用 mock 登录
+      console.log('[Login] H5 env, using mock login')
       try {
         const result = await wxLogin('h5_demo')
         handleLoginResult(result)
