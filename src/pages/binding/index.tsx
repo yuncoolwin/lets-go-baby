@@ -23,31 +23,49 @@ export default function BindingPage() {
   const [step, setStep] = useState<'search' | 'form'>('search')
   const [searchName, setSearchName] = useState('')
   const [childName, setChildName] = useState('')
+  const [selectedChildId, setSelectedChildId] = useState<string | null>(null)
   const [relationship, setRelationship] = useState('father')
   const [customRelationship, setCustomRelationship] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [searchResult, setSearchResult] = useState<Array<{ id: string; name: string; gender: string }> | null>(null)
 
   const handleSearch = async () => {
-    if (!searchName.trim()) {
+    const keyword = searchName.trim()
+    if (!keyword || keyword.length < 1) {
       Taro.showToast({ title: '请输入幼儿姓名', icon: 'none' })
       return
     }
 
-    // Mock 搜索已有档案
-    // 在实际应用中，应该调用后端接口搜索
-    setSearchResult([
-      { id: 'child_1', name: searchName, gender: 'male' },
-    ])
+    try {
+      const res = await Network.request({
+        url: '/api/parent/search-children',
+        method: 'GET',
+        data: { keyword },
+      })
+
+      console.log('[Binding] search result:', res.data)
+
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+        setSearchResult(res.data)
+      } else {
+        setSearchResult([])
+        Taro.showToast({ title: '未找到匹配的幼儿', icon: 'none' })
+      }
+    } catch (error) {
+      console.error('[Binding] search error:', error)
+      Taro.showToast({ title: '搜索失败，请重试', icon: 'none' })
+    }
   }
 
   const handleSelectChild = (child: { id: string; name: string }) => {
     setChildName(child.name)
+    setSelectedChildId(child.id)
     setStep('form')
   }
 
   const handleCreateNew = () => {
     setChildName(searchName)
+    setSelectedChildId(null)
     setStep('form')
   }
 
@@ -73,6 +91,7 @@ export default function BindingPage() {
         data: {
           user_id: userId,
           parent_role_id: currentRole.id,
+          child_id: selectedChildId,
           child_name: childName.trim(),
           relationship: relationship === 'other' ? 'other' : relationship,
           custom_relationship: relationship === 'other' ? customRelationship.trim() : null,

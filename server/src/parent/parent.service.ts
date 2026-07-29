@@ -157,17 +157,68 @@ export class ParentService {
     ];
   }
 
+  async searchChildren(keyword: string) {
+    if (!keyword || keyword.trim().length < 1) {
+      return [];
+    }
+    // 从 children 表中模糊搜索幼儿姓名
+    const { data, error } = await this.client
+      .from('children')
+      .select('id, name, gender, birth_date')
+      .ilike('name', `%${keyword.trim()}%`)
+      .limit(20);
+
+    if (error) throw new Error(`搜索失败: ${error.message}`);
+    return data || [];
+  }
+
   async submitBindingRequest(data: {
+    user_id?: string;
     parent_role_id: string;
     child_name: string;
+    child_id?: string;
     relationship: string;
+    custom_relationship?: string;
   }) {
+    // 如果传了 child_id，直接使用；否则先在 children 表中查找或创建
+    let childId = data.child_id;
+
+    if (!childId) {
+      // 先查找是否已存在同名幼儿
+      const { data: existingChildren } = await this.client
+        .from('children')
+        .select('id')
+        .eq('name', data.child_name)
+        .limit(1);
+
+      if (existingChildren && existingChildren.length > 0) {
+        childId = existingChildren[0].id;
+      } else {
+        // 创建新的幼儿档案
+        const { data: newChild, error: childError } = await this.client
+          .from('children')
+          .insert({
+            name: data.child_name,
+            gender: 'unknown',
+          })
+          .select('id')
+          .single();
+
+        if (childError) throw new Error(`创建幼儿档案失败: ${childError.message}`);
+        childId = newChild.id;
+      }
+    }
+
+    // 插入绑定请求，确保 child_id 有值
     const { data: result, error } = await this.client
       .from('binding_requests')
       .insert({
         parent_role_id: data.parent_role_id,
+        child_id: childId,
         child_name: data.child_name,
         relationship: data.relationship,
+        custom_relationship: data.custom_relationship || null,
+        status: 'pending',
       })
       .select()
       .single();
