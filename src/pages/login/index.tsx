@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAppStore } from '@/store/app'
 import { Baby, Shield, GraduationCap } from 'lucide-react-taro'
+import logoUrl from '@/assets/logo.png'
 
 export default function LoginPage() {
   const { wxLogin, isLoading } = useAppStore()
@@ -56,9 +57,11 @@ export default function LoginPage() {
     <View className="min-h-screen bg-gradient-to-b from-orange-50 to-white flex flex-col items-center justify-center px-6">
       {/* Logo 区域 */}
       <View className="mb-12 flex flex-col items-center">
-        <View className="w-24 h-24 rounded-3xl bg-primary flex items-center justify-center mb-4">
-          <Baby size={48} color="#ffffff" />
-        </View>
+        <Image
+          src={logoUrl}
+          className="w-32 h-32 rounded-3xl mb-4"
+          mode="aspectFit"
+        />
         <Text className="block text-2xl font-bold text-gray-800">力高稚家</Text>
         <Text className="block text-sm text-gray-500 mt-2">托育管理系统</Text>
       </View>
