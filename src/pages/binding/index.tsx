@@ -107,6 +107,8 @@ export default function BindingPage() {
       }
 
       Taro.showToast({ title: '申请已提交，等待审核', icon: 'success' })
+      // 立即禁用按钮，防止重复提交
+      setSubmitting(true)
       setTimeout(() => {
         // 检查页面栈是否有可返回的页面
         const pages = Taro.getCurrentPages()
@@ -120,8 +122,8 @@ export default function BindingPage() {
     } catch (err) {
       console.error('[Binding] error:', err)
       Taro.showToast({ title: '提交失败', icon: 'none' })
+      setSubmitting(false)
     }
-    setSubmitting(false)
   }
 
   return (

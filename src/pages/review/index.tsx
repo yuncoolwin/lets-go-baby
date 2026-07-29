@@ -26,8 +26,8 @@ export default function ReviewPage() {
   const [approvingId, setApprovingId] = useState<string | null>(null)
   const [rejectingId, setRejectingId] = useState<string | null>(null)
 
-  const loadRequests = useCallback(async () => {
-    setLoading(true)
+  const loadRequests = useCallback(async (showSkeleton = true) => {
+    if (showSkeleton) setLoading(true)
     try {
       const res = await Network.request({
         url: '/api/admin/binding-requests',
@@ -41,7 +41,7 @@ export default function ReviewPage() {
       console.error('[Review] error:', err)
       Taro.showToast({ title: '加载失败', icon: 'error' })
     }
-    setLoading(false)
+    if (showSkeleton) setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -60,8 +60,8 @@ export default function ReviewPage() {
       // 检查响应是否成功
       if (res.data?.code === 200) {
         Taro.showToast({ title: '已通过', icon: 'success' })
-        // 刷新列表确保数据一致性
-        await loadRequests()
+        // 静默刷新列表，不显示骨架屏
+        await loadRequests(false)
       } else {
         Taro.showToast({ title: res.data?.msg || '操作失败', icon: 'none' })
       }
@@ -85,8 +85,8 @@ export default function ReviewPage() {
       // 检查响应是否成功
       if (res.data?.code === 200) {
         Taro.showToast({ title: '已拒绝', icon: 'success' })
-        // 刷新列表确保数据一致性
-        await loadRequests()
+        // 静默刷新列表，不显示骨架屏
+        await loadRequests(false)
       } else {
         Taro.showToast({ title: res.data?.msg || '操作失败', icon: 'none' })
       }

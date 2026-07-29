@@ -69,6 +69,9 @@ export default function LoginPage() {
     } else if (result.targetRole) {
       // 有目标角色，正常进入首页
       Taro.switchTab({ url: '/pages/index/index' })
+    } else {
+      // targetRole 为 null 且没有 error，兜底进首页
+      Taro.switchTab({ url: '/pages/index/index' })
     }
   }
 
