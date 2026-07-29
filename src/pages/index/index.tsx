@@ -447,21 +447,6 @@ export default function IndexPage() {
           </Text>
         </View>
 
-        {/* 待审核统计 */}
-        <Card className="bg-white rounded-xl border-0 shadow-sm mb-4">
-          <CardContent className="p-4">
-            <View className="flex items-center justify-between">
-              <View>
-                <Text className="block text-base font-semibold text-foreground">待处理审核</Text>
-                <Text className="block text-sm text-muted-foreground mt-1">家长绑定申请</Text>
-              </View>
-              <View className="w-12 h-12 rounded-full bg-yellow-50 flex items-center justify-center">
-                <Text className="text-xl font-bold text-yellow-600">{pendingCount}</Text>
-              </View>
-            </View>
-          </CardContent>
-        </Card>
-
         {/* 管理入口 */}
         <View className="grid grid-cols-2 gap-3">
           <Card
@@ -473,6 +458,11 @@ export default function IndexPage() {
                 <ShieldCheck size={24} color="#F59E0B" />
               </View>
               <Text className="text-sm text-foreground">绑定审核</Text>
+              {pendingCount > 0 && (
+                <View className="absolute top-2 right-2 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
+                  <Text className="text-xs text-white">{pendingCount}</Text>
+                </View>
+              )}
             </CardContent>
           </Card>
 

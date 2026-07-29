@@ -19,6 +19,13 @@ export class AdminController {
     return { code: 200, msg: 'success', data };
   }
 
+  @Get('binding-requests/pending')
+  @HttpCode(200)
+  async getPendingBindingRequests() {
+    const data = await this.adminService.getPendingBindingRequests();
+    return { code: 200, msg: 'success', data };
+  }
+
   @Post('binding-requests/approve')
   @HttpCode(200)
   async approveBindingRequest(@Body() body: { request_id: string }) {
@@ -28,8 +35,8 @@ export class AdminController {
 
   @Post('binding-requests/reject')
   @HttpCode(200)
-  async rejectBindingRequest(@Body() body: { request_id: string }) {
-    const data = await this.adminService.rejectBindingRequest(body.request_id);
+  async rejectBindingRequest(@Body() body: { request_id: string; reason?: string }) {
+    const data = await this.adminService.rejectBindingRequest(body.request_id, body.reason);
     return { code: 200, msg: 'success', data };
   }
 }
