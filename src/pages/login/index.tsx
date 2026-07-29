@@ -59,11 +59,9 @@ export default function LoginPage() {
       <View className="mb-12 flex flex-col items-center">
         <Image
           src={logoUrl}
-          className="w-32 h-32 rounded-3xl mb-4"
+          className="w-40 h-40 rounded-3xl"
           mode="aspectFit"
         />
-        <Text className="block text-2xl font-bold text-gray-800">力高稚家</Text>
-        <Text className="block text-sm text-gray-500 mt-2">托育管理系统</Text>
       </View>
 
       {/* 登录按钮 */}
