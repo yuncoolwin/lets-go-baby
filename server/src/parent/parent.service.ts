@@ -209,6 +209,24 @@ export class ParentService {
       }
     }
 
+    // 防重复检查：查询是否已存在相同 parent_role_id + child_id 的记录
+    const { data: existingRequests } = await this.client
+      .from('binding_requests')
+      .select('id, status')
+      .eq('parent_role_id', data.parent_role_id)
+      .eq('child_id', childId);
+
+    if (existingRequests && existingRequests.length > 0) {
+      const pendingReq = existingRequests.find(r => r.status === 'pending');
+      if (pendingReq) {
+        return { error: true, code: 400, msg: '您已提交过绑定申请，请等待审核' };
+      }
+      const approvedReq = existingRequests.find(r => r.status === 'approved');
+      if (approvedReq) {
+        return { error: true, code: 400, msg: '您已绑定该幼儿' };
+      }
+    }
+
     // 插入绑定请求，确保 child_id 有值
     const { data: result, error } = await this.client
       .from('binding_requests')

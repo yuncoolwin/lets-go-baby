@@ -44,6 +44,10 @@ export class ParentController {
   @HttpCode(200)
   async submitBindingRequest(@Body() body: { user_id?: string; parent_role_id: string; child_name: string; child_id?: string; relationship: string; custom_relationship?: string }) {
     const data = await this.parentService.submitBindingRequest(body);
+    // 防重复检查返回的错误信息
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
     return { code: 200, msg: 'success', data };
   }
 }

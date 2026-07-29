@@ -189,7 +189,12 @@ export default function IndexPage() {
         {/* 欢迎区域 */}
         <View className="mb-4">
           <Text className="block text-xl font-bold text-foreground">
-            你好，{useAppStore.getState().nickname || '家长'}
+            你好，{currentChild ? `${currentChild.name}${
+              currentChild.relationship === 'father' ? '爸爸' :
+              currentChild.relationship === 'mother' ? '妈妈' :
+              currentChild.relationship === 'grandfather' ? '爷爷' :
+              currentChild.relationship === 'grandmother' ? '奶奶' : '家长'
+            }` : '新用户'}
           </Text>
           <Text className="block text-sm text-muted-foreground mt-1">
             {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}

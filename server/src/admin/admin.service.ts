@@ -155,6 +155,18 @@ export class AdminService {
   }
 
   async approveBindingRequest(requestId: string) {
+    // 1. 先获取绑定请求的完整信息
+    const { data: request, error: reqError } = await this.client
+      .from('binding_requests')
+      .select('*')
+      .eq('id', requestId)
+      .single();
+
+    if (reqError || !request) {
+      throw new Error(`绑定请求不存在: ${reqError?.message || '未找到'}`);
+    }
+
+    // 2. 更新 binding_requests 状态为 approved
     const { error } = await this.client
       .from('binding_requests')
       .update({
@@ -164,6 +176,36 @@ export class AdminService {
       .eq('id', requestId);
 
     if (error) throw new Error(`审核失败: ${error.message}`);
+
+    // 3. 从 user_roles 表获取 user_id
+    let userId: string | null = null;
+    if (request.parent_role_id) {
+      const { data: role } = await this.client
+        .from('user_roles')
+        .select('user_id')
+        .eq('id', request.parent_role_id)
+        .maybeSingle();
+      if (role) userId = role.user_id;
+    }
+
+    // 4. 在 parent_child_relations 表中创建记录
+    if (userId && request.child_id) {
+      const { error: relError } = await this.client
+        .from('parent_child_relations')
+        .insert({
+          user_id: userId,
+          parent_role_id: request.parent_role_id,
+          child_id: request.child_id,
+          relationship: request.relationship,
+          custom_relationship: request.custom_relationship || null,
+          is_primary: true,
+          status: 'approved',
+          approved_at: new Date().toISOString(),
+        });
+
+      if (relError) throw new Error(`创建绑定关系失败: ${relError.message}`);
+    }
+
     return { success: true };
   }
 

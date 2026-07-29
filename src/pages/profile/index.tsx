@@ -10,8 +10,35 @@ import { User, ChevronRight, LogOut, Users, Baby, Shield } from 'lucide-react-ta
 export default function ProfilePage() {
   const {
     nickname, roles, currentRole, currentRoleIndex,
-    children, isLoggedIn, setCurrentRole, logout,
+    children, currentChildIndex, isLoggedIn, setCurrentRole, logout,
   } = useAppStore()
+
+  const currentChild = children[currentChildIndex] || null
+
+  // 根据角色计算显示名称
+  const getDisplayName = () => {
+    if (!currentRole) return nickname || '用户'
+    switch (currentRole.role_type) {
+      case 'parent':
+        if (currentChild) {
+          const relMap: Record<string, string> = {
+            father: '爸爸', mother: '妈妈',
+            grandfather: '爷爷', grandmother: '奶奶',
+          }
+          const relText = relMap[currentChild.relationship] || '家长'
+          return `${currentChild.name}${relText}`
+        }
+        return nickname || '新用户'
+      case 'teacher':
+        return currentRole.real_name || '老师'
+      case 'admin':
+        return '管理员'
+      default:
+        return nickname || '用户'
+    }
+  }
+
+  const displayName = getDisplayName()
 
   const getRoleName = (role: RoleType) => {
     switch (role) {
@@ -57,12 +84,12 @@ export default function ProfilePage() {
         <Avatar className="w-16 h-16">
           <AvatarFallback>
             <Text className="text-lg font-bold text-primary">
-              {(nickname || '用')[0]}
+              {(displayName || '用')[0]}
             </Text>
           </AvatarFallback>
         </Avatar>
         <View className="flex-1">
-          <Text className="block text-lg font-bold text-foreground">{nickname || '用户'}</Text>
+          <Text className="block text-lg font-bold text-foreground">{displayName}</Text>
           {currentRole && (
             <Text className="block text-sm text-primary mt-1">
               {getRoleName(currentRole.role_type)} · {currentRole.real_name || ''}
@@ -109,9 +136,6 @@ export default function ProfilePage() {
             <View className="space-y-2">
               {children.map((child) => (
                 <View key={child.id} className="flex items-center gap-3 p-2">
-                  <View className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
-                    <Baby size={16} color="#E8651A" />
-                  </View>
                   <View className="flex-1">
                     <Text className="block text-sm text-foreground">{child.name}</Text>
                     <Text className="block text-xs text-muted-foreground">{child.relationship}</Text>
