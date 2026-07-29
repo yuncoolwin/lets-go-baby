@@ -107,16 +107,21 @@ export default function BindingPage() {
       }
 
       Taro.showToast({ title: '申请已提交，等待审核', icon: 'success' })
-      // 立即禁用按钮，防止重复提交
-      setSubmitting(true)
+      // 保持按钮禁用，等待导航
       setTimeout(() => {
-        // 检查页面栈是否有可返回的页面
-        const pages = Taro.getCurrentPages()
-        if (pages.length > 1) {
-          Taro.navigateBack()
-        } else {
-          // 没有历史记录（如从登录页 redirectTo 进入），跳转到首页
-          Taro.switchTab({ url: '/pages/index/index' })
+        try {
+          // 检查页面栈是否有可返回的页面
+          const pages = Taro.getCurrentPages()
+          if (pages.length > 1) {
+            Taro.navigateBack()
+          } else {
+            // 没有历史记录（如从登录页 redirectTo 进入），跳转到首页
+            Taro.switchTab({ url: '/pages/index/index' })
+          }
+        } catch (e) {
+          console.error('[Binding] navigation error:', e)
+          // 导航失败时重新启用按钮
+          setSubmitting(false)
         }
       }, 1500)
     } catch (err) {
