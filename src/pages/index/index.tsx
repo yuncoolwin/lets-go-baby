@@ -36,9 +36,21 @@ export default function IndexPage() {
   const [classList, setClassList] = useState<ClassOverview[]>([])
   const [pendingCount, setPendingCount] = useState(0)
   const [pageLoading, setPageLoading] = useState(true)
+  const [storeReady, setStoreReady] = useState(false)
   const currentChild = children[currentChildIndex] || null
 
+  // 等待 store 从持久化中恢复
   useEffect(() => {
+    // 检查 store 是否已恢复（通过检查 hasHydrated 或简单延迟）
+    const timer = setTimeout(() => {
+      setStoreReady(true)
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    if (!storeReady) return
+    
     // 检查登录状态
     if (!isLoggedIn) {
       // 未登录，跳转到登录页
@@ -46,7 +58,7 @@ export default function IndexPage() {
     } else {
       fetchUserInfo()
     }
-  }, [])
+  }, [storeReady, isLoggedIn])
 
   useEffect(() => {
     if (isLoggedIn && currentRole) {

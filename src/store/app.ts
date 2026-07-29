@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { Network } from '@/network'
 
 export type RoleType = 'parent' | 'teacher' | 'admin' | null
@@ -64,7 +65,9 @@ interface AppStore {
   selectRole: (roleType: string) => Promise<void>
 }
 
-export const useAppStore = create<AppStore>((set, get) => ({
+export const useAppStore = create<AppStore>()(
+  persist(
+    (set, get) => ({
   userId: null,
   nickname: '',
   avatarUrl: null,
@@ -150,15 +153,21 @@ export const useAppStore = create<AppStore>((set, get) => ({
         const roles = (data.roles || []) as UserRole[]
         const children = (data.children || []) as ChildInfo[]
 
+        const currentRole = roles.length > 0 ? roles[0] : null
+
         set({
           userId: data.user?.id || null,
           nickname: data.user?.nickname || '',
           avatarUrl: data.user?.avatar_url || null,
           phone: data.user?.phone || null,
           roles,
+          currentRole,
+          currentRoleIndex: 0,
           children,
           currentChildIndex: 0,
+          isLoggedIn: true,
           isLoading: false,
+          needRoleSelection: data.need_role_selection || false,
         })
 
         return {
@@ -233,4 +242,21 @@ export const useAppStore = create<AppStore>((set, get) => ({
       console.error('[Auth] selectRole error:', err)
     }
   },
-}))
+}),
+    {
+      name: 'lgbaby-storage',
+      partialize: (state) => ({
+        userId: state.userId,
+        nickname: state.nickname,
+        avatarUrl: state.avatarUrl,
+        phone: state.phone,
+        roles: state.roles,
+        currentRole: state.currentRole,
+        currentRoleIndex: state.currentRoleIndex,
+        children: state.children,
+        currentChildIndex: state.currentChildIndex,
+        isLoggedIn: state.isLoggedIn,
+      }),
+    }
+  )
+)

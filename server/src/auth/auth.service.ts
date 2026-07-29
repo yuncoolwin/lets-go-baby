@@ -53,7 +53,28 @@ export class AuthService {
       });
     }
 
-    // 2. 获取用户所有角色
+    // 2. 处理 mock 角色（测试用）
+    if (mockRole && mockRole !== 'parent') {
+      // 检查是否已有该角色
+      const { data: existingRole } = await this.client
+        .from('user_roles')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('role_type', mockRole)
+        .maybeSingle();
+
+      if (!existingRole) {
+        // 创建 mock 角色
+        await this.client.from('user_roles').insert({
+          user_id: userId,
+          role_type: mockRole,
+          status: 'active',
+          real_name: `测试${mockRole === 'teacher' ? '教师' : '管理员'}`,
+        });
+      }
+    }
+
+    // 3. 获取用户所有角色
     const { data: roles, error: rolesError } = await this.client
       .from('user_roles')
       .select('id, user_id, role_type, real_name, status')
@@ -62,7 +83,7 @@ export class AuthService {
 
     if (rolesError) throw new Error(`查询角色失败: ${rolesError.message}`);
 
-    // 3. 确定登录目标
+    // 4. 确定登录目标
     const activeRoles = roles || [];
     let targetRole: string | null = null;
     let needRoleSelection = false;
