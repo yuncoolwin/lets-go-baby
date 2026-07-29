@@ -98,9 +98,24 @@ export default function BindingPage() {
         },
       })
       console.log('[Binding] submit:', res.data)
+
+      // 检查后端返回的业务状态码（防重复等）
+      if (res.data?.code === 400) {
+        Taro.showToast({ title: res.data?.msg || '提交失败', icon: 'none' })
+        setSubmitting(false)
+        return
+      }
+
       Taro.showToast({ title: '申请已提交，等待审核', icon: 'success' })
       setTimeout(() => {
-        Taro.navigateBack()
+        // 检查页面栈是否有可返回的页面
+        const pages = Taro.getCurrentPages()
+        if (pages.length > 1) {
+          Taro.navigateBack()
+        } else {
+          // 没有历史记录（如从登录页 redirectTo 进入），跳转到首页
+          Taro.switchTab({ url: '/pages/index/index' })
+        }
       }, 1500)
     } catch (err) {
       console.error('[Binding] error:', err)

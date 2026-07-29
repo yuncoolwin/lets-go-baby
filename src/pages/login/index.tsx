@@ -16,8 +16,13 @@ export default function LoginPage() {
     if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
       Taro.login({
         success: async (res) => {
-          const result = await wxLogin(res.code)
-          handleLoginResult(result)
+          try {
+            const result = await wxLogin(res.code)
+            handleLoginResult(result)
+          } catch (err) {
+            console.error('[Login] wxLogin error:', err)
+            Taro.showToast({ title: '登录失败，请重试', icon: 'none' })
+          }
         },
         fail: (err) => {
           console.error('[Login] wx.login failed:', err)
@@ -26,29 +31,43 @@ export default function LoginPage() {
       })
     } else {
       // H5 环境：使用 mock 登录
-      const result = await wxLogin('h5_demo')
-      handleLoginResult(result)
+      try {
+        const result = await wxLogin('h5_demo')
+        handleLoginResult(result)
+      } catch (err) {
+        console.error('[Login] H5 login error:', err)
+        Taro.showToast({ title: '登录失败，请重试', icon: 'none' })
+      }
     }
   }
 
   const handleMockLogin = async (role: string) => {
-    const result = await wxLogin(`mock_${role}`, role)
-    handleLoginResult(result)
+    try {
+      const result = await wxLogin(`mock_${role}`, role)
+      handleLoginResult(result)
+    } catch (err) {
+      console.error('[Login] mock login error:', err)
+      Taro.showToast({ title: '登录失败，请重试', icon: 'none' })
+    }
   }
 
   const handleLoginResult = (result: {
     needRoleSelection: boolean
     targetRole: string | null
     hasBoundChildren: boolean
+    error?: boolean
   }) => {
+    // 登录失败，停留在登录页
+    if (result.error) return
+
     if (result.needRoleSelection) {
       // 多角色，需要选择
       Taro.navigateTo({ url: '/pages/role-select/index' })
     } else if (result.targetRole === 'parent' && !result.hasBoundChildren) {
       // 家长但未绑定孩子
       Taro.redirectTo({ url: '/pages/binding/index' })
-    } else {
-      // 正常进入首页
+    } else if (result.targetRole) {
+      // 有目标角色，正常进入首页
       Taro.switchTab({ url: '/pages/index/index' })
     }
   }

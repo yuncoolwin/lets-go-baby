@@ -52,17 +52,22 @@ export default function ReviewPage() {
     if (approvingId || rejectingId) return // 防止重复点击
     setApprovingId(requestId)
     try {
-      await Network.request({
+      const res = await Network.request({
         url: '/api/admin/binding-requests/approve',
         method: 'POST',
         data: { request_id: requestId },
       })
-      Taro.showToast({ title: '已通过', icon: 'success' })
-      // 乐观更新：立即从列表中移除
-      setRequests((prev) => prev.filter((r) => r.id !== requestId))
+      // 检查响应是否成功
+      if (res.data?.code === 200) {
+        Taro.showToast({ title: '已通过', icon: 'success' })
+        // 刷新列表确保数据一致性
+        await loadRequests()
+      } else {
+        Taro.showToast({ title: res.data?.msg || '操作失败', icon: 'none' })
+      }
     } catch (err) {
       console.error('[Review] approve error:', err)
-      Taro.showToast({ title: '操作失败', icon: 'error' })
+      Taro.showToast({ title: '操作失败', icon: 'none' })
     } finally {
       setApprovingId(null)
     }
@@ -72,17 +77,22 @@ export default function ReviewPage() {
     if (approvingId || rejectingId) return // 防止重复点击
     setRejectingId(requestId)
     try {
-      await Network.request({
+      const res = await Network.request({
         url: '/api/admin/binding-requests/reject',
         method: 'POST',
         data: { request_id: requestId },
       })
-      Taro.showToast({ title: '已拒绝', icon: 'success' })
-      // 乐观更新：立即从列表中移除
-      setRequests((prev) => prev.filter((r) => r.id !== requestId))
+      // 检查响应是否成功
+      if (res.data?.code === 200) {
+        Taro.showToast({ title: '已拒绝', icon: 'success' })
+        // 刷新列表确保数据一致性
+        await loadRequests()
+      } else {
+        Taro.showToast({ title: res.data?.msg || '操作失败', icon: 'none' })
+      }
     } catch (err) {
       console.error('[Review] reject error:', err)
-      Taro.showToast({ title: '操作失败', icon: 'error' })
+      Taro.showToast({ title: '操作失败', icon: 'none' })
     } finally {
       setRejectingId(null)
     }
