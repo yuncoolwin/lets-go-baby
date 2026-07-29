@@ -15,6 +15,8 @@ import { ClassesController } from '@/classes/classes.controller';
 import { ClassesService } from '@/classes/classes.service';
 import { ChildrenController } from '@/children/children.controller';
 import { ChildrenService } from '@/children/children.service';
+import { TeachersController } from '@/teachers/teachers.controller';
+import { TeachersService } from '@/teachers/teachers.service';
 
 @Module({
   imports: [],
@@ -27,6 +29,7 @@ import { ChildrenService } from '@/children/children.service';
     NotificationController,
     ClassesController,
     ChildrenController,
+    TeachersController,
   ],
   providers: [
     AppService,
@@ -37,6 +40,7 @@ import { ChildrenService } from '@/children/children.service';
     NotificationService,
     ClassesService,
     ChildrenService,
+    TeachersService,
   ],
 })
 export class AppModule {}
