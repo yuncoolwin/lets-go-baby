@@ -15,24 +15,42 @@ export default function LoginPage() {
     console.log('[Login] handleWxLogin called, env:', Taro.getEnv())
     // 在真实小程序环境中调用微信登录
     if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
-      Taro.login({
-        success: async (res) => {
-          console.log('[Login] wx.login success, code:', res.code)
-          try {
-            const result = await wxLogin(res.code)
-            console.log('[Login] wxLogin result:', result)
-            handleLoginResult(result)
-          } catch (err) {
-            console.error('[Login] wxLogin error:', err)
-            Taro.showToast({ title: '登录失败，请重试', icon: 'none' })
-          }
-        },
-        fail: (err) => {
-          console.error('[Login] wx.login failed:', err)
-          const errMsg = err?.errMsg || '未知错误'
-          Taro.showToast({ title: `微信登录失败: ${errMsg}`, icon: 'none' })
-        },
-      })
+      // 10秒超时处理
+      const loginWithTimeout = () => {
+        return new Promise<{ code: string }>((resolve, reject) => {
+          const timer = setTimeout(() => {
+            reject(new Error('获取微信授权超时，请重试'))
+          }, 10000)
+
+          Taro.login({
+            success: (res) => {
+              clearTimeout(timer)
+              if (res.code) {
+                resolve({ code: res.code })
+              } else {
+                reject(new Error('未获取到微信授权code'))
+              }
+            },
+            fail: (err) => {
+              clearTimeout(timer)
+              reject(new Error(err?.errMsg || '微信登录失败'))
+            },
+          })
+        })
+      }
+
+      try {
+        console.log('[Login] calling wx.login...')
+        const { code } = await loginWithTimeout()
+        console.log('[Login] wx.login success, code:', code)
+        const result = await wxLogin(code)
+        console.log('[Login] wxLogin result:', result)
+        handleLoginResult(result)
+      } catch (err) {
+        console.error('[Login] wxLogin error:', err)
+        const errMsg = err instanceof Error ? err.message : '登录失败，请重试'
+        Taro.showToast({ title: errMsg, icon: 'none' })
+      }
     } else {
       // H5 环境：使用 mock 登录
       console.log('[Login] H5 env, using mock login')

@@ -146,8 +146,16 @@ export const useAppStore = create<AppStore>()(
       : `/api/auth/wx-login?code=${code}`
     console.log('[Auth] wxLogin request:', { url, code, mockRole })
 
+    // 10秒超时处理
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('登录超时，请检查网络后重试')), 10000)
+    })
+
     try {
-      const res = await Network.request({ url, method: 'GET' })
+      const res = await Promise.race([
+        Network.request({ url, method: 'GET', timeout: 10000 }),
+        timeoutPromise,
+      ])
       console.log('[Auth] wxLogin response:', { statusCode: res.statusCode, data: res.data })
 
       // 检查 HTTP 状态码
@@ -197,7 +205,7 @@ export const useAppStore = create<AppStore>()(
       console.error('[Auth] wxLogin error:', err)
       set({ isLoading: false })
       const errMsg = err instanceof Error ? err.message : '网络错误'
-      Taro.showToast({ title: `网络错误: ${errMsg}`, icon: 'none' })
+      Taro.showToast({ title: errMsg, icon: 'none' })
       return { needRoleSelection: false, targetRole: null, hasBoundChildren: false, error: true }
     }
   },
