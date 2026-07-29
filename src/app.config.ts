@@ -1,11 +1,105 @@
-export default defineAppConfig({
-  pages: [
-    'pages/index/index'
-  ],
-  window: {
-    backgroundTextStyle: 'light',
-    navigationBarBackgroundColor: '#fff',
-    navigationBarTitleText: 'WeChat',
-    navigationBarTextStyle: 'black'
+export default typeof defineAppConfig === 'function'
+  ? defineAppConfig({
+    pages: [
+      'pages/index/index',
+      'pages/records/index',
+      'pages/messages/index',
+      'pages/profile/index',
+      'pages/pickup/index',
+      'pages/growth/index',
+      'pages/roll-call/index',
+      'pages/class-detail/index',
+      'pages/binding/index',
+      'pages/review/index',
+    ],
+    tabBar: {
+      color: '#999999',
+      selectedColor: '#E8651A',
+      backgroundColor: '#ffffff',
+      borderStyle: 'white',
+      list: [
+        {
+          pagePath: 'pages/index/index',
+          text: '首页',
+          iconPath: './assets/tabbar/house.png',
+          selectedIconPath: './assets/tabbar/house-active.png',
+        },
+        {
+          pagePath: 'pages/records/index',
+          text: '记录',
+          iconPath: './assets/tabbar/clipboard-list.png',
+          selectedIconPath: './assets/tabbar/clipboard-list-active.png',
+        },
+        {
+          pagePath: 'pages/messages/index',
+          text: '消息',
+          iconPath: './assets/tabbar/bell.png',
+          selectedIconPath: './assets/tabbar/bell-active.png',
+        },
+        {
+          pagePath: 'pages/profile/index',
+          text: '我的',
+          iconPath: './assets/tabbar/user.png',
+          selectedIconPath: './assets/tabbar/user-active.png',
+        },
+      ],
+    },
+    window: {
+      backgroundTextStyle: 'light',
+      navigationBarBackgroundColor: '#E8651A',
+      navigationBarTitleText: '力高稚家',
+      navigationBarTextStyle: 'white'
+    }
+  })
+  : {
+    pages: [
+      'pages/index/index',
+      'pages/records/index',
+      'pages/messages/index',
+      'pages/profile/index',
+      'pages/pickup/index',
+      'pages/growth/index',
+      'pages/roll-call/index',
+      'pages/class-detail/index',
+      'pages/binding/index',
+      'pages/review/index',
+    ],
+    tabBar: {
+      color: '#999999',
+      selectedColor: '#E8651A',
+      backgroundColor: '#ffffff',
+      borderStyle: 'white',
+      list: [
+        {
+          pagePath: 'pages/index/index',
+          text: '首页',
+          iconPath: './assets/tabbar/house.png',
+          selectedIconPath: './assets/tabbar/house-active.png',
+        },
+        {
+          pagePath: 'pages/records/index',
+          text: '记录',
+          iconPath: './assets/tabbar/clipboard-list.png',
+          selectedIconPath: './assets/tabbar/clipboard-list-active.png',
+        },
+        {
+          pagePath: 'pages/messages/index',
+          text: '消息',
+          iconPath: './assets/tabbar/bell.png',
+          selectedIconPath: './assets/tabbar/bell-active.png',
+        },
+        {
+          pagePath: 'pages/profile/index',
+          text: '我的',
+          iconPath: './assets/tabbar/user.png',
+          selectedIconPath: './assets/tabbar/user-active.png',
+        },
+      ],
+    },
+    window: {
+      backgroundTextStyle: 'light',
+      navigationBarBackgroundColor: '#E8651A',
+      navigationBarTitleText: '力高稚家',
+      navigationBarTextStyle: 'white'
+    }
   }
-})
