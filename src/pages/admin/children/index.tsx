@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { childrenApi } from '@/utils/api'
-import { Search, UserCheck } from 'lucide-react-taro'
+import { Search, UserCheck, Plus } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 
 interface Child {
@@ -141,7 +141,11 @@ export default function ChildrenManagePage() {
       ) : (
         <View className="space-y-3">
           {children.map((child) => (
-            <Card key={child.id} className="bg-white rounded-xl border-0 shadow-sm">
+            <Card
+              key={child.id}
+              className="bg-white rounded-xl border-0 shadow-sm"
+              onClick={() => Taro.navigateTo({ url: `/pages/admin/child-detail/index?id=${child.id}` })}
+            >
               <CardContent className="p-4">
                 <View className="flex items-center justify-between mb-2">
                   <View className="flex items-center gap-2">
@@ -176,6 +180,13 @@ export default function ChildrenManagePage() {
           ))}
         </View>
       )}
+      {/* 悬浮新增按钮 */}
+      <View
+        className="fixed bottom-6 right-6 w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-lg z-50"
+        onClick={() => Taro.navigateTo({ url: '/pages/admin/child-add/index' })}
+      >
+        <Plus size={24} color="#fff" />
+      </View>
     </View>
   )
 }
