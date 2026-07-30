@@ -15,6 +15,7 @@ export interface UserRole {
 
 export interface ChildInfo {
   id: string
+  child_id?: string
   name: string
   gender: string
   birth_date: string | null

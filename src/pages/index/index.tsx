@@ -9,6 +9,7 @@ import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
 import { Bus, BookOpen, Users, ClipboardCheck, Camera, ShieldCheck, UserCheck, Bell, Plus } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
+import { formatAge } from '@/utils/format'
 
 interface BabyStatus {
   child_id: string
@@ -266,7 +267,10 @@ export default function IndexPage() {
 
         {/* 宝宝状态卡片 - 仅在已绑定幼儿时显示 */}
         {children.length > 0 && babyStatus && (
-          <Card className="mb-4 bg-white rounded-xl border-0 shadow-sm">
+          <Card
+            className="mb-4 bg-white rounded-xl border-0 shadow-sm"
+            onClick={() => currentChild?.child_id && Taro.navigateTo({ url: `/pages/child-setting/index?childId=${currentChild.child_id}` })}
+          >
             <CardContent className="p-4">
               <View className="flex items-center gap-3 mb-3">
                 <View className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
@@ -277,9 +281,16 @@ export default function IndexPage() {
                   />
                 </View>
                 <View className="flex-1">
-                  <Text className="block text-base font-semibold text-foreground">
-                    {currentChild?.name || babyStatus.child_name}
-                  </Text>
+                  <View className="flex items-center gap-2">
+                    <Text className="block text-base font-semibold text-foreground">
+                      {currentChild?.name || babyStatus.child_name}
+                    </Text>
+                    {currentChild?.birth_date && (
+                      <Text className="text-xs text-muted-foreground">
+                        {formatAge(currentChild.birth_date)}
+                      </Text>
+                    )}
+                  </View>
                   {currentChild && (
                     <Text className="block text-xs text-muted-foreground mt-1">
                       {currentChild.relationship === 'father' ? '爸爸' :
@@ -314,12 +325,10 @@ export default function IndexPage() {
               )}
 
               {/* 过敏情况 */}
-              {currentChild?.allergies && (
-                <View className="flex gap-2 pt-3 mt-3 border-t border-border items-center">
-                  <Text className="text-xs text-muted-foreground">过敏情况</Text>
-                  <Text className="text-sm text-foreground">{currentChild.allergies}</Text>
-                </View>
-              )}
+              <View className="flex gap-2 pt-3 mt-3 border-t border-border items-center">
+                <Text className="text-xs text-muted-foreground">过敏情况</Text>
+                <Text className="text-sm text-foreground">{currentChild?.allergies || '无'}</Text>
+              </View>
 
               {/* 接送时间 */}
               {(babyStatus.check_in_time || babyStatus.check_out_time) && (

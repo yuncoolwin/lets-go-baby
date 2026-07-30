@@ -24,6 +24,7 @@ export default typeof defineAppConfig === 'function'
       'pages/admin/child-detail/index',
       'pages/admin/child-edit/index',
       'pages/admin/child-add/index',
+      'pages/child-setting/index',
     ],
     tabBar: {
       color: '#999999',

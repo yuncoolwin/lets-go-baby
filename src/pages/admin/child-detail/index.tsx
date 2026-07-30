@@ -9,6 +9,7 @@ import { childrenApi } from '@/utils/api'
 import BackButton from '@/components/back-button'
 import { Pencil, Trash2 } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
+import { formatAge } from '@/utils/format'
 
 interface ChildDetail {
   id: string
@@ -43,19 +44,7 @@ const levelMap: Record<string, string> = {
   large: '大班',
 }
 
-function calculateAge(birthDate: string): string {
-  if (!birthDate) return '未知'
-  const birth = new Date(birthDate)
-  const now = new Date()
-  let years = now.getFullYear() - birth.getFullYear()
-  let months = now.getMonth() - birth.getMonth()
-  if (months < 0) {
-    years--
-    months += 12
-  }
-  if (years > 0) return `${years}岁${months > 0 ? months + '个月' : ''}`
-  return `${months}个月`
-}
+const calculateAge = formatAge
 
 export default function ChildDetailPage() {
   const router = useRouter()

@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { childrenApi } from '@/utils/api'
 import { Search, UserCheck, Plus } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
+import { formatAge } from '@/utils/format'
 
 interface Child {
   id: string
@@ -77,16 +78,7 @@ export default function ChildrenManagePage() {
     setStatusFilter(status)
   }
 
-  const calculateAge = (birthDate: string) => {
-    if (!birthDate) return '未知'
-    const birth = new Date(birthDate)
-    const now = new Date()
-    const months = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth())
-    if (months < 12) return `${months}个月`
-    const years = Math.floor(months / 12)
-    const remainingMonths = months % 12
-    return remainingMonths > 0 ? `${years}岁${remainingMonths}个月` : `${years}岁`
-  }
+  const calculateAge = formatAge
 
   if (loading) {
     return (
