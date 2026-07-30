@@ -16,6 +16,7 @@ interface ApiResponse<T = any> {
 interface ListParams {
   page?: number
   pageSize?: number
+  page_size?: number
   [key: string]: any
 }
 
@@ -69,8 +70,15 @@ export const childrenApi = {
   create: (data: Record<string, any>) =>
     request({ url: '/api/children', method: 'POST', data }),
 
-  list: (params?: ListParams) =>
-    request({ url: '/api/children', method: 'GET', data: params }),
+  list: (params?: ListParams) => {
+    // 转换参数名：pageSize -> page_size
+    const query: Record<string, any> = { ...params }
+    if (query.pageSize) {
+      query.page_size = query.pageSize
+      delete query.pageSize
+    }
+    return request({ url: '/api/children', method: 'GET', data: query })
+  },
 
   detail: (id: string) =>
     request({ url: `/api/children/${id}`, method: 'GET' }),

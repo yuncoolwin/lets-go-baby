@@ -47,7 +47,7 @@ export default function ChildrenManagePage() {
         keyword: keyword || undefined,
         status: statusFilter || undefined,
         page: 1,
-        pageSize: 50,
+        page_size: 50,
       })
       console.log('[ChildrenManage] list:', res)
       if (res.code === 200 && res.data) {

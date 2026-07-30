@@ -63,8 +63,8 @@ export class ChildrenService {
     status?: string;
     keyword?: string;
   }) {
-    const page = query.page || 1;
-    const pageSize = query.page_size || 20;
+    const page = Number(query.page) || 1;
+    const pageSize = Number(query.page_size) || 20;
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
