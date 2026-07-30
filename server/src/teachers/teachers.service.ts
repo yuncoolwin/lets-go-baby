@@ -16,6 +16,7 @@ export class TeachersService {
     qualification?: string;
     specialty?: string;
     status?: string;
+    class_id?: string;
   }) {
     // 检查是否已存在同名教师
     const { data: existing } = await this.client
@@ -29,15 +30,18 @@ export class TeachersService {
       return { error: true, code: 400, msg: '已存在同名教师' };
     }
 
+    const insertData: Record<string, unknown> = {
+      real_name: dto.real_name,
+      phone: dto.phone || null,
+      qualification: dto.qualification || null,
+      specialty: dto.specialty || null,
+      status: dto.status || 'active',
+    };
+    if (dto.class_id) insertData.class_id = dto.class_id;
+
     const { data, error } = await this.client
       .from('teachers')
-      .insert({
-        real_name: dto.real_name,
-        phone: dto.phone || null,
-        qualification: dto.qualification || null,
-        specialty: dto.specialty || null,
-        status: dto.status || 'active',
-      })
+      .insert(insertData)
       .select()
       .single();
 
@@ -79,7 +83,24 @@ export class TeachersService {
     if (error) {
       return { error: true, code: 500, msg: `查询失败: ${error.message}` };
     }
-    return { list: data || [], total: count || 0, page, page_size: pageSize };
+
+    // 关联查询班级名称
+    const list = data || [];
+    if (list.length > 0) {
+      const classIds = [...new Set(list.map(t => t.class_id).filter(Boolean))];
+      if (classIds.length > 0) {
+        const { data: classes } = await this.client
+          .from('classes')
+          .select('id, name')
+          .in('id', classIds);
+        const classMap = new Map((classes || []).map(c => [c.id, c.name]));
+        list.forEach(t => {
+          if (t.class_id) t.class_name = classMap.get(t.class_id) || null;
+        });
+      }
+    }
+
+    return { list, total: count || 0, page, page_size: pageSize };
   }
 
   /**
@@ -127,6 +148,7 @@ export class TeachersService {
     specialty?: string;
     status?: string;
     user_id?: string;
+    class_id?: string;
   }) {
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (dto.real_name !== undefined) updateData.real_name = dto.real_name;
@@ -135,6 +157,7 @@ export class TeachersService {
     if (dto.specialty !== undefined) updateData.specialty = dto.specialty;
     if (dto.status !== undefined) updateData.status = dto.status;
     if (dto.user_id !== undefined) updateData.user_id = dto.user_id;
+    if (dto.class_id !== undefined) updateData.class_id = dto.class_id;
 
     const { data, error } = await this.client
       .from('teachers')
