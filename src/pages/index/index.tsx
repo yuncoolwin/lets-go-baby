@@ -9,7 +9,7 @@ import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
 import { Bus, BookOpen, Users, ClipboardCheck, Camera, ShieldCheck, UserCheck, Bell, Plus } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
-import { formatAge } from '@/utils/format'
+import { formatAge, formatTime } from '@/utils/format'
 
 interface BabyStatus {
   child_id: string
@@ -92,8 +92,10 @@ export default function IndexPage() {
   }
 
   const loadParentData = async () => {
+    const currentChildId = currentChild?.id || currentChild?.child_id
+    const url = currentChildId ? `/api/parent/baby-status?childId=${currentChildId}` : '/api/parent/baby-status'
     const res = await Network.request({
-      url: '/api/parent/baby-status',
+      url,
       method: 'GET',
     })
     console.log('[Index] baby status:', res.data)
@@ -282,30 +284,29 @@ export default function IndexPage() {
                     <Text className="block text-base font-semibold text-foreground">
                       {currentChild?.name || babyStatus.child_name}
                     </Text>
-                    {currentChild?.birth_date && (
-                      <Text className="text-xs text-muted-foreground">
-                        {formatAge(currentChild.birth_date)}
-                      </Text>
-                    )}
+                    <Badge className={`${getStatusColor(babyStatus.attendance_status)} text-xs`}>
+                      <Text className="text-xs">{getStatusText(babyStatus.attendance_status)}</Text>
+                    </Badge>
                   </View>
-                  {currentChild && (
+                  {currentChild?.birth_date && (
                     <Text className="block text-xs text-muted-foreground mt-1">
-                      {currentChild.relationship === 'father' ? '爸爸' :
-                       currentChild.relationship === 'mother' ? '妈妈' :
-                       currentChild.relationship === 'grandfather' ? '爷爷' :
-                       currentChild.relationship === 'grandmother' ? '奶奶' :
-                       currentChild.relationship === 'other' && currentChild.custom_relationship ? currentChild.custom_relationship : '家长'}的宝宝
+                      {formatAge(currentChild.birth_date)}
                     </Text>
                   )}
-                  <Badge className={`${getStatusColor(babyStatus.attendance_status)} text-xs mt-1`}>
-                    <Text className="text-xs">{getStatusText(babyStatus.attendance_status)}</Text>
-                  </Badge>
                 </View>
                 <Button
                   className="bg-primary text-white rounded-lg px-3 py-1 text-xs"
-                  onClick={() => babyStatus?.child_id && Taro.navigateTo({ url: `/pages/child-setting/index?childId=${babyStatus.child_id}` })}
+                  onClick={() => {
+                    const childId = currentChild?.id || currentChild?.child_id || babyStatus?.child_id
+                    console.log('[Index] 点击详情按钮, childId:', childId, 'currentChild:', currentChild)
+                    if (childId && childId !== 'demo') {
+                      Taro.navigateTo({ url: `/pages/child-setting/index?childId=${childId}` })
+                    } else {
+                      Taro.showToast({ title: '幼儿信息不存在', icon: 'none' })
+                    }
+                  }}
                 >
-                  <Text className="text-xs">设置</Text>
+                  <Text className="text-xs">详情</Text>
                 </Button>
               </View>
 
@@ -336,19 +337,19 @@ export default function IndexPage() {
               {/* 接送时间 */}
               {(babyStatus.check_in_time || babyStatus.check_out_time) && (
                 <View className="flex gap-4 pt-3 mt-3 border-t border-border">
-                  {babyStatus.check_in_time && (
+                  {babyStatus.check_in_time && formatTime(babyStatus.check_in_time) && (
                     <View>
                       <Text className="block text-xs text-muted-foreground">入园</Text>
                       <Text className="block text-sm text-foreground">
-                        {new Date(babyStatus.check_in_time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                        {formatTime(babyStatus.check_in_time)}
                       </Text>
                     </View>
                   )}
-                  {babyStatus.check_out_time && (
+                  {babyStatus.check_out_time && formatTime(babyStatus.check_out_time) && (
                     <View>
                       <Text className="block text-xs text-muted-foreground">离园</Text>
                       <Text className="block text-sm text-foreground">
-                        {new Date(babyStatus.check_out_time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                        {formatTime(babyStatus.check_out_time)}
                       </Text>
                     </View>
                   )}

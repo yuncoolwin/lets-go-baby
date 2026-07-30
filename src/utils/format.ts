@@ -51,3 +51,13 @@ export function getAge(birthDate: string | null | undefined): number {
   }
   return age
 }
+
+/**
+ * 安全地格式化时间为 HH:mm，无效日期返回空字符串
+ */
+export function formatTime(dateStr: string | number | null | undefined): string {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
