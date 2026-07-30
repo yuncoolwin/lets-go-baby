@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { BookOpen, Plus, X, Baby } from 'lucide-react-taro'
+import { BookOpen, Plus, X } from 'lucide-react-taro'
+import rabbitLogo from '@/assets/rabbit-logo.png'
 
 interface FeedbackItem {
   id: string
@@ -309,8 +310,12 @@ export default function RecordsPage() {
   if (children.length === 0) {
     return (
       <View className="min-h-screen bg-background p-4 flex flex-col items-center justify-center">
-        <Baby size={48} color="#E8651A" />
-        <Text className="block text-base font-medium text-foreground mt-4 mb-2">请先绑定幼儿</Text>
+        <Image
+          src={rabbitLogo}
+          className="w-16 h-16 rounded-full mb-4"
+          mode="aspectFit"
+        />
+        <Text className="block text-base font-medium text-foreground mb-2">请先绑定幼儿</Text>
         <Text className="block text-sm text-muted-foreground mb-6 text-center">
           绑定幼儿后即可查看每日反馈
         </Text>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -7,7 +7,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { Bell, Baby } from 'lucide-react-taro'
+import { Bell } from 'lucide-react-taro'
+import rabbitLogo from '@/assets/rabbit-logo.png'
 
 interface NotificationItem {
   id: string
@@ -89,7 +90,7 @@ export default function MessagesPage() {
       {/* 家长端未绑定幼儿时显示绑定提示 */}
       {currentRole?.role_type === 'parent' && children.length === 0 ? (
         <View className="flex flex-col items-center py-16">
-          <Baby size={48} color="#999999" />
+          <Image src={rabbitLogo} className="w-16 h-16" mode="aspectFit" />
           <Text className="block text-sm text-muted-foreground mt-3 text-center">
             请先绑定幼儿{'\n'}绑定后即可查看消息
           </Text>

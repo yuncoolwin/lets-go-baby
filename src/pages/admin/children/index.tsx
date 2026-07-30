@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { childrenApi } from '@/utils/api'
-import { Search, Baby, UserCheck } from 'lucide-react-taro'
+import { Search, UserCheck } from 'lucide-react-taro'
+import rabbitLogo from '@/assets/rabbit-logo.png'
 
 interface Child {
   id: string
@@ -128,7 +129,7 @@ export default function ChildrenManagePage() {
       {/* 幼儿列表 */}
       {children.length === 0 ? (
         <View className="flex flex-col items-center py-16">
-          <Baby size={48} color="#999999" />
+          <Image src={rabbitLogo} className="w-16 h-16 rounded-full" mode="aspectFit" />
           <Text className="block text-sm text-muted-foreground mt-3">暂无幼儿</Text>
         </View>
       ) : (

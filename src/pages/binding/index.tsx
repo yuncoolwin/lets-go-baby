@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Network } from '@/network'
 import { useAppStore } from '@/store/app'
-import { Baby, Search, UserPlus } from 'lucide-react-taro'
+import { Search, UserPlus } from 'lucide-react-taro'
+import rabbitLogo from '@/assets/rabbit-logo.png'
 
 const relationshipOptions = [
   { value: 'father', label: '父亲' },
@@ -179,8 +180,8 @@ export default function BindingPage() {
                     onClick={() => handleSelectChild(child)}
                   >
                     <View className="flex items-center gap-3">
-                      <View className="w-10 h-10 rounded-full bg-primary bg-opacity-10 flex items-center justify-center">
-                        <Baby size={20} color="#E8651A" />
+                      <View className="w-10 h-10 rounded-full bg-primary bg-opacity-10 flex items-center justify-center overflow-hidden">
+                        <Image src={rabbitLogo} className="w-10 h-10 rounded-full" mode="aspectFit" />
                       </View>
                       <View>
                         <Text className="block text-sm font-medium text-foreground">{child.name}</Text>

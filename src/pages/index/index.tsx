@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { Baby, Bus, BookOpen, Users, ClipboardCheck, Camera, ShieldCheck, UserCheck, Bell } from 'lucide-react-taro'
+import { Bus, BookOpen, Users, ClipboardCheck, Camera, ShieldCheck, UserCheck, Bell } from 'lucide-react-taro'
+import rabbitLogo from '@/assets/rabbit-logo.png'
 
 interface BabyStatus {
   child_id: string
@@ -214,8 +215,12 @@ export default function IndexPage() {
                 }`}
                 onClick={() => setCurrentChild(index)}
               >
-                <View className="w-6 h-6 rounded-full bg-white bg-opacity-30 flex items-center justify-center">
-                  <Baby size={14} color={index === currentChildIndex ? '#ffffff' : '#E8651A'} />
+                <View className="w-6 h-6 rounded-full bg-white bg-opacity-30 flex items-center justify-center overflow-hidden">
+                  <Image
+                    src={rabbitLogo}
+                    className="w-6 h-6 rounded-full"
+                    mode="aspectFit"
+                  />
                 </View>
                 <Text className="text-sm font-medium">{child.name}</Text>
               </View>
@@ -228,8 +233,12 @@ export default function IndexPage() {
           <Card className="mb-4 bg-white rounded-xl border-0 shadow-sm">
             <CardContent className="p-4">
               <View className="flex items-center gap-3 mb-3">
-                <View className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
-                  <Baby size={24} color="#E8651A" />
+                <View className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
+                  <Image
+                    src={rabbitLogo}
+                    className="w-12 h-12 rounded-full"
+                    mode="aspectFit"
+                  />
                 </View>
                 <View className="flex-1">
                   <Text className="block text-base font-semibold text-foreground">
