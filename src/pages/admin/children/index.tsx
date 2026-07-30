@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { View, Text, Image } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -16,6 +16,7 @@ interface Child {
   birth_date: string
   class_id: string | null
   parent_name: string | null
+  allergies: string | null
   status: string
   created_at: string
 }
@@ -62,6 +63,11 @@ export default function ChildrenManagePage() {
   useEffect(() => {
     loadChildren()
   }, [loadChildren])
+
+  // 页面显示时重新加载（处理审核后返回的情况）
+  useDidShow(() => {
+    loadChildren(false)
+  })
 
   const handleSearch = (value: string) => {
     setKeyword(value)
@@ -154,6 +160,9 @@ export default function ChildrenManagePage() {
                     {child.class_id && (
                       <Text className="text-sm text-muted-foreground">班级: {child.class_id}</Text>
                     )}
+                  </View>
+                  <View className="flex items-center gap-1">
+                    <Text className="text-xs text-muted-foreground">过敏: {child.allergies || '无'}</Text>
                   </View>
                   {child.parent_name && (
                     <View className="flex items-center gap-1">

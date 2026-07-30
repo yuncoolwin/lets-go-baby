@@ -20,6 +20,8 @@ export interface ChildInfo {
   birth_date: string | null
   avatar_url: string | null
   relationship: string
+  custom_relationship?: string | null
+  allergies?: string | null
 }
 
 interface AppStore {

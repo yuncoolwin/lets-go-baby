@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { View, Text, Image } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -67,6 +67,13 @@ export default function IndexPage() {
     }
   }, [isLoggedIn, currentRole, currentChildIndex])
 
+  // 页面显示时重新加载数据（处理审核后返回的情况）
+  useDidShow(() => {
+    if (isLoggedIn && currentRole) {
+      loadPageData()
+    }
+  })
+
   const loadPageData = async () => {
     setPageLoading(true)
     try {
@@ -122,6 +129,19 @@ export default function IndexPage() {
       }
     }
   }
+
+  // 监听审核刷新事件
+  useEffect(() => {
+    const handler = () => {
+      if (currentRole?.role_type === 'admin') {
+        loadAdminData()
+      }
+    }
+    Taro.eventCenter.on('refreshPendingCount', handler)
+    return () => {
+      Taro.eventCenter.off('refreshPendingCount', handler)
+    }
+  }, [currentRole])
 
   const getStatusText = (status: string) => {
     switch (status) {
@@ -201,7 +221,8 @@ export default function IndexPage() {
               currentChild.relationship === 'father' ? '爸爸' :
               currentChild.relationship === 'mother' ? '妈妈' :
               currentChild.relationship === 'grandfather' ? '爷爷' :
-              currentChild.relationship === 'grandmother' ? '奶奶' : '家长'
+              currentChild.relationship === 'grandmother' ? '奶奶' :
+              currentChild.relationship === 'other' && currentChild.custom_relationship ? currentChild.custom_relationship : '家长'
             }` : '新用户'}
           </Text>
           <Text className="block text-sm text-muted-foreground mt-1">
@@ -264,7 +285,8 @@ export default function IndexPage() {
                       {currentChild.relationship === 'father' ? '爸爸' :
                        currentChild.relationship === 'mother' ? '妈妈' :
                        currentChild.relationship === 'grandfather' ? '爷爷' :
-                       currentChild.relationship === 'grandmother' ? '奶奶' : '家长'}的宝宝
+                       currentChild.relationship === 'grandmother' ? '奶奶' :
+                       currentChild.relationship === 'other' && currentChild.custom_relationship ? currentChild.custom_relationship : '家长'}的宝宝
                     </Text>
                   )}
                   <Badge className={`${getStatusColor(babyStatus.attendance_status)} text-xs mt-1`}>
@@ -288,6 +310,14 @@ export default function IndexPage() {
                     <Text className="text-sm">{getEmoji(babyStatus.latest_feedback.mood_status)}</Text>
                     <Text className="text-xs text-muted-foreground">情绪</Text>
                   </View>
+                </View>
+              )}
+
+              {/* 过敏情况 */}
+              {currentChild?.allergies && (
+                <View className="flex gap-2 pt-3 mt-3 border-t border-border items-center">
+                  <Text className="text-xs text-muted-foreground">过敏情况</Text>
+                  <Text className="text-sm text-foreground">{currentChild.allergies}</Text>
                 </View>
               )}
 

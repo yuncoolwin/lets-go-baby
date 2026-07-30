@@ -62,6 +62,8 @@ export default function ReviewPage() {
         Taro.showToast({ title: '已通过', icon: 'success' })
         // 静默刷新列表，不显示骨架屏
         await loadRequests(false)
+        // 刷新首页红点（使用全局事件通知）
+        Taro.eventCenter.trigger('refreshPendingCount')
       } else {
         Taro.showToast({ title: res.data?.msg || '操作失败', icon: 'none' })
       }
@@ -87,6 +89,8 @@ export default function ReviewPage() {
         Taro.showToast({ title: '已拒绝', icon: 'success' })
         // 静默刷新列表，不显示骨架屏
         await loadRequests(false)
+        // 刷新首页红点
+        Taro.eventCenter.trigger('refreshPendingCount')
       } else {
         Taro.showToast({ title: res.data?.msg || '操作失败', icon: 'none' })
       }
