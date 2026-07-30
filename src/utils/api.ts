@@ -27,10 +27,19 @@ const request = async <T = any>(option: {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
   data?: any
 }): Promise<ApiResponse<T>> => {
+  // 过滤掉 undefined 值，避免被序列化为 "undefined" 字符串
+  const cleanData: Record<string, any> = {}
+  if (option.data) {
+    Object.keys(option.data).forEach(key => {
+      if (option.data[key] !== undefined && option.data[key] !== null && option.data[key] !== '') {
+        cleanData[key] = option.data[key]
+      }
+    })
+  }
   const res = await Network.request({
     url: option.url,
     method: option.method || 'GET',
-    data: option.data,
+    data: Object.keys(cleanData).length > 0 ? cleanData : undefined,
     header: { 'Content-Type': 'application/json' },
   })
   return res.data as ApiResponse<T>
