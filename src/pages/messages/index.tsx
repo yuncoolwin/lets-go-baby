@@ -33,8 +33,13 @@ export default function MessagesPage() {
         method: 'GET',
       })
       console.log('[Messages] notifications:', res.data)
-      if (res.data?.data) {
-        setNotifications(res.data.data)
+      const responseData = res.data?.data
+      if (Array.isArray(responseData)) {
+        setNotifications(responseData)
+      } else if (responseData?.list && Array.isArray(responseData.list)) {
+        setNotifications(responseData.list)
+      } else {
+        setNotifications([])
       }
     } catch (err) {
       console.error('[Messages] error:', err)

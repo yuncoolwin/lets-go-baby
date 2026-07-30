@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { Baby, Bus, BookOpen, Users, ClipboardCheck, Camera, ShieldCheck, UserCheck } from 'lucide-react-taro'
+import { Baby, Bus, BookOpen, Users, ClipboardCheck, Camera, ShieldCheck, UserCheck, Bell } from 'lucide-react-taro'
 
 interface BabyStatus {
   child_id: string
@@ -309,7 +309,8 @@ export default function IndexPage() {
           </Card>
         )}
 
-        {/* 快捷入口 */}
+        {/* 快捷入口 - 已绑定幼儿后才显示 */}
+        {children.length > 0 && (
         <View className="grid grid-cols-3 gap-3">
           <Card
             className="bg-white rounded-xl border-0 shadow-sm"
@@ -347,6 +348,7 @@ export default function IndexPage() {
             </CardContent>
           </Card>
         </View>
+        )}
       </View>
     )
   }
@@ -427,13 +429,13 @@ export default function IndexPage() {
 
           <Card
             className="bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => Taro.switchTab({ url: '/pages/messages/index' })}
+            onClick={() => Taro.navigateTo({ url: '/pages/teacher-notification/index' })}
           >
             <CardContent className="p-4 flex flex-col items-center">
               <View className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mb-2">
-                <Users size={20} color="#3B82F6" />
+                <Bell size={20} color="#3B82F6" />
               </View>
-              <Text className="text-xs text-foreground">发通知</Text>
+              <Text className="text-xs text-foreground">发布通知</Text>
             </CardContent>
           </Card>
         </View>

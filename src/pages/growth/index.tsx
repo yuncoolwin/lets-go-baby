@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Network } from '@/network'
 import { Camera } from 'lucide-react-taro'
+import BackButton from '@/components/back-button'
 
 interface GrowthRecord {
   id: string
@@ -71,7 +72,7 @@ export default function GrowthPage() {
 
   return (
     <View className="min-h-screen bg-background p-4">
-      <Text className="block text-lg font-bold text-foreground mb-4">成长档案</Text>
+      <BackButton title="成长档案" />
 
       {records.length === 0 ? (
         <View className="flex flex-col items-center py-16">
