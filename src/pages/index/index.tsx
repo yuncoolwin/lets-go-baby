@@ -112,7 +112,14 @@ export default function IndexPage() {
     })
     console.log('[Index] pending count:', res.data)
     if (res.data?.data) {
-      setPendingCount(res.data.data.count || 0)
+      const count = res.data.data.count || 0
+      setPendingCount(count)
+      // 控制底部导航栏红点
+      if (count > 0) {
+        Taro.showTabBarRedDot({ index: 0 })
+      } else {
+        Taro.hideTabBarRedDot({ index: 0 })
+      }
     }
   }
 
@@ -466,7 +473,7 @@ export default function IndexPage() {
         {/* 管理入口 */}
         <View className="grid grid-cols-2 gap-3">
           <Card
-            className="bg-white rounded-xl border-0 shadow-sm"
+            className="bg-white rounded-xl border-0 shadow-sm relative"
             onClick={() => Taro.navigateTo({ url: '/pages/review/index' })}
           >
             <CardContent className="p-4 flex flex-col items-center">
@@ -475,8 +482,8 @@ export default function IndexPage() {
               </View>
               <Text className="text-sm text-foreground">绑定审核</Text>
               {pendingCount > 0 && (
-                <View className="absolute top-2 right-2 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
-                  <Text className="text-xs text-white">{pendingCount}</Text>
+                <View className="absolute top-2 right-2 min-w-5 h-5 px-1 rounded-full bg-red-500 flex items-center justify-center">
+                  <Text className="text-xs text-white">{pendingCount > 99 ? '99+' : pendingCount}</Text>
                 </View>
               )}
             </CardContent>
