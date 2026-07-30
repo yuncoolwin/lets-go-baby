@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
+import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { BookOpen, Plus, X } from 'lucide-react-taro'
+import { BookOpen, Plus, X, Baby } from 'lucide-react-taro'
 
 interface FeedbackItem {
   id: string
@@ -27,7 +28,7 @@ interface Student {
 }
 
 export default function RecordsPage() {
-  const { currentRole } = useAppStore()
+  const { currentRole, children } = useAppStore()
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -304,7 +305,25 @@ export default function RecordsPage() {
     )
   }
 
-  // 家长端：查看反馈
+  // 家长端：查看反馈（未绑定幼儿时显示绑定提示）
+  if (children.length === 0) {
+    return (
+      <View className="min-h-screen bg-background p-4 flex flex-col items-center justify-center">
+        <Baby size={48} color="#E8651A" />
+        <Text className="block text-base font-medium text-foreground mt-4 mb-2">请先绑定幼儿</Text>
+        <Text className="block text-sm text-muted-foreground mb-6 text-center">
+          绑定幼儿后即可查看每日反馈
+        </Text>
+        <Button
+          className="bg-primary text-white rounded-lg px-6"
+          onClick={() => Taro.navigateTo({ url: '/pages/binding/index' })}
+        >
+          <Text>立即绑定</Text>
+        </Button>
+      </View>
+    )
+  }
+
   return (
     <View className="min-h-screen bg-background p-4 pb-20">
       <Text className="block text-lg font-bold text-foreground mb-4">每日反馈</Text>

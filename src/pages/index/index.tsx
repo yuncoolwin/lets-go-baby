@@ -223,8 +223,8 @@ export default function IndexPage() {
           </View>
         )}
 
-        {/* 宝宝状态卡片 */}
-        {babyStatus && (
+        {/* 宝宝状态卡片 - 仅在已绑定幼儿时显示 */}
+        {children.length > 0 && babyStatus && (
           <Card className="mb-4 bg-white rounded-xl border-0 shadow-sm">
             <CardContent className="p-4">
               <View className="flex items-center gap-3 mb-3">
