@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text, Image, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,15 +8,20 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Network } from '@/network'
 import { useAppStore } from '@/store/app'
-import { Search, UserPlus } from 'lucide-react-taro'
+import { Search, UserPlus, ChevronDown } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 
 const relationshipOptions = [
-  { value: 'father', label: '父亲' },
-  { value: 'mother', label: '母亲' },
-  { value: 'grandfather', label: '爷爷/外公' },
-  { value: 'grandmother', label: '奶奶/外婆' },
+  { value: 'father', label: '爸爸' },
+  { value: 'mother', label: '妈妈' },
+  { value: 'grandfather', label: '爷爷' },
+  { value: 'grandmother', label: '奶奶' },
   { value: 'other', label: '其他' },
+]
+
+const allergyOptions = [
+  { value: 'none', label: '无' },
+  { value: 'custom', label: '有（请填写）' },
 ]
 
 export default function BindingPage() {
@@ -27,6 +32,9 @@ export default function BindingPage() {
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null)
   const [relationship, setRelationship] = useState('father')
   const [customRelationship, setCustomRelationship] = useState('')
+  const [birthDate, setBirthDate] = useState('')
+  const [allergyType, setAllergyType] = useState('none')
+  const [customAllergy, setCustomAllergy] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [searchResult, setSearchResult] = useState<Array<{ id: string; name: string; gender: string }> | null>(null)
 
@@ -83,6 +91,14 @@ export default function BindingPage() {
       Taro.showToast({ title: '请输入具体关系', icon: 'none' })
       return
     }
+    if (!birthDate) {
+      Taro.showToast({ title: '请选择出生年月日', icon: 'none' })
+      return
+    }
+    if (allergyType === 'custom' && !customAllergy.trim()) {
+      Taro.showToast({ title: '请填写过敏情况', icon: 'none' })
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -96,6 +112,8 @@ export default function BindingPage() {
           child_name: childName.trim(),
           relationship: relationship === 'other' ? 'other' : relationship,
           custom_relationship: relationship === 'other' ? customRelationship.trim() : null,
+          birth_date: birthDate,
+          allergies: allergyType === 'none' ? '无' : customAllergy.trim(),
         },
       })
       console.log('[Binding] submit:', res.data)
@@ -230,6 +248,53 @@ export default function BindingPage() {
 
               <View>
                 <Label className="text-sm text-foreground mb-2">
+                  <Text>出生年月日</Text>
+                </Label>
+                <Picker
+                  mode="date"
+                  value={birthDate}
+                  onChange={(e) => setBirthDate(e.detail.value)}
+                  className="mt-2"
+                >
+                  <View className="bg-gray-50 rounded-xl px-4 py-3 flex items-center justify-between">
+                    <Text className="text-sm text-foreground">
+                      {birthDate || '请选择出生日期'}
+                    </Text>
+                    <ChevronDown size={16} color="#999" />
+                  </View>
+                </Picker>
+              </View>
+
+              <View>
+                <Label className="text-sm text-foreground mb-2">
+                  <Text>过敏情况</Text>
+                </Label>
+                <RadioGroup
+                  className="flex flex-wrap gap-3 mt-2"
+                  value={allergyType}
+                  onValueChange={setAllergyType}
+                >
+                  {allergyOptions.map((opt) => (
+                    <View key={opt.value} className="flex items-center gap-2">
+                      <RadioGroupItem value={opt.value} />
+                      <Text className="text-sm text-foreground">{opt.label}</Text>
+                    </View>
+                  ))}
+                </RadioGroup>
+                {allergyType === 'custom' && (
+                  <View className="bg-gray-50 rounded-xl px-4 py-3 mt-3">
+                    <Input
+                      className="w-full bg-transparent"
+                      placeholder="请填写具体过敏情况，如：花粉、牛奶等"
+                      value={customAllergy}
+                      onInput={(e) => setCustomAllergy(e.detail.value)}
+                    />
+                  </View>
+                )}
+              </View>
+
+              <View>
+                <Label className="text-sm text-foreground mb-2">
                   <Text>与幼儿关系</Text>
                 </Label>
                 <RadioGroup
@@ -254,7 +319,7 @@ export default function BindingPage() {
                   <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
                     <Input
                       className="w-full bg-transparent"
-                      placeholder="请输入具体关系，如：叔叔、阿姨等"
+                      placeholder="请输入具体关系，如：外公、外婆等"
                       value={customRelationship}
                       onInput={(e) => setCustomRelationship(e.detail.value)}
                     />
