@@ -4,7 +4,8 @@ import Taro from '@tarojs/taro'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAppStore } from '@/store/app'
-import { Baby, Shield, GraduationCap } from 'lucide-react-taro'
+import { Shield, GraduationCap } from 'lucide-react-taro'
+import rabbitLogo from '@/assets/rabbit-logo.png'
 import logoUrl from '@/assets/logo.png'
 
 export default function LoginPage() {
@@ -149,7 +150,7 @@ export default function LoginPage() {
                   onClick={() => handleMockLogin('parent')}
                   disabled={isLoading}
                 >
-                  <Baby size={20} color="#E8651A" />
+                  <Image src={rabbitLogo} className="w-5 h-5 rounded-full" mode="aspectFit" />
                   <Text className="text-base">家长端登录</Text>
                 </Button>
 

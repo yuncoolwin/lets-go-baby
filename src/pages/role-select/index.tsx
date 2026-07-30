@@ -1,17 +1,19 @@
 import { useState } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAppStore, type RoleType } from '@/store/app'
-import { Baby, GraduationCap, Shield, Check } from 'lucide-react-taro'
+import { GraduationCap, Shield, Check } from 'lucide-react-taro'
+import rabbitLogo from '@/assets/rabbit-logo.png'
 
-const roleConfig: Record<string, { name: string; desc: string; icon: typeof Baby; color: string }> = {
+const roleConfig: Record<string, { name: string; desc: string; icon: any; color: string; isImage?: boolean }> = {
   parent: {
     name: '家长',
     desc: '查看宝宝在园状态、接送记录、每日反馈',
-    icon: Baby,
+    icon: rabbitLogo,
     color: '#E8651A',
+    isImage: true,
   },
   teacher: {
     name: '教师',
@@ -64,6 +66,7 @@ export default function RoleSelectPage() {
           if (!config) return null
 
           const Icon = config.icon
+          const isImage = config.isImage
           const isSelected = selectedRole === role.role_type
 
           return (
@@ -76,10 +79,14 @@ export default function RoleSelectPage() {
             >
               <CardContent className="p-4 flex items-center gap-4">
                 <View
-                  className="w-12 h-12 rounded-xl flex items-center justify-center"
+                  className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
                   style={{ backgroundColor: `${config.color}15` }}
                 >
-                  <Icon size={24} color={config.color} />
+                  {isImage ? (
+                    <Image src={Icon} className="w-10 h-10 rounded-lg" mode="aspectFit" />
+                  ) : (
+                    <Icon size={24} color={config.color} />
+                  )}
                 </View>
 
                 <View className="flex-1">

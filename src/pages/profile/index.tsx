@@ -1,11 +1,12 @@
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+
 import { Separator } from '@/components/ui/separator'
 import { useAppStore, type RoleType } from '@/store/app'
-import { User, ChevronRight, LogOut, Users, Baby, Shield } from 'lucide-react-taro'
+import { User, ChevronRight, LogOut, Users, Shield } from 'lucide-react-taro'
+import rabbitLogo from '@/assets/rabbit-logo.png'
 
 export default function ProfilePage() {
   const {
@@ -49,23 +50,19 @@ export default function ProfilePage() {
     }
   }
 
-  const getRoleIcon = (role: RoleType) => {
+  const getRoleIcon = (role: RoleType): { type: 'image'; src: string } | { type: 'component'; component: typeof Users } => {
     switch (role) {
-      case 'parent': return Baby
-      case 'teacher': return Users
-      case 'admin': return Shield
-      default: return User
+      case 'parent': return { type: 'image', src: rabbitLogo }
+      case 'teacher': return { type: 'component', component: Users }
+      case 'admin': return { type: 'component', component: Shield }
+      default: return { type: 'component', component: User }
     }
   }
 
   if (!isLoggedIn) {
     return (
       <View className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <Avatar className="w-20 h-20 mb-4">
-          <AvatarFallback>
-            <User size={32} color="#999999" />
-          </AvatarFallback>
-        </Avatar>
+        <Image src={rabbitLogo} className="w-20 h-20 rounded-full mb-4" mode="aspectFit" />
         <Text className="block text-base text-muted-foreground mb-4">请先登录</Text>
         <Button
           className="bg-primary text-primary-foreground rounded-xl"
@@ -81,13 +78,7 @@ export default function ProfilePage() {
     <View className="min-h-screen bg-background p-4">
       {/* 用户信息 */}
       <View className="flex items-center gap-4 mb-6">
-        <Avatar className="w-16 h-16">
-          <AvatarFallback>
-            <Text className="text-lg font-bold text-primary">
-              {(displayName || '用')[0]}
-            </Text>
-          </AvatarFallback>
-        </Avatar>
+        <Image src={rabbitLogo} className="w-16 h-16 rounded-full" mode="aspectFit" />
         <View className="flex-1">
           <Text className="block text-lg font-bold text-foreground">{displayName}</Text>
           {currentRole && (
@@ -105,7 +96,7 @@ export default function ProfilePage() {
             <Text className="block text-sm font-semibold text-foreground mb-3">切换角色</Text>
             <View className="space-y-2">
               {roles.map((role, index) => {
-                const Icon = getRoleIcon(role.role_type)
+                const iconInfo = getRoleIcon(role.role_type)
                 const isActive = index === currentRoleIndex
                 return (
                   <View
@@ -113,7 +104,11 @@ export default function ProfilePage() {
                     className={`flex items-center gap-3 p-3 rounded-lg ${isActive ? 'bg-secondary' : ''}`}
                     onClick={() => setCurrentRole(index)}
                   >
-                    <Icon size={18} color={isActive ? '#E8651A' : '#666'} />
+                    {iconInfo.type === 'image' ? (
+                      <Image src={iconInfo.src} className="w-5 h-5 rounded-full" mode="aspectFit" />
+                    ) : (
+                      <iconInfo.component size={18} color={isActive ? '#E8651A' : '#666'} />
+                    )}
                     <Text className={`flex-1 text-sm ${isActive ? 'text-primary font-medium' : 'text-foreground'}`}>
                       {getRoleName(role.role_type)} {role.real_name ? `(${role.real_name})` : ''}
                     </Text>
