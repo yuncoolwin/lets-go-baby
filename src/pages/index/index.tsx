@@ -70,7 +70,10 @@ export default function IndexPage() {
 
   // 页面显示时重新加载数据（处理审核后返回的情况）
   useDidShow(() => {
-    if (isLoggedIn && currentRole) {
+    const currentState = useAppStore.getState()
+    const roleType = currentState.currentRole?.role_type
+    console.log('[Index] useDidShow, roleType:', roleType)
+    if (currentState.isLoggedIn && currentState.currentRole) {
       // 先刷新 store 中的用户信息（包含 children），再加载页面数据
       fetchUserInfo().then(() => {
         loadPageData()
@@ -298,6 +301,10 @@ export default function IndexPage() {
                       {formatAge(currentChild.birth_date)}
                     </Text>
                   )}
+                  {/* 过敏情况 - 紧跟年龄下方 */}
+                  <Text className="block text-xs text-muted-foreground mt-1">
+                    过敏：{currentChild?.allergies || '无'}
+                  </Text>
                 </View>
                 <Button
                   className="bg-primary text-white rounded-lg px-3 py-1 text-xs"
@@ -315,7 +322,7 @@ export default function IndexPage() {
                 </Button>
               </View>
 
-              {/* 今日反馈摘要 */}
+              {/* 今日反馈摘要 - 移到过敏情况下方 */}
               {babyStatus.latest_feedback && (
                 <View className="flex gap-4 pt-3 border-t border-border">
                   <View className="flex items-center gap-1">
@@ -332,12 +339,6 @@ export default function IndexPage() {
                   </View>
                 </View>
               )}
-
-              {/* 过敏情况 */}
-              <View className="flex gap-2 pt-3 mt-3 border-t border-border items-center">
-                <Text className="text-xs text-muted-foreground">过敏情况</Text>
-                <Text className="text-sm text-foreground">{currentChild?.allergies || '无'}</Text>
-              </View>
 
               {/* 接送时间 */}
               {(babyStatus.check_in_time || babyStatus.check_out_time) && (
