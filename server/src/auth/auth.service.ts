@@ -20,12 +20,15 @@ export class AuthService {
     console.log('[AuthService] Generated openid:', openid);
 
     // 1. 查找已有用户
-    const { data: existingUser } = await this.client
+    const { data: existingUser, error: findError } = await this.client
       .from('users')
       .select('id, openid, nickname, avatar_url, phone')
       .eq('openid', openid)
       .maybeSingle();
 
+    if (findError) {
+      console.error('[AuthService] Find user error:', findError);
+    }
     console.log('[AuthService] Existing user:', existingUser ? `id=${existingUser.id}` : 'not found');
 
     let userId: string;
@@ -50,18 +53,39 @@ export class AuthService {
 
       if (error) {
         console.error('[AuthService] Create user error:', error);
-        throw new Error(`创建用户失败: ${error.message}`);
-      }
-      userId = newUser.id;
-      user = newUser;
-      console.log('[AuthService] Created new user:', userId);
+        // 如果是唯一约束冲突（并发情况），再次尝试查找用户
+        if (error.code === '23505') {
+          console.log('[AuthService] Unique constraint conflict, retrying find user...');
+          const { data: retryUser, error: retryError } = await this.client
+            .from('users')
+            .select('id, openid, nickname, avatar_url, phone')
+            .eq('openid', openid)
+            .maybeSingle();
 
-      // 自动创建parent角色
-      await this.client.from('user_roles').insert({
-        user_id: userId,
-        role_type: 'parent',
-        status: 'active',
-      });
+          if (retryError || !retryUser) {
+            throw new Error(`查找用户失败: ${retryError?.message || '用户不存在'}`);
+          }
+          userId = retryUser.id;
+          user = retryUser;
+          console.log('[AuthService] Found user after retry:', userId);
+        } else {
+          throw new Error(`创建用户失败: ${error.message}`);
+        }
+      } else {
+        userId = newUser.id;
+        user = newUser;
+        console.log('[AuthService] Created new user:', userId);
+
+        // 自动创建parent角色
+        const { error: roleError } = await this.client.from('user_roles').insert({
+          user_id: userId,
+          role_type: 'parent',
+          status: 'active',
+        });
+        if (roleError) {
+          console.error('[AuthService] Create parent role error:', roleError);
+        }
+      }
     }
 
     // 2. 处理 mock 角色（测试用）
