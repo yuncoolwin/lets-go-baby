@@ -267,10 +267,7 @@ export default function IndexPage() {
 
         {/* 宝宝状态卡片 - 仅在已绑定幼儿时显示 */}
         {children.length > 0 && babyStatus && (
-          <Card
-            className="mb-4 bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => babyStatus?.child_id && Taro.navigateTo({ url: `/pages/child-setting/index?childId=${babyStatus.child_id}` })}
-          >
+          <Card className="mb-4 bg-white rounded-xl border-0 shadow-sm">
             <CardContent className="p-4">
               <View className="flex items-center gap-3 mb-3">
                 <View className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
@@ -304,6 +301,12 @@ export default function IndexPage() {
                     <Text className="text-xs">{getStatusText(babyStatus.attendance_status)}</Text>
                   </Badge>
                 </View>
+                <Button
+                  className="bg-primary text-white rounded-lg px-3 py-1 text-xs"
+                  onClick={() => babyStatus?.child_id && Taro.navigateTo({ url: `/pages/child-setting/index?childId=${babyStatus.child_id}` })}
+                >
+                  <Text className="text-xs">设置</Text>
+                </Button>
               </View>
 
               {/* 今日反馈摘要 */}

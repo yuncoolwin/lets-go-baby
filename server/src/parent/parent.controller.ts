@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Query, Param, HttpCode } from '@nestjs/common';
 import { ParentService } from './parent.service';
 
 @Controller('parent')
@@ -37,6 +37,27 @@ export class ParentController {
   @HttpCode(200)
   async searchChildren(@Query('keyword') keyword: string) {
     const data = await this.parentService.searchChildren(keyword);
+    return { code: 200, msg: 'success', data };
+  }
+
+  @Get('child/:id')
+  @HttpCode(200)
+  async getChildById(@Param('id') id: string) {
+    const data = await this.parentService.getChildById(id);
+    return { code: 200, msg: 'success', data };
+  }
+
+  @Patch('child/:id')
+  @HttpCode(200)
+  async updateChild(@Param('id') id: string, @Body() body: {
+    name?: string;
+    gender?: string;
+    birth_date?: string;
+    allergies?: string;
+    relationship?: string;
+    custom_relationship?: string;
+  }) {
+    const data = await this.parentService.updateChild(id, body);
     return { code: 200, msg: 'success', data };
   }
 

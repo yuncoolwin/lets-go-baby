@@ -244,4 +244,95 @@ export class ParentService {
     if (error) throw new Error(`提交绑定申请失败: ${error.message}`);
     return result;
   }
+
+  async getChildById(childId: string) {
+    // 查询 parent_child_relations 获取关联信息
+    const { data: relation, error: relError } = await this.client
+      .from('parent_child_relations')
+      .select('id, child_id, relationship, custom_relationship, status')
+      .eq('child_id', childId)
+      .eq('status', 'approved')
+      .maybeSingle();
+
+    if (relError) throw new Error(`查询关联信息失败: ${relError.message}`);
+    if (!relation) return null;
+
+    // 查询 children 表获取幼儿信息
+    const { data: child, error: childError } = await this.client
+      .from('children')
+      .select('id, name, gender, birth_date, allergies, status, class_id')
+      .eq('id', childId)
+      .maybeSingle();
+
+    if (childError) throw new Error(`查询幼儿信息失败: ${childError.message}`);
+    if (!child) return null;
+
+    // 查询班级信息
+    let className = null;
+    let room = null;
+    if (child.class_id) {
+      const { data: classInfo } = await this.client
+        .from('classes')
+        .select('name, room')
+        .eq('id', child.class_id)
+        .maybeSingle();
+      if (classInfo) {
+        className = classInfo.name;
+        room = classInfo.room;
+      }
+    }
+
+    return {
+      id: relation.id,
+      child_id: child.id,
+      child_name: child.name,
+      relationship: relation.relationship,
+      custom_relationship: relation.custom_relationship,
+      status: child.status,
+      gender: child.gender,
+      birth_date: child.birth_date,
+      allergies: child.allergies,
+      class_name: className,
+      room: room,
+    };
+  }
+
+  async updateChild(childId: string, data: {
+    name?: string;
+    gender?: string;
+    birth_date?: string;
+    allergies?: string;
+    relationship?: string;
+    custom_relationship?: string;
+  }) {
+    // 更新 children 表
+    const childUpdate: Record<string, string> = {};
+    if (data.name !== undefined) childUpdate.name = data.name;
+    if (data.gender !== undefined) childUpdate.gender = data.gender;
+    if (data.birth_date !== undefined) childUpdate.birth_date = data.birth_date;
+    if (data.allergies !== undefined) childUpdate.allergies = data.allergies;
+
+    if (Object.keys(childUpdate).length > 0) {
+      const { error: childError } = await this.client
+        .from('children')
+        .update(childUpdate)
+        .eq('id', childId);
+      if (childError) throw new Error(`更新幼儿信息失败: ${childError.message}`);
+    }
+
+    // 更新 parent_child_relations 表
+    const relationUpdate: Record<string, string | null> = {};
+    if (data.relationship !== undefined) relationUpdate.relationship = data.relationship;
+    if (data.custom_relationship !== undefined) relationUpdate.custom_relationship = data.custom_relationship;
+
+    if (Object.keys(relationUpdate).length > 0) {
+      const { error: relError } = await this.client
+        .from('parent_child_relations')
+        .update(relationUpdate)
+        .eq('child_id', childId);
+      if (relError) throw new Error(`更新关联信息失败: ${relError.message}`);
+    }
+
+    return { success: true };
+  }
 }

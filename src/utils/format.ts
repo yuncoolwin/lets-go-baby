@@ -25,11 +25,15 @@ export function formatAge(birthDate: string | null | undefined): string {
   
   // 处理边界情况
   if (years < 0) return '0岁0个月'
-  
+
+  if (years === 0 && months === 0) {
+    return '新生儿'
+  }
+
   if (years === 0) {
     return `${months}个月`
   }
-  
+
   return `${years}岁${months}个月`
 }
 
