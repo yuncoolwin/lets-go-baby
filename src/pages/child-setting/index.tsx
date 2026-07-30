@@ -53,9 +53,10 @@ export default function ChildSettingPage() {
 
   useEffect(() => {
     const params = Taro.getCurrentInstance().router?.params
-    if (params?.id) {
-      setChildId(params.id)
-      loadChild(params.id)
+    const id = params?.childId || params?.id
+    if (id) {
+      setChildId(id)
+      loadChild(id)
     } else {
       Taro.showToast({ title: '参数错误', icon: 'none' })
       setLoading(false)

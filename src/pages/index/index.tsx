@@ -75,22 +75,26 @@ export default function IndexPage() {
     console.log('[Index] useDidShow, roleType:', roleType)
     if (currentState.isLoggedIn && currentState.currentRole) {
       // 先刷新 store 中的用户信息（包含 children），再加载页面数据
-      fetchUserInfo().then(() => {
-        loadPageData()
+      currentState.fetchUserInfo().then(() => {
+        loadPageData(roleType)
       }).catch(() => {
-        loadPageData()
+        loadPageData(roleType)
       })
     }
   })
 
-  const loadPageData = async () => {
+  const loadPageData = async (roleType?: string | null) => {
+    // 直接从 store 获取最新角色，避免闭包捕获旧值
+    const latestRole = useAppStore.getState().currentRole
+    const type = roleType || latestRole?.role_type
+    console.log('[Index] loadPageData, roleType:', type)
     setPageLoading(true)
     try {
-      if (currentRole?.role_type === 'parent') {
+      if (type === 'parent') {
         await loadParentData()
-      } else if (currentRole?.role_type === 'teacher') {
+      } else if (type === 'teacher') {
         await loadTeacherData()
-      } else if (currentRole?.role_type === 'admin') {
+      } else if (type === 'admin') {
         await loadAdminData()
       }
     } catch (err) {
