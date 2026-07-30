@@ -229,12 +229,19 @@ export const useAppStore = create<AppStore>()(
       if (data) {
         const roles = (data.roles || []) as UserRole[]
         const children = (data.children || []) as ChildInfo[]
-        const currentRole = roles.length > 0 ? roles[0] : null
+        // 保留当前已选择的角色，不覆盖用户手动切换的角色
+        const { currentRole: existingRole, currentRoleIndex: existingIndex } = get()
+        let currentRole: UserRole | null = existingRole
+        let currentRoleIndex = existingIndex
+        if (!currentRole || !roles.find(r => r.id === currentRole!.id)) {
+          currentRole = roles.length > 0 ? roles[0] : null
+          currentRoleIndex = 0
+        }
 
         set({
           roles,
           currentRole,
-          currentRoleIndex: 0,
+          currentRoleIndex,
           children,
           currentChildIndex: 0,
           isLoading: false,
