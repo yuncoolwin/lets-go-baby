@@ -269,7 +269,7 @@ export default function IndexPage() {
         {children.length > 0 && babyStatus && (
           <Card
             className="mb-4 bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => currentChild?.child_id && Taro.navigateTo({ url: `/pages/child-setting/index?childId=${currentChild.child_id}` })}
+            onClick={() => babyStatus?.child_id && Taro.navigateTo({ url: `/pages/child-setting/index?childId=${babyStatus.child_id}` })}
           >
             <CardContent className="p-4">
               <View className="flex items-center gap-3 mb-3">
