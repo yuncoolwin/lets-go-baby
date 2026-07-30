@@ -120,7 +120,7 @@ export default function TeacherManagePage() {
       ) : (
         <View className="space-y-3">
           {teachers.map((teacher) => (
-            <Card key={teacher.id} className="bg-white rounded-xl border-0 shadow-sm">
+            <Card key={teacher.id} className="bg-white rounded-xl border-0 shadow-sm cursor-pointer" onClick={() => Taro.navigateTo({ url: `/pages/admin/teacher-edit/index?id=${teacher.id}` })}>
               <CardContent className="p-4">
                 <View className="flex items-center justify-between mb-2">
                   <View className="flex items-center gap-2">
