@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { Bus, BookOpen, Users, ClipboardCheck, Camera, ShieldCheck, UserCheck, Bell } from 'lucide-react-taro'
+import { Bus, BookOpen, Users, ClipboardCheck, Camera, ShieldCheck, UserCheck, Bell, Plus } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 
 interface BabyStatus {
@@ -65,7 +65,7 @@ export default function IndexPage() {
     if (isLoggedIn && currentRole) {
       loadPageData()
     }
-  }, [isLoggedIn, currentRole])
+  }, [isLoggedIn, currentRole, currentChildIndex])
 
   const loadPageData = async () => {
     setPageLoading(true)
@@ -209,9 +209,9 @@ export default function IndexPage() {
           </Text>
         </View>
 
-        {/* 多孩切换 */}
+        {/* 多孩切换 + 添加幼儿 */}
         {children.length > 0 && (
-          <View className="mb-4 flex gap-2 overflow-x-auto">
+          <View className="mb-4 flex gap-2 overflow-x-auto items-center">
             {children.map((child, index) => (
               <View
                 key={child.id}
@@ -232,6 +232,14 @@ export default function IndexPage() {
                 <Text className="text-sm font-medium">{child.name}</Text>
               </View>
             ))}
+            {/* 添加幼儿按钮 */}
+            <View
+              className="flex items-center gap-1 px-3 py-2 rounded-full bg-white border border-dashed border-primary"
+              onClick={() => Taro.navigateTo({ url: '/pages/binding/index' })}
+            >
+              <Plus size={16} color="#E8651A" />
+              <Text className="text-sm text-primary">添加幼儿</Text>
+            </View>
           </View>
         )}
 
