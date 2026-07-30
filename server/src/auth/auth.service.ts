@@ -139,6 +139,8 @@ export class AuthService {
       name: string;
       gender: string;
       avatar_url: string | null;
+      birth_date: string | null;
+      allergies: string | null;
       relationship: string;
     }> = [];
 
@@ -154,7 +156,7 @@ export class AuthService {
         const childIds = relations.map(r => r.child_id);
         const { data: childData } = await this.client
           .from('children')
-          .select('id, name, gender, avatar_url')
+          .select('id, name, gender, avatar_url, birth_date, allergies')
           .in('id', childIds);
 
         if (childData) {
@@ -219,7 +221,7 @@ export class AuthService {
         const childIds = relations.map(r => r.child_id);
         const { data: childData } = await this.client
           .from('children')
-          .select('id, name, gender, avatar_url')
+          .select('id, name, gender, avatar_url, birth_date, allergies')
           .in('id', childIds);
 
         if (childData) {

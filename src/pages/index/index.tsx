@@ -71,7 +71,12 @@ export default function IndexPage() {
   // 页面显示时重新加载数据（处理审核后返回的情况）
   useDidShow(() => {
     if (isLoggedIn && currentRole) {
-      loadPageData()
+      // 先刷新 store 中的用户信息（包含 children），再加载页面数据
+      fetchUserInfo().then(() => {
+        loadPageData()
+      }).catch(() => {
+        loadPageData()
+      })
     }
   })
 
