@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Users, MapPin, Pencil, ChevronDown, ChevronUp, GraduationCap } from 'lucide-react-taro'
+import { Plus, Users, MapPin, Pencil, ChevronDown, ChevronUp } from 'lucide-react-taro'
 import { classApi, childrenApi } from '@/utils/api'
+import { formatAge } from '@/utils/format'
 
 const levelTabs = [
   { value: '', label: '全部' },
@@ -51,6 +52,7 @@ interface ChildItem {
   id: string
   name: string
   gender: string
+  birth_date?: string
   status: string
 }
 
@@ -258,34 +260,40 @@ export default function ClassManagePage() {
 
                 {/* 展开的幼儿列表 */}
                 {expandedId === cls.id && (
-                  <View className="mt-2 bg-gray-50 rounded-xl p-3">
-                    <View className="flex items-center gap-1 mb-2">
-                      <GraduationCap size={14} color="#6b7280" />
-                      <Text className="block text-xs text-gray-500 font-medium">在读幼儿</Text>
-                      <Badge className="ml-1 bg-gray-200 text-gray-500 text-xs px-2 py-1 rounded-full">
-                        {expandedChildren.length}
-                      </Badge>
-                    </View>
+                  <View className="mt-2 space-y-2">
+                    <Text className="block text-xs text-muted-foreground ml-1 mb-1">在读幼儿 ({expandedChildren.length})</Text>
 
                     {childrenLoading ? (
                       <View className="space-y-2">
                         {[1, 2].map(i => (
-                          <Skeleton key={i} className="h-8 w-full rounded-lg" />
+                          <Card key={i} className="bg-white rounded-xl border-0 shadow-sm">
+                            <CardContent className="p-3">
+                              <Skeleton className="h-5 w-24 mb-1" />
+                              <Skeleton className="h-4 w-16" />
+                            </CardContent>
+                          </Card>
                         ))}
                       </View>
                     ) : expandedChildren.length === 0 ? (
-                      <Text className="block text-xs text-gray-400 text-center py-2">暂无在读幼儿</Text>
+                      <Text className="block text-xs text-muted-foreground text-center py-4">暂无在读幼儿</Text>
                     ) : (
-                      <View className="flex flex-wrap gap-2">
+                      <View className="space-y-2">
                         {expandedChildren.map(child => (
-                          <View key={child.id} className="flex items-center gap-2 bg-white rounded-full px-3 py-2">
-                            <View className={`w-5 h-5 rounded-full flex items-center justify-center ${child.gender === 'male' ? 'bg-blue-100' : 'bg-pink-100'}`}>
-                              <Text className={`text-xs font-medium ${child.gender === 'male' ? 'text-blue-600' : 'text-pink-600'}`}>
-                                {child.name.charAt(0)}
-                              </Text>
-                            </View>
-                            <Text className="block text-xs text-gray-700">{child.name}</Text>
-                          </View>
+                          <Card key={child.id} className="bg-white rounded-xl border-0 shadow-sm">
+                            <CardContent className="p-3">
+                              <View className="flex items-center justify-between mb-1">
+                                <View className="flex items-center gap-2">
+                                  <Text className="text-sm font-semibold text-foreground">{child.name}</Text>
+                                  <Text className="text-xs text-muted-foreground">
+                                    {child.gender === 'male' ? '男' : '女'}
+                                  </Text>
+                                </View>
+                              </View>
+                              {child.birth_date && (
+                                <Text className="block text-xs text-muted-foreground">年龄: {formatAge(child.birth_date)}</Text>
+                              )}
+                            </CardContent>
+                          </Card>
                         ))}
                       </View>
                     )}
