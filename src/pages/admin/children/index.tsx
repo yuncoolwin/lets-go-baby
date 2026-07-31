@@ -159,14 +159,11 @@ export default function ChildrenManagePage() {
                   </Badge>
                 </View>
                 <View className="space-y-1">
-                  <View className="flex items-center justify-between">
-                    <Text className="text-sm text-muted-foreground">年龄: {calculateAge(child.birth_date)}</Text>
-                    {child.class_name ? (
-                      <Text className="text-sm text-muted-foreground">班级: {child.class_name}</Text>
-                    ) : (
-                      <Text className="text-sm text-muted-foreground">班级: 未分班</Text>
-                    )}
-                  </View>
+                  {child.class_name ? (
+                    <Text className="text-sm text-muted-foreground">班级: {child.class_name}</Text>
+                  ) : (
+                    <Text className="text-sm text-muted-foreground">班级: 未分班</Text>
+                  )}
                   {child.teacher_names && child.teacher_names.length > 0 && (
                     <View className="flex items-center gap-1 flex-wrap">
                       <UserCheck size={12} color="#d97706" />
@@ -175,6 +172,7 @@ export default function ChildrenManagePage() {
                       ))}
                     </View>
                   )}
+                  <Text className="text-sm text-muted-foreground">年龄: {calculateAge(child.birth_date)}</Text>
                   <View className="flex items-center gap-1">
                     <Text className="text-xs text-muted-foreground">过敏: {child.allergies || '无'}</Text>
                   </View>
