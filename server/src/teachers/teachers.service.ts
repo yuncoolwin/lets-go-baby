@@ -12,11 +12,15 @@ export class TeachersService {
    */
   async create(dto: {
     real_name: string;
+    nickname?: string;
     phone?: string;
+    title?: string;
     qualification?: string;
     specialty?: string;
     status?: string;
     class_id?: string;
+    entry_date?: string;
+    leave_date?: string;
   }) {
     // 检查是否已存在同名教师
     const { data: existing } = await this.client
@@ -32,10 +36,14 @@ export class TeachersService {
 
     const insertData: Record<string, unknown> = {
       real_name: dto.real_name,
+      nickname: dto.nickname || null,
       phone: dto.phone || null,
+      title: dto.title || null,
       qualification: dto.qualification || null,
       specialty: dto.specialty || null,
       status: dto.status || 'active',
+      entry_date: dto.entry_date || null,
+      leave_date: dto.leave_date || null,
     };
     if (dto.class_id) insertData.class_id = dto.class_id;
 
@@ -75,7 +83,7 @@ export class TeachersService {
       builder = builder.eq('status', query.status);
     }
     if (query.keyword) {
-      builder = builder.ilike('real_name', `%${query.keyword}%`);
+      builder = builder.or(`real_name.ilike.%${query.keyword}%,nickname.ilike.%${query.keyword}%`);
     }
 
     const { data, count, error } = await builder;
@@ -145,6 +153,7 @@ export class TeachersService {
     real_name?: string;
     nickname?: string;
     phone?: string;
+    title?: string;
     qualification?: string;
     specialty?: string;
     status?: string;
@@ -157,6 +166,7 @@ export class TeachersService {
     if (dto.real_name !== undefined) updateData.real_name = dto.real_name;
     if (dto.nickname !== undefined) updateData.nickname = dto.nickname;
     if (dto.phone !== undefined) updateData.phone = dto.phone;
+    if (dto.title !== undefined) updateData.title = dto.title;
     if (dto.qualification !== undefined) updateData.qualification = dto.qualification;
     if (dto.specialty !== undefined) updateData.specialty = dto.specialty;
     if (dto.status !== undefined) updateData.status = dto.status;
@@ -164,7 +174,6 @@ export class TeachersService {
     if (dto.class_id !== undefined) updateData.class_id = dto.class_id;
     if (dto.entry_date !== undefined) updateData.entry_date = dto.entry_date;
     if (dto.leave_date !== undefined) updateData.leave_date = dto.leave_date;
-    if (dto.class_id !== undefined) updateData.class_id = dto.class_id;
 
     const { data, error } = await this.client
       .from('teachers')

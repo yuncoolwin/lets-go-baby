@@ -6,6 +6,7 @@ export interface CreateTeacherDto {
   real_name: string;
   nickname?: string;
   phone?: string;
+  title?: string;
   qualification?: string;
   specialty?: string;
   status?: 'active' | 'inactive';
@@ -18,6 +19,7 @@ export interface UpdateTeacherDto {
   real_name?: string;
   nickname?: string;
   phone?: string;
+  title?: string;
   qualification?: string;
   specialty?: string;
   status?: 'active' | 'inactive';

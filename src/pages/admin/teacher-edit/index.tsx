@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Taro, { useRouter } from '@tarojs/taro'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Picker } from '@tarojs/components'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -45,6 +45,7 @@ export default function TeacherEditPage() {
     nickname: '',
     phone: '',
     title: '',
+    customTitle: '',
     class_id: '',
     status: 'active',
     entry_date: '',
@@ -84,11 +85,17 @@ export default function TeacherEditPage() {
       if (res.code === 200 && res.data) {
         const data = res.data
         setTeacher(data)
+
+        // 判断职称是否为预设选项，否则归入"其他"
+        const presetTitles = TITLE_OPTIONS.filter(o => o.value !== '其他').map(o => o.value)
+        const isPreset = data.title && presetTitles.includes(data.title)
+
         setFormData({
           name: data.real_name || data.name || '',
           nickname: data.nickname || '',
           phone: data.phone || '',
-          title: data.title || '',
+          title: isPreset ? data.title : (data.title ? '其他' : ''),
+          customTitle: isPreset ? '' : (data.title || ''),
           class_id: data.class_id || '',
           status: data.status || 'active',
           entry_date: data.entry_date || '',
@@ -113,6 +120,13 @@ export default function TeacherEditPage() {
     }))
   }
 
+  const getEffectiveTitle = () => {
+    if (formData.title === '其他') {
+      return formData.customTitle.trim()
+    }
+    return formData.title
+  }
+
   const handleSave = async () => {
     if (!formData.name.trim()) {
       Taro.showToast({ title: '请输入教师姓名', icon: 'none' })
@@ -125,7 +139,7 @@ export default function TeacherEditPage() {
         real_name: formData.name.trim(),
         nickname: formData.nickname.trim(),
         phone: formData.phone.trim(),
-        title: formData.title,
+        title: getEffectiveTitle(),
         class_id: formData.class_id,
         status: formData.status,
         entry_date: formData.entry_date,
@@ -145,6 +159,10 @@ export default function TeacherEditPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleDateChange = (field: 'entry_date' | 'leave_date', e: any) => {
+    setFormData(prev => ({ ...prev, [field]: e.detail.value }))
   }
 
   if (loading) {
@@ -207,7 +225,7 @@ export default function TeacherEditPage() {
               />
             </View>
 
-            {/* 所在班级 - 移到职称上方 */}
+            {/* 所在班级 */}
             <View>
               <Label>所在班级</Label>
               <View className="flex flex-wrap gap-2 mt-2">
@@ -233,7 +251,7 @@ export default function TeacherEditPage() {
               </View>
             </View>
 
-            {/* 职称 - 改为选项 */}
+            {/* 职称 */}
             <View>
               <Label>职称</Label>
               <View className="flex flex-wrap gap-2 mt-2">
@@ -256,15 +274,31 @@ export default function TeacherEditPage() {
                   </View>
                 ))}
               </View>
+              {formData.title === '其他' && (
+                <View className="mt-3">
+                  <Input
+                    value={formData.customTitle}
+                    onInput={(e) => setFormData(prev => ({ ...prev, customTitle: e.detail.value }))}
+                    placeholder="请输入自定义职称"
+                  />
+                </View>
+              )}
             </View>
 
+            {/* 入职日期 - Picker */}
             <View>
               <Label>入职日期</Label>
-              <Input
+              <Picker
+                mode="date"
                 value={formData.entry_date}
-                onInput={(e) => setFormData(prev => ({ ...prev, entry_date: e.detail.value }))}
-                placeholder="请输入入职日期（如：2024-01-15）"
-              />
+                onChange={(e) => handleDateChange('entry_date', e)}
+              >
+                <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
+                  <Text className={formData.entry_date ? 'text-foreground' : 'text-muted-foreground'}>
+                    {formData.entry_date || '请选择入职日期'}
+                  </Text>
+                </View>
+              </Picker>
             </View>
 
             <View>
@@ -291,11 +325,17 @@ export default function TeacherEditPage() {
             {formData.status === 'inactive' && (
               <View>
                 <Label>离职日期</Label>
-                <Input
+                <Picker
+                  mode="date"
                   value={formData.leave_date}
-                  onInput={(e) => setFormData(prev => ({ ...prev, leave_date: e.detail.value }))}
-                  placeholder="请输入离职日期（如：2024-06-30）"
-                />
+                  onChange={(e) => handleDateChange('leave_date', e)}
+                >
+                  <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
+                    <Text className={formData.leave_date ? 'text-foreground' : 'text-muted-foreground'}>
+                      {formData.leave_date || '请选择离职日期'}
+                    </Text>
+                  </View>
+                </Picker>
               </View>
             )}
           </CardContent>
