@@ -10,7 +10,10 @@ interface ChildItem {
   id: string
   name: string
   gender: string
-  status: string
+  birth_date?: string
+  allergy?: string
+  avatar_url?: string
+  attendance_status?: string | null
 }
 
 interface AttendanceItem {
@@ -63,27 +66,33 @@ export default function RollCallPage() {
       setClassId(theClassId)
       setClassName(teacherData.class_name || '')
 
-      const childrenRes = await Network.request({
-        url: '/api/children',
-        data: { class_id: theClassId, status: 'active', pageSize: 100 },
-      })
-      const list: ChildItem[] = childrenRes.data?.data?.list || childrenRes.data?.data || []
-      setChildren(list)
-
+      // 直接使用考勤接口返回的数据（包含所有幼儿及其考勤状态）
       const attendanceRes = await Network.request({
         url: '/api/attendance',
         data: { class_id: theClassId, date: today },
       })
-      const records: any[] = attendanceRes.data?.data || []
+      const list: ChildItem[] = attendanceRes.data?.data?.list || attendanceRes.data?.data || []
+      setChildren(list)
+      setClassName(teacherData.class_name || '')
+
+      // 构建考勤状态 map
       const map: Record<string, AttendanceItem['status']> = {}
-      records.forEach(r => { 
-        map[r.child_id] = r.attendance_status || r.status 
+      list.forEach(child => {
+        const status = child.attendance_status
+        if (status === 'present' || status === 'absent' || status === 'leave') {
+          map[child.id] = status
+        } else {
+          map[child.id] = 'unknown'
+        }
       })
       setAttendance(map)
       setTempAttendance(map)
-      
-      // 如果有考勤记录，自动锁定
-      const hasRecords = records.length > 0
+
+      // 如果有考勤记录（出勤/缺勤/请假），自动锁定
+      const hasRecords = list.some(c => {
+        const s = c.attendance_status
+        return s === 'present' || s === 'absent' || s === 'leave'
+      })
       setIsLocked(hasRecords)
     } catch (e) {
       console.error('[RollCall] load error:', e)
@@ -101,14 +110,16 @@ export default function RollCallPage() {
 
   const handleSave = async () => {
     try {
-      for (const childId of Object.keys(tempAttendance)) {
-        const status = tempAttendance[childId]
+      // 遍历所有幼儿，包括未考勤的
+      for (const child of children) {
+        const status = tempAttendance[child.id]
+        // 未考勤的跳过
         if (status === 'unknown') continue
         await Network.request({
           url: '/api/attendance',
           method: 'POST',
           data: {
-            child_id: childId,
+            child_id: child.id,
             class_id: classId,
             date: today,
             status,
@@ -252,21 +263,34 @@ export default function RollCallPage() {
                     </View>
 
                     <View className="flex gap-2">
-                      {(['present', 'absent', 'leave'] as const).map(status => (
-                        <View
-                          key={status}
-                          className={`flex-1 py-2 rounded-xl text-center font-medium transition-all ${
-                            current === status
-                              ? `${STATUS_CONFIG[status].color} ${STATUS_CONFIG[status].text}`
-                              : 'bg-gray-100 text-gray-500'
-                          } ${isLocked ? 'opacity-50' : ''}`}
-                          onClick={() => !isLocked && handleStatusChange(child.id, status)}
-                        >
-                          <Text className={`block text-sm font-medium ${current === status ? STATUS_CONFIG[status].text : 'text-gray-600'}`}>
-                            {status === 'present' ? '✓ 到' : status === 'absent' ? '✗ 缺' : '△ 假'}
-                          </Text>
-                        </View>
-                      ))}
+                      {(['present', 'absent', 'leave'] as const).map(status => {
+                        const isSelected = current === status
+                        const isClickable = !isLocked
+                        return (
+                          <View
+                            key={status}
+                            className={`flex-1 py-2 rounded-xl text-center font-medium transition-all ${
+                              isSelected
+                                ? `${STATUS_CONFIG[status].color} ${STATUS_CONFIG[status].text}`
+                                : isClickable
+                                  ? 'bg-gray-100 text-gray-500 active:bg-gray-200'
+                                  : 'bg-gray-100 text-gray-300'
+                            }`}
+                            onClick={() => !isLocked && handleStatusChange(child.id, status)}
+                          >
+                            <Text className={`block text-sm font-medium ${
+                              isSelected
+                                ? STATUS_CONFIG[status].text
+                                : isClickable
+                                  ? 'text-gray-600'
+                                  : 'text-gray-300'
+                            }`}
+                            >
+                              {status === 'present' ? '✓ 到' : status === 'absent' ? '✗ 缺' : '△ 假'}
+                            </Text>
+                          </View>
+                        )
+                      })}
                     </View>
                   </CardContent>
                 </Card>
