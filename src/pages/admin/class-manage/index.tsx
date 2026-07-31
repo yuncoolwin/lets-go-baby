@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
-import { Plus, Trash2, Users, MapPin } from 'lucide-react-taro'
+import { Plus, Users, MapPin } from 'lucide-react-taro'
 import { classApi } from '@/utils/api'
 
 const levelTabs = [
@@ -52,8 +51,6 @@ export default function ClassManagePage() {
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [loading, setLoading] = useState(true)
   const [activeLevel, setActiveLevel] = useState('')
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
-  const [, setDeleting] = useState(false)
   const isFirstMount = useRef(true)
 
   const loadClasses = useCallback(async (showSkeleton = false) => {
@@ -82,26 +79,6 @@ export default function ClassManagePage() {
       loadClasses(false)
     }
   })
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return
-    setDeleting(true)
-    try {
-      const res = await classApi.remove(deleteTarget)
-      console.log('[ClassManage] delete:', res)
-      if (res.code === 200) {
-        setClasses((prev) => prev.filter((c) => c.id !== deleteTarget))
-        Taro.showToast({ title: '删除成功', icon: 'success' })
-      } else {
-        Taro.showToast({ title: res.msg || '删除失败', icon: 'none' })
-      }
-    } catch (err) {
-      console.error('[ClassManage] delete error:', err)
-      Taro.showToast({ title: '删除失败', icon: 'none' })
-    }
-    setDeleting(false)
-    setDeleteTarget(null)
-  }
 
   const goCreate = () => {
     Taro.navigateTo({ url: '/pages/admin/class-edit/index' })
@@ -216,38 +193,6 @@ export default function ClassManagePage() {
                         )}
                       </View>
                     </View>
-
-                    {/* 删除按钮 */}
-                    <AlertDialog>
-                      <AlertDialogTrigger className="p-2 rounded-lg ml-2">
-                        <Trash2 size={16} color="#ef4444" />
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>
-                            <Text className="block text-lg font-semibold">确认删除</Text>
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            <Text className="block text-sm text-gray-500">
-                              确定要删除班级「{cls.name}」吗？此操作不可撤销。
-                            </Text>
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>
-                            <Text className="block text-sm">取消</Text>
-                          </AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => {
-                              setDeleteTarget(cls.id)
-                              handleDelete()
-                            }}
-                          >
-                            <Text className="block text-sm text-white">确认删除</Text>
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
                   </View>
                 </CardContent>
               </Card>

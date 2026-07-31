@@ -5,6 +5,18 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Trash2 } from 'lucide-react-taro'
 import { classApi } from '@/utils/api'
 
 const levelOptions = [
@@ -23,6 +35,8 @@ export default function ClassEditPage() {
   const [isEdit, setIsEdit] = useState(false)
   const [editId, setEditId] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   // 表单字段
   const [name, setName] = useState('')
@@ -111,8 +125,43 @@ export default function ClassEditPage() {
     setSubmitting(false)
   }
 
+  const handleDelete = async () => {
+    if (!editId) return
+    setDeleting(true)
+    try {
+      const res = await classApi.remove(editId)
+      if (res.code === 200) {
+        Taro.showToast({ title: '已删除', icon: 'success' })
+        setTimeout(() => {
+          Taro.navigateBack()
+        }, 800)
+      } else {
+        Taro.showToast({ title: res.msg || '删除失败', icon: 'none' })
+      }
+    } catch (err) {
+      console.error('[ClassEdit] delete error:', err)
+      Taro.showToast({ title: '删除失败', icon: 'none' })
+    }
+    setDeleteOpen(false)
+    setDeleting(false)
+  }
+
   return (
     <View className="min-h-screen bg-background p-4 pb-24">
+      {/* 标题栏：左标题 + 右删除（仅编辑模式） */}
+      <View className="flex items-center justify-between mb-4">
+        <Text className="text-lg font-bold text-foreground block">
+          {isEdit ? '编辑班级' : '新建班级'}
+        </Text>
+        {isEdit && (
+          <View
+            className={`px-3 py-1 rounded-lg ${deleting ? 'bg-gray-50' : 'bg-red-50'}`}
+            onClick={() => !deleting && setDeleteOpen(true)}
+          >
+            <Trash2 size={18} color={deleting ? '#9ca3af' : '#ef4444'} />
+          </View>
+        )}
+      </View>
       <Card className="bg-white rounded-xl border-0 shadow-sm mb-4">
         <CardContent className="p-4 space-y-5">
           {/* 级别选择（放在最上方） */}
@@ -223,6 +272,27 @@ export default function ClassEditPage() {
           </Text>
         </Button>
       </View>
+
+      {/* 删除确认弹窗 */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogTrigger />
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              删除后无法恢复，确定要删除班级「{name || '未命名'}」吗？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              <Text>取消</Text>
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>
+              <Text className="text-white">删除</Text>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </View>
   )
 }
