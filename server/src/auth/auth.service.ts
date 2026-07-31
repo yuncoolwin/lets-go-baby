@@ -8,6 +8,15 @@ export class AuthService {
   }
 
   /**
+   * 生成 Mock Token
+   */
+  private generateToken(roleId: string, roleType: string, phone: string): string {
+    // 使用简单的 Base64 编码作为 Mock Token
+    const payload = `${roleId}:${roleType}:${phone}:${Date.now()}`;
+    return Buffer.from(payload).toString('base64');
+  }
+
+  /**
    * 微信登录（Mock模式）
    * 流程：微信授权 → 查users表 → 已注册则查角色 → 未注册则创建user+parent角色
    */
@@ -259,6 +268,121 @@ export class AuthService {
 
     return { role };
   }
+
+  /**
+   * Mock教师登录：通过手机号查找教师
+   */
+  async teacherLoginByPhone(phone: string) {
+    const supabase = getSupabaseClient();
+
+    // 特殊手机号 13800001111 -> 登录为"秋秋老师"
+    const MOCK_TEACHER_MAP: Record<string, string> = {
+      '13800001111': '黄秋莹', // 昵称: 秋秋老师
+    };
+
+    const teacherRealName = MOCK_TEACHER_MAP[phone];
+    if (!teacherRealName) {
+      throw new Error('无效的教师手机号');
+    }
+
+    // 查找教师
+    const { data: teacher, error: teacherError } = await supabase
+      .from('teachers')
+      .select('id, real_name, nickname, title, class_id')
+      .eq('real_name', teacherRealName)
+      .eq('status', 'active')
+      .single();
+
+    if (teacherError || !teacher) {
+      throw new Error('未找到该教师');
+    }
+
+    // 确保 users 表中有对应用户（通过手机号查找或创建）
+    let { data: user } = await supabase
+      .from('users')
+      .select('id, nickname, phone')
+      .eq('phone', phone)
+      .maybeSingle();
+
+    if (!user) {
+      const { data: newUser, error: userError } = await supabase
+        .from('users')
+        .insert({
+          openid: `teacher_${phone}`,
+          nickname: teacherRealName,
+          phone,
+        })
+        .select()
+        .single();
+      if (userError) {
+        console.error('[teacherLoginByPhone] Create user error:', userError);
+        throw new Error(`创建用户失败: ${userError.message}`);
+      }
+      user = newUser;
+    }
+
+    // 查找或创建对应的 user_role
+    let { data: role } = await supabase
+      .from('user_roles')
+      .select('id, real_name, role_type')
+      .eq('role_type', 'teacher')
+      .eq('user_id', user!.id)
+      .maybeSingle();
+
+    if (!role) {
+      console.log('[teacherLoginByPhone] Role not found, creating new role for user:', user!.id);
+      const { data: newRole, error: insertError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: user!.id,
+          real_name: teacherRealName,
+          role_type: 'teacher',
+          status: 'active',
+        })
+        .select()
+        .single();
+      if (insertError) {
+        console.error('[teacherLoginByPhone] Insert role error:', insertError);
+        throw new Error(`创建教师角色失败: ${insertError.message}`);
+      }
+      console.log('[teacherLoginByPhone] Created role:', newRole);
+      role = newRole;
+    }
+
+    if (!role) {
+      throw new Error('无法创建教师角色');
+    }
+
+    // 生成token
+    const token = this.generateToken(role.id, role.role_type, phone);
+
+    // 查找班级名称
+    let className = '';
+    if (teacher.class_id) {
+      const { data: classData } = await supabase
+        .from('classes')
+        .select('name')
+        .eq('id', teacher.class_id)
+        .maybeSingle();
+      className = classData?.name || '';
+    }
+
+    return {
+      token,
+      user: {
+        id: user!.id,
+        real_name: teacherRealName,
+        nickname: teacher.nickname,
+        phone,
+        role_type: 'teacher',
+        teacher_id: teacher.id,
+        title: teacher.title || '',
+        class_id: teacher.class_id || '',
+        class_name: className,
+      },
+    };
+  }
+
 
   /**
    * 生成教师邀请码（管理员功能）

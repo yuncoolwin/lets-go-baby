@@ -183,3 +183,13 @@ export const attendanceApi = {
   }) =>
     request({ url: '/api/attendance', method: 'POST', data }),
 }
+
+export const authApi = {
+  teacherLogin(phone: string) {
+    return Network.request({
+      url: '/api/auth/teacher-login',
+      method: 'POST',
+      data: { phone },
+    });
+  },
+};

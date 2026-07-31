@@ -59,6 +59,7 @@ interface AppStore {
   setCurrentChild: (index: number) => void
   setChildren: (children: ChildInfo[]) => void
   setNeedRoleSelection: (need: boolean) => void
+  setIsLoading: (loading: boolean) => void
   logout: () => void
   wxLogin: (code: string, mockRole?: string) => Promise<{
     needRoleSelection: boolean
@@ -156,6 +157,10 @@ export const useAppStore = create<AppStore>()(
 
   setNeedRoleSelection: (need) => {
     set({ needRoleSelection: need })
+  },
+
+  setIsLoading: (loading) => {
+    set({ isLoading: loading })
   },
 
   logout: () => {

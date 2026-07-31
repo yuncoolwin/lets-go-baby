@@ -65,4 +65,15 @@ export class AuthController {
     const data = await this.authService.registerTeacher(body.user_id, body.invite_code, body.real_name);
     return { code: 200, msg: 'success', data };
   }
+
+  /**
+   * Mock教师登录（手机号）
+   * POST /api/auth/teacher-login
+   */
+  @Post('teacher-login')
+  @HttpCode(200)
+  async teacherLogin(@Body() body: { phone: string }) {
+    const data = await this.authService.teacherLoginByPhone(body.phone);
+    return { code: 200, msg: 'success', data };
+  }
 }

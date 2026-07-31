@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAppStore } from '@/store/app'
+import { authApi } from '@/utils/api'
 import { Shield, GraduationCap } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import logoUrl from '@/assets/logo.png'
@@ -11,6 +13,8 @@ import logoUrl from '@/assets/logo.png'
 export default function LoginPage() {
   const { wxLogin, isLoading } = useAppStore()
   const [loginMode, setLoginMode] = useState<'normal' | 'mock'>('normal')
+  const [teacherPhone, setTeacherPhone] = useState('13800001111')
+  const [showTeacherInput, setShowTeacherInput] = useState(false)
 
   const handleWxLogin = async () => {
     console.log('[Login] handleWxLogin called, env:', Taro.getEnv())
@@ -72,6 +76,34 @@ export default function LoginPage() {
     } catch (err) {
       console.error('[Login] mock login error:', err)
       Taro.showToast({ title: '登录失败，请重试', icon: 'none' })
+    }
+  }
+
+
+  const handleTeacherPhoneLogin = async () => {
+    if (!teacherPhone) {
+      Taro.showToast({ title: '请输入手机号', icon: 'none' })
+      return
+    }
+    Taro.showLoading({ title: '登录中...', mask: true })
+    try {
+      const res = await authApi.teacherLogin(teacherPhone)
+      if (res.data?.code === 200) {
+        const userData = res.data.data.user
+        const token = res.data.data.token
+        Taro.setStorageSync('token', token)
+        Taro.setStorageSync('userInfo', userData)
+        Taro.setStorageSync('role', 'teacher')
+        Taro.setStorageSync('userId', userData.id)
+        await useAppStore.getState().fetchUserInfo()
+        Taro.switchTab({ url: '/pages/index/index' })
+      } else {
+        Taro.showToast({ title: res.data?.msg || '登录失败', icon: 'none' })
+      }
+    } catch (err) {
+      Taro.showToast({ title: (err as any).message || '登录失败', icon: 'none' })
+    } finally {
+      Taro.hideLoading()
     }
   }
 
@@ -154,15 +186,45 @@ export default function LoginPage() {
                   <Text className="text-base">家长端登录</Text>
                 </Button>
 
-                <Button
-                  variant="outline"
-                  className="w-full h-12 rounded-xl justify-start gap-3"
-                  onClick={() => handleMockLogin('teacher')}
-                  disabled={isLoading}
-                >
-                  <GraduationCap size={20} color="#3B82F6" />
-                  <Text className="text-base">教师端登录</Text>
-                </Button>
+                {!showTeacherInput ? (
+                  <Button
+                    variant="outline"
+                    className="w-full h-12 rounded-xl justify-start gap-3"
+                    onClick={() => setShowTeacherInput(true)}
+                    disabled={isLoading}
+                  >
+                    <GraduationCap size={20} color="#3B82F6" />
+                    <Text className="text-base">教师端登录</Text>
+                  </Button>
+                ) : (
+                  <View className="space-y-2">
+                    <View className="bg-gray-50 rounded-xl px-4 py-3">
+                      <Input
+                        className="w-full bg-transparent"
+                        placeholder="请输入手机号"
+                        value={teacherPhone}
+                        onInput={(e) => setTeacherPhone(e.detail.value)}
+                        type="number"
+                        maxlength={11}
+                      />
+                    </View>
+                    <Button
+                      className="w-full h-12 rounded-xl justify-start gap-3"
+                      onClick={handleTeacherPhoneLogin}
+                      disabled={isLoading}
+                    >
+                      <GraduationCap size={20} color="#fff" />
+                      <Text className="text-base text-white">确认登录教师端</Text>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="w-full h-8 text-xs text-gray-400"
+                      onClick={() => setShowTeacherInput(false)}
+                    >
+                      返回
+                    </Button>
+                  </View>
+                )}
 
                 <Button
                   variant="outline"
