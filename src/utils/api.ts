@@ -26,13 +26,15 @@ const request = async <T = any>(option: {
   url: string
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
   data?: any
+  validateStatus?: (status: number) => boolean
 }): Promise<ApiResponse<T>> => {
-  // 过滤掉 undefined 值，避免被序列化为 "undefined" 字符串
+  // 过滤掉 undefined/null/空字符串值
   const cleanData: Record<string, any> = {}
   if (option.data) {
     Object.keys(option.data).forEach(key => {
-      if (option.data[key] !== undefined && option.data[key] !== null && option.data[key] !== '') {
-        cleanData[key] = option.data[key]
+      const val = option.data[key]
+      if (val !== undefined && val !== null && val !== '') {
+        cleanData[key] = val
       }
     })
   }
@@ -41,6 +43,7 @@ const request = async <T = any>(option: {
     method: option.method || 'GET',
     data: Object.keys(cleanData).length > 0 ? cleanData : undefined,
     header: { 'Content-Type': 'application/json' },
+    ...(option.validateStatus ? { validateStatus: option.validateStatus } : {}),
   })
   return res.data as ApiResponse<T>
 }
@@ -80,7 +83,6 @@ export const childrenApi = {
     request({ url: '/api/children', method: 'POST', data }),
 
   list: (params?: ListParams) => {
-    // 转换参数名：pageSize -> page_size
     const query: Record<string, any> = { ...params }
     if (query.pageSize) {
       query.page_size = query.pageSize
@@ -93,8 +95,12 @@ export const childrenApi = {
     request({ url: `/api/children/${id}`, method: 'GET' }),
 
   update: (id: string, data: Record<string, any>) =>
-    // @ts-ignore validateStatus is supported by Taro.request at runtime
-    request({ url: `/api/children/${id}`, method: 'PATCH', data, validateStatus: () => true }),
+    request({
+      url: `/api/children/${id}`,
+      method: 'PATCH',
+      data,
+      validateStatus: () => true,
+    }),
 
   remove: (id: string) =>
     request({ url: `/api/children/${id}`, method: 'DELETE' }),
@@ -106,9 +112,12 @@ export const childrenApi = {
     request({ url: '/api/children/stats', method: 'GET' }),
 }
 
-// ============ 教师管理 API ============
+// ============ 教师 API ============
 
 export const teacherApi = {
+  me: () =>
+    request({ url: '/api/teachers/me', method: 'GET' }),
+
   create: (data: Record<string, any>) =>
     request({ url: '/api/teachers', method: 'POST', data }),
 
@@ -116,6 +125,10 @@ export const teacherApi = {
     request({ url: '/api/teachers', method: 'GET', data: params }),
 
   detail: (id: string) =>
+    request({ url: `/api/teachers/${id}`, method: 'GET' }),
+
+  // 根据 teacher_id 获取教师信息（含班级）
+  getById: (id: string) =>
     request({ url: `/api/teachers/${id}`, method: 'GET' }),
 
   update: (id: string, data: Record<string, any>) =>
@@ -151,4 +164,22 @@ export const notificationApi = {
 
   stats: () =>
     request({ url: '/api/notifications/stats', method: 'GET' }),
+}
+
+// ============ 点名 API ============
+
+export const attendanceApi = {
+  // 获取班级点名列表（含当天状态）
+  getByClass: (classId: string, date?: string) =>
+    request({ url: '/api/attendance', method: 'GET', data: { class_id: classId, date } }),
+
+  // 记录/更新点名状态
+  record: (data: {
+    child_id: string
+    teacher_id: string
+    class_id: string
+    date: string
+    status: 'present' | 'absent' | 'leave'
+  }) =>
+    request({ url: '/api/attendance', method: 'POST', data }),
 }

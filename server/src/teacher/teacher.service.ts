@@ -7,6 +7,40 @@ export class TeacherService {
     return getSupabaseClient();
   }
 
+  async getMe(teacherRoleId?: string) {
+    // teacherRoleId 即 teachers.id，先查 teachers 表
+    const { data: teacher } = teacherRoleId
+      ? await this.client
+          .from('teachers')
+          .select('*, classes(id, name)')
+          .eq('id', teacherRoleId)
+          .eq('status', 'active')
+          .single()
+      : { data: null };
+
+    // 若 teachers 表无记录，降级查 user_roles
+    const { data: role } = !teacher && teacherRoleId
+      ? await this.client
+          .from('user_roles')
+          .select('*')
+          .eq('id', teacherRoleId)
+          .eq('role_type', 'teacher')
+          .single()
+      : { data: null };
+
+    if (!teacher && !role) return null;
+
+    return {
+      ...(role || {}),
+      id: teacher?.id || role?.id,
+      real_name: teacher?.nickname || teacher?.real_name || role?.real_name,
+      class_id: teacher?.class_id || null,
+      class_name: (teacher as any)?.classes?.name || null,
+      title: teacher?.title || role?.title || null,
+      teacher: teacher || null,
+    };
+  }
+
   async getClassOverview(teacherRoleId?: string) {
     // 查询所有活跃班级及其学生数量
     const { data: classes, error: classError } = await this.client
@@ -128,5 +162,34 @@ export class TeacherService {
     if (error) throw new Error(`提交反馈失败: ${error.message}`);
 
     return { success: true };
+  }
+
+  async getById(id: string) {
+    const { data, error } = await this.client
+      .from('teachers')
+      .select('id, real_name, nickname, title, class_id, status')
+      .eq('id', id)
+      .eq('status', 'active')
+      .single();
+
+    if (error) throw new Error(`获取教师信息失败: ${error.message}`);
+    if (!data) throw new Error('教师不存在或已离职');
+
+    // 获取班级信息
+    let className = null;
+    if (data.class_id) {
+      const { data: classData } = await this.client
+        .from('classes')
+        .select('id, name')
+        .eq('id', data.class_id)
+        .single();
+      className = classData?.name || null;
+    }
+
+    return {
+      ...data,
+      class_name: className,
+      display_name: data.nickname || data.real_name,
+    };
   }
 }

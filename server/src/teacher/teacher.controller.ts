@@ -1,9 +1,16 @@
-import { Controller, Get, Post, Body, Query, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, HttpCode, Headers } from '@nestjs/common';
 import { TeacherService } from './teacher.service';
 
-@Controller('teacher')
+@Controller('teachers')
 export class TeacherController {
   constructor(private readonly teacherService: TeacherService) {}
+
+  @Get('me')
+  @HttpCode(200)
+  async getMe(@Query('teacher_role_id') teacherRoleId?: string) {
+    const data = await this.teacherService.getMe(teacherRoleId);
+    return { code: 200, msg: 'success', data };
+  }
 
   @Get('class-overview')
   @HttpCode(200)
@@ -30,6 +37,12 @@ export class TeacherController {
   @HttpCode(200)
   async submitAttendance(@Body() body: { records: Array<{ child_id: string; class_id: string; status: string }>; teacher_role_id?: string }) {
     const data = await this.teacherService.submitAttendance(body);
+    return { code: 200, msg: 'success', data };
+  }
+
+  @Get(':id')
+  async getById(@Param('id') id: string) {
+    const data = await this.teacherService.getById(id);
     return { code: 200, msg: 'success', data };
   }
 

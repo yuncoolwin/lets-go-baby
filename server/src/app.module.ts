@@ -17,6 +17,8 @@ import { TeachersController } from '@/teachers/teachers.controller';
 import { TeachersService } from '@/teachers/teachers.service';
 import { NotificationsController } from '@/notifications/notifications.controller';
 import { NotificationsService } from '@/notifications/notifications.service';
+import { AttendanceController } from '@/attendance/attendance.controller';
+import { AttendanceService } from '@/attendance/attendance.service';
 
 @Module({
   imports: [],
@@ -30,6 +32,7 @@ import { NotificationsService } from '@/notifications/notifications.service';
     ChildrenController,
     TeachersController,
     NotificationsController,
+    AttendanceController,
   ],
   providers: [
     AppService,
@@ -41,6 +44,7 @@ import { NotificationsService } from '@/notifications/notifications.service';
     ChildrenService,
     TeachersService,
     NotificationsService,
+    AttendanceService,
   ],
 })
 export class AppModule {}
