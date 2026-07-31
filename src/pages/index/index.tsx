@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { Bus, BookOpen, Users, Camera, GraduationCap, Bell, Plus, ClipboardCheck } from 'lucide-react-taro'
+import { Bus, BookOpen, Users, Camera, GraduationCap, Bell, Plus } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge, formatTime } from '@/utils/format'
 
@@ -485,8 +485,8 @@ export default function IndexPage() {
             onClick={() => Taro.navigateTo({ url: '/pages/roll-call/index' })}
           >
             <CardContent className="p-4 flex flex-col items-center">
-              <View className="w-10 h-10 rounded-lg bg-primary bg-opacity-10 flex items-center justify-center mb-2">
-                <ClipboardCheck size={20} color="#E8651A" />
+              <View className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center mb-2">
+                <Text className="text-orange-500 font-bold text-lg leading-none">点</Text>
               </View>
               <Text className="text-xs text-foreground">点名</Text>
             </CardContent>
