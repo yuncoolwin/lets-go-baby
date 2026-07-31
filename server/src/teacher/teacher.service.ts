@@ -246,7 +246,7 @@ export class TeacherService {
     // 获取班级信息
     let className = null;
     let studentCount = 0;
-    let todayAttendance = 0;
+    let todayAttendance: number | { present: number; absent: number; leave: number } = 0;
     
     if (data.class_id) {
       const { data: classData } = await this.client
@@ -269,13 +269,39 @@ export class TeacherService {
       const utcDate = new Date(Date.UTC(utcNow.getUTCFullYear(), utcNow.getUTCMonth(), utcNow.getUTCDate()));
       const todayStart = utcDate.toISOString().split('T')[0];
       const todayEnd = new Date(Date.UTC(utcNow.getUTCFullYear(), utcNow.getUTCMonth(), utcNow.getUTCDate() + 1)).toISOString().split('T')[0];
-      const { count: attCount } = await this.client
+      
+      // 查询出勤人数
+      const { count: presentCount } = await this.client
         .from('attendance')
         .select('id', { count: 'exact', head: true })
         .eq('class_id', data.class_id)
+        .eq('status', 'present')
         .gte('date', todayStart)
         .lt('date', todayEnd);
-      todayAttendance = attCount || 0;
+      
+      // 查询缺勤人数
+      const { count: absentCount } = await this.client
+        .from('attendance')
+        .select('id', { count: 'exact', head: true })
+        .eq('class_id', data.class_id)
+        .eq('status', 'absent')
+        .gte('date', todayStart)
+        .lt('date', todayEnd);
+      
+      // 查询请假人数
+      const { count: leaveCount } = await this.client
+        .from('attendance')
+        .select('id', { count: 'exact', head: true })
+        .eq('class_id', data.class_id)
+        .eq('status', 'leave')
+        .gte('date', todayStart)
+        .lt('date', todayEnd);
+      
+      todayAttendance = {
+        present: presentCount || 0,
+        absent: absentCount || 0,
+        leave: leaveCount || 0,
+      };
     }
 
     return {

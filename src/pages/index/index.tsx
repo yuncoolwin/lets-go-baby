@@ -29,7 +29,7 @@ interface ClassOverview {
   id: string
   name: string
   student_count: number
-  today_attendance: number
+  today_attendance: number | { present: number; absent: number; leave: number }
   class_teacher?: TeachersItem[]
   active_children?: ChildrenItem[]
 }
@@ -519,7 +519,13 @@ export default function IndexPage() {
                       <View>
                         <Text className="block text-base font-semibold text-foreground">{cls.name}</Text>
                         <Text className="block text-sm text-muted-foreground">
-                          {cls.student_count || 0} 名幼儿 · 已考勤 {cls.today_attendance || 0} 人
+                          {(() => {
+                            const att = cls.today_attendance
+                            const present = typeof att === 'object' ? att.present : att
+                            const absent = typeof att === 'object' ? att.absent : 0
+                            const leave = typeof att === 'object' ? att.leave : 0
+                            return `${cls.student_count || 0} 名幼儿 · 出勤 ${present || 0} 人 · 缺勤 ${absent || 0} 人 · 请假 ${leave || 0} 人`
+                          })()}
                         </Text>
                       </View>
                       {isExpanded ? (
