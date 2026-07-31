@@ -4,7 +4,7 @@ import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import BackButton from '@/components/back-button'
+
 
 interface ChildItem {
   id: string
@@ -176,19 +176,15 @@ export default function RollCallPage() {
 
   return (
     <View className="min-h-screen bg-gray-50 pb-safe">
-      {/* 头部 */}
-      <View className="bg-white px-4 py-3 flex items-center gap-3 border-b border-gray-100">
-        <BackButton />
-        <Text className="block text-lg font-semibold text-gray-900">今日考勤</Text>
-        <View className="ml-auto flex items-center gap-2">
-          <Text className="block text-sm text-gray-400">{today}</Text>
-          <Text 
-            className="block text-sm text-red-500 px-2 py-1 rounded"
-            onClick={handleClear}
-          >
-            清除
-          </Text>
-        </View>
+      {/* 头部信息 */}
+      <View className="bg-white px-4 py-3 flex items-center justify-between border-b border-gray-100">
+        <Text className="block text-sm text-gray-400">{today}</Text>
+        <Text 
+          className="block text-sm text-red-500"
+          onClick={handleClear}
+        >
+          清除
+        </Text>
       </View>
 
       <ScrollView scrollY className="h-[calc(100vh-220px)]">
