@@ -118,7 +118,7 @@ export default function IndexPage() {
 
   const loadTeacherData = async () => {
     const res = await Network.request({
-      url: '/api/teacher/class-overview',
+      url: '/api/teachers/class-overview',
       method: 'GET',
     })
     console.log('[Index] class overview:', res.data)
@@ -488,7 +488,7 @@ export default function IndexPage() {
               <View className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center mb-2">
                 <Text className="text-orange-500 text-xl leading-none">📋</Text>
               </View>
-              <Text className="text-xs text-foreground">点名</Text>
+              <Text className="text-xs text-foreground">考勤</Text>
             </CardContent>
           </Card>
 
