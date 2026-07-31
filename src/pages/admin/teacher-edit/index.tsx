@@ -5,8 +5,19 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog'
 import { teacherApi, classApi } from '@/utils/api'
 import BackButton from '@/components/back-button'
+import { Trash2 } from 'lucide-react-taro'
 
 const STATUS_OPTIONS = [
   { label: '在职', value: 'active' },
@@ -37,6 +48,8 @@ export default function TeacherEditPage() {
     leave_date: ''
   })
   const [classes, setClasses] = useState<Array<{ id: string; name: string }>>([])
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const teacherId = router.params?.id
   const isCreate = !teacherId
@@ -149,6 +162,27 @@ export default function TeacherEditPage() {
     }
   }
 
+  const handleDelete = async () => {
+    if (!teacherId) return
+    try {
+      setDeleting(true)
+      const res = await teacherApi.remove(teacherId)
+      console.log('[TeacherEdit] delete response:', res)
+      if (res.code === 200) {
+        Taro.showToast({ title: '删除成功', icon: 'success' })
+        setTimeout(() => Taro.navigateBack(), 1500)
+      } else {
+        Taro.showToast({ title: res.msg || '删除失败', icon: 'error' })
+      }
+    } catch (error) {
+      console.error('[TeacherEdit] delete error:', error)
+      Taro.showToast({ title: '删除失败', icon: 'error' })
+    } finally {
+      setDeleting(false)
+      setDeleteOpen(false)
+    }
+  }
+
   const handleDateChange = (field: 'entry_date' | 'leave_date', e: any) => {
     setFormData(prev => ({ ...prev, [field]: e.detail.value }))
   }
@@ -169,7 +203,16 @@ export default function TeacherEditPage() {
         <Text className="text-lg font-semibold text-foreground">
           {isCreate ? '添加教师' : '编辑教师'}
         </Text>
-        <View className="w-10" />
+        {isCreate ? (
+          <View className="w-10" />
+        ) : (
+          <View
+            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-red-50"
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 size={20} color="#EF4444" />
+          </View>
+        )}
       </View>
 
       {/* 表单 */}
@@ -334,6 +377,24 @@ export default function TeacherEditPage() {
           {saving ? '保存中...' : '保存'}
         </Button>
       </View>
+
+      {/* 删除确认弹窗 */}
+      <AlertDialog open={deleteOpen} onOpenChange={(open) => !open && setDeleteOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除教师「{formData.nickname || formData.name}」吗？此操作不可撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-500 text-white">
+              {deleting ? '删除中...' : '删除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </View>
   )
 }

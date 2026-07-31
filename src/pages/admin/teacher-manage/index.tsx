@@ -6,18 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogFooter,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from '@/components/ui/alert-dialog'
 import { teacherApi } from '@/utils/api'
-import { Search, Users, GraduationCap, Plus, Trash2 } from 'lucide-react-taro'
+import { Search, Users, GraduationCap, Plus } from 'lucide-react-taro'
 
 interface Teacher {
   id: string
@@ -47,9 +37,6 @@ export default function TeacherManagePage() {
   const [loading, setLoading] = useState(true)
   const [keyword, setKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [deleteTarget, setDeleteTarget] = useState<Teacher | null>(null)
-  const [deleting, setDeleting] = useState(false)
-
   const loadTeachers = useCallback(async (showSkeleton = true) => {
     if (showSkeleton) setLoading(true)
     try {
@@ -89,27 +76,6 @@ export default function TeacherManagePage() {
 
   const handleStatusChange = (status: string) => {
     setStatusFilter(status)
-  }
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return
-    try {
-      setDeleting(true)
-      const res = await teacherApi.remove(deleteTarget.id)
-      console.log('[TeacherManage] delete:', res)
-      if (res.code === 200) {
-        Taro.showToast({ title: '删除成功', icon: 'success' })
-        setTeachers(prev => prev.filter(t => t.id !== deleteTarget.id))
-      } else {
-        Taro.showToast({ title: res.msg || '删除失败', icon: 'error' })
-      }
-    } catch (err) {
-      console.error('[TeacherManage] delete error:', err)
-      Taro.showToast({ title: '删除失败', icon: 'error' })
-    } finally {
-      setDeleting(false)
-      setDeleteTarget(null)
-    }
   }
 
   if (loading) {
@@ -193,20 +159,9 @@ export default function TeacherManagePage() {
                       )}
                     </View>
                   </View>
-                  <View className="flex items-center gap-2">
-                    <Badge className={`${statusMap[teacher.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
-                      <Text className="text-xs">{statusMap[teacher.status]?.label || teacher.status}</Text>
-                    </Badge>
-                    <View
-                      className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDeleteTarget(teacher)
-                      }}
-                    >
-                      <Trash2 size={16} color="#EF4444" />
-                    </View>
-                  </View>
+                  <Badge className={`${statusMap[teacher.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
+                    <Text className="text-xs">{statusMap[teacher.status]?.label || teacher.status}</Text>
+                  </Badge>
                 </View>
                 <View
                   className="flex flex-wrap gap-x-4 gap-y-1"
@@ -238,23 +193,6 @@ export default function TeacherManagePage() {
         </View>
       )}
 
-      {/* 删除确认弹窗 */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
-            <AlertDialogDescription>
-              确定要删除教师「{deleteTarget?.nickname || deleteTarget?.real_name}」吗？此操作不可撤销。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-500 text-white">
-              {deleting ? '删除中...' : '删除'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </View>
   )
 }
