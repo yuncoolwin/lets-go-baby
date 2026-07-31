@@ -59,7 +59,8 @@ export default function ClassManagePage() {
       const res = await classApi.list(activeLevel ? { level: activeLevel } : undefined)
       console.log('[ClassManage] list:', res)
       if (res.code === 200) {
-        setClasses(res.data.list || res.data || [])
+        const list: ClassItem[] = (res.data.list || res.data || []) as ClassItem[]
+        setClasses(list.map(c => ({ ...c, studentCount: (c as any).student_count ?? 0 })))
       }
     } catch (err) {
       console.error('[ClassManage] load error:', err)
