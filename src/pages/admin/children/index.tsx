@@ -21,6 +21,7 @@ interface Child {
   parent_name: string | null
   allergies: string | null
   status: string
+  teacher_names: string[]
   created_at: string
 }
 
@@ -166,6 +167,14 @@ export default function ChildrenManagePage() {
                       <Text className="text-sm text-muted-foreground">班级: 未分班</Text>
                     )}
                   </View>
+                  {child.teacher_names && child.teacher_names.length > 0 && (
+                    <View className="flex items-center gap-1 flex-wrap">
+                      <UserCheck size={12} color="#d97706" />
+                      {child.teacher_names.map((name: string, i: number) => (
+                        <Text key={i} className="text-xs text-amber-600">{name}{i < child.teacher_names.length - 1 ? '、' : ''}</Text>
+                      ))}
+                    </View>
+                  )}
                   <View className="flex items-center gap-1">
                     <Text className="text-xs text-muted-foreground">过敏: {child.allergies || '无'}</Text>
                   </View>

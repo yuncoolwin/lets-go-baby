@@ -92,7 +92,25 @@ export class ChildrenService {
       return { error: true, code: 500, msg: `查询失败: ${error.message}` };
     }
 
-    // 逐条获取班级名称
+    // 收集所有班级ID，批量查询教师
+    const classIds = [...new Set((data || []).map((c) => c.class_id).filter(Boolean))];
+    const teachersMap: Record<string, string[]> = {};
+    if (classIds.length > 0) {
+      const { data: teachers } = await this.client
+        .from('teachers')
+        .select('nickname, class_id')
+        .in('class_id', classIds)
+        .eq('status', 'active');
+      for (const t of teachers || []) {
+        const name = t.nickname || '';
+        if (name && t.class_id) {
+          if (!teachersMap[t.class_id]) teachersMap[t.class_id] = [];
+          teachersMap[t.class_id].push(name);
+        }
+      }
+    }
+
+    // 逐条获取班级名称，附加教师信息
     const results = await Promise.all(
       (data || []).map(async (child) => {
         let className = null;
@@ -104,7 +122,11 @@ export class ChildrenService {
             .maybeSingle();
           className = cls?.name || null;
         }
-        return { ...child, class_name: className };
+        return {
+          ...child,
+          class_name: className,
+          teacher_names: teachersMap[child.class_id] || [],
+        };
       })
     );
 
