@@ -4,7 +4,7 @@ import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { House } from 'lucide-react-taro'
+import BackButton from '@/components/back-button'
 
 interface ChildItem {
   id: string
@@ -41,11 +41,7 @@ export default function RollCallPage() {
 
   const today = new Date().toISOString().split('T')[0]
 
-  const [statusBarHeight, setStatusBarHeight] = useState(44)
-
   useEffect(() => {
-    const sysInfo = Taro.getSystemInfoSync()
-    setStatusBarHeight(sysInfo.statusBarHeight || 44)
     loadData()
   }, [])
 
@@ -180,33 +176,22 @@ export default function RollCallPage() {
 
   return (
     <View className="min-h-screen bg-gray-50 pb-safe">
-      {/* 自定义导航栏 - 橙色顶部条 */}
-      <View className="bg-[#E8651A]">
-        <View style={{ paddingTop: `${statusBarHeight}px` }} />
-        <View className="px-4 py-3 flex items-center gap-3">
-          {/* 主页按钮 */}
-          <View
-            className="w-9 h-9 rounded-full bg-white flex items-center justify-center"
-            style={{ opacity: 0.2 }}
-            onClick={() => Taro.switchTab({ url: '/pages/index/index' })}
+      {/* 头部 */}
+      <View className="bg-white px-4 py-3 flex items-center gap-3 border-b border-gray-100">
+        <BackButton />
+        <Text className="block text-lg font-semibold text-gray-900">今日考勤</Text>
+        <View className="ml-auto flex items-center gap-2">
+          <Text className="block text-sm text-gray-400">{today}</Text>
+          <Text 
+            className="block text-sm text-red-500 px-2 py-1 rounded"
+            onClick={handleClear}
           >
-            <House size={22} color="#E8651A" />
-          </View>
-          <Text className="block text-lg font-semibold text-white flex-1">考勤</Text>
-          <View className="flex items-center gap-3">
-            <Text className="block text-sm text-white" style={{ opacity: 0.8 }}>{today}</Text>
-            <Text
-              className="block text-sm text-white px-2 py-1 rounded bg-white"
-              style={{ opacity: 0.2 }}
-              onClick={handleClear}
-            >
-              清除
-            </Text>
-          </View>
+            清除
+          </Text>
         </View>
       </View>
 
-      <ScrollView scrollY className="h-[calc(100vh-180px)]">
+      <ScrollView scrollY className="h-[calc(100vh-220px)]">
         {/* 班级信息 */}
         {className && (
           <View className="px-4 pt-4 pb-2">
