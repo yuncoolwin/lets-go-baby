@@ -35,7 +35,6 @@ export default function RollCallPage() {
   const [classId, setClassId] = useState('')
   const [className, setClassName] = useState('')
   const [loading, setLoading] = useState(true)
-  const [statusBarHeight, setStatusBarHeight] = useState(20)
   const [isLocked, setIsLocked] = useState(false)
   const [hasUnsaved, setHasUnsaved] = useState(false)
   const [tempAttendance, setTempAttendance] = useState<Record<string, AttendanceItem['status']>>({})
@@ -43,11 +42,6 @@ export default function RollCallPage() {
   const today = new Date().toISOString().split('T')[0]
 
   useEffect(() => {
-    // 获取状态栏高度
-    try {
-      const sysInfo = Taro.getSystemInfoSync()
-      setStatusBarHeight(sysInfo.statusBarHeight || 20)
-    } catch { /* ignore */ }
     loadData()
   }, [])
 
@@ -182,20 +176,17 @@ export default function RollCallPage() {
 
   return (
     <View className="min-h-screen bg-gray-50 pb-safe">
-      {/* 自定义导航栏 */}
-      <View className="fixed top-0 left-0 right-0 bg-white z-50 flex items-center px-4" style={{ paddingTop: `${statusBarHeight}px`, height: `${statusBarHeight + 44}px` }}>
+      {/* 头部 */}
+      <View className="bg-white px-4 py-3 flex items-center gap-3 border-b border-gray-100">
+        {/* 主页按钮 */}
         <View
-          className="w-9 h-9 rounded-full flex items-center justify-center active:bg-gray-100"
+          className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm"
           onClick={() => Taro.switchTab({ url: '/pages/index/index' })}
         >
-          <House size={22} color="#333" />
+          <House size={20} color="#E8651A" />
         </View>
-        <Text className="block text-lg font-semibold text-gray-900 ml-2">考勤</Text>
-      </View>
-
-      <View style={{ paddingTop: `${statusBarHeight + 44}px` }}>
-        {/* 头部信息 */}
-        <View className="bg-white px-4 py-3 flex items-center justify-between border-b border-gray-100">
+        <Text className="block text-lg font-semibold text-gray-900">今日考勤</Text>
+        <View className="ml-auto flex items-center gap-2">
           <Text className="block text-sm text-gray-400">{today}</Text>
           <Text 
             className="block text-sm text-red-500 px-2 py-1 rounded"
@@ -318,7 +309,7 @@ export default function RollCallPage() {
       {/* 底部操作栏 */}
       <View className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 flex gap-3">
         {isLocked ? (
-          <View
+          <View 
             className="flex-1 py-3 rounded-xl text-center font-medium bg-blue-500 text-white"
             onClick={handleUnlock}
           >
@@ -326,10 +317,10 @@ export default function RollCallPage() {
           </View>
         ) : (
           <>
-            <View
+            <View 
               className={`flex-1 py-3 rounded-xl text-center font-medium ${
-                hasUnsaved
-                  ? 'bg-blue-500 text-white'
+                hasUnsaved 
+                  ? 'bg-blue-500 text-white' 
                   : 'bg-gray-100 text-gray-400'
               }`}
               onClick={hasUnsaved ? handleSave : undefined}
