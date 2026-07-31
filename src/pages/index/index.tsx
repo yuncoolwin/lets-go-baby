@@ -62,7 +62,8 @@ export default function IndexPage() {
   const [pageLoading, setPageLoading] = useState(true)
   const [storeReady, setStoreReady] = useState(false)
   const [teacherClass, setTeacherClass] = useState<ClassOverview | null>(null)
-  const [expandedChildren, setExpandedChildren] = useState<ChildrenItem[]>([])
+  const [expandedChildren, setExpandedChildren] = useState<any[]>([])
+  const [expandedChildrenLoading, setExpandedChildrenLoading] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const currentChild = children[currentChildIndex] || null
 
@@ -512,7 +513,24 @@ export default function IndexPage() {
                           setExpandedChildren([])
                         } else {
                           setExpandedId(cls.id)
-                          setExpandedChildren(cls.active_children || [])
+                          setExpandedChildrenLoading(true)
+                          try {
+                            const res = await Network.request({
+                              url: '/api/attendance',
+                              data: { class_id: cls.id }
+                            })
+                            console.log('[Index] attendance list:', res.data)
+                            if (res.data?.data) {
+                              setExpandedChildren(res.data.data)
+                            } else {
+                              setExpandedChildren([])
+                            }
+                          } catch (err) {
+                            console.error('[Index] load attendance error:', err)
+                            setExpandedChildren([])
+                          } finally {
+                            setExpandedChildrenLoading(false)
+                          }
                         }
                       }}
                     >
@@ -539,36 +557,58 @@ export default function IndexPage() {
                     {isExpanded && (
                       <View className="border-t border-gray-100">
                         {/* 幼儿列表 */}
-                        {expandedChildren.length > 0 ? (
+                        {expandedChildrenLoading ? (
                           <View className="p-4">
-                            <Text className="block text-xs text-muted-foreground mb-3">在读幼儿</Text>
-                            <View className="flex flex-wrap gap-3">
-                              {expandedChildren.map((child) => (
-                                <View
-                                  key={child.id}
-                                  className="w-36 rounded-xl bg-gray-50 p-3"
-                                  onClick={() => {
-                                    Taro.navigateTo({ url: `/pages/baby-profile/index?id=${child.id}` })
-                                  }}
-                                >
-                                  <View className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-2 mx-auto overflow-hidden">
-                                    {child.avatar_url ? (
-                                      <Image src={child.avatar_url} className="w-full h-full" mode="aspectFill" />
-                                    ) : (
-                                      <Text className="text-lg text-blue-600">{child.name?.charAt(0) || '幼'}</Text>
-                                    )}
+                            <View className="space-y-2">
+                              {[1, 2].map(i => (
+                                <View key={i} className="flex items-center gap-2 p-2 rounded-lg">
+                                  <View className="w-8 h-8 rounded-full bg-gray-100" />
+                                  <View className="flex-1">
+                                    <View className="w-20 h-4 bg-gray-100 rounded mb-1" />
+                                    <View className="w-16 h-3 bg-gray-100 rounded" />
                                   </View>
-                                  <Text className="block text-sm font-medium text-foreground text-center">{child.name}</Text>
-                                  <Text className="block text-xs text-muted-foreground text-center">
-                                    {formatAge(child.birth_date)} · {child.gender === 'male' ? '男' : '女'}
-                                  </Text>
-                                  {child.allergies && (
-                                    <Text className="block text-xs text-red-500 text-center mt-1">
-                                      过敏: {child.allergies}
-                                    </Text>
-                                  )}
                                 </View>
                               ))}
+                            </View>
+                          </View>
+                        ) : expandedChildren.length > 0 ? (
+                          <View className="p-4">
+                            <Text className="block text-xs text-muted-foreground mb-3">在读幼儿 ({expandedChildren.length})</Text>
+                            <View className="space-y-2">
+                              {expandedChildren.map((child) => {
+                                const status = child.attendance_status
+                                const statusConfig = {
+                                  present: { label: '出勤', bg: 'bg-green-100', text: 'text-green-700' },
+                                  absent: { label: '缺勤', bg: 'bg-red-100', text: 'text-red-700' },
+                                  leave: { label: '请假', bg: 'bg-yellow-100', text: 'text-yellow-700' },
+                                }
+                                const config = statusConfig[status as keyof typeof statusConfig] || { label: '未考勤', bg: 'bg-gray-100', text: 'text-gray-500' }
+                                return (
+                                  <View
+                                    key={child.id}
+                                    className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg"
+                                    onClick={() => {
+                                      Taro.navigateTo({ url: `/pages/baby-profile/index?id=${child.id}` })
+                                    }}
+                                  >
+                                    <View className={`w-8 h-8 rounded-full flex items-center justify-center ${child.gender === 'male' ? 'bg-blue-100' : 'bg-pink-100'}`}>
+                                      <Text className={`text-sm font-medium ${child.gender === 'male' ? 'text-blue-700' : 'text-pink-700'}`}>
+                                        {(child.name || '幼').charAt(0)}
+                                      </Text>
+                                    </View>
+                                    <View className="flex-1">
+                                      <Text className="block text-sm font-medium text-foreground">{child.name}</Text>
+                                      <Text className="block text-xs text-muted-foreground">
+                                        {formatAge(child.birth_date)} · {child.gender === 'male' ? '男' : '女'}
+                                        {child.allergies && ` · 过敏: ${child.allergies}`}
+                                      </Text>
+                                    </View>
+                                    <View className={`px-2 py-1 rounded ${config.bg}`}>
+                                      <Text className={`text-xs font-medium ${config.text}`}>{config.label}</Text>
+                                    </View>
+                                  </View>
+                                )
+                              })}
                             </View>
                           </View>
                         ) : (

@@ -8,7 +8,7 @@ export class AttendanceService {
   }
 
   /**
-   * 批量获取某班级某天的点名记录（含幼儿姓名）
+   * 批量获取某班级某天的点名记录（含完整幼儿信息）
    * @param classId 班级ID
    * @param date 可选，默认当天
    */
@@ -16,10 +16,10 @@ export class AttendanceService {
     // 默认当天
     const targetDate = date || new Date().toISOString().split('T')[0];
 
-    // 先查询班级在读幼儿
+    // 先查询班级在读幼儿（完整信息）
     const { data: children, error: childErr } = await this.client
       .from('children')
-      .select('id, name')
+      .select('id, name, gender, birth_date, avatar_url, allergies, status')
       .eq('class_id', classId)
       .eq('status', 'active');
     if (childErr) throw childErr;
@@ -32,32 +32,29 @@ export class AttendanceService {
       .eq('date', targetDate);
     if (error) throw error;
 
-    // 建立 child_id -> name 映射
-    const childNameMap: Record<string, string> = {};
-    (children || []).forEach(c => { childNameMap[c.id] = c.name; });
+    // 建立 child_id -> 考勤记录 映射
+    const recordMap: Record<string, any> = {};
+    (records || []).forEach(r => { recordMap[r.child_id] = r; });
 
-    // 合并：所有在班幼儿（无记录则 unknown）+ 已有记录的幼儿
-    const mergedMap: Record<string, any> = {};
-    (children || []).forEach(c => {
-      mergedMap[c.id] = {
-        id: null,
-        child_id: c.id,
-        child_name: c.name,
-        status: 'unknown',
-        updated_at: null,
-      };
-    });
-    (records || []).forEach(r => {
-      mergedMap[r.child_id] = {
-        id: r.id,
-        child_id: r.child_id,
-        child_name: childNameMap[r.child_id] || '未知',
-        status: r.status,
-        updated_at: r.updated_at,
+    // 合并：所有在班幼儿 + 考勤状态
+    const mergedList = (children || []).map(c => {
+      const record = recordMap[c.id];
+      return {
+        ...c,
+        attendance_id: record?.id || null,
+        attendance_status: record?.status || null,
+        updated_at: record?.updated_at || null,
       };
     });
 
-    return Object.values(mergedMap).sort((a, b) => a.child_name.localeCompare(b.child_name, 'zh'));
+    // 按考勤状态排序：出勤 > 缺席 > 请假 > 无记录
+    const statusOrder: Record<string, number> = { present: 0, absent: 1, leave: 2, null: 3 };
+    return mergedList.sort((a, b) => {
+      const orderA = statusOrder[a.attendance_status] ?? 4;
+      const orderB = statusOrder[b.attendance_status] ?? 4;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.name.localeCompare(b.name, 'zh');
+    });
   }
 
   /**
