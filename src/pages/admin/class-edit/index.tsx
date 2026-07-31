@@ -5,14 +5,13 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { classApi } from '@/utils/api'
 
 const levelOptions = [
-  { value: 'nursery', label: '托育' },
-  { value: 'small', label: '小班' },
-  { value: 'medium', label: '中班' },
-  { value: 'large', label: '大班' },
+  { value: 'nursery', label: '托班' },
+  { value: 'summer', label: '暑假班' },
+  { value: 'winter', label: '寒假班' },
+  { value: 'interest', label: '兴趣班' },
 ]
 
 const statusOptions = [
@@ -27,10 +26,9 @@ export default function ClassEditPage() {
 
   // 表单字段
   const [name, setName] = useState('')
-  const [level, setLevel] = useState('small')
+  const [level, setLevel] = useState('nursery')
   const [capacity, setCapacity] = useState('30')
   const [room, setRoom] = useState('')
-  const [ageRange, setAgeRange] = useState('')
   const [status, setStatus] = useState('active')
 
   useEffect(() => {
@@ -53,10 +51,9 @@ export default function ClassEditPage() {
       if (res.code === 200 && res.data) {
         const d = res.data
         setName(d.name || '')
-        setLevel(d.level || 'small')
+        setLevel(d.level || 'nursery')
         setCapacity(String(d.capacity || 30))
         setRoom(d.room || '')
-        setAgeRange(d.age_range || '')
         setStatus(d.status || 'active')
       }
     } catch (err) {
@@ -88,7 +85,6 @@ export default function ClassEditPage() {
         level,
         capacity: parseInt(capacity, 10),
         room: room.trim() || undefined,
-        age_range: ageRange.trim() || undefined,
         status,
       }
 
@@ -118,11 +114,35 @@ export default function ClassEditPage() {
   return (
     <View className="min-h-screen bg-background p-4 pb-24">
       <Card className="bg-white rounded-xl border-0 shadow-sm mb-4">
-        <CardContent className="p-4 space-y-4">
+        <CardContent className="p-4 space-y-5">
+          {/* 级别选择（放在最上方） */}
+          <View>
+            <Label className="text-sm font-medium text-foreground mb-3">
+              <Text className="block">级别 *</Text>
+            </Label>
+            <View className="flex flex-wrap gap-3">
+              {levelOptions.map((opt) => (
+                <View
+                  key={opt.value}
+                  className={`px-5 py-3 rounded-xl ${
+                    level === opt.value
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}
+                  onClick={() => setLevel(opt.value)}
+                >
+                  <Text className={`text-base ${level === opt.value ? 'text-white' : ''}`}>
+                    {opt.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
           {/* 班级名称 */}
           <View>
-            <Label className="text-sm text-foreground mb-2">
-              <Text>班级名称 *</Text>
+            <Label className="text-sm font-medium text-foreground mb-2">
+              <Text className="block">班级名称 *</Text>
             </Label>
             <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
               <Input
@@ -134,29 +154,10 @@ export default function ClassEditPage() {
             </View>
           </View>
 
-          {/* 级别选择 */}
-          <View>
-            <Label className="text-sm text-foreground mb-2">
-              <Text>级别</Text>
-            </Label>
-            <RadioGroup
-              className="flex flex-wrap gap-3 mt-2"
-              value={level}
-              onValueChange={setLevel}
-            >
-              {levelOptions.map((opt) => (
-                <View key={opt.value} className="flex items-center gap-2">
-                  <RadioGroupItem value={opt.value} />
-                  <Text className="text-sm text-foreground">{opt.label}</Text>
-                </View>
-              ))}
-            </RadioGroup>
-          </View>
-
           {/* 容量 */}
           <View>
-            <Label className="text-sm text-foreground mb-2">
-              <Text>容量（1-50人）</Text>
+            <Label className="text-sm font-medium text-foreground mb-2">
+              <Text className="block">容量（1-50人）</Text>
             </Label>
             <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
               <Input
@@ -171,8 +172,8 @@ export default function ClassEditPage() {
 
           {/* 教室位置 */}
           <View>
-            <Label className="text-sm text-foreground mb-2">
-              <Text>教室位置</Text>
+            <Label className="text-sm font-medium text-foreground mb-2">
+              <Text className="block">教室位置</Text>
             </Label>
             <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
               <Input
@@ -184,38 +185,28 @@ export default function ClassEditPage() {
             </View>
           </View>
 
-          {/* 适合年龄段 */}
-          <View>
-            <Label className="text-sm text-foreground mb-2">
-              <Text>适合年龄段</Text>
-            </Label>
-            <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
-              <Input
-                className="w-full bg-transparent"
-                placeholder="如：2-3岁"
-                value={ageRange}
-                onInput={(e) => setAgeRange(e.detail.value)}
-              />
-            </View>
-          </View>
-
           {/* 状态 */}
           <View>
-            <Label className="text-sm text-foreground mb-2">
-              <Text>状态</Text>
+            <Label className="text-sm font-medium text-foreground mb-3">
+              <Text className="block">状态</Text>
             </Label>
-            <RadioGroup
-              className="flex flex-wrap gap-3 mt-2"
-              value={status}
-              onValueChange={setStatus}
-            >
+            <View className="flex flex-wrap gap-3">
               {statusOptions.map((opt) => (
-                <View key={opt.value} className="flex items-center gap-2">
-                  <RadioGroupItem value={opt.value} />
-                  <Text className="text-sm text-foreground">{opt.label}</Text>
+                <View
+                  key={opt.value}
+                  className={`px-5 py-3 rounded-xl ${
+                    status === opt.value
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}
+                  onClick={() => setStatus(opt.value)}
+                >
+                  <Text className={`text-base ${status === opt.value ? 'text-white' : ''}`}>
+                    {opt.label}
+                  </Text>
                 </View>
               ))}
-            </RadioGroup>
+            </View>
           </View>
         </CardContent>
       </Card>
