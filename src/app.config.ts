@@ -15,6 +15,7 @@ export default typeof defineAppConfig === 'function'
       'pages/review/index',
       'pages/teacher-manage/index',
       'pages/teacher-notification/index',
+  
       'pages/admin/class-manage/index',
       'pages/admin/class-edit/index',
       'pages/admin/children/index',
@@ -82,6 +83,7 @@ export default typeof defineAppConfig === 'function'
       'pages/review/index',
       'pages/teacher-manage/index',
       'pages/teacher-notification/index',
+      'pages/teacher-notification-edit/index',
       'pages/admin/class-manage/index',
       'pages/admin/class-edit/index',
       'pages/admin/children/index',
