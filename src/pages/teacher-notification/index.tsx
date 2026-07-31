@@ -47,10 +47,13 @@ export default function TeacherNotificationPage() {
 
   const loadClasses = async () => {
     try {
-      const res = await classApi.list({ pageSize: 100, status: 'active' })
+      const res = await classApi.list({ pageSize: 100 })
       console.log('[TeacherNotification] loadClasses response:', res.data)
-      if (res.data?.data?.list) {
-        setClassList(res.data.data.list)
+      const responseData = res.data as any
+      if (responseData?.code === 200) {
+        const list = responseData?.data?.list || responseData?.list || []
+        setClassList(list)
+        console.log('[TeacherNotification] setClassList:', list)
       }
     } catch (err) {
       console.error('[TeacherNotification] loadClasses error:', err)
@@ -299,10 +302,10 @@ export default function TeacherNotificationPage() {
             <Label className="text-sm text-foreground mb-2">
               <Text>通知内容 *</Text>
             </Label>
-            <View className="bg-gray-50 rounded-xl p-4 mt-2">
+            <View className="bg-gray-50 rounded-xl mt-2 p-4">
               <Textarea
                 className="w-full bg-transparent"
-                style={{ minHeight: '200px' }}
+                style={{ minHeight: '200px', border: 'none', outline: 'none' }}
                 placeholder="请输入通知内容..."
                 value={content}
                 onInput={(e) => setContent(e.detail.value)}
