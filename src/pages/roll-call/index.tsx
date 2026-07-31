@@ -4,7 +4,7 @@ import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { House, ArrowLeft } from 'lucide-react-taro'
+import { House } from 'lucide-react-taro'
 
 interface ChildItem {
   id: string
@@ -186,9 +186,6 @@ export default function RollCallPage() {
           <House size={20} color="#E8651A" />
         </View>
         <Text className="block text-lg font-semibold text-gray-900">今日考勤</Text>
-        <View onClick={() => Taro.navigateBack()}>
-          <ArrowLeft size={20} color="#666" />
-        </View>
         <View className="ml-auto flex items-center gap-2">
           <Text className="block text-sm text-gray-400">{today}</Text>
           <Text 
