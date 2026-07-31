@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { Bus, BookOpen, Users, ClipboardCheck, Camera, ShieldCheck, UserCheck, Bell, Plus } from 'lucide-react-taro'
+import { Bus, BookOpen, Users, Camera, ShieldCheck, UserCheck, Bell, Plus } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge, formatTime } from '@/utils/format'
 
@@ -486,7 +486,7 @@ export default function IndexPage() {
           >
             <CardContent className="p-4 flex flex-col items-center">
               <View className="w-10 h-10 rounded-lg bg-primary bg-opacity-10 flex items-center justify-center mb-2">
-                <ClipboardCheck size={20} color="#E8651A" />
+                <UserCheck size={20} color="#E8651A" />
               </View>
               <Text className="text-xs text-foreground">点名</Text>
             </CardContent>
