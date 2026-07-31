@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { teacherApi } from '@/utils/api'
+import { teacherApi, classApi } from '@/utils/api'
 import BackButton from '@/components/back-button'
 
 interface Teacher {
@@ -33,10 +33,15 @@ export default function TeacherEditPage() {
   const [teacher, setTeacher] = useState<Teacher | null>(null)
   const [formData, setFormData] = useState({
     name: '',
+    nickname: '',
     phone: '',
     title: '',
+    class_id: '',
     status: 'active',
+    entry_date: '',
+    leave_date: ''
   })
+  const [classes, setClasses] = useState<Array<{ id: string; name: string }>>([])
 
   const teacherId = router.params?.id
 
@@ -47,7 +52,20 @@ export default function TeacherEditPage() {
       return
     }
     loadTeacher()
+    loadClasses()
   }, [teacherId])
+
+  const loadClasses = async () => {
+    try {
+      const res = await classApi.list()
+      console.log('[TeacherEdit] class list response:', res)
+      if (res.code === 200 && res.data) {
+        setClasses(res.data.list || res.data)
+      }
+    } catch (error) {
+      console.error('[TeacherEdit] loadClasses error:', error)
+    }
+  }
 
   const loadTeacher = async () => {
     try {
@@ -59,9 +77,13 @@ export default function TeacherEditPage() {
         setTeacher(data)
         setFormData({
           name: data.name || '',
+          nickname: data.nickname || '',
           phone: data.phone || '',
           title: data.title || '',
+          class_id: data.class_id || '',
           status: data.status || 'active',
+          entry_date: data.entry_date || '',
+          leave_date: data.leave_date || ''
         })
       } else {
         Taro.showToast({ title: '教师信息不存在', icon: 'error' })
@@ -85,9 +107,13 @@ export default function TeacherEditPage() {
       setSaving(true)
       const res = await teacherApi.update(teacherId!, {
         name: formData.name.trim(),
+        nickname: formData.nickname.trim(),
         phone: formData.phone.trim(),
         title: formData.title.trim(),
+        class_id: formData.class_id,
         status: formData.status,
+        entry_date: formData.entry_date,
+        leave_date: formData.status === 'inactive' ? formData.leave_date : ''
       })
       console.log('[TeacherEdit] update response:', res)
 
@@ -147,6 +173,15 @@ export default function TeacherEditPage() {
             </View>
 
             <View>
+              <Label>教师昵称</Label>
+              <Input
+                value={formData.nickname}
+                onInput={(e) => setFormData(prev => ({ ...prev, nickname: e.detail.value }))}
+                placeholder="请输入教师昵称"
+              />
+            </View>
+
+            <View>
               <Label>手机号</Label>
               <Input
                 value={formData.phone}
@@ -166,6 +201,15 @@ export default function TeacherEditPage() {
             </View>
 
             <View>
+              <Label>入职日期</Label>
+              <Input
+                value={formData.entry_date}
+                onInput={(e) => setFormData(prev => ({ ...prev, entry_date: e.detail.value }))}
+                placeholder="请输入入职日期（如：2024-01-15）"
+              />
+            </View>
+
+            <View>
               <Label>状态</Label>
               <View className="flex gap-2 mt-2">
                 {STATUS_OPTIONS.map(opt => (
@@ -180,6 +224,38 @@ export default function TeacherEditPage() {
                   >
                     <Text className={formData.status === opt.value ? 'text-white' : 'text-gray-600'}>
                       {opt.label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {formData.status === 'inactive' && (
+              <View>
+                <Label>离职日期</Label>
+                <Input
+                  value={formData.leave_date}
+                  onInput={(e) => setFormData(prev => ({ ...prev, leave_date: e.detail.value }))}
+                  placeholder="请输入离职日期（如：2024-06-30）"
+                />
+              </View>
+            )}
+
+            <View>
+              <Label>所在班级</Label>
+              <View className="flex flex-wrap gap-2 mt-2">
+                {classes.map(cls => (
+                  <View
+                    key={cls.id}
+                    className={`px-4 py-2 rounded-lg ${
+                      formData.class_id === cls.id
+                        ? 'bg-primary text-white'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}
+                    onClick={() => setFormData(prev => ({ ...prev, class_id: cls.id }))}
+                  >
+                    <Text className={formData.class_id === cls.id ? 'text-white' : 'text-gray-600'}>
+                      {cls.name}
                     </Text>
                   </View>
                 ))}

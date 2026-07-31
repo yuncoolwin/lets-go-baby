@@ -4,19 +4,27 @@
  */
 export interface CreateTeacherDto {
   real_name: string;
+  nickname?: string;
   phone?: string;
   qualification?: string;
   specialty?: string;
   status?: 'active' | 'inactive';
+  class_id?: string;
+  entry_date?: string;
+  leave_date?: string;
 }
 
 export interface UpdateTeacherDto {
   real_name?: string;
+  nickname?: string;
   phone?: string;
   qualification?: string;
   specialty?: string;
   status?: 'active' | 'inactive';
   user_id?: string;
+  class_id?: string;
+  entry_date?: string;
+  leave_date?: string;
 }
 
 export interface TeacherQueryDto {

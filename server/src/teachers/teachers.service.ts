@@ -143,20 +143,27 @@ export class TeachersService {
    */
   async update(id: string, dto: {
     real_name?: string;
+    nickname?: string;
     phone?: string;
     qualification?: string;
     specialty?: string;
     status?: string;
     user_id?: string;
     class_id?: string;
+    entry_date?: string;
+    leave_date?: string;
   }) {
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (dto.real_name !== undefined) updateData.real_name = dto.real_name;
+    if (dto.nickname !== undefined) updateData.nickname = dto.nickname;
     if (dto.phone !== undefined) updateData.phone = dto.phone;
     if (dto.qualification !== undefined) updateData.qualification = dto.qualification;
     if (dto.specialty !== undefined) updateData.specialty = dto.specialty;
     if (dto.status !== undefined) updateData.status = dto.status;
     if (dto.user_id !== undefined) updateData.user_id = dto.user_id;
+    if (dto.class_id !== undefined) updateData.class_id = dto.class_id;
+    if (dto.entry_date !== undefined) updateData.entry_date = dto.entry_date;
+    if (dto.leave_date !== undefined) updateData.leave_date = dto.leave_date;
     if (dto.class_id !== undefined) updateData.class_id = dto.class_id;
 
     const { data, error } = await this.client
