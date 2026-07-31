@@ -87,6 +87,24 @@ export class ClassesService {
       return { error: true, code: 500, msg: `查询失败: ${error.message}` };
     }
 
+    // 统计每个班级的幼儿数量（从 children 表查询）
+    if (data && data.length > 0) {
+      const classIds = data.map(c => c.id);
+      const { data: childCounts } = await this.client
+        .from('children')
+        .select('class_id')
+        .in('class_id', classIds);
+
+      const countMap: Record<string, number> = {};
+      (childCounts || []).forEach(ch => {
+        const cid = (ch as { class_id: string }).class_id;
+        countMap[cid] = (countMap[cid] || 0) + 1;
+      });
+      data.forEach(cls => {
+        (cls as Record<string, unknown>).student_count = countMap[cls.id] || 0;
+      });
+    }
+
     return {
       list: data || [],
       total: count || 0,

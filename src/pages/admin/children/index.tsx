@@ -16,6 +16,7 @@ interface Child {
   gender: string
   birth_date: string
   class_id: string | null
+  class_name: string | null
   parent_name: string | null
   allergies: string | null
   status: string
@@ -65,7 +66,7 @@ export default function ChildrenManagePage() {
     loadChildren()
   }, [loadChildren])
 
-  // 页面显示时重新加载（处理审核后返回的情况）
+  // 页面显示时重新加载
   useDidShow(() => {
     loadChildren(false)
   })
@@ -153,8 +154,10 @@ export default function ChildrenManagePage() {
                 <View className="space-y-1">
                   <View className="flex items-center justify-between">
                     <Text className="text-sm text-muted-foreground">年龄: {calculateAge(child.birth_date)}</Text>
-                    {child.class_id && (
-                      <Text className="text-sm text-muted-foreground">班级: {child.class_id}</Text>
+                    {child.class_name ? (
+                      <Text className="text-sm text-muted-foreground">班级: {child.class_name}</Text>
+                    ) : (
+                      <Text className="text-sm text-muted-foreground">班级: 未分班</Text>
                     )}
                   </View>
                   <View className="flex items-center gap-1">
