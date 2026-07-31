@@ -489,7 +489,7 @@ export default function IndexPage() {
       <View className="min-h-screen bg-background p-4">
         <View className="mb-4">
           <Text className="block text-xl font-bold text-foreground">
-            您好，{nickname || currentRole?.real_name || '老师'}
+            您好，{nickname || currentRole?.real_name || '老师'} 💕
           </Text>
           <Text className="block text-sm text-muted-foreground mt-1">
             {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
