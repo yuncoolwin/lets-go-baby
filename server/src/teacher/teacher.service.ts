@@ -264,14 +264,17 @@ export class TeacherService {
         .eq('status', 'active');
       studentCount = count || 0;
 
-      // 查询当天该班级的考勤人数
-      const today = new Date().toISOString().split('T')[0];
+      // 查询当天该班级的考勤人数（使用UTC日期）
+      const utcNow = new Date();
+      const utcDate = new Date(Date.UTC(utcNow.getUTCFullYear(), utcNow.getUTCMonth(), utcNow.getUTCDate()));
+      const todayStart = utcDate.toISOString().split('T')[0];
+      const todayEnd = new Date(Date.UTC(utcNow.getUTCFullYear(), utcNow.getUTCMonth(), utcNow.getUTCDate() + 1)).toISOString().split('T')[0];
       const { count: attCount } = await this.client
         .from('attendance')
         .select('id', { count: 'exact', head: true })
         .eq('class_id', data.class_id)
-        .gte('date', today)
-        .lt('date', today + 'T24:00:00');
+        .gte('date', todayStart)
+        .lt('date', todayEnd);
       todayAttendance = attCount || 0;
     }
 
