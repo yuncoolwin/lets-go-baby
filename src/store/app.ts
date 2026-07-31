@@ -207,7 +207,10 @@ export const useAppStore = create<AppStore>()(
         const roles = (data.roles || []) as UserRole[]
         const children = (data.children || []) as ChildInfo[]
 
-        const currentRole = roles.length > 0 ? roles[0] : null
+        // 根据 target_role 优先匹配对应角色
+        const targetRoleType = data.target_role || 'parent'
+        const currentRoleIndex = roles.findIndex(r => r.role_type === targetRoleType)
+        const currentRole = currentRoleIndex >= 0 ? roles[currentRoleIndex] : (roles.length > 0 ? roles[0] : null)
 
         set({
           userId: data.user?.id || null,
@@ -216,7 +219,7 @@ export const useAppStore = create<AppStore>()(
           phone: data.user?.phone || null,
           roles,
           currentRole,
-          currentRoleIndex: 0,
+          currentRoleIndex: currentRoleIndex >= 0 ? currentRoleIndex : 0,
           children,
           currentChildIndex: 0,
           isLoggedIn: true,
