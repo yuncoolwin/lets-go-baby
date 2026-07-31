@@ -1,9 +1,3 @@
 export default typeof definePageConfig === 'function'
-  ? definePageConfig({
-      navigationStyle: 'custom',
-      navigationBarTitleText: '接送记录'
-    })
-  : {
-      navigationStyle: 'custom',
-      navigationBarTitleText: '接送记录'
-    }
+  ? definePageConfig({ navigationBarTitleText: '接送记录' })
+  : { navigationBarTitleText: '接送记录' }

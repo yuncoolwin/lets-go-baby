@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import BackButton from '@/components/back-button'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { Network } from '@/network'
 import { formatAge } from '@/utils/format'
@@ -152,9 +153,7 @@ export default function ChildSettingPage() {
     return (
       <View className="min-h-screen bg-background flex flex-col items-center justify-center">
         <Text className="text-muted-foreground mb-4">幼儿信息不存在</Text>
-        <View className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100" onClick={() => Taro.navigateBack()}>
-          <Text className="block text-lg">←</Text>
-        </View>
+        <BackButton />
       </View>
     )
   }
@@ -165,11 +164,9 @@ export default function ChildSettingPage() {
     <View className="min-h-screen bg-background p-4 pb-20">
       {/* 顶部导航 */}
       <View className="flex items-center justify-between mb-4">
-        <View className="flex items-center gap-3">
-          <View className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100" onClick={() => Taro.navigateBack()}>
-            <Text className="block text-lg">←</Text>
-          </View>
-          <Text className="text-lg font-semibold text-foreground">
+        <View className="flex items-center">
+          <BackButton />
+          <Text className="text-lg font-semibold text-foreground ml-2">
             {isEditing ? '编辑幼儿信息' : '幼儿信息详情'}
           </Text>
         </View>

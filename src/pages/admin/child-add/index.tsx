@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { childrenApi, classApi } from '@/utils/api'
+import BackButton from '@/components/back-button'
 
 interface ClassItem {
   id: string
@@ -91,18 +92,11 @@ export default function ChildAddPage() {
     }
   }
 
-  const handleGoBack = () => {
-    Taro.navigateBack()
-  }
-
   return (
     <View className="min-h-screen bg-background pb-20">
       {/* 顶部导航 */}
       <View className="flex items-center gap-3 p-4 bg-white border-b border-border">
-        {/* 返回按钮 */}
-        <View className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100" onClick={handleGoBack}>
-          <Text className="block text-lg">←</Text>
-        </View>
+        <BackButton />
         <Text className="text-lg font-semibold text-foreground">新增幼儿</Text>
       </View>
 

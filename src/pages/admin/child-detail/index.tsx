@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { childrenApi } from '@/utils/api'
+import BackButton from '@/components/back-button'
 import { Pencil, Trash2 } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge } from '@/utils/format'
@@ -129,9 +130,7 @@ export default function ChildDetailPage() {
     <View className="min-h-screen bg-background pb-20">
       {/* 顶部导航 */}
       <View className="flex items-center gap-3 p-4 bg-white border-b border-border">
-        <View className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100" onClick={() => Taro.navigateBack()}>
-          <Text className="block text-lg">←</Text>
-        </View>
+        <BackButton />
         <Text className="text-lg font-semibold text-foreground">幼儿详情</Text>
       </View>
 

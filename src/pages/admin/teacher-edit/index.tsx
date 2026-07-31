@@ -16,6 +16,7 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog'
 import { teacherApi, classApi } from '@/utils/api'
+import BackButton from '@/components/back-button'
 import { Trash2 } from 'lucide-react-taro'
 
 const STATUS_OPTIONS = [
@@ -197,14 +198,14 @@ export default function TeacherEditPage() {
   return (
     <View className="min-h-screen bg-background pb-24">
       {/* 头部 */}
-      <View className="bg-white px-4 py-4 flex items-center gap-3 border-b border-border">
-        <View className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100" onClick={() => Taro.navigateBack()}>
-          <Text className="block text-lg">←</Text>
-        </View>
-        <Text className="text-lg font-semibold text-foreground flex-1">
+      <View className="bg-white px-4 py-4 flex items-center justify-between border-b border-border">
+        <BackButton />
+        <Text className="text-lg font-semibold text-foreground">
           {isCreate ? '添加教师' : '编辑教师'}
         </Text>
-        {!isCreate && (
+        {isCreate ? (
+          <View className="w-10" />
+        ) : (
           <View
             className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-red-50"
             onClick={() => setDeleteOpen(true)}
