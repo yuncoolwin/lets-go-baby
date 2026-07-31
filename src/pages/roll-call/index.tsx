@@ -38,10 +38,13 @@ export default function RollCallPage() {
   const [isLocked, setIsLocked] = useState(false)
   const [hasUnsaved, setHasUnsaved] = useState(false)
   const [tempAttendance, setTempAttendance] = useState<Record<string, AttendanceItem['status']>>({})
+  const [statusBarHeight, setStatusBarHeight] = useState(44)
 
   const today = new Date().toISOString().split('T')[0]
 
   useEffect(() => {
+    const sysInfo = Taro.getSystemInfoSync()
+    setStatusBarHeight(sysInfo.statusBarHeight ? sysInfo.statusBarHeight + 44 : 44)
     loadData()
   }, [])
 
@@ -176,24 +179,26 @@ export default function RollCallPage() {
 
   return (
     <View className="min-h-screen bg-gray-50 pb-safe">
-      {/* 头部 */}
-      <View className="bg-white px-4 py-3 flex items-center gap-3 border-b border-gray-100">
-        {/* 主页按钮 */}
-        <View
-          className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm"
-          onClick={() => Taro.switchTab({ url: '/pages/index/index' })}
-        >
-          <House size={20} color="#E8651A" />
-        </View>
-        <Text className="block text-lg font-semibold text-gray-900">今日考勤</Text>
-        <View className="ml-auto flex items-center gap-2">
-          <Text className="block text-sm text-gray-400">{today}</Text>
-          <Text 
-            className="block text-sm text-red-500 px-2 py-1 rounded"
-            onClick={handleClear}
+      {/* 自定义导航栏 */}
+      <View className="bg-white border-b border-gray-100" style={{ paddingTop: `${statusBarHeight}px` }}>
+        <View className="h-11 px-4 flex items-center gap-3">
+          {/* 主页按钮 */}
+          <View
+            className="w-8 h-8 rounded-full flex items-center justify-center"
+            onClick={() => Taro.switchTab({ url: '/pages/index/index' })}
           >
-            清除
-          </Text>
+            <House size={22} color="#1a1a1a" />
+          </View>
+          <Text className="block text-lg font-semibold text-gray-900 flex-1">考勤</Text>
+          <View className="flex items-center gap-2">
+            <Text className="block text-sm text-gray-400">{today}</Text>
+            <Text
+              className="block text-sm text-red-500 px-2 py-1 rounded"
+              onClick={handleClear}
+            >
+              清除
+            </Text>
+          </View>
         </View>
       </View>
 
