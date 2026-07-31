@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { Bus, BookOpen, Users, Camera, GraduationCap, Bell, Plus } from 'lucide-react-taro'
+import { Bus, Users, Camera, GraduationCap, Plus } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge, formatTime } from '@/utils/format'
 
@@ -407,7 +407,7 @@ export default function IndexPage() {
           >
             <CardContent className="p-4 flex flex-col items-center">
               <View className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center mb-2">
-                <BookOpen size={20} color="#22C55E" />
+                <Text className="text-green-500 text-xl leading-none">📖</Text>
               </View>
               <Text className="text-xs text-foreground">每日反馈</Text>
             </CardContent>
@@ -498,7 +498,7 @@ export default function IndexPage() {
           >
             <CardContent className="p-4 flex flex-col items-center">
               <View className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center mb-2">
-                <BookOpen size={20} color="#22C55E" />
+                <Text className="text-green-500 text-xl leading-none">📖</Text>
               </View>
               <Text className="text-xs text-foreground">日常记录</Text>
             </CardContent>
@@ -510,7 +510,7 @@ export default function IndexPage() {
           >
             <CardContent className="p-4 flex flex-col items-center">
               <View className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mb-2">
-                <Bell size={20} color="#3B82F6" />
+                <Text className="text-blue-500 text-xl leading-none">📢</Text>
               </View>
               <Text className="text-xs text-foreground">发布通知</Text>
             </CardContent>
@@ -592,7 +592,7 @@ export default function IndexPage() {
           >
             <CardContent className="p-4 flex flex-col items-center">
               <View className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center mb-2">
-                <BookOpen size={24} color="#8B5CF6" />
+                <Text className="text-purple-500 text-xl leading-none">📝</Text>
               </View>
               <Text className="text-sm text-foreground">通知管理</Text>
             </CardContent>
