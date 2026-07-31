@@ -63,7 +63,6 @@ export default function IndexPage() {
   const [storeReady, setStoreReady] = useState(false)
   const [teacherClass, setTeacherClass] = useState<ClassOverview | null>(null)
   const [expandedChildren, setExpandedChildren] = useState<ChildrenItem[]>([])
-  const [expandedTeachers, setExpandedTeachers] = useState<TeachersItem[]>([])
   const [childrenLoading, setChildrenLoading] = useState(false)
   const currentChild = children[currentChildIndex] || null
 
@@ -510,65 +509,29 @@ export default function IndexPage() {
                       onClick={async () => {
                         if (isExpanded) {
                           setExpandedChildren([])
-                          setExpandedTeachers([])
                         } else {
                           setChildrenLoading(true)
                           setExpandedChildren(cls.active_children || [])
-                          setExpandedTeachers(cls.class_teacher || [])
                           setChildrenLoading(false)
                         }
                       }}
                     >
-                      <View className="flex items-center gap-3">
-                        <View className="w-12 h-12 rounded-lg bg-primary bg-opacity-10 flex items-center justify-center">
-                          <Text className="text-xl">{cls.name?.charAt(0) || '班'}</Text>
-                        </View>
-                        <View>
-                          <Text className="block text-base font-semibold text-foreground">{cls.name}</Text>
-                          <Text className="block text-sm text-muted-foreground">
-                            {cls.student_count || 0} 名幼儿 · 已出勤 {cls.today_attendance || 0} 人
-                          </Text>
-                        </View>
+                      <View>
+                        <Text className="block text-base font-semibold text-foreground">{cls.name}</Text>
+                        <Text className="block text-sm text-muted-foreground">
+                          {cls.student_count || 0} 名幼儿 · 已考勤 {cls.today_attendance || 0} 人
+                        </Text>
                       </View>
-                      <View className="flex items-center gap-2">
-                        <Badge variant="outline" className="bg-primary bg-opacity-10 text-primary border-0">
-                          带班老师：{cls.class_teacher?.[0]?.name || '暂无'}
-                        </Badge>
-                        {isExpanded ? (
-                          <ChevronUp size={20} color="#999" />
-                        ) : (
-                          <ChevronDown size={20} color="#999" />
-                        )}
-                      </View>
+                      {isExpanded ? (
+                        <ChevronUp size={20} color="#999" />
+                      ) : (
+                        <ChevronDown size={20} color="#999" />
+                      )}
                     </View>
 
                     {/* 展开内容 */}
                     {isExpanded && (
                       <View className="border-t border-gray-100">
-                        {/* 带班老师 */}
-                        {expandedTeachers.length > 0 && (
-                          <View className="p-4 border-b border-gray-100">
-                            <Text className="block text-xs text-muted-foreground mb-3">带班老师</Text>
-                            <View className="flex gap-3">
-                              {expandedTeachers.map((teacher) => (
-                                <View key={teacher.id} className="flex items-center gap-2">
-                                  <View className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center overflow-hidden">
-                                    {teacher.avatar_url ? (
-                                      <Image src={teacher.avatar_url} className="w-full h-full" mode="aspectFill" />
-                                    ) : (
-                                      <Text className="text-sm text-amber-600">{teacher.name?.charAt(0) || '师'}</Text>
-                                    )}
-                                  </View>
-                                  <View>
-                                    <Text className="block text-sm text-foreground">{teacher.name}</Text>
-                                    <Text className="block text-xs text-muted-foreground">{teacher.title || '老师'}</Text>
-                                  </View>
-                                </View>
-                              ))}
-                            </View>
-                          </View>
-                        )}
-
                         {/* 幼儿列表 */}
                         {childrenLoading ? (
                           <View className="p-4 flex gap-3">
