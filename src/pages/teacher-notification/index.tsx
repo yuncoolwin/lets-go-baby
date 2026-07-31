@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { View, Text, Picker } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -39,11 +39,23 @@ export default function TeacherNotificationPage() {
   const [classList, setClassList] = useState<ClassInfo[]>([])
   const [childrenList, setChildrenList] = useState<ChildInfo[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const isFirstRender = useRef(true)
 
   useEffect(() => {
-    loadClasses()
-    loadChildren()
+    if (isFirstRender.current) {
+      loadClasses()
+      loadChildren()
+      isFirstRender.current = false
+    }
   }, [])
+
+  // 页面显示时刷新数据（从其他页面返回时）
+  useDidShow(() => {
+    if (!isFirstRender.current) {
+      loadClasses()
+      loadChildren()
+    }
+  })
 
   const loadClasses = async () => {
     try {
