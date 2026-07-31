@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { Bus, Users, Camera, GraduationCap, Plus } from 'lucide-react-taro'
+import { Bus, Users, Camera, GraduationCap, Plus, ChevronDown, ChevronUp } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge, formatTime } from '@/utils/format'
 
@@ -30,6 +30,28 @@ interface ClassOverview {
   name: string
   student_count: number
   today_attendance: number
+  class_teacher?: TeachersItem[]
+  active_children?: ChildrenItem[]
+}
+
+interface ChildrenItem {
+  id: string
+  name: string
+  birth_date: string
+  gender: string
+  allergies?: string
+  avatar_url?: string
+  class_id?: string
+  class_name?: string
+  teacher_name?: string
+}
+
+interface TeachersItem {
+  id: string
+  name: string
+  nickname?: string
+  title?: string
+  avatar_url?: string
 }
 
 export default function IndexPage() {
@@ -39,6 +61,10 @@ export default function IndexPage() {
   const [pendingCount, setPendingCount] = useState(0)
   const [pageLoading, setPageLoading] = useState(true)
   const [storeReady, setStoreReady] = useState(false)
+  const [teacherClass, setTeacherClass] = useState<ClassOverview | null>(null)
+  const [expandedChildren, setExpandedChildren] = useState<ChildrenItem[]>([])
+  const [expandedTeachers, setExpandedTeachers] = useState<TeachersItem[]>([])
+  const [childrenLoading, setChildrenLoading] = useState(false)
   const currentChild = children[currentChildIndex] || null
 
   // 等待 store 从持久化中恢复
@@ -117,13 +143,40 @@ export default function IndexPage() {
   }
 
   const loadTeacherData = async () => {
-    const res = await Network.request({
-      url: '/api/teachers/class-overview',
-      method: 'GET',
-    })
-    console.log('[Index] class overview:', res.data)
-    if (res.data?.data) {
-      setClassList(res.data.data)
+    // 如果有教师ID，获取该教师的班级信息
+    const teacherId = Taro.getStorageSync('teacherId')
+    if (teacherId) {
+      const res = await Network.request({
+        url: `/api/teachers/${teacherId}`,
+        method: 'GET',
+      })
+      console.log('[Index] teacher info:', res.data)
+      if (res.data?.data) {
+        const teacherData = res.data.data
+        // 如果教师有班级信息，构建班级对象
+        if (teacherData.class_id) {
+          const classOverview = {
+            id: teacherData.class_id,
+            name: teacherData.class_name || '',
+            student_count: teacherData.student_count || 0,
+            today_attendance: teacherData.today_attendance || 0,
+            class_teacher: teacherData.class_teacher,
+            active_children: teacherData.active_children,
+          }
+          setTeacherClass(classOverview)
+          setClassList([classOverview])
+        }
+      }
+    } else {
+      // 兼容旧逻辑
+      const res = await Network.request({
+        url: '/api/teachers/class-overview',
+        method: 'GET',
+      })
+      console.log('[Index] class overview:', res.data)
+      if (res.data?.data) {
+        setClassList(res.data.data)
+      }
     }
   }
 
@@ -443,31 +496,134 @@ export default function IndexPage() {
           </Text>
         </View>
 
-        {/* 班级列表 */}
-        {classList.length > 0 ? (
-          <View className="space-y-3 mb-4">
-            {classList.map((cls) => (
-              <Card
-                key={cls.id}
-                className="bg-white rounded-xl border-0 shadow-sm"
-                onClick={() => Taro.navigateTo({ url: `/pages/class-detail/index?id=${cls.id}` })}
-              >
-                <CardContent className="p-4">
-                  <View className="flex items-center justify-between">
-                    <View>
-                      <Text className="block text-base font-semibold text-foreground">{cls.name}</Text>
-                      <Text className="block text-sm text-muted-foreground mt-1">
-                        {cls.student_count} 名幼儿
-                      </Text>
+        {/* 班级卡片 - 只显示老师所在班级 */}
+        {teacherClass || classList.length > 0 ? (
+          <View className="mb-4">
+            {classList.map((cls) => {
+              const isExpanded = expandedChildren.length > 0 && expandedChildren[0]?.class_id === cls.id
+              return (
+                <Card key={cls.id} className="bg-white rounded-xl border-0 shadow-sm mb-3">
+                  <CardContent className="p-0">
+                    {/* 卡片头部 */}
+                    <View
+                      className="flex items-center justify-between p-4"
+                      onClick={async () => {
+                        if (isExpanded) {
+                          setExpandedChildren([])
+                          setExpandedTeachers([])
+                        } else {
+                          setChildrenLoading(true)
+                          setExpandedChildren(cls.active_children || [])
+                          setExpandedTeachers(cls.class_teacher || [])
+                          setChildrenLoading(false)
+                        }
+                      }}
+                    >
+                      <View className="flex items-center gap-3">
+                        <View className="w-12 h-12 rounded-lg bg-primary bg-opacity-10 flex items-center justify-center">
+                          <Text className="text-xl">{cls.name?.charAt(0) || '班'}</Text>
+                        </View>
+                        <View>
+                          <Text className="block text-base font-semibold text-foreground">{cls.name}</Text>
+                          <Text className="block text-sm text-muted-foreground">
+                            {cls.student_count || 0} 名幼儿 · 已出勤 {cls.today_attendance || 0} 人
+                          </Text>
+                        </View>
+                      </View>
+                      <View className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-primary bg-opacity-10 text-primary border-0">
+                          带班老师：{cls.class_teacher?.[0]?.name || '暂无'}
+                        </Badge>
+                        {isExpanded ? (
+                          <ChevronUp size={20} color="#999" />
+                        ) : (
+                          <ChevronDown size={20} color="#999" />
+                        )}
+                      </View>
                     </View>
-                    <View className="text-right">
-                      <Text className="block text-lg font-bold text-primary">{cls.today_attendance}</Text>
-                      <Text className="block text-xs text-muted-foreground">今日出勤</Text>
-                    </View>
-                  </View>
-                </CardContent>
-              </Card>
-            ))}
+
+                    {/* 展开内容 */}
+                    {isExpanded && (
+                      <View className="border-t border-gray-100">
+                        {/* 带班老师 */}
+                        {expandedTeachers.length > 0 && (
+                          <View className="p-4 border-b border-gray-100">
+                            <Text className="block text-xs text-muted-foreground mb-3">带班老师</Text>
+                            <View className="flex gap-3">
+                              {expandedTeachers.map((teacher) => (
+                                <View key={teacher.id} className="flex items-center gap-2">
+                                  <View className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center overflow-hidden">
+                                    {teacher.avatar_url ? (
+                                      <Image src={teacher.avatar_url} className="w-full h-full" mode="aspectFill" />
+                                    ) : (
+                                      <Text className="text-sm text-amber-600">{teacher.name?.charAt(0) || '师'}</Text>
+                                    )}
+                                  </View>
+                                  <View>
+                                    <Text className="block text-sm text-foreground">{teacher.name}</Text>
+                                    <Text className="block text-xs text-muted-foreground">{teacher.title || '老师'}</Text>
+                                  </View>
+                                </View>
+                              ))}
+                            </View>
+                          </View>
+                        )}
+
+                        {/* 幼儿列表 */}
+                        {childrenLoading ? (
+                          <View className="p-4 flex gap-3">
+                            {[1, 2].map((i) => (
+                              <View key={i} className="w-36 rounded-xl bg-gray-50 p-3">
+                                <Skeleton className="w-12 h-12 rounded-full mb-2" />
+                                <Skeleton className="w-20 h-4 mb-1" />
+                                <Skeleton className="w-16 h-3" />
+                              </View>
+                            ))}
+                          </View>
+                        ) : expandedChildren.length > 0 ? (
+                          <View className="p-4">
+                            <Text className="block text-xs text-muted-foreground mb-3">在读幼儿</Text>
+                            <View className="flex flex-wrap gap-3">
+                              {expandedChildren.map((child) => (
+                                <View
+                                  key={child.id}
+                                  className="w-36 rounded-xl bg-gray-50 p-3"
+                                  onClick={() => {
+                                    Taro.navigateTo({ url: `/pages/baby-profile/index?id=${child.id}` })
+                                  }}
+                                >
+                                  <View className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-2 mx-auto overflow-hidden">
+                                    {child.avatar_url ? (
+                                      <Image src={child.avatar_url} className="w-full h-full" mode="aspectFill" />
+                                    ) : (
+                                      <Text className="text-lg text-blue-600">{child.name?.charAt(0) || '幼'}</Text>
+                                    )}
+                                  </View>
+                                  <Text className="block text-sm font-medium text-foreground text-center">{child.name}</Text>
+                                  <Text className="block text-xs text-muted-foreground text-center">
+                                    {formatAge(child.birth_date)} · {child.gender === 'male' ? '男' : '女'}
+                                  </Text>
+                                  {child.allergies && (
+                                    <Text className="block text-xs text-red-500 text-center mt-1">
+                                      过敏: {child.allergies}
+                                    </Text>
+                                  )}
+                                </View>
+                              ))}
+                            </View>
+                          </View>
+                        ) : (
+                          <View className="p-4 flex flex-col items-center">
+                            <Users size={32} color="#999" />
+                            <Text className="block text-sm text-muted-foreground mt-2">暂无在读幼儿</Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
+                  </CardContent>
+                </Card>
+              )
+            })}
           </View>
         ) : (
           <Card className="bg-white rounded-xl border-0 shadow-sm mb-4">
