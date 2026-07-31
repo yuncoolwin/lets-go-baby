@@ -59,12 +59,14 @@ export default defineConfig<'vite'>(async (merge, _env) => {
       miniCIConfig.weapp = {
         appid: process.env.TARO_APP_WEAPP_APPID,
         privateKeyPath: 'key/private.appid.key',
+        projectPath: 'dist',
       };
     }
     if (hasTTConfig) {
       miniCIConfig.tt = {
         email: process.env.TARO_APP_TT_EMAIL,
         password: process.env.TARO_APP_TT_PASSWORD,
+        projectPath: 'dist-tt',
         setting: {
           skipDomainCheck: true,
         },
