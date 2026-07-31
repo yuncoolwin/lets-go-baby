@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { View, Text } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -57,9 +57,18 @@ export default function TeacherManagePage() {
     if (showSkeleton) setLoading(false)
   }, [keyword, statusFilter])
 
+  const isFirstRender = useRef(true)
+
   useEffect(() => {
     loadTeachers()
   }, [loadTeachers])
+
+  useDidShow(() => {
+    if (!isFirstRender.current) {
+      loadTeachers(false)
+    }
+    isFirstRender.current = false
+  })
 
   const handleSearch = (value: string) => {
     setKeyword(value)
