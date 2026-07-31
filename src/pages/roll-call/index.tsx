@@ -4,7 +4,6 @@ import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import BackButton from '@/components/back-button'
 
 interface ChildItem {
   id: string
@@ -174,12 +173,21 @@ export default function RollCallPage() {
   const leaveCount = Object.values(tempAttendance).filter(s => s === 'leave').length
   const currentDisplay = isLocked ? attendance : tempAttendance
 
+  const handleGoHome = () => {
+    Taro.switchTab({ url: '/pages/index/index' })
+  }
+
   return (
     <View className="min-h-screen bg-gray-50 pb-safe">
-      {/* 头部 */}
-      <View className="bg-white px-4 py-3 flex items-center gap-3 border-b border-gray-100">
-        <BackButton />
+      {/* 自定义导航栏 */}
+      <View className="bg-white px-4 pt-4 pb-3 flex items-center gap-3 border-b border-gray-100">
+        {/* 左上角主页按钮 */}
+        <View className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100" onClick={handleGoHome}>
+          <Text className="block text-lg">🏠</Text>
+        </View>
+        {/* 标题 */}
         <Text className="block text-lg font-semibold text-gray-900">今日考勤</Text>
+        {/* 标题右侧返回按钮 */}
         <View className="ml-auto flex items-center gap-2">
           <Text className="block text-sm text-gray-400">{today}</Text>
           <Text 

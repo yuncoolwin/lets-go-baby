@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import Taro from '@tarojs/taro'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Network } from '@/network'
 import { Bus } from 'lucide-react-taro'
-import BackButton from '@/components/back-button'
 
 interface AttendanceRecord {
   id: string
@@ -67,7 +67,13 @@ export default function PickupPage() {
 
   return (
     <View className="min-h-screen bg-background p-4">
-      <BackButton title="接送记录" />
+      {/* 顶部导航 */}
+      <View className="flex items-center gap-3 mb-4">
+        <View className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100" onClick={() => Taro.navigateBack()}>
+          <Text className="block text-lg">←</Text>
+        </View>
+        <Text className="text-lg font-semibold text-foreground">接送记录</Text>
+      </View>
 
       {records.length === 0 ? (
         <View className="flex flex-col items-center py-16">

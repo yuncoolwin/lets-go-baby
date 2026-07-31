@@ -1,3 +1,9 @@
 export default typeof definePageConfig === 'function'
-  ? definePageConfig({ navigationBarTitleText: '幼儿详情' })
-  : { navigationBarTitleText: '幼儿详情' }
+  ? definePageConfig({
+      navigationStyle: 'custom',
+      navigationBarTitleText: '幼儿详情'
+    })
+  : {
+      navigationStyle: 'custom',
+      navigationBarTitleText: '幼儿详情'
+    }

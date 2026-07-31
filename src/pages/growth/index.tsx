@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react'
 import { View, Text, Image } from '@tarojs/components'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import Taro from '@tarojs/taro'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Network } from '@/network'
 import { Camera } from 'lucide-react-taro'
-import BackButton from '@/components/back-button'
 
 interface GrowthRecord {
   id: string
@@ -72,7 +72,13 @@ export default function GrowthPage() {
 
   return (
     <View className="min-h-screen bg-background p-4">
-      <BackButton title="成长档案" />
+      {/* 顶部导航 */}
+      <View className="flex items-center gap-3 mb-4">
+        <View className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100" onClick={() => Taro.navigateBack()}>
+          <Text className="block text-lg">←</Text>
+        </View>
+        <Text className="text-lg font-semibold text-foreground">成长档案</Text>
+      </View>
 
       {records.length === 0 ? (
         <View className="flex flex-col items-center py-16">

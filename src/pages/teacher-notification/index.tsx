@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { notificationApi, classApi, childrenApi } from '@/utils/api'
-import BackButton from '@/components/back-button'
 import { Send, Users, User } from 'lucide-react-taro'
 
 interface ClassInfo {
@@ -159,13 +158,12 @@ export default function TeacherNotificationPage() {
 
   return (
     <View className="min-h-screen bg-background p-4 pb-24">
-      <BackButton />
-
-      <View className="mb-4">
-        <Text className="block text-lg font-bold text-foreground">发布通知</Text>
-        <Text className="block text-sm text-muted-foreground mt-1">
-          向家长发送通知
-        </Text>
+      {/* 顶部导航 */}
+      <View className="flex items-center gap-3 mb-4">
+        <View className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100" onClick={() => Taro.navigateBack()}>
+          <Text className="block text-lg">←</Text>
+        </View>
+        <Text className="text-lg font-semibold text-foreground">发布通知</Text>
       </View>
 
       <Card className="bg-white rounded-xl border-0 shadow-sm mb-4">
