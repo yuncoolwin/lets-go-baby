@@ -8,33 +8,57 @@ export class TeacherService {
   }
 
   async getClassOverview(teacherRoleId?: string) {
-    // Demo data
-    return [
-      {
-        id: 'class_1',
-        name: '向日葵班',
-        student_count: 15,
-        today_attendance: 13,
-      },
-      {
-        id: 'class_2',
-        name: '小星星班',
-        student_count: 12,
-        today_attendance: 11,
-      },
-    ];
+    // 查询所有活跃班级及其学生数量
+    const { data: classes, error: classError } = await this.client
+      .from('classes')
+      .select('id, name, level')
+      .eq('status', 'active')
+      .order('id');
+
+    if (classError) throw new Error(`查询班级失败: ${classError.message}`);
+    if (!classes || classes.length === 0) return [];
+
+    // 查询各班级的在读幼儿数量
+    const { data: children, error: childError } = await this.client
+      .from('children')
+      .select('id, class_id')
+      .eq('status', 'active');
+
+    if (childError) throw new Error(`查询幼儿失败: ${childError.message}`);
+
+    // 按班级统计幼儿数量
+    const countMap: Record<string, number> = {};
+    children?.forEach((c) => {
+      if (c.class_id) {
+        countMap[c.class_id] = (countMap[c.class_id] || 0) + 1;
+      }
+    });
+
+    return classes.map((cls) => ({
+      id: cls.id,
+      name: cls.name,
+      student_count: countMap[cls.id] || 0,
+      today_attendance: countMap[cls.id] || 0, // TODO: 后续接入考勤系统后改为真实出勤数
+    }));
   }
 
   async getClassStudents(classId: string) {
-    // Demo data
-    return [
-      { id: 's1', name: '张小明', gender: 'male', status: 'present' },
-      { id: 's2', name: '李小红', gender: 'female', status: 'present' },
-      { id: 's3', name: '王小刚', gender: 'male', status: 'present' },
-      { id: 's4', name: '赵小美', gender: 'female', status: 'present' },
-      { id: 's5', name: '刘小强', gender: 'male', status: 'present' },
-      { id: 's6', name: '陈小丽', gender: 'female', status: 'present' },
-    ];
+    // 查询指定班级的在读幼儿
+    const { data, error } = await this.client
+      .from('children')
+      .select('id, name, gender')
+      .eq('class_id', classId)
+      .eq('status', 'active');
+
+    if (error) throw new Error(`查询幼儿失败: ${error.message}`);
+    if (!data) return [];
+
+    return data.map((c) => ({
+      id: c.id,
+      name: c.name,
+      gender: c.gender || 'unknown',
+      status: 'present',
+    }));
   }
 
   async getFeedbacks(teacherRoleId?: string) {
