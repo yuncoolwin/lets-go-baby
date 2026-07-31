@@ -56,6 +56,11 @@ interface ChildItem {
   status: string
 }
 
+interface TeacherItem {
+  id: string
+  real_name: string | null
+}
+
 export default function ClassManagePage() {
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -64,6 +69,7 @@ export default function ClassManagePage() {
 
   // 展开卡片状态
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [expandedTeachers, setExpandedTeachers] = useState<TeacherItem[]>([])
   const [expandedChildren, setExpandedChildren] = useState<ChildItem[]>([])
   const [childrenLoading, setChildrenLoading] = useState(false)
 
@@ -82,17 +88,25 @@ export default function ClassManagePage() {
     if (showSkeleton) setLoading(false)
   }, [activeLevel])
 
-  const loadChildren = useCallback(async (classId: string) => {
+  const loadExpandedData = useCallback(async (classId: string) => {
     setChildrenLoading(true)
     try {
-      const res = await childrenApi.list({ class_id: classId })
-      console.log('[ClassManage] children:', res)
-      if (res.code === 200) {
-        const list: ChildItem[] = (res.data.list || res.data || []) as ChildItem[]
+      // 并行获取教师和幼儿列表
+      const [classDetailRes, childrenRes] = await Promise.all([
+        classApi.detail(classId),
+        childrenApi.list({ class_id: classId }),
+      ])
+
+      if (classDetailRes.code === 200) {
+        setExpandedTeachers(classDetailRes.data?.teachers || [])
+      }
+
+      if (childrenRes.code === 200) {
+        const list: ChildItem[] = (childrenRes.data.list || childrenRes.data || []) as ChildItem[]
         setExpandedChildren(list.filter(c => c.status === 'active'))
       }
     } catch (err) {
-      console.error('[ClassManage] load children error:', err)
+      console.error('[ClassManage] load expanded data error:', err)
     }
     setChildrenLoading(false)
   }, [])
@@ -119,10 +133,11 @@ export default function ClassManagePage() {
   const toggleExpand = async (id: string) => {
     if (expandedId === id) {
       setExpandedId(null)
+      setExpandedTeachers([])
       setExpandedChildren([])
     } else {
       setExpandedId(id)
-      await loadChildren(id)
+      await loadExpandedData(id)
     }
   }
 
@@ -153,6 +168,7 @@ export default function ClassManagePage() {
               onClick={() => {
                 setActiveLevel(tab.value)
                 setExpandedId(null)
+                setExpandedTeachers([])
                 setExpandedChildren([])
               }}
             >
@@ -258,45 +274,82 @@ export default function ClassManagePage() {
                   </CardContent>
                 </Card>
 
-                {/* 展开的幼儿列表 */}
+                {/* 展开的教师 + 幼儿列表 */}
                 {expandedId === cls.id && (
-                  <View className="mt-2 space-y-2">
-                    <Text className="block text-xs text-muted-foreground ml-1 mb-1">在读幼儿 ({expandedChildren.length})</Text>
-
-                    {childrenLoading ? (
-                      <View className="space-y-2">
-                        {[1, 2].map(i => (
-                          <Card key={i} className="bg-white rounded-xl border-0 shadow-sm">
-                            <CardContent className="p-3">
-                              <Skeleton className="h-5 w-24 mb-1" />
-                              <Skeleton className="h-4 w-16" />
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </View>
-                    ) : expandedChildren.length === 0 ? (
-                      <Text className="block text-xs text-muted-foreground text-center py-4">暂无在读幼儿</Text>
-                    ) : (
-                      <View className="space-y-2">
-                        {expandedChildren.map(child => (
-                          <Card key={child.id} className="bg-white rounded-xl border-0 shadow-sm">
-                            <CardContent className="p-3">
-                              <View className="flex items-center justify-between mb-1">
+                  <View className="mt-2 space-y-3">
+                    {/* 教师列表 */}
+                    <View>
+                      <Text className="block text-xs text-muted-foreground ml-1 mb-1">
+                        带班老师 ({expandedTeachers.length})
+                      </Text>
+                      {childrenLoading ? (
+                        <View className="space-y-2">
+                          <Skeleton className="h-8 w-full rounded-lg" />
+                        </View>
+                      ) : expandedTeachers.length === 0 ? (
+                        <Text className="block text-xs text-muted-foreground ml-1">暂无带班老师</Text>
+                      ) : (
+                        <View className="space-y-2">
+                          {expandedTeachers.map(teacher => (
+                            <Card key={teacher.id} className="bg-white rounded-xl border-0 shadow-sm">
+                              <CardContent className="p-3">
                                 <View className="flex items-center gap-2">
-                                  <Text className="text-sm font-semibold text-foreground">{child.name}</Text>
-                                  <Text className="text-xs text-muted-foreground">
-                                    {child.gender === 'male' ? '男' : '女'}
+                                  <View className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
+                                    <Text className="text-xs font-medium text-amber-700">
+                                      {(teacher.real_name || '师').charAt(0)}
+                                    </Text>
+                                  </View>
+                                  <Text className="text-sm font-semibold text-foreground">
+                                    {teacher.real_name || '未命名教师'}
                                   </Text>
                                 </View>
-                              </View>
-                              {child.birth_date && (
-                                <Text className="block text-xs text-muted-foreground">年龄: {formatAge(child.birth_date)}</Text>
-                              )}
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </View>
-                    )}
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+
+                    {/* 幼儿列表 */}
+                    <View>
+                      <Text className="block text-xs text-muted-foreground ml-1 mb-1">
+                        在读幼儿 ({expandedChildren.length})
+                      </Text>
+                      {childrenLoading ? (
+                        <View className="space-y-2">
+                          {[1, 2].map(i => (
+                            <Card key={i} className="bg-white rounded-xl border-0 shadow-sm">
+                              <CardContent className="p-3">
+                                <Skeleton className="h-5 w-24 mb-1" />
+                                <Skeleton className="h-4 w-16" />
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </View>
+                      ) : expandedChildren.length === 0 ? (
+                        <Text className="block text-xs text-muted-foreground ml-1">暂无在读幼儿</Text>
+                      ) : (
+                        <View className="space-y-2">
+                          {expandedChildren.map(child => (
+                            <Card key={child.id} className="bg-white rounded-xl border-0 shadow-sm">
+                              <CardContent className="p-3">
+                                <View className="flex items-center justify-between mb-1">
+                                  <View className="flex items-center gap-2">
+                                    <Text className="text-sm font-semibold text-foreground">{child.name}</Text>
+                                    <Text className="text-xs text-muted-foreground">
+                                      {child.gender === 'male' ? '男' : '女'}
+                                    </Text>
+                                  </View>
+                                </View>
+                                {child.birth_date && (
+                                  <Text className="block text-xs text-muted-foreground">年龄: {formatAge(child.birth_date)}</Text>
+                                )}
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </View>
+                      )}
+                    </View>
                   </View>
                 )}
               </View>
