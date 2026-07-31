@@ -100,7 +100,7 @@ export class AttendanceService {
   }
 
   async clearByClassAndDate(classId: string, date: string) {
-    const { error } = await supabase
+    const { error } = await this.client
       .from('attendance')
       .delete()
       .eq('class_id', classId)
