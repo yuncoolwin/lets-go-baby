@@ -63,7 +63,7 @@ export default function IndexPage() {
   const [storeReady, setStoreReady] = useState(false)
   const [teacherClass, setTeacherClass] = useState<ClassOverview | null>(null)
   const [expandedChildren, setExpandedChildren] = useState<ChildrenItem[]>([])
-  const [childrenLoading, setChildrenLoading] = useState(false)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const currentChild = children[currentChildIndex] || null
 
   // 等待 store 从持久化中恢复
@@ -499,7 +499,7 @@ export default function IndexPage() {
         {teacherClass || classList.length > 0 ? (
           <View className="mb-4">
             {classList.map((cls) => {
-              const isExpanded = expandedChildren.length > 0 && expandedChildren[0]?.class_id === cls.id
+              const isExpanded = expandedId === cls.id
               return (
                 <Card key={cls.id} className="bg-white rounded-xl border-0 shadow-sm mb-3">
                   <CardContent className="p-0">
@@ -508,11 +508,11 @@ export default function IndexPage() {
                       className="flex items-center justify-between p-4"
                       onClick={async () => {
                         if (isExpanded) {
+                          setExpandedId(null)
                           setExpandedChildren([])
                         } else {
-                          setChildrenLoading(true)
+                          setExpandedId(cls.id)
                           setExpandedChildren(cls.active_children || [])
-                          setChildrenLoading(false)
                         }
                       }}
                     >
@@ -539,17 +539,7 @@ export default function IndexPage() {
                     {isExpanded && (
                       <View className="border-t border-gray-100">
                         {/* 幼儿列表 */}
-                        {childrenLoading ? (
-                          <View className="p-4 flex gap-3">
-                            {[1, 2].map((i) => (
-                              <View key={i} className="w-36 rounded-xl bg-gray-50 p-3">
-                                <Skeleton className="w-12 h-12 rounded-full mb-2" />
-                                <Skeleton className="w-20 h-4 mb-1" />
-                                <Skeleton className="w-16 h-3" />
-                              </View>
-                            ))}
-                          </View>
-                        ) : expandedChildren.length > 0 ? (
+                        {expandedChildren.length > 0 ? (
                           <View className="p-4">
                             <Text className="block text-xs text-muted-foreground mb-3">在读幼儿</Text>
                             <View className="flex flex-wrap gap-3">
