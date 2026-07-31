@@ -9,6 +9,7 @@ import { childrenApi } from '@/utils/api'
 import { Search, UserCheck, Plus } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge } from '@/utils/format'
+import { getNameInitial } from '@/utils/helpers'
 
 interface Child {
   id: string
@@ -142,6 +143,11 @@ export default function ChildrenManagePage() {
               <CardContent className="p-4">
                 <View className="flex items-center justify-between mb-2">
                   <View className="flex items-center gap-2">
+                    <View className={`w-6 h-6 rounded-full flex items-center justify-center mr-1 ${child.gender === 'male' ? 'bg-blue-100' : 'bg-pink-100'}`}>
+                      <Text className={`text-xs font-medium ${child.gender === 'male' ? 'text-blue-700' : 'text-pink-700'}`}>
+                        {getNameInitial(child.name)}
+                      </Text>
+                    </View>
                     <Text className="text-base font-semibold text-foreground">{child.name}</Text>
                     <Text className="text-sm text-muted-foreground">
                       {child.gender === 'male' ? '男' : '女'}
