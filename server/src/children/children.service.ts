@@ -14,7 +14,7 @@ export class ChildrenService {
     name: string;
     gender: string;
     birth_date: string;
-    class_id?: string;
+    class_id?: string | null;
     parent_name?: string;
     parent_phone?: string;
     health_info?: string;
@@ -152,7 +152,7 @@ export class ChildrenService {
     name?: string;
     gender?: string;
     birth_date?: string;
-    class_id?: string;
+    class_id?: string | null;
     parent_name?: string;
     parent_phone?: string;
     health_info?: string;
@@ -197,6 +197,11 @@ export class ChildrenService {
           }
         }
       }
+    }
+
+    // 如果状态改为毕业或休学，自动清除班级
+    if (dto.status === 'graduated' || dto.status === 'suspended') {
+      dto.class_id = null;
     }
 
     const { data, error } = await this.client
