@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Users, MapPin } from 'lucide-react-taro'
-import { classApi } from '@/utils/api'
+import { Plus, Users, MapPin, Pencil, ChevronDown, ChevronUp, GraduationCap } from 'lucide-react-taro'
+import { classApi, childrenApi } from '@/utils/api'
 
 const levelTabs = [
   { value: '', label: '全部' },
@@ -47,11 +47,23 @@ interface ClassItem {
   created_at?: string
 }
 
+interface ChildItem {
+  id: string
+  name: string
+  gender: string
+  status: string
+}
+
 export default function ClassManagePage() {
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [loading, setLoading] = useState(true)
   const [activeLevel, setActiveLevel] = useState('')
   const isFirstMount = useRef(true)
+
+  // 展开卡片状态
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [expandedChildren, setExpandedChildren] = useState<ChildItem[]>([])
+  const [childrenLoading, setChildrenLoading] = useState(false)
 
   const loadClasses = useCallback(async (showSkeleton = false) => {
     if (showSkeleton) setLoading(true)
@@ -68,13 +80,26 @@ export default function ClassManagePage() {
     if (showSkeleton) setLoading(false)
   }, [activeLevel])
 
-  // 首次加载
+  const loadChildren = useCallback(async (classId: string) => {
+    setChildrenLoading(true)
+    try {
+      const res = await childrenApi.list({ class_id: classId })
+      console.log('[ClassManage] children:', res)
+      if (res.code === 200) {
+        const list: ChildItem[] = (res.data.list || res.data || []) as ChildItem[]
+        setExpandedChildren(list.filter(c => c.status === 'active'))
+      }
+    } catch (err) {
+      console.error('[ClassManage] load children error:', err)
+    }
+    setChildrenLoading(false)
+  }, [])
+
   useEffect(() => {
     loadClasses(true)
     isFirstMount.current = false
   }, [loadClasses])
 
-  // 返回时自动刷新
   useDidShow(() => {
     if (!isFirstMount.current) {
       loadClasses(false)
@@ -87,6 +112,16 @@ export default function ClassManagePage() {
 
   const goEdit = (id: string) => {
     Taro.navigateTo({ url: `/pages/admin/class-edit/index?id=${id}` })
+  }
+
+  const toggleExpand = async (id: string) => {
+    if (expandedId === id) {
+      setExpandedId(null)
+      setExpandedChildren([])
+    } else {
+      setExpandedId(id)
+      await loadChildren(id)
+    }
   }
 
   return (
@@ -113,7 +148,11 @@ export default function ClassManagePage() {
                   ? 'bg-primary text-white'
                   : 'bg-gray-100 text-gray-600'
               }`}
-              onClick={() => setActiveLevel(tab.value)}
+              onClick={() => {
+                setActiveLevel(tab.value)
+                setExpandedId(null)
+                setExpandedChildren([])
+              }}
             >
               <Text className={`text-sm ${activeLevel === tab.value ? 'text-white' : ''}`}>
                 {tab.label}
@@ -152,51 +191,107 @@ export default function ClassManagePage() {
           // 班级卡片列表
           <View className="space-y-3">
             {classes.map((cls) => (
-              <Card key={cls.id} className="bg-white rounded-xl border-0 shadow-sm">
-                <CardContent className="p-4">
-                  <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                    <View className="flex-1" onClick={() => goEdit(cls.id)}>
-                      {/* 班级名称 */}
-                      <Text className="block text-base font-semibold text-foreground mb-1">
-                        {cls.name}
-                      </Text>
+              <View key={cls.id}>
+                <Card className="bg-white rounded-xl border-0 shadow-sm">
+                  <CardContent className="p-4">
+                    {/* 卡片头部：点击区域（展开）+ 右侧编辑按钮 */}
+                    <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                      <View className="flex-1" onClick={() => toggleExpand(cls.id)}>
+                        {/* 班级名称 + 展开图标 */}
+                        <View className="flex items-center gap-2 mb-1">
+                          <Text className="block text-base font-semibold text-foreground">
+                            {cls.name}
+                          </Text>
+                          {expandedId === cls.id
+                            ? <ChevronUp size={16} color="#9ca3af" />
+                            : <ChevronDown size={16} color="#9ca3af" />
+                          }
+                        </View>
 
-                      {/* 级别 + 状态标签 */}
-                      <View className="flex flex-wrap gap-2 mb-2">
-                        {cls.level && (
-                          <Badge className={`text-xs ${levelColorMap[cls.level] || 'bg-gray-100 text-gray-600'}`}>
-                            {levelLabelMap[cls.level] || cls.level}
+                        {/* 级别 + 状态标签 */}
+                        <View className="flex flex-wrap gap-2 mb-2">
+                          {cls.level && (
+                            <Badge className={`text-xs ${levelColorMap[cls.level] || 'bg-gray-100 text-gray-600'}`}>
+                              {levelLabelMap[cls.level] || cls.level}
+                            </Badge>
+                          )}
+                          <Badge className={`text-xs ${cls.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {statusLabelMap[cls.status] || cls.status}
                           </Badge>
-                        )}
-                        <Badge className={`text-xs ${cls.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                          {statusLabelMap[cls.status] || cls.status}
-                        </Badge>
+                        </View>
+
+                        {/* 详细信息 */}
+                        <View className="flex flex-wrap gap-x-4 gap-y-1">
+                          <View className="flex items-center gap-1">
+                            <Users size={13} color="#9ca3af" />
+                            <Text className="block text-xs text-gray-500">
+                              {cls.studentCount ?? 0}/{cls.capacity}人
+                            </Text>
+                          </View>
+                          {cls.room && (
+                            <View className="flex items-center gap-1">
+                              <MapPin size={13} color="#9ca3af" />
+                              <Text className="block text-xs text-gray-500">{cls.room}</Text>
+                            </View>
+                          )}
+                          {cls.teacherCount !== undefined && cls.teacherCount > 0 && (
+                            <Text className="block text-xs text-gray-500">
+                              {cls.teacherCount}位教师
+                            </Text>
+                          )}
+                        </View>
                       </View>
 
-                      {/* 详细信息 */}
-                      <View className="flex flex-wrap gap-x-4 gap-y-1">
-                        <View className="flex items-center gap-1">
-                          <Users size={13} color="#9ca3af" />
-                          <Text className="block text-xs text-gray-500">
-                            {cls.studentCount ?? 0}/{cls.capacity}人
-                          </Text>
-                        </View>
-                        {cls.room && (
-                          <View className="flex items-center gap-1">
-                            <MapPin size={13} color="#9ca3af" />
-                            <Text className="block text-xs text-gray-500">{cls.room}</Text>
-                          </View>
-                        )}
-                        {cls.teacherCount !== undefined && cls.teacherCount > 0 && (
-                          <Text className="block text-xs text-gray-500">
-                            {cls.teacherCount}位教师
-                          </Text>
-                        )}
+                      {/* 右侧编辑按钮 */}
+                      <View
+                        className="p-2 ml-2"
+                        onClick={(e) => {
+                          e.stopPropagation?.()
+                          goEdit(cls.id)
+                        }}
+                      >
+                        <Pencil size={18} color="#9ca3af" />
                       </View>
                     </View>
+                  </CardContent>
+                </Card>
+
+                {/* 展开的幼儿列表 */}
+                {expandedId === cls.id && (
+                  <View className="mt-2 bg-gray-50 rounded-xl p-3">
+                    <View className="flex items-center gap-1 mb-2">
+                      <GraduationCap size={14} color="#6b7280" />
+                      <Text className="block text-xs text-gray-500 font-medium">在读幼儿</Text>
+                      <Badge className="ml-1 bg-gray-200 text-gray-500 text-xs px-2 py-1 rounded-full">
+                        {expandedChildren.length}
+                      </Badge>
+                    </View>
+
+                    {childrenLoading ? (
+                      <View className="space-y-2">
+                        {[1, 2].map(i => (
+                          <Skeleton key={i} className="h-8 w-full rounded-lg" />
+                        ))}
+                      </View>
+                    ) : expandedChildren.length === 0 ? (
+                      <Text className="block text-xs text-gray-400 text-center py-2">暂无在读幼儿</Text>
+                    ) : (
+                      <View className="flex flex-wrap gap-2">
+                        {expandedChildren.map(child => (
+                          <View key={child.id} className="flex items-center gap-2 bg-white rounded-full px-3 py-2">
+                            <View className={`w-5 h-5 rounded-full flex items-center justify-center ${child.gender === 'male' ? 'bg-blue-100' : 'bg-pink-100'}`}>
+                              <Text className={`text-xs font-medium ${child.gender === 'male' ? 'text-blue-600' : 'text-pink-600'}`}>
+                                {child.name.charAt(0)}
+                              </Text>
+                            </View>
+                            <Text className="block text-xs text-gray-700">{child.name}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
                   </View>
-                </CardContent>
-              </Card>
+                )}
+              </View>
             ))}
           </View>
         )}
