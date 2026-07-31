@@ -11,10 +11,12 @@ import { Search, Users, GraduationCap } from 'lucide-react-taro'
 interface Teacher {
   id: string
   real_name: string
-  phone: string | null
-  qualification: string | null
-  specialty: string | null
+  nickname?: string
+  phone?: string | null
+  title?: string
+  class_name?: string
   status: string
+  entry_date?: string
   created_at: string
 }
 
@@ -120,28 +122,39 @@ export default function TeacherManagePage() {
       ) : (
         <View className="space-y-3">
           {teachers.map((teacher) => (
-            <Card key={teacher.id} className="bg-white rounded-xl border-0 shadow-sm cursor-pointer" onClick={() => Taro.navigateTo({ url: `/pages/admin/teacher-edit/index?id=${teacher.id}` })}>
+            <Card
+              key={teacher.id}
+              className="bg-white rounded-xl border-0 shadow-sm cursor-pointer"
+              onClick={() => Taro.navigateTo({ url: `/pages/admin/teacher-edit/index?id=${teacher.id}` })}
+            >
               <CardContent className="p-4">
                 <View className="flex items-center justify-between mb-2">
-                  <View className="flex items-center gap-2">
+                  <View className="flex items-center gap-3">
                     <View className="w-10 h-10 rounded-full bg-primary bg-opacity-10 flex items-center justify-center">
                       <Users size={20} color="#E8651A" />
                     </View>
-                    <Text className="text-base font-semibold text-foreground">{teacher.real_name}</Text>
+                    <View>
+                      <Text className="block text-base font-semibold text-foreground">
+                        {teacher.nickname || teacher.real_name}
+                      </Text>
+                      {teacher.nickname && (
+                        <Text className="block text-xs text-muted-foreground">{teacher.real_name}</Text>
+                      )}
+                    </View>
                   </View>
                   <Badge className={`${statusMap[teacher.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
                     <Text className="text-xs">{statusMap[teacher.status]?.label || teacher.status}</Text>
                   </Badge>
                 </View>
-                <View className="space-y-1">
-                  {teacher.phone && (
-                    <Text className="block text-sm text-muted-foreground">电话: {teacher.phone}</Text>
+                <View className="flex flex-wrap gap-x-4 gap-y-1">
+                  {teacher.class_name && (
+                    <Text className="block text-sm text-muted-foreground">班级: {teacher.class_name}</Text>
                   )}
-                  {teacher.qualification && (
-                    <Text className="block text-sm text-muted-foreground">资质: {teacher.qualification}</Text>
+                  {teacher.title && (
+                    <Text className="block text-sm text-muted-foreground">职称: {teacher.title}</Text>
                   )}
-                  {teacher.specialty && (
-                    <Text className="block text-sm text-muted-foreground">特长: {teacher.specialty}</Text>
+                  {teacher.entry_date && (
+                    <Text className="block text-sm text-muted-foreground">入职: {teacher.entry_date}</Text>
                   )}
                 </View>
               </CardContent>

@@ -11,19 +11,28 @@ import BackButton from '@/components/back-button'
 interface Teacher {
   id: string
   real_name: string
+  nickname?: string
   phone?: string
-  email?: string
-  qualification?: string
-  specialty?: string
+  title?: string
   class_id?: string
   class_name?: string
   status: 'active' | 'inactive'
+  entry_date?: string
+  leave_date?: string
   created_at: string
 }
 
 const STATUS_OPTIONS = [
   { label: '在职', value: 'active' },
   { label: '离职', value: 'inactive' },
+]
+
+const TITLE_OPTIONS = [
+  { label: '园长', value: '园长' },
+  { label: '主班', value: '主班' },
+  { label: '配班', value: '配班' },
+  { label: '财务', value: '财务' },
+  { label: '其他', value: '其他' },
 ]
 
 export default function TeacherEditPage() {
@@ -76,7 +85,7 @@ export default function TeacherEditPage() {
         const data = res.data
         setTeacher(data)
         setFormData({
-          name: data.name || '',
+          name: data.real_name || data.name || '',
           nickname: data.nickname || '',
           phone: data.phone || '',
           title: data.title || '',
@@ -97,6 +106,13 @@ export default function TeacherEditPage() {
     }
   }
 
+  const handleClassToggle = (classId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      class_id: prev.class_id === classId ? '' : classId
+    }))
+  }
+
   const handleSave = async () => {
     if (!formData.name.trim()) {
       Taro.showToast({ title: '请输入教师姓名', icon: 'none' })
@@ -106,10 +122,10 @@ export default function TeacherEditPage() {
     try {
       setSaving(true)
       const res = await teacherApi.update(teacherId!, {
-        name: formData.name.trim(),
+        real_name: formData.name.trim(),
         nickname: formData.nickname.trim(),
         phone: formData.phone.trim(),
-        title: formData.title.trim(),
+        title: formData.title,
         class_id: formData.class_id,
         status: formData.status,
         entry_date: formData.entry_date,
@@ -191,13 +207,55 @@ export default function TeacherEditPage() {
               />
             </View>
 
+            {/* 所在班级 - 移到职称上方 */}
+            <View>
+              <Label>所在班级</Label>
+              <View className="flex flex-wrap gap-2 mt-2">
+                {classes.length === 0 ? (
+                  <Text className="block text-sm text-muted-foreground">暂无班级可选</Text>
+                ) : (
+                  classes.map(cls => (
+                    <View
+                      key={cls.id}
+                      className={`px-4 py-2 rounded-lg ${
+                        formData.class_id === cls.id
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                      onClick={() => handleClassToggle(cls.id)}
+                    >
+                      <Text className={formData.class_id === cls.id ? 'text-white' : 'text-gray-600'}>
+                        {cls.name}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </View>
+            </View>
+
+            {/* 职称 - 改为选项 */}
             <View>
               <Label>职称</Label>
-              <Input
-                value={formData.title}
-                onInput={(e) => setFormData(prev => ({ ...prev, title: e.detail.value }))}
-                placeholder="请输入职称"
-              />
+              <View className="flex flex-wrap gap-2 mt-2">
+                {TITLE_OPTIONS.map(opt => (
+                  <View
+                    key={opt.value}
+                    className={`px-4 py-2 rounded-lg ${
+                      formData.title === opt.value
+                        ? 'bg-primary text-white'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}
+                    onClick={() => setFormData(prev => ({
+                      ...prev,
+                      title: prev.title === opt.value ? '' : opt.value
+                    }))}
+                  >
+                    <Text className={formData.title === opt.value ? 'text-white' : 'text-gray-600'}>
+                      {opt.label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
             </View>
 
             <View>
@@ -240,27 +298,6 @@ export default function TeacherEditPage() {
                 />
               </View>
             )}
-
-            <View>
-              <Label>所在班级</Label>
-              <View className="flex flex-wrap gap-2 mt-2">
-                {classes.map(cls => (
-                  <View
-                    key={cls.id}
-                    className={`px-4 py-2 rounded-lg ${
-                      formData.class_id === cls.id
-                        ? 'bg-primary text-white'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}
-                    onClick={() => setFormData(prev => ({ ...prev, class_id: cls.id }))}
-                  >
-                    <Text className={formData.class_id === cls.id ? 'text-white' : 'text-gray-600'}>
-                      {cls.name}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
           </CardContent>
         </Card>
       </View>
