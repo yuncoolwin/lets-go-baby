@@ -31,7 +31,8 @@ export default function ProfilePage() {
         }
         return nickname || '新用户'
       case 'teacher':
-        return currentRole.real_name || '老师'
+        // 教师显示昵称
+        return nickname || currentRole.real_name || '老师'
       case 'admin':
         return '管理员'
       default:
@@ -39,7 +40,23 @@ export default function ProfilePage() {
     }
   }
 
+  // 根据角色计算副标题
+  const getSubTitle = () => {
+    if (!currentRole) return ''
+    switch (currentRole.role_type) {
+      case 'parent':
+        return ''
+      case 'teacher':
+        return `教师 · ${currentRole.real_name || ''}`
+      case 'admin':
+        return '管理员'
+      default:
+        return ''
+    }
+  }
+
   const displayName = getDisplayName()
+  const subTitle = getSubTitle()
 
   const getRoleName = (role: RoleType) => {
     switch (role) {
@@ -80,11 +97,9 @@ export default function ProfilePage() {
       <View className="flex items-center gap-4 mb-6">
         <Image src={rabbitLogo} className="w-16 h-16 rounded-full" mode="aspectFit" />
         <View className="flex-1">
-          <Text className="block text-lg font-bold text-foreground">{displayName}</Text>
-          {currentRole && (
-            <Text className="block text-sm text-primary mt-1">
-              {getRoleName(currentRole.role_type)} · {currentRole.real_name || ''}
-            </Text>
+          <Text className="block text-xl font-bold text-foreground">{displayName}</Text>
+          {subTitle && (
+            <Text className="block text-sm text-muted-foreground mt-1">{subTitle}</Text>
           )}
         </View>
       </View>
