@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import Taro from '@tarojs/taro'
 import { Network } from '@/network'
 
@@ -70,26 +70,32 @@ interface AppStore {
 }
 
 // Taro Storage 适配器（替代 localStorage，兼容小程序环境）
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const taroStorage: any = {
+const taroStorage = {
   getItem: async (name: string): Promise<string | null> => {
     try {
-      const value = Taro.getStorageSync(name)
-      return value != null ? String(value) : null
+      if (typeof Taro !== 'undefined' && Taro.getStorageSync) {
+        const value = Taro.getStorageSync(name)
+        return value != null ? String(value) : null
+      }
+      return null
     } catch {
       return null
     }
   },
   setItem: async (name: string, value: string): Promise<void> => {
     try {
-      Taro.setStorageSync(name, value)
+      if (typeof Taro !== 'undefined' && Taro.setStorageSync) {
+        Taro.setStorageSync(name, value)
+      }
     } catch {
       // 静默失败
     }
   },
   removeItem: async (name: string): Promise<void> => {
     try {
-      Taro.removeStorageSync(name)
+      if (typeof Taro !== 'undefined' && Taro.removeStorageSync) {
+        Taro.removeStorageSync(name)
+      }
     } catch {
       // 静默失败
     }
@@ -307,7 +313,7 @@ export const useAppStore = create<AppStore>()(
 }),
     {
       name: 'lgbaby-storage',
-      storage: taroStorage,
+      storage: createJSONStorage(() => taroStorage),
       partialize: (state) => ({
         userId: state.userId,
         nickname: state.nickname,
