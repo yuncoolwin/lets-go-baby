@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { teacherApi } from '@/utils/api'
-import { Search, Users, GraduationCap, Plus } from 'lucide-react-taro'
+import { getNameInitial } from '@/utils/helpers'
+import { Search, GraduationCap, Plus } from 'lucide-react-taro'
 
 interface Teacher {
   id: string
@@ -147,8 +148,10 @@ export default function TeacherManagePage() {
                     className="flex items-center gap-3 flex-1"
                     onClick={() => Taro.navigateTo({ url: `/pages/admin/teacher-edit/index?id=${teacher.id}` })}
                   >
-                    <View className="w-10 h-10 rounded-full bg-primary bg-opacity-10 flex items-center justify-center">
-                      <Users size={20} color="#E8651A" />
+                    <View className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <Text className="text-sm font-bold text-blue-700">
+                        {getNameInitial(teacher.nickname || teacher.real_name)}
+                      </Text>
                     </View>
                     <View className="flex-1">
                       <Text className="block text-base font-semibold text-foreground">
