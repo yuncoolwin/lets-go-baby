@@ -4,7 +4,7 @@ import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { House } from 'lucide-react-taro'
+import { House, ChevronLeft } from 'lucide-react-taro'
 
 interface ChildItem {
   id: string
@@ -179,14 +179,20 @@ export default function RollCallPage() {
       {/* 头部 */}
       <View className="bg-white px-4 py-3 flex items-center gap-3 border-b border-gray-100">
         <View
-          className="w-9 h-9 flex items-center justify-center rounded-full bg-primary bg-opacity-10"
-          onClick={() => Taro.switchTab({ url: '/pages/index/index' })}
+          className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100"
+          onClick={() => Taro.navigateBack()}
         >
-          <House size={20} color="#1890ff" />
+          <ChevronLeft size={20} color="#666" />
         </View>
         <Text className="block text-lg font-semibold text-gray-900">今日考勤</Text>
         <View className="ml-auto flex items-center gap-2">
           <Text className="block text-sm text-gray-400">{today}</Text>
+          <View
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-primary bg-opacity-10"
+            onClick={() => Taro.switchTab({ url: '/pages/index/index' })}
+          >
+            <House size={18} color="#1890ff" />
+          </View>
           <Text 
             className="block text-sm text-red-500 px-2 py-1 rounded"
             onClick={handleClear}
