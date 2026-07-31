@@ -45,6 +45,7 @@ interface ClassItem {
   status: string
   teacherCount?: number
   studentCount?: number
+  teacherNames?: string[]
   created_at?: string
 }
 
@@ -80,7 +81,11 @@ export default function ClassManagePage() {
       console.log('[ClassManage] list:', res)
       if (res.code === 200) {
         const list: ClassItem[] = (res.data.list || res.data || []) as ClassItem[]
-        setClasses(list.map(c => ({ ...c, studentCount: (c as any).student_count ?? 0 })))
+        setClasses(list.map(c => ({
+          ...c,
+          studentCount: (c as any).student_count ?? 0,
+          teacherNames: (c as any).teacher_names ?? [],
+        })))
       }
     } catch (err) {
       console.error('[ClassManage] load error:', err)
@@ -252,11 +257,15 @@ export default function ClassManagePage() {
                               <Text className="block text-xs text-gray-500">{cls.room}</Text>
                             </View>
                           )}
-                          {cls.teacherCount !== undefined && cls.teacherCount > 0 && (
+                          {cls.teacherNames && cls.teacherNames.length > 0 ? (
+                            <Text className="block text-xs text-gray-500">
+                              老师: {cls.teacherNames.join('、')}
+                            </Text>
+                          ) : cls.teacherCount !== undefined && cls.teacherCount > 0 ? (
                             <Text className="block text-xs text-gray-500">
                               {cls.teacherCount}位教师
                             </Text>
-                          )}
+                          ) : null}
                         </View>
                       </View>
 
@@ -280,15 +289,13 @@ export default function ClassManagePage() {
                     {/* 教师列表 */}
                     <View>
                       <Text className="block text-xs text-muted-foreground ml-1 mb-1">
-                        带班老师 ({expandedTeachers.length})
+                        带班老师 ({expandedTeachers.length > 0 ? expandedTeachers.length : (cls.teacherNames?.length || 0)})
                       </Text>
                       {childrenLoading ? (
                         <View className="space-y-2">
                           <Skeleton className="h-8 w-full rounded-lg" />
                         </View>
-                      ) : expandedTeachers.length === 0 ? (
-                        <Text className="block text-xs text-muted-foreground ml-1">暂无带班老师</Text>
-                      ) : (
+                      ) : expandedTeachers.length > 0 ? (
                         <View className="space-y-2">
                           {expandedTeachers.map(teacher => (
                             <Card key={teacher.id} className="bg-white rounded-xl border-0 shadow-sm">
@@ -307,6 +314,23 @@ export default function ClassManagePage() {
                             </Card>
                           ))}
                         </View>
+                      ) : cls.teacherNames && cls.teacherNames.length > 0 ? (
+                        <View className="space-y-2">
+                          {cls.teacherNames.map((name, idx) => (
+                            <Card key={idx} className="bg-white rounded-xl border-0 shadow-sm">
+                              <CardContent className="p-3">
+                                <View className="flex items-center gap-2">
+                                  <View className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
+                                    <Text className="text-xs font-medium text-amber-700">{name.charAt(0)}</Text>
+                                  </View>
+                                  <Text className="text-sm font-semibold text-foreground">{name}</Text>
+                                </View>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </View>
+                      ) : (
+                        <Text className="block text-xs text-muted-foreground ml-1">暂无带班老师</Text>
                       )}
                     </View>
 

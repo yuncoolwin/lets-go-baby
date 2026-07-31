@@ -106,6 +106,41 @@ export class ClassesService {
       });
     }
 
+    // 关联查询每个班级的带班教师
+    if (data && data.length > 0) {
+      const classIds = data.map(c => c.id);
+      const { data: members } = await this.client
+        .from('class_members')
+        .select('class_id, member_id')
+        .eq('member_type', 'teacher')
+        .in('class_id', classIds);
+
+      let teacherMap: Record<string, string[]> = {};
+      if (members && members.length > 0) {
+        const teacherIds = [...new Set(members.map(m => (m as { member_id: string }).member_id))];
+        const { data: roles } = await this.client
+          .from('user_roles')
+          .select('id, real_name')
+          .in('id', teacherIds)
+          .eq('role_type', 'teacher');
+
+        const nameMap: Record<string, string> = {};
+        (roles || []).forEach(r => {
+          nameMap[(r as { id: string }).id] = (r as { real_name: string | null }).real_name || '未命名教师';
+        });
+
+        members.forEach(m => {
+          const cid = (m as { class_id: string }).class_id;
+          const tid = (m as { member_id: string }).member_id;
+          if (!teacherMap[cid]) teacherMap[cid] = [];
+          teacherMap[cid].push(nameMap[tid] || '未知教师');
+        });
+      }
+      data.forEach(cls => {
+        (cls as Record<string, unknown>).teacher_names = teacherMap[cls.id] || [];
+      });
+    }
+
     return {
       list: data || [],
       total: count || 0,
