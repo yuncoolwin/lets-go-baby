@@ -32,7 +32,9 @@ export default function RollCallPage() {
   const [classId, setClassId] = useState('')
   const [className, setClassName] = useState('')
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState<string | null>(null)
+  const [isLocked, setIsLocked] = useState(false)
+  const [hasUnsaved, setHasUnsaved] = useState(false)
+  const [tempAttendance, setTempAttendance] = useState<Record<string, AttendanceItem['status']>>({})
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -43,14 +45,12 @@ export default function RollCallPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      // 获取教师ID（优先从Storage获取，兼容微信登录）
       const teacherId = Taro.getStorageSync('teacherId') || currentRole?.id
       if (!teacherId) {
         setLoading(false)
         return
       }
       
-      // 获取当前教师的班级信息
       const teacherRes = await Network.request({
         url: `/api/teachers/${teacherId}`,
       })
@@ -63,7 +63,6 @@ export default function RollCallPage() {
       setClassId(theClassId)
       setClassName(teacherData.class_name || '')
 
-      // 获取班级在读幼儿列表
       const childrenRes = await Network.request({
         url: '/api/children',
         data: { class_id: theClassId, status: 'active', pageSize: 100 },
@@ -71,53 +70,98 @@ export default function RollCallPage() {
       const list: ChildItem[] = childrenRes.data?.data?.list || childrenRes.data?.data || []
       setChildren(list)
 
-      // 获取今天的考勤记录
       const attendanceRes = await Network.request({
         url: '/api/attendance',
         data: { class_id: theClassId, date: today },
       })
-      const records: AttendanceItem[] = attendanceRes.data?.data || []
+      const records: any[] = attendanceRes.data?.data || []
       const map: Record<string, AttendanceItem['status']> = {}
-      records.forEach(r => { map[r.child_id] = r.status as AttendanceItem['status'] })
+      records.forEach(r => { 
+        map[r.child_id] = r.attendance_status || r.status 
+      })
       setAttendance(map)
+      setTempAttendance(map)
+      
+      // 如果有考勤记录，自动锁定
+      const hasRecords = records.length > 0
+      setIsLocked(hasRecords)
     } catch (e) {
       console.error('[RollCall] load error:', e)
     }
     setLoading(false)
   }
 
-  const handleStatusChange = async (childId: string, status: AttendanceItem['status']) => {
-    const prev = attendance[childId]
+  const handleStatusChange = (childId: string, status: AttendanceItem['status']) => {
+    if (isLocked) return
+    const prev = tempAttendance[childId]
     if (prev === status) return
-
-    setSaving(childId)
-    // 乐观更新
-    setAttendance(prevAtt => ({ ...prevAtt, [childId]: status }))
-
-    try {
-      await Network.request({
-        url: '/api/attendance',
-        method: 'POST',
-        data: {
-          child_id: childId,
-          class_id: classId,
-          date: today,
-          status,
-          teacher_id: currentRole?.id || '',
-        },
-      })
-    } catch (e) {
-      // 回滚
-      setAttendance(prevAtt => ({ ...prevAtt, [childId]: prevAtt[childId] }))
-      const msg = (e as any)?.message || '保存失败'
-      Taro.showToast({ title: msg, icon: 'none' })
-    }
-    setSaving(null)
+    setTempAttendance(prevAtt => ({ ...prevAtt, [childId]: status }))
+    setHasUnsaved(true)
   }
 
-  const presentCount = Object.values(attendance).filter(s => s === 'present').length
-  const absentCount = Object.values(attendance).filter(s => s === 'absent').length
-  const leaveCount = Object.values(attendance).filter(s => s === 'leave').length
+  const handleSave = async () => {
+    try {
+      for (const childId of Object.keys(tempAttendance)) {
+        const status = tempAttendance[childId]
+        if (status === 'unknown') continue
+        await Network.request({
+          url: '/api/attendance',
+          method: 'POST',
+          data: {
+            child_id: childId,
+            class_id: classId,
+            date: today,
+            status,
+            teacher_id: currentRole?.id || '',
+          },
+        })
+      }
+      setAttendance(tempAttendance)
+      setIsLocked(true)
+      setHasUnsaved(false)
+      Taro.showToast({ title: '保存成功', icon: 'success' })
+    } catch (e) {
+      Taro.showToast({ title: '保存失败', icon: 'none' })
+    }
+  }
+
+  const handleUnlock = () => {
+    if (isLocked) {
+      setIsLocked(false)
+      setTempAttendance(attendance)
+    }
+  }
+
+  const handleClear = async () => {
+    Taro.showModal({
+      title: '确认清除',
+      content: `确定要清除 ${className} 今日全部考勤记录吗？`,
+      confirmColor: '#ef4444',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            await Network.request({
+              url: '/api/attendance/clear',
+              method: 'POST',
+              data: { class_id: classId, date: today },
+            })
+            setAttendance({})
+            setTempAttendance({})
+            setIsLocked(false)
+            setHasUnsaved(false)
+            Taro.showToast({ title: '已清除', icon: 'success' })
+          } catch (e) {
+            Taro.showToast({ title: '清除失败', icon: 'none' })
+          }
+        }
+      },
+    })
+  }
+
+  const presentCount = Object.values(tempAttendance).filter(s => s === 'present').length
+  const absentCount = Object.values(tempAttendance).filter(s => s === 'absent').length
+  const leaveCount = Object.values(tempAttendance).filter(s => s === 'leave').length
+  const currentDisplay = isLocked ? attendance : tempAttendance
 
   return (
     <View className="min-h-screen bg-gray-50 pb-safe">
@@ -125,10 +169,18 @@ export default function RollCallPage() {
       <View className="bg-white px-4 py-3 flex items-center gap-3 border-b border-gray-100">
         <BackButton />
         <Text className="block text-lg font-semibold text-gray-900">今日考勤</Text>
-        <Text className="block text-sm text-gray-400 ml-auto">{today}</Text>
+        <View className="ml-auto flex items-center gap-2">
+          <Text className="block text-sm text-gray-400">{today}</Text>
+          <Text 
+            className="block text-sm text-red-500 px-2 py-1 rounded"
+            onClick={handleClear}
+          >
+            清除
+          </Text>
+        </View>
       </View>
 
-      <ScrollView scrollY className="h-[calc(100vh-120px)]">
+      <ScrollView scrollY className="h-[calc(100vh-220px)]">
         {/* 班级信息 */}
         {className && (
           <View className="px-4 pt-4 pb-2">
@@ -181,14 +233,11 @@ export default function RollCallPage() {
             </View>
           ) : (
             children.map(child => {
-              const current = attendance[child.id] || 'unknown'
-              const isSaving = saving === child.id
+              const current = currentDisplay[child.id] || 'unknown'
               return (
                 <Card key={child.id}>
                   <CardContent className="p-4">
-                    {/* 幼儿信息行 */}
                     <View className="flex items-center gap-3 mb-3">
-                      {/* 头像 */}
                       <View
                         className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
                           child.gender === 'female' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700'
@@ -197,13 +246,11 @@ export default function RollCallPage() {
                         {child.name.charAt(0)}
                       </View>
                       <Text className="block text-base font-medium text-gray-900 flex-1">{child.name}</Text>
-                      {/* 状态标签 */}
                       <View className={`px-2 py-1 rounded text-xs font-medium ${STATUS_CONFIG[current].color} ${STATUS_CONFIG[current].text}`}>
                         <Text className="block text-xs">{STATUS_CONFIG[current].label}</Text>
                       </View>
                     </View>
 
-                    {/* 操作按钮 */}
                     <View className="flex gap-2">
                       {(['present', 'absent', 'leave'] as const).map(status => (
                         <View
@@ -212,8 +259,8 @@ export default function RollCallPage() {
                             current === status
                               ? `${STATUS_CONFIG[status].color} ${STATUS_CONFIG[status].text}`
                               : 'bg-gray-100 text-gray-500'
-                          } ${isSaving ? 'opacity-50' : ''}`}
-                          onClick={() => !isSaving && handleStatusChange(child.id, status)}
+                          } ${isLocked ? 'opacity-50' : ''}`}
+                          onClick={() => !isLocked && handleStatusChange(child.id, status)}
                         >
                           <Text className={`block text-sm font-medium ${current === status ? STATUS_CONFIG[status].text : 'text-gray-600'}`}>
                             {status === 'present' ? '✓ 到' : status === 'absent' ? '✗ 缺' : '△ 假'}
@@ -228,6 +275,33 @@ export default function RollCallPage() {
           )}
         </View>
       </ScrollView>
+
+      {/* 底部操作栏 */}
+      <View className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 flex gap-3">
+        {isLocked ? (
+          <View 
+            className="flex-1 py-3 rounded-xl text-center font-medium bg-blue-500 text-white"
+            onClick={handleUnlock}
+          >
+            <Text className="block text-base font-medium text-white">修改</Text>
+          </View>
+        ) : (
+          <>
+            <View 
+              className={`flex-1 py-3 rounded-xl text-center font-medium ${
+                hasUnsaved 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-100 text-gray-400'
+              }`}
+              onClick={hasUnsaved ? handleSave : undefined}
+            >
+              <Text className={`block text-base font-medium ${hasUnsaved ? 'text-white' : 'text-gray-400'}`}>
+                保存考勤 {hasUnsaved ? '' : '(无变化)'}
+              </Text>
+            </View>
+          </>
+        )}
+      </View>
     </View>
   )
 }

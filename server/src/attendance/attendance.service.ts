@@ -98,4 +98,14 @@ export class AttendanceService {
     if (error) throw error;
     return data;
   }
+
+  async clearByClassAndDate(classId: string, date: string) {
+    const { error } = await supabase
+      .from('attendance')
+      .delete()
+      .eq('class_id', classId)
+      .eq('date', date);
+    if (error) throw error;
+    return { deleted: true };
+  }
 }

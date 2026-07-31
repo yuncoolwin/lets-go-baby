@@ -31,4 +31,13 @@ export class AttendanceController {
     const data = await this.attendanceService.upsert(body);
     return { code: 200, msg: 'success', data };
   }
+
+  @Post('clear')
+  @HttpCode(200)
+  async clearByClassAndDate(
+    @Body() body: { class_id: string; date: string },
+  ) {
+    const data = await this.attendanceService.clearByClassAndDate(body.class_id, body.date);
+    return { code: 200, msg: 'success', data };
+  }
 }
