@@ -59,14 +59,15 @@ export default function TeacherNotificationPage() {
 
   const loadClasses = async () => {
     try {
-      const res = await classApi.list({ pageSize: 100 })
-      console.log('[TeacherNotification] loadClasses response:', res.data)
-      const responseData = res.data as any
-      if (responseData?.code === 200) {
-        const list = responseData?.data?.list || responseData?.list || []
-        setClassList(list)
-        console.log('[TeacherNotification] setClassList:', list)
-      }
+      // 与管理端班级管理使用完全一致的 API 调用和数据解析
+      const res = await classApi.list()
+      const data = res.data as any
+      // 兼容两种数据结构：直接数组或分页对象
+      const list = data?.list || data?.data?.list || (Array.isArray(data) ? data : [])
+      // 只显示正常状态的班级
+      const activeClasses = list.filter((c: any) => c.status === 'active')
+      setClassList(activeClasses)
+      console.log('[TeacherNotification] class list loaded:', activeClasses.length, 'classes')
     } catch (err) {
       console.error('[TeacherNotification] loadClasses error:', err)
     }
@@ -206,6 +207,9 @@ export default function TeacherNotificationPage() {
             <View>
               <Label className="text-sm text-foreground mb-2">
                 <Text>选择班级</Text>
+                {classList.length > 0 && selectedClassIds.length > 0 && (
+                  <Text className="text-xs text-primary ml-2">已选 {selectedClassIds.length} 个</Text>
+                )}
               </Label>
               <View className="flex flex-wrap gap-2 mt-2">
                 {classList.length > 0 ? classList.map((cls) => (
@@ -221,9 +225,12 @@ export default function TeacherNotificationPage() {
                     <Text className="text-sm">{cls.name}</Text>
                   </Badge>
                 )) : (
-                  <Text className="block text-sm text-muted-foreground">暂无班级</Text>
+                  <Text className="block text-sm text-muted-foreground">暂无班级，请先在班级管理中添加班级</Text>
                 )}
               </View>
+              {classList.length > 0 && selectedClassIds.length === 0 && (
+                <Text className="block text-xs text-gray-400 mt-2">未选班级（将发送给所有班级）</Text>
+              )}
             </View>
           )}
 
@@ -233,6 +240,9 @@ export default function TeacherNotificationPage() {
               <View>
                 <Label className="text-sm text-foreground mb-2">
                   <Text>按班级筛选</Text>
+                  {classList.length > 0 && selectedClassIds.length > 0 && (
+                    <Text className="text-xs text-primary ml-2">已选 {selectedClassIds.length} 个</Text>
+                  )}
                 </Label>
                 <View className="flex flex-wrap gap-2 mt-2">
                   {classList.length > 0 ? classList.map((cls) => (
@@ -248,9 +258,12 @@ export default function TeacherNotificationPage() {
                       <Text className="text-sm">{cls.name}</Text>
                     </Badge>
                   )) : (
-                    <Text className="block text-sm text-muted-foreground">暂无班级</Text>
+                    <Text className="block text-sm text-muted-foreground">暂无班级，请先在班级管理中添加班级</Text>
                   )}
                 </View>
+                {classList.length > 0 && selectedClassIds.length === 0 && (
+                  <Text className="block text-xs text-gray-400 mt-2">请先选择班级以筛选幼儿</Text>
+                )}
               </View>
 
               <View>
