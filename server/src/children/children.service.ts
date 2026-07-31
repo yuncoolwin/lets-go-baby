@@ -161,6 +161,44 @@ export class ChildrenService {
     avatar_url?: string;
     notes?: string;
   }) {
+    // 如果变更了 class_id，检查目标班级容量
+    if (dto.class_id !== undefined) {
+      const { data: currentChild } = await this.client
+        .from('children')
+        .select('class_id')
+        .eq('id', id)
+        .single();
+
+      const isChangingClass = !currentChild || currentChild.class_id !== dto.class_id;
+
+      if (isChangingClass && dto.class_id) {
+        // 查询目标班级信息
+        const { data: cls } = await this.client
+          .from('classes')
+          .select('id, name, capacity')
+          .eq('id', dto.class_id)
+          .single();
+
+        if (!cls) {
+          return { error: true, code: 404, msg: '班级不存在' };
+        }
+
+        if (cls.capacity) {
+          // 统计目标班级当前人数（排除当前幼儿自身）
+          const { count } = await this.client
+            .from('children')
+            .select('id', { count: 'exact', head: true })
+            .eq('class_id', dto.class_id)
+            .eq('status', 'active')
+            .neq('id', id);
+
+          if ((count || 0) >= cls.capacity) {
+            return { error: true, code: 400, msg: '该班级已满，无法分配' };
+          }
+        }
+      }
+    }
+
     const { data, error } = await this.client
       .from('children')
       .update(dto)

@@ -105,10 +105,14 @@ export default function ChildEditPage() {
           Taro.navigateBack()
         }, 1500)
       } else {
-        Taro.showToast({ title: res.msg || '保存失败', icon: 'none' })
+        // 捕获容量错误等后端异常
+        const errMsg = res.msg || (res as any).message || '保存失败'
+        Taro.showToast({ title: errMsg, icon: 'none', duration: 3000 })
+        setSubmitting(false)
       }
     } catch {
-      Taro.showToast({ title: '网络错误', icon: 'none' })
+      Taro.showToast({ title: '网络错误', icon: 'none', duration: 3000 })
+      setSubmitting(false)
     } finally {
       setSubmitting(false)
     }

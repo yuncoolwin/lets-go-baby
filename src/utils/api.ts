@@ -93,7 +93,8 @@ export const childrenApi = {
     request({ url: `/api/children/${id}`, method: 'GET' }),
 
   update: (id: string, data: Record<string, any>) =>
-    request({ url: `/api/children/${id}`, method: 'PATCH', data }),
+    // @ts-ignore validateStatus is supported by Taro.request at runtime
+    request({ url: `/api/children/${id}`, method: 'PATCH', data, validateStatus: () => true }),
 
   remove: (id: string) =>
     request({ url: `/api/children/${id}`, method: 'DELETE' }),
