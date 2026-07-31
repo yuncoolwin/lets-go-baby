@@ -33,7 +33,7 @@ interface ClassOverview {
 }
 
 export default function IndexPage() {
-  const { isLoggedIn, currentRole, isLoading, fetchUserInfo, children, currentChildIndex, setCurrentChild } = useAppStore()
+  const { isLoggedIn, currentRole, isLoading, fetchUserInfo, children, currentChildIndex, setCurrentChild, nickname } = useAppStore()
   const [babyStatus, setBabyStatus] = useState<BabyStatus | null>(null)
   const [classList, setClassList] = useState<ClassOverview[]>([])
   const [pendingCount, setPendingCount] = useState(0)
@@ -436,7 +436,7 @@ export default function IndexPage() {
       <View className="min-h-screen bg-background p-4">
         <View className="mb-4">
           <Text className="block text-xl font-bold text-foreground">
-            你好，{currentRole.real_name || '老师'}
+            你好，{nickname || currentRole?.real_name || '老师'}
           </Text>
           <Text className="block text-sm text-muted-foreground mt-1">
             {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}

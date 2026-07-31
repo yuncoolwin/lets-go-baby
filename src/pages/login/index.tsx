@@ -95,7 +95,28 @@ export default function LoginPage() {
         Taro.setStorageSync('userInfo', userData)
         Taro.setStorageSync('role', 'teacher')
         Taro.setStorageSync('userId', userData.id)
-        await useAppStore.getState().fetchUserInfo()
+        
+        // 更新 store 登录状态
+        const store = useAppStore.getState()
+        store.setLoginInfo({
+          userId: userData.id,
+          nickname: userData.nickname || userData.real_name || '老师',
+          avatarUrl: null,
+          phone: userData.phone,
+          roles: [{
+            id: userData.id,
+            user_id: userData.id,
+            role_type: 'teacher' as const,
+            real_name: userData.real_name,
+            status: 'active' as const,
+          }],
+          children: [],
+        })
+        // 存储教师ID
+        if (userData.teacher_id) {
+          Taro.setStorageSync('teacherId', userData.teacher_id)
+        }
+        
         Taro.switchTab({ url: '/pages/index/index' })
       } else {
         Taro.showToast({ title: res.data?.msg || '登录失败', icon: 'none' })

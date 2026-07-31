@@ -43,9 +43,16 @@ export default function RollCallPage() {
   const loadData = async () => {
     setLoading(true)
     try {
+      // 获取教师ID（优先从Storage获取，兼容微信登录）
+      const teacherId = Taro.getStorageSync('teacherId') || currentRole?.id
+      if (!teacherId) {
+        setLoading(false)
+        return
+      }
+      
       // 获取当前教师的班级信息
       const teacherRes = await Network.request({
-        url: `/api/teachers/${currentRole?.id}`,
+        url: `/api/teachers/${teacherId}`,
       })
       const teacherData = teacherRes.data?.data
       if (!teacherData?.class_id) {
