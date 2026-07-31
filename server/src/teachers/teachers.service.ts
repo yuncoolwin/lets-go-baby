@@ -192,17 +192,15 @@ export class TeachersService {
    * 软删除（设为 inactive）
    */
   async remove(id: string) {
-    const { data, error } = await this.client
+    const { error } = await this.client
       .from('teachers')
-      .update({ status: 'inactive', updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
+      .delete()
+      .eq('id', id);
 
     if (error) {
       return { error: true, code: 500, msg: `删除失败: ${error.message}` };
     }
-    return data;
+    return { success: true };
   }
 
   /**
