@@ -69,6 +69,33 @@ interface AppStore {
   selectRole: (roleType: string) => Promise<void>
 }
 
+// Taro Storage 适配器（替代 localStorage，兼容小程序环境）
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const taroStorage: any = {
+  getItem: async (name: string): Promise<string | null> => {
+    try {
+      const value = Taro.getStorageSync(name)
+      return value != null ? String(value) : null
+    } catch {
+      return null
+    }
+  },
+  setItem: async (name: string, value: string): Promise<void> => {
+    try {
+      Taro.setStorageSync(name, value)
+    } catch {
+      // 静默失败
+    }
+  },
+  removeItem: async (name: string): Promise<void> => {
+    try {
+      Taro.removeStorageSync(name)
+    } catch {
+      // 静默失败
+    }
+  },
+}
+
 export const useAppStore = create<AppStore>()(
   persist(
     (set, get) => ({
@@ -280,6 +307,7 @@ export const useAppStore = create<AppStore>()(
 }),
     {
       name: 'lgbaby-storage',
+      storage: taroStorage,
       partialize: (state) => ({
         userId: state.userId,
         nickname: state.nickname,
