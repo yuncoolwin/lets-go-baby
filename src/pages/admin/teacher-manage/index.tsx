@@ -4,9 +4,20 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog'
 import { teacherApi } from '@/utils/api'
-import { Search, Users, GraduationCap } from 'lucide-react-taro'
+import { Search, Users, GraduationCap, Plus, Trash2 } from 'lucide-react-taro'
 
 interface Teacher {
   id: string
@@ -36,6 +47,8 @@ export default function TeacherManagePage() {
   const [loading, setLoading] = useState(true)
   const [keyword, setKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<Teacher | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const loadTeachers = useCallback(async (showSkeleton = true) => {
     if (showSkeleton) setLoading(true)
@@ -76,6 +89,27 @@ export default function TeacherManagePage() {
 
   const handleStatusChange = (status: string) => {
     setStatusFilter(status)
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    try {
+      setDeleting(true)
+      const res = await teacherApi.remove(deleteTarget.id)
+      console.log('[TeacherManage] delete:', res)
+      if (res.code === 200) {
+        Taro.showToast({ title: '删除成功', icon: 'success' })
+        setTeachers(prev => prev.filter(t => t.id !== deleteTarget.id))
+      } else {
+        Taro.showToast({ title: res.msg || '删除失败', icon: 'error' })
+      }
+    } catch (err) {
+      console.error('[TeacherManage] delete error:', err)
+      Taro.showToast({ title: '删除失败', icon: 'error' })
+    } finally {
+      setDeleting(false)
+      setDeleteTarget(null)
+    }
   }
 
   if (loading) {
@@ -127,22 +161,30 @@ export default function TeacherManagePage() {
         <View className="flex flex-col items-center py-16">
           <GraduationCap size={48} color="#999999" />
           <Text className="block text-sm text-muted-foreground mt-3">暂无教师</Text>
+          <Button
+            className="mt-4 bg-primary text-white"
+            onClick={() => Taro.navigateTo({ url: '/pages/admin/teacher-edit/index' })}
+          >
+            添加教师
+          </Button>
         </View>
       ) : (
         <View className="space-y-3">
           {teachers.map((teacher) => (
             <Card
               key={teacher.id}
-              className="bg-white rounded-xl border-0 shadow-sm cursor-pointer"
-              onClick={() => Taro.navigateTo({ url: `/pages/admin/teacher-edit/index?id=${teacher.id}` })}
+              className="bg-white rounded-xl border-0 shadow-sm"
             >
               <CardContent className="p-4">
                 <View className="flex items-center justify-between mb-2">
-                  <View className="flex items-center gap-3">
+                  <View
+                    className="flex items-center gap-3 flex-1"
+                    onClick={() => Taro.navigateTo({ url: `/pages/admin/teacher-edit/index?id=${teacher.id}` })}
+                  >
                     <View className="w-10 h-10 rounded-full bg-primary bg-opacity-10 flex items-center justify-center">
                       <Users size={20} color="#E8651A" />
                     </View>
-                    <View>
+                    <View className="flex-1">
                       <Text className="block text-base font-semibold text-foreground">
                         {teacher.nickname || teacher.real_name}
                       </Text>
@@ -151,11 +193,25 @@ export default function TeacherManagePage() {
                       )}
                     </View>
                   </View>
-                  <Badge className={`${statusMap[teacher.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
-                    <Text className="text-xs">{statusMap[teacher.status]?.label || teacher.status}</Text>
-                  </Badge>
+                  <View className="flex items-center gap-2">
+                    <Badge className={`${statusMap[teacher.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
+                      <Text className="text-xs">{statusMap[teacher.status]?.label || teacher.status}</Text>
+                    </Badge>
+                    <View
+                      className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDeleteTarget(teacher)
+                      }}
+                    >
+                      <Trash2 size={16} color="#EF4444" />
+                    </View>
+                  </View>
                 </View>
-                <View className="flex flex-wrap gap-x-4 gap-y-1">
+                <View
+                  className="flex flex-wrap gap-x-4 gap-y-1"
+                  onClick={() => Taro.navigateTo({ url: `/pages/admin/teacher-edit/index?id=${teacher.id}` })}
+                >
                   {teacher.class_name && (
                     <Text className="block text-sm text-muted-foreground">班级: {teacher.class_name}</Text>
                   )}
@@ -171,6 +227,34 @@ export default function TeacherManagePage() {
           ))}
         </View>
       )}
+
+      {/* 添加教师浮动按钮 */}
+      {teachers.length > 0 && (
+        <View
+          className="fixed right-4 bottom-24 w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-lg z-50"
+          onClick={() => Taro.navigateTo({ url: '/pages/admin/teacher-edit/index' })}
+        >
+          <Plus size={28} color="#FFFFFF" />
+        </View>
+      )}
+
+      {/* 删除确认弹窗 */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除教师「{deleteTarget?.nickname || deleteTarget?.real_name}」吗？此操作不可撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-500 text-white">
+              {deleting ? '删除中...' : '删除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </View>
   )
 }

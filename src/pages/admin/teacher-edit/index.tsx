@@ -8,20 +8,6 @@ import { Label } from '@/components/ui/label'
 import { teacherApi, classApi } from '@/utils/api'
 import BackButton from '@/components/back-button'
 
-interface Teacher {
-  id: string
-  real_name: string
-  nickname?: string
-  phone?: string
-  title?: string
-  class_id?: string
-  class_name?: string
-  status: 'active' | 'inactive'
-  entry_date?: string
-  leave_date?: string
-  created_at: string
-}
-
 const STATUS_OPTIONS = [
   { label: '在职', value: 'active' },
   { label: '离职', value: 'inactive' },
@@ -39,7 +25,6 @@ export default function TeacherEditPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [teacher, setTeacher] = useState<Teacher | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     nickname: '',
@@ -54,16 +39,14 @@ export default function TeacherEditPage() {
   const [classes, setClasses] = useState<Array<{ id: string; name: string }>>([])
 
   const teacherId = router.params?.id
+  const isCreate = !teacherId
 
   useEffect(() => {
-    if (!teacherId) {
-      Taro.showToast({ title: '参数错误', icon: 'error' })
-      setTimeout(() => Taro.navigateBack(), 1500)
-      return
-    }
-    loadTeacher()
     loadClasses()
-  }, [teacherId])
+    if (!isCreate) {
+      loadTeacher()
+    }
+  }, [])
 
   const loadClasses = async () => {
     try {
@@ -84,9 +67,7 @@ export default function TeacherEditPage() {
       console.log('[TeacherEdit] detail response:', res)
       if (res.code === 200 && res.data) {
         const data = res.data
-        setTeacher(data)
 
-        // 判断职称是否为预设选项，否则归入"其他"
         const presetTitles = TITLE_OPTIONS.filter(o => o.value !== '其他').map(o => o.value)
         const isPreset = data.title && presetTitles.includes(data.title)
 
@@ -135,7 +116,7 @@ export default function TeacherEditPage() {
 
     try {
       setSaving(true)
-      const res = await teacherApi.update(teacherId!, {
+      const payload = {
         real_name: formData.name.trim(),
         nickname: formData.nickname.trim(),
         phone: formData.phone.trim(),
@@ -144,8 +125,15 @@ export default function TeacherEditPage() {
         status: formData.status,
         entry_date: formData.entry_date,
         leave_date: formData.status === 'inactive' ? formData.leave_date : ''
-      })
-      console.log('[TeacherEdit] update response:', res)
+      }
+
+      let res
+      if (isCreate) {
+        res = await teacherApi.create(payload)
+      } else {
+        res = await teacherApi.update(teacherId!, payload)
+      }
+      console.log('[TeacherEdit] save response:', res)
 
       if (res.code === 200) {
         Taro.showToast({ title: '保存成功', icon: 'success' })
@@ -173,20 +161,14 @@ export default function TeacherEditPage() {
     )
   }
 
-  if (!teacher) {
-    return (
-      <View className="min-h-screen bg-background flex items-center justify-center">
-        <Text className="text-muted-foreground">教师信息不存在</Text>
-      </View>
-    )
-  }
-
   return (
     <View className="min-h-screen bg-background pb-24">
       {/* 头部 */}
       <View className="bg-white px-4 py-4 flex items-center justify-between border-b border-border">
         <BackButton />
-        <Text className="text-lg font-semibold text-foreground">编辑教师</Text>
+        <Text className="text-lg font-semibold text-foreground">
+          {isCreate ? '添加教师' : '编辑教师'}
+        </Text>
         <View className="w-10" />
       </View>
 
