@@ -486,7 +486,7 @@ export default function IndexPage() {
           >
             <CardContent className="p-4 flex flex-col items-center">
               <View className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center mb-2">
-                <Text className="text-orange-500 font-bold text-lg leading-none">点</Text>
+                <Text className="text-orange-500 text-xl leading-none">📋</Text>
               </View>
               <Text className="text-xs text-foreground">点名</Text>
             </CardContent>
