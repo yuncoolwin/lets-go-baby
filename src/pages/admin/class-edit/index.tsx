@@ -120,18 +120,18 @@ export default function ClassEditPage() {
             <Label className="text-sm font-medium text-foreground mb-3">
               <Text className="block">级别 *</Text>
             </Label>
-            <View className="flex flex-wrap gap-3">
+            <View className="flex flex-wrap gap-2">
               {levelOptions.map((opt) => (
                 <View
                   key={opt.value}
-                  className={`px-5 py-3 rounded-xl ${
+                  className={`px-4 py-2 rounded-full whitespace-nowrap ${
                     level === opt.value
                       ? 'bg-primary text-white'
                       : 'bg-gray-100 text-gray-600'
                   }`}
                   onClick={() => setLevel(opt.value)}
                 >
-                  <Text className={`text-base ${level === opt.value ? 'text-white' : ''}`}>
+                  <Text className={`text-sm ${level === opt.value ? 'text-white' : ''}`}>
                     {opt.label}
                   </Text>
                 </View>
@@ -190,18 +190,18 @@ export default function ClassEditPage() {
             <Label className="text-sm font-medium text-foreground mb-3">
               <Text className="block">状态</Text>
             </Label>
-            <View className="flex flex-wrap gap-3">
+            <View className="flex flex-wrap gap-2">
               {statusOptions.map((opt) => (
                 <View
                   key={opt.value}
-                  className={`px-5 py-3 rounded-xl ${
+                  className={`px-4 py-2 rounded-full whitespace-nowrap ${
                     status === opt.value
                       ? 'bg-primary text-white'
                       : 'bg-gray-100 text-gray-600'
                   }`}
                   onClick={() => setStatus(opt.value)}
                 >
-                  <Text className={`text-base ${status === opt.value ? 'text-white' : ''}`}>
+                  <Text className={`text-sm ${status === opt.value ? 'text-white' : ''}`}>
                     {opt.label}
                   </Text>
                 </View>
