@@ -93,6 +93,7 @@ export class ClassesService {
       const { data: childCounts } = await this.client
         .from('children')
         .select('class_id')
+        .eq('status', 'active')
         .in('class_id', classIds);
 
       const countMap: Record<string, number> = {};
