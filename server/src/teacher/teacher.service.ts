@@ -9,15 +9,15 @@ export class TeacherService {
 
   async getMe(teacherRoleId?: string) {
     // teacherRoleId 即 teachers.id，先查 teachers 表
-    const { data: teacher } = teacherRoleId
+    const { data: teacher, error: teacherError } = teacherRoleId
       ? await this.client
           .from('teachers')
-          .select('*, classes(id, name)')
+          .select('*')
           .eq('id', teacherRoleId)
           .eq('status', 'active')
           .single()
-      : { data: null };
-
+      : { data: null, error: null };
+    
     // 若 teachers 表无记录，降级查 user_roles
     const { data: role } = !teacher && teacherRoleId
       ? await this.client
@@ -31,6 +31,17 @@ export class TeacherService {
     if (!teacher && !role) return null;
 
     const classId = teacher?.class_id || null;
+    
+    // 查询班级名称
+    let className = null;
+    if (classId) {
+      const { data: cls } = await this.client
+        .from('classes')
+        .select('name')
+        .eq('id', classId)
+        .single();
+      className = cls?.name || null;
+    }
     
     // 查询该班级的在读幼儿数量
     let studentCount = 0;
@@ -46,13 +57,18 @@ export class TeacherService {
     // 查询当天该班级的考勤人数
     let todayAttendance = 0;
     if (classId) {
-      const today = new Date().toISOString().split('T')[0];
+      // 使用 UTC 日期
+      const now = new Date();
+      const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      const tomorrowUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+      const today = todayUTC.toISOString().split('T')[0];
+      const tomorrowStr = tomorrowUTC.toISOString().split('T')[0];
       const { count: attCount } = await this.client
         .from('attendance')
         .select('id', { count: 'exact', head: true })
         .eq('class_id', classId)
         .gte('date', today)
-        .lt('date', today + 'T24:00:00');
+        .lt('date', tomorrowStr);
       todayAttendance = attCount || 0;
     }
 
@@ -61,7 +77,7 @@ export class TeacherService {
       id: teacher?.id || role?.id,
       real_name: teacher?.nickname || teacher?.real_name || role?.real_name,
       class_id: classId,
-      class_name: (teacher as any)?.classes?.name || null,
+      class_name: className,
       title: teacher?.title || role?.title || null,
       student_count: studentCount,
       today_attendance: todayAttendance,
@@ -102,13 +118,17 @@ export class TeacherService {
     const studentCount = children?.length || 0;
 
     // 查询当天该班级的考勤人数
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const tomorrowUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    const today = todayUTC.toISOString().split('T')[0];
+    const tomorrowStr = tomorrowUTC.toISOString().split('T')[0];
     const { data: attendance, error: attError } = await this.client
       .from('attendance')
       .select('id')
       .eq('class_id', teacherClassId)
       .gte('date', today)
-      .lt('date', today + 'T24:00:00');
+      .lt('date', tomorrowStr);
 
     if (attError) {
       console.error('查询考勤失败:', attError);

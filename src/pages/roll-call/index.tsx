@@ -71,7 +71,7 @@ export default function RollCallPage() {
       const list: ChildItem[] = childrenRes.data?.data?.list || childrenRes.data?.data || []
       setChildren(list)
 
-      // 获取今天的点名记录
+      // 获取今天的考勤记录
       const attendanceRes = await Network.request({
         url: '/api/attendance',
         data: { class_id: theClassId, date: today },
@@ -124,7 +124,7 @@ export default function RollCallPage() {
       {/* 头部 */}
       <View className="bg-white px-4 py-3 flex items-center gap-3 border-b border-gray-100">
         <BackButton />
-        <Text className="block text-lg font-semibold text-gray-900">今日点名</Text>
+        <Text className="block text-lg font-semibold text-gray-900">今日考勤</Text>
         <Text className="block text-sm text-gray-400 ml-auto">{today}</Text>
       </View>
 

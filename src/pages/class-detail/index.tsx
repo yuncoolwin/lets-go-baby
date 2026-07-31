@@ -99,7 +99,7 @@ export default function ClassDetailPage() {
             <View className="w-10 h-10 rounded-lg bg-primary bg-opacity-10 flex items-center justify-center">
               <Users size={20} color="#E8651A" />
             </View>
-            <Text className="text-sm font-medium text-foreground">开始点名</Text>
+            <Text className="text-sm font-medium text-foreground">开始考勤</Text>
           </View>
           <ChevronRight size={16} color="#999" />
         </CardContent>

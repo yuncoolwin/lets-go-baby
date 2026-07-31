@@ -17,7 +17,7 @@ const roleConfig: Record<string, { name: string; desc: string; icon: any; color:
   },
   teacher: {
     name: '教师',
-    desc: '管理班级、点名、记录幼儿日常、发布通知',
+    desc: '管理班级、考勤、记录幼儿日常、发布通知',
     icon: GraduationCap,
     color: '#3B82F6',
   },
