@@ -115,8 +115,8 @@ export const childrenApi = {
 // ============ 教师 API ============
 
 export const teacherApi = {
-  me: () =>
-    request({ url: '/api/teachers/me', method: 'GET' }),
+  me: (teacherRoleId?: string) =>
+    request({ url: '/api/teachers/me', method: 'GET', data: teacherRoleId ? { teacher_role_id: teacherRoleId } : undefined }),
 
   create: (data: Record<string, any>) =>
     request({ url: '/api/teachers', method: 'POST', data }),

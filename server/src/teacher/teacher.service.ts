@@ -30,50 +30,98 @@ export class TeacherService {
 
     if (!teacher && !role) return null;
 
+    const classId = teacher?.class_id || null;
+    
+    // 查询该班级的在读幼儿数量
+    let studentCount = 0;
+    if (classId) {
+      const { count } = await this.client
+        .from('children')
+        .select('id', { count: 'exact', head: true })
+        .eq('class_id', classId)
+        .eq('status', 'active');
+      studentCount = count || 0;
+    }
+
+    // 查询当天该班级的考勤人数
+    let todayAttendance = 0;
+    if (classId) {
+      const today = new Date().toISOString().split('T')[0];
+      const { count: attCount } = await this.client
+        .from('attendance')
+        .select('id', { count: 'exact', head: true })
+        .eq('class_id', classId)
+        .gte('date', today)
+        .lt('date', today + 'T24:00:00');
+      todayAttendance = attCount || 0;
+    }
+
     return {
       ...(role || {}),
       id: teacher?.id || role?.id,
       real_name: teacher?.nickname || teacher?.real_name || role?.real_name,
-      class_id: teacher?.class_id || null,
+      class_id: classId,
       class_name: (teacher as any)?.classes?.name || null,
       title: teacher?.title || role?.title || null,
+      student_count: studentCount,
+      today_attendance: todayAttendance,
       teacher: teacher || null,
     };
   }
 
   async getClassOverview(teacherRoleId?: string) {
-    // 查询所有活跃班级及其学生数量
-    const { data: classes, error: classError } = await this.client
+    // 获取当前教师的班级ID
+    let teacherClassId: string | null = null;
+    
+    if (teacherRoleId) {
+      const teacherData = await this.getMe(teacherRoleId);
+      teacherClassId = teacherData?.class_id || null;
+    }
+
+    if (!teacherClassId) return [];
+
+    // 查询该教师所在的班级
+    const { data: cls, error: classError } = await this.client
       .from('classes')
       .select('id, name, level')
+      .eq('id', teacherClassId)
       .eq('status', 'active')
-      .order('id');
+      .single();
 
-    if (classError) throw new Error(`查询班级失败: ${classError.message}`);
-    if (!classes || classes.length === 0) return [];
+    if (classError || !cls) return [];
 
-    // 查询各班级的在读幼儿数量
+    // 查询该班级的在读幼儿数量
     const { data: children, error: childError } = await this.client
       .from('children')
-      .select('id, class_id')
+      .select('id')
+      .eq('class_id', teacherClassId)
       .eq('status', 'active');
 
     if (childError) throw new Error(`查询幼儿失败: ${childError.message}`);
 
-    // 按班级统计幼儿数量
-    const countMap: Record<string, number> = {};
-    children?.forEach((c) => {
-      if (c.class_id) {
-        countMap[c.class_id] = (countMap[c.class_id] || 0) + 1;
-      }
-    });
+    const studentCount = children?.length || 0;
 
-    return classes.map((cls) => ({
+    // 查询当天该班级的考勤人数
+    const today = new Date().toISOString().split('T')[0];
+    const { data: attendance, error: attError } = await this.client
+      .from('attendance')
+      .select('id')
+      .eq('class_id', teacherClassId)
+      .gte('date', today)
+      .lt('date', today + 'T24:00:00');
+
+    if (attError) {
+      console.error('查询考勤失败:', attError);
+    }
+
+    const todayAttendance = attendance?.length || 0;
+
+    return [{
       id: cls.id,
       name: cls.name,
-      student_count: countMap[cls.id] || 0,
-      today_attendance: countMap[cls.id] || 0, // TODO: 后续接入考勤系统后改为真实出勤数
-    }));
+      student_count: studentCount,
+      today_attendance: todayAttendance,
+    }];
   }
 
   async getClassStudents(classId: string) {
@@ -177,6 +225,9 @@ export class TeacherService {
 
     // 获取班级信息
     let className = null;
+    let studentCount = 0;
+    let todayAttendance = 0;
+    
     if (data.class_id) {
       const { data: classData } = await this.client
         .from('classes')
@@ -184,12 +235,32 @@ export class TeacherService {
         .eq('id', data.class_id)
         .single();
       className = classData?.name || null;
+
+      // 查询该班级的在读幼儿数量
+      const { count } = await this.client
+        .from('children')
+        .select('id', { count: 'exact', head: true })
+        .eq('class_id', data.class_id)
+        .eq('status', 'active');
+      studentCount = count || 0;
+
+      // 查询当天该班级的考勤人数
+      const today = new Date().toISOString().split('T')[0];
+      const { count: attCount } = await this.client
+        .from('attendance')
+        .select('id', { count: 'exact', head: true })
+        .eq('class_id', data.class_id)
+        .gte('date', today)
+        .lt('date', today + 'T24:00:00');
+      todayAttendance = attCount || 0;
     }
 
     return {
       ...data,
       class_name: className,
       display_name: data.nickname || data.real_name,
+      student_count: studentCount,
+      today_attendance: todayAttendance,
     };
   }
 }
