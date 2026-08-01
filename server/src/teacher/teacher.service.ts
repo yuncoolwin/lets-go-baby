@@ -155,11 +155,31 @@ export class TeacherService {
     if (error) throw new Error(`查询幼儿失败: ${error.message}`);
     if (!data) return [];
 
+    // 查询当天考勤记录
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrowStr = new Date(today.getTime() + 86400000).toISOString();
+
+    const { data: attendanceData } = await this.client
+      .from('attendance')
+      .select('child_id, status')
+      .eq('class_id', classId)
+      .gte('date', today.toISOString())
+      .lt('date', tomorrowStr);
+
+    // 构建考勤状态映射
+    const attendanceMap: Record<string, string> = {};
+    if (attendanceData) {
+      attendanceData.forEach((a: any) => {
+        attendanceMap[a.child_id] = a.status;
+      });
+    }
+
     return data.map((c) => ({
       id: c.id,
       child_name: c.name,
       gender: c.gender || 'unknown',
-      status: 'present',
+      attendance_status: attendanceMap[c.id] || 'unknown',
     }));
   }
 
