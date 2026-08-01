@@ -157,7 +157,7 @@ export class TeacherService {
 
     return data.map((c) => ({
       id: c.id,
-      name: c.name,
+      child_name: c.name,
       gender: c.gender || 'unknown',
       status: 'present',
     }));

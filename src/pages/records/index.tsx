@@ -70,7 +70,7 @@ export default function RecordsPage() {
     try {
       const classId = currentRole?.class_id || 'demo-class-1'
       const res = await Network.request({
-        url: '/api/teacher/class-students',
+        url: '/api/teachers/class-students',
         method: 'GET',
         data: { class_id: classId }
       })
