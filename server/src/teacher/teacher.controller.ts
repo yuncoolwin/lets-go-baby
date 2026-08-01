@@ -74,4 +74,11 @@ export class TeacherController {
     const data = await this.teacherService.updateFeedback(body);
     return { code: 200, msg: 'success', data };
   }
+
+  @Delete('feedback/:id')
+  @HttpCode(200)
+  async deleteFeedback(@Param('id') id: string) {
+    const data = await this.teacherService.deleteFeedback(id);
+    return { code: 200, msg: 'success', data };
+  }
 }

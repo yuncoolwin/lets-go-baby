@@ -3,11 +3,11 @@ import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Trash2 , BookOpen, Plus, X } from 'lucide-react-taro'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { BookOpen, Plus, X } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 
 interface FeedbackItem {
@@ -172,6 +172,20 @@ export default function RecordsPage() {
     setShowAddModal(true)
   }
 
+  const handleDeleteFeedback = async (id: string) => {
+    try {
+      const res = await Network.request({ url: `/api/teachers/feedback/${id}`, method: 'DELETE' })
+      if (res.data?.code === 200) {
+        await loadFeedbacks()
+        await loadStudents()
+      } else {
+        console.error('删除失败', res.data)
+      }
+    } catch (err) {
+      console.error('删除失败', err)
+    }
+  }
+
   const getStatusLabel = (status: string | null) => {
     switch (status) {
       case 'good': case 'happy': return '好'
@@ -239,9 +253,18 @@ export default function RecordsPage() {
                     <Text className="block text-base font-semibold text-foreground">
                       {item.child_name}
                     </Text>
-                    <Text className="block text-xs text-muted-foreground">
-                      {item.feedback_date}
-                    </Text>
+                    <View className="flex items-center gap-2">
+                      <Text className="block text-xs text-muted-foreground">
+                        {item.feedback_date}
+                      </Text>
+                      <View className="w-6 h-6 flex items-center justify-center" onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteFeedback(item.id);
+                      }}
+                      >
+                        <Trash2 size={14} color="#ef4444" />
+                      </View>
+                    </View>
                   </View>
                   <View className="flex flex-wrap gap-2 mb-3">
                     <Badge className={`rounded-full text-xs ${getStatusBadge(item.meal_status)}`}>

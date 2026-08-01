@@ -314,6 +314,17 @@ export class TeacherService {
     return { success: true };
   }
 
+  async deleteFeedback(id: string) {
+    const { error } = await this.client
+      .from('daily_feedbacks')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw new Error(`删除反馈失败: ${error.message}`);
+
+    return { success: true };
+  }
+
   async getById(id: string) {
     const { data, error } = await this.client
       .from('teachers')
