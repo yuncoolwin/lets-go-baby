@@ -53,7 +53,7 @@ export default function RecordsPage() {
     setLoading(true)
     try {
       const url = currentRole?.role_type === 'teacher'
-        ? '/api/teacher/feedbacks'
+        ? '/api/teachers/feedbacks'
         : '/api/parent/feedbacks'
       const res = await Network.request({ url, method: 'GET' })
       console.log('[Records] feedbacks:', res.data)
@@ -68,7 +68,27 @@ export default function RecordsPage() {
 
   const loadStudents = async () => {
     try {
-      const classId = currentRole?.class_id || 'demo-class-1'
+      // 从存储获取教师ID
+      const userInfo = Taro.getStorageSync('userInfo')
+      const teacherId = userInfo?.teacher_id || ''
+      let classId = ''
+
+      // 先获取教师信息获取班级ID
+      if (teacherId) {
+        const teacherRes = await Network.request({
+          url: `/api/teachers/${teacherId}`,
+          method: 'GET',
+        })
+        console.log('[Records] teacher info:', teacherRes.data)
+        classId = teacherRes.data?.data?.class_id || ''
+      }
+
+      if (!classId) {
+        console.warn('[Records] no class_id found')
+        setStudents([])
+        return
+      }
+
       const res = await Network.request({
         url: '/api/teachers/class-students',
         method: 'GET',
@@ -88,7 +108,7 @@ export default function RecordsPage() {
     setSubmitting(true)
     try {
       const res = await Network.request({
-        url: '/api/teacher/feedback',
+        url: '/api/teachers/feedback',
         method: 'POST',
         data: {
           child_id: selectedChildId,
@@ -308,11 +328,11 @@ export default function RecordsPage() {
 
               {/* 提交 */}
               <Button
-                className="w-full bg-primary text-primary-foreground rounded-xl h-11 mt-4"
+                className="w-full bg-primary text-white rounded-xl h-11 mt-4"
                 disabled={!selectedChildId || submitting}
                 onClick={handleSubmitFeedback}
               >
-                <Text className="text-base font-medium text-primary-foreground">
+                <Text className="text-base font-medium text-white">
                   {submitting ? '提交中...' : '保存记录'}
                 </Text>
               </Button>
