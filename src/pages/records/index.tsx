@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text, Image, Picker } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -26,6 +26,7 @@ interface Student {
   id: string
   child_name: string
   avatar_url: string | null
+  attendance_status?: string | null
 }
 
 export default function RecordsPage() {
@@ -41,6 +42,7 @@ export default function RecordsPage() {
   const [activities, setActivities] = useState('')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [showStudentPicker, setShowStudentPicker] = useState(false)
 
   useEffect(() => {
     loadFeedbacks()
@@ -251,31 +253,71 @@ export default function RecordsPage() {
               {/* 选择幼儿 */}
               <Text className="block text-sm font-medium mb-2">选择幼儿</Text>
               <View className="relative bg-gray-50 rounded-xl px-4 py-3 mb-4">
-                <Picker
-                  mode="selector"
-                  range={students}
-                  rangeKey="child_name"
-                  value={students.findIndex(s => s.id === selectedChildId)}
-                  onChange={(e: any) => {
-                    const idx = e.detail.value
-                    setSelectedChildId(students[idx]?.id || '')
-                  }}
+                <View
+                  className="flex items-center"
+                  onClick={() => setShowStudentPicker(!showStudentPicker)}
+                  style={{ cursor: 'pointer' }}
                 >
-                  <View style={{ display: 'flex', alignItems: 'center', minHeight: 20 }}>
-                    <Text className="block text-sm flex-1" style={{ color: selectedChildId ? '#333' : '#999' }}>
-                      {selectedChildId ? students.find(s => s.id === selectedChildId)?.child_name || '请选择幼儿' : '请选择幼儿'}
-                    </Text>
-                    <View 
-                      style={{ 
-                        width: 0, height: 0, 
-                        borderLeft: '6px solid transparent', 
-                        borderRight: '6px solid transparent', 
-                        borderTop: '6px solid #999',
-                        marginLeft: 8
-                      }} 
-                    />
+                  <Text className="block flex-1" style={{ fontSize: 16, color: selectedChildId ? '#333' : '#999' }}>
+                    {selectedChildId
+                      ? (() => {
+                          const stu = students.find(item => item.id === selectedChildId)
+                          return stu ? `${stu.child_name}${stu.attendance_status === 'present' ? '' : '（不可选）'}` : '请选择幼儿'
+                        })()
+                      : '请选择幼儿'}
+                  </Text>
+                  <View
+                    style={{
+                      width: 0, height: 0,
+                      borderLeft: '6px solid transparent',
+                      borderRight: '6px solid transparent',
+                      borderTop: '6px solid #999',
+                      marginLeft: 8
+                    }}
+                  />
+                </View>
+                {showStudentPicker && (
+                  <View className="mt-2 border-t border-gray-200 pt-2" style={{ maxHeight: 240, overflowY: 'auto' }}>
+                    {students.length === 0 ? (
+                      <Text className="block text-sm text-center text-gray-400 py-3">暂无幼儿</Text>
+                    ) : (
+                      students.map((stu) => {
+                        const isPresent = stu.attendance_status === 'present'
+                        const isSelected = stu.id === selectedChildId
+                        return (
+                          <View
+                            key={stu.id}
+                            className="flex items-center justify-between px-3 py-3"
+                            style={{
+                              backgroundColor: isSelected ? '#f0f7ff' : 'transparent',
+                              opacity: isPresent ? 1 : 0.5,
+                              borderRadius: 8,
+                              marginBottom: 2,
+                              cursor: isPresent ? 'pointer' : 'not-allowed'
+                            }}
+                            onClick={() => {
+                              if (!isPresent) return
+                              setSelectedChildId(stu.id)
+                              setShowStudentPicker(false)
+                            }}
+                          >
+                            <Text className="block" style={{ fontSize: 16, fontWeight: 500 }}>
+                              {stu.child_name}
+                            </Text>
+                            <Badge
+                              variant="outline"
+                              className={isPresent ? 'bg-green-50 text-green-600 border-green-200' : 'bg-gray-100 text-gray-400 border-gray-200'}
+                            >
+                              <Text className="block text-xs">
+                                {isPresent ? '出勤' : stu.attendance_status === 'absent' ? '缺席' : stu.attendance_status === 'leave' ? '请假' : '未考勤'}
+                              </Text>
+                            </Badge>
+                          </View>
+                        )
+                      })
+                    )}
                   </View>
-                </Picker>
+                )}
               </View>
 
               {/* 餐食 */}
