@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text, Image, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -35,9 +35,9 @@ export default function RecordsPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [students, setStudents] = useState<Student[]>([])
   const [selectedChildId, setSelectedChildId] = useState('')
-  const [mealStatus, setMealStatus] = useState('good')
-  const [sleepStatus, setSleepStatus] = useState('good')
-  const [moodStatus, setMoodStatus] = useState('happy')
+  const [mealStatus, setMealStatus] = useState('')
+  const [sleepStatus, setSleepStatus] = useState('')
+  const [moodStatus, setMoodStatus] = useState('')
   const [activities, setActivities] = useState('')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -68,10 +68,11 @@ export default function RecordsPage() {
 
   const loadStudents = async () => {
     try {
+      const classId = currentRole?.class_id || 'demo-class-1'
       const res = await Network.request({
         url: '/api/teacher/class-students',
         method: 'GET',
-        data: { class_id: 'demo-class-1' }
+        data: { class_id: classId }
       })
       console.log('[Records] students:', res.data)
       if (res.data?.data) {
@@ -118,6 +119,7 @@ export default function RecordsPage() {
       case 'good': case 'happy': return '好'
       case 'normal': return '一般'
       case 'poor': case 'upset': return '差'
+      case 'none': return '无'
       default: return '—'
     }
   }
@@ -127,7 +129,8 @@ export default function RecordsPage() {
       case 'good': case 'happy': return 'bg-green-100 text-green-700'
       case 'normal': return 'bg-yellow-100 text-yellow-700'
       case 'poor': case 'upset': return 'bg-red-100 text-red-700'
-      default: return 'bg-gray-100 text-gray-500'
+      case 'none': return 'bg-gray-100 text-gray-500'
+      default: return 'bg-gray-100 text-gray-400'
     }
   }
 
@@ -227,24 +230,37 @@ export default function RecordsPage() {
 
               {/* 选择幼儿 */}
               <Text className="block text-sm font-medium mb-2">选择幼儿</Text>
-              <View className="flex flex-wrap gap-2 mb-4">
-                {students.map((s) => (
-                  <Button
-                    key={s.id}
-                    variant={selectedChildId === s.id ? 'default' : 'outline'}
-                    size="sm"
-                    className={`rounded-full ${selectedChildId === s.id ? 'bg-primary' : ''}`}
-                    onClick={() => setSelectedChildId(s.id)}
-                  >
-                    <Text>{s.child_name}</Text>
-                  </Button>
-                ))}
+              <View className="bg-gray-50 rounded-xl px-4 py-3 mb-4">
+                <View style={{ display: 'flex', alignItems: 'center' }}>
+                  <Text className="block text-sm flex-1 text-gray-500">
+                    {selectedChildId ? students.find(s => s.id === selectedChildId)?.child_name || '请选择' : '请选择幼儿'}
+                  </Text>
+                  <View 
+                    style={{ 
+                      width: 0, height: 0, 
+                      borderLeft: '6px solid transparent', 
+                      borderRight: '6px solid transparent', 
+                      borderTop: '6px solid #999'
+                    }} 
+                  />
+                </View>
+                <Picker
+                  mode="selector"
+                  range={students}
+                  rangeKey="child_name"
+                  value={students.findIndex(s => s.id === selectedChildId)}
+                  onChange={(e: any) => {
+                    const idx = e.detail.value
+                    setSelectedChildId(students[idx]?.id || '')
+                  }}
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0 }}
+                />
               </View>
 
               {/* 餐食 */}
               <Text className="block text-sm font-medium mb-2">餐食</Text>
               <View className="flex gap-2 mb-4">
-                {[['good', '好'], ['normal', '一般'], ['poor', '差']].map(([val, label]) => (
+                {[['good', '好'], ['normal', '一般'], ['poor', '差'], ['none', '无']].map(([val, label]) => (
                   <Button
                     key={val}
                     variant={mealStatus === val ? 'default' : 'outline'}
@@ -260,7 +276,7 @@ export default function RecordsPage() {
               {/* 午睡 */}
               <Text className="block text-sm font-medium mb-2">午睡</Text>
               <View className="flex gap-2 mb-4">
-                {[['good', '好'], ['normal', '一般'], ['poor', '差']].map(([val, label]) => (
+                {[['good', '好'], ['normal', '一般'], ['poor', '差'], ['none', '无']].map(([val, label]) => (
                   <Button
                     key={val}
                     variant={sleepStatus === val ? 'default' : 'outline'}
@@ -276,7 +292,7 @@ export default function RecordsPage() {
               {/* 情绪 */}
               <Text className="block text-sm font-medium mb-2">情绪</Text>
               <View className="flex gap-2 mb-4">
-                {[['happy', '开心'], ['normal', '一般'], ['upset', '低落']].map(([val, label]) => (
+                {[['happy', '开心'], ['normal', '一般'], ['upset', '低落'], ['none', '无']].map(([val, label]) => (
                   <Button
                     key={val}
                     variant={moodStatus === val ? 'default' : 'outline'}

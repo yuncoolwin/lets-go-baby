@@ -11,6 +11,7 @@ export interface UserRole {
   role_type: RoleType
   real_name: string | null
   status: string
+  class_id?: string | null
 }
 
 export interface ChildInfo {
