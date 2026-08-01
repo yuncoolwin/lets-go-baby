@@ -60,4 +60,18 @@ export class TeacherController {
     const data = await this.teacherService.submitFeedback(body);
     return { code: 200, msg: 'success', data };
   }
+
+  @Put('feedback')
+  @HttpCode(200)
+  async updateFeedback(@Body() body: {
+    id: string;
+    meal_status: string;
+    sleep_status: string;
+    mood_status: string;
+    activities?: string;
+    notes?: string;
+  }) {
+    const data = await this.teacherService.updateFeedback(body);
+    return { code: 200, msg: 'success', data };
+  }
 }

@@ -271,7 +271,7 @@ export class TeacherService {
     
     const { error } = await this.client
       .from('daily_feedbacks')
-      .insert({
+      .upsert({
         child_id: data.child_id,
         teacher_id: data.teacher_role_id || null,
         feedback_date: today,
@@ -280,9 +280,36 @@ export class TeacherService {
         mood_status: data.mood_status,
         activities: data.activities || null,
         notes: data.notes || null,
+      }, {
+        onConflict: 'child_id, feedback_date',
+        ignoreDuplicates: false,
       });
 
     if (error) throw new Error(`提交反馈失败: ${error.message}`);
+
+    return { success: true };
+  }
+
+  async updateFeedback(data: {
+    id: string;
+    meal_status: string;
+    sleep_status: string;
+    mood_status: string;
+    activities?: string;
+    notes?: string;
+  }) {
+    const { error } = await this.client
+      .from('daily_feedbacks')
+      .update({
+        meal_status: data.meal_status,
+        sleep_status: data.sleep_status,
+        mood_status: data.mood_status,
+        activities: data.activities || null,
+        notes: data.notes || null,
+      })
+      .eq('id', data.id);
+
+    if (error) throw new Error(`更新反馈失败: ${error.message}`);
 
     return { success: true };
   }

@@ -43,6 +43,8 @@ export default function RecordsPage() {
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [showStudentPicker, setShowStudentPicker] = useState(false)
+  const [recordedStudentIds, setRecordedStudentIds] = useState<string[]>([])
+  const [editingFeedbackId, setEditingFeedbackId] = useState<string | null>(null)
 
   useEffect(() => {
     loadFeedbacks()
@@ -106,6 +108,18 @@ export default function RecordsPage() {
         })
         setStudents(sorted)
       }
+
+      // 加载当天已记录幼儿
+      const feedbackRes = await Network.request({
+        url: '/api/teachers/feedbacks',
+        method: 'GET',
+        data: { class_id: classId }
+      })
+      console.log('[Records] existing feedbacks:', feedbackRes.data)
+      if (feedbackRes.data?.data) {
+        const recordedIds = feedbackRes.data.data.map((f: any) => f.child_id)
+        setRecordedStudentIds(recordedIds)
+      }
     } catch (err) {
       console.error('[Records] load students error:', err)
     }
@@ -115,9 +129,10 @@ export default function RecordsPage() {
     if (!selectedChildId) return
     setSubmitting(true)
     try {
+      const isUpdate = !!editingFeedbackId
       const res = await Network.request({
-        url: '/api/teachers/feedback',
-        method: 'POST',
+        url: isUpdate ? `/api/teachers/feedback/${editingFeedbackId}` : '/api/teachers/feedback',
+        method: isUpdate ? 'PUT' : 'POST',
         data: {
           child_id: selectedChildId,
           teacher_role_id: currentRole?.id,
@@ -132,17 +147,29 @@ export default function RecordsPage() {
       if (res.data?.code === 200) {
         setShowAddModal(false)
         setSelectedChildId('')
+        setEditingFeedbackId('')
         setMealStatus('')
         setSleepStatus('')
         setMoodStatus('')
         setActivities('')
         setNotes('')
         await loadFeedbacks()
+        await loadStudents()
       }
     } catch (err) {
       console.error('[Records] submit error:', err)
     }
     setSubmitting(false)
+  }
+
+  const handleEditFeedback = (item: any) => {
+    setSelectedChildId(item.child_id || '')
+    setMealStatus(item.meal_status || '')
+    setSleepStatus(item.sleep_status || '')
+    setMoodStatus(item.mood_status || '')
+    setNotes(item.notes || '')
+    setEditingFeedbackId(item.id || '')
+    setShowAddModal(true)
   }
 
   const getStatusLabel = (status: string | null) => {
@@ -206,7 +233,7 @@ export default function RecordsPage() {
         ) : (
           <View className="space-y-3">
             {feedbacks.map((item) => (
-              <Card key={item.id} className="bg-white rounded-xl border-0 shadow-sm">
+              <Card key={item.id} className="bg-white rounded-xl border-0 shadow-sm" onClick={() => handleEditFeedback(item)}>
                 <CardContent className="p-4">
                   <View className="flex items-center justify-between mb-3">
                     <Text className="block text-base font-semibold text-foreground">
@@ -298,20 +325,22 @@ export default function RecordsPage() {
                     ) : (
                       students.map((stu) => {
                         const isPresent = stu.attendance_status === 'present'
+                        const isRecorded = recordedStudentIds.includes(stu.id)
                         const isSelected = stu.id === selectedChildId
+                        const canSelect = isPresent && !isRecorded
                         return (
                           <View
                             key={stu.id}
                             className="flex items-center justify-between px-3 py-3"
                             style={{
                               backgroundColor: isSelected ? '#f0f7ff' : 'transparent',
-                              opacity: isPresent ? 1 : 0.5,
+                              opacity: canSelect ? 1 : 0.5,
                               borderRadius: 8,
                               marginBottom: 2,
-                              cursor: isPresent ? 'pointer' : 'not-allowed'
+                              cursor: canSelect ? 'pointer' : 'not-allowed'
                             }}
                             onClick={() => {
-                              if (!isPresent) return
+                              if (!canSelect) return
                               setSelectedChildId(stu.id)
                               setShowStudentPicker(false)
                             }}
@@ -319,14 +348,23 @@ export default function RecordsPage() {
                             <Text className="block" style={{ fontSize: 16, fontWeight: 500 }}>
                               {stu.child_name}
                             </Text>
-                            <Badge
-                              variant="outline"
-                              className={isPresent ? 'bg-green-50 text-green-600 border-green-200' : 'bg-gray-100 text-gray-400 border-gray-200'}
-                            >
-                              <Text className="block text-xs">
-                                {isPresent ? '出勤' : stu.attendance_status === 'absent' ? '缺席' : stu.attendance_status === 'leave' ? '请假' : '未考勤'}
-                              </Text>
-                            </Badge>
+                            <View style={{ display: 'flex', flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+                              {isRecorded && (
+                                <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200">
+                                  <Text className="block text-xs">已记录</Text>
+                                </Badge>
+                              )}
+                              {!isRecorded && (
+                                <Badge
+                                  variant="outline"
+                                  className={isPresent ? 'bg-green-50 text-green-600 border-green-200' : 'bg-gray-100 text-gray-400 border-gray-200'}
+                                >
+                                  <Text className="block text-xs">
+                                    {isPresent ? '出勤' : stu.attendance_status === 'absent' ? '缺席' : stu.attendance_status === 'leave' ? '请假' : '未考勤'}
+                                  </Text>
+                                </Badge>
+                              )}
+                            </View>
                           </View>
                         )
                       })
@@ -393,15 +431,7 @@ export default function RecordsPage() {
                   {submitting ? '提交中...' : '保存记录'}
                 </Text>
               </Button>
-              {feedbacks.length > 0 && (
-                <Button
-                  className="w-full bg-gray-100 text-gray-500 rounded-xl h-11 mt-3"
-                  onClick={() => console.log('修改')}
-                >
-                  <Text className="text-base font-medium text-gray-500">修改记录</Text>
-                </Button>
-              )}
-            </View>
+              </View>
           </View>
         )}
       </View>
