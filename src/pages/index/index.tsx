@@ -106,6 +106,23 @@ export default function IndexPage() {
       }).catch(() => {
         loadPageData(roleType)
       })
+      
+      // 如果有展开的班级卡片，重新加载考勤数据
+      if (expandedId) {
+        setExpandedChildrenLoading(true)
+        Network.request({
+          url: '/api/attendance',
+          data: { class_id: expandedId }
+        }).then((res: any) => {
+          if (res.data?.data) {
+            setExpandedChildren(res.data.data)
+          }
+        }).catch((err: any) => {
+          console.error('[Index] refresh attendance error:', err)
+        }).finally(() => {
+          setExpandedChildrenLoading(false)
+        })
+      }
     }
   })
 
