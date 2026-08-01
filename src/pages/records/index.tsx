@@ -230,7 +230,7 @@ export default function RecordsPage() {
 
               {/* 选择幼儿 */}
               <Text className="block text-sm font-medium mb-2">选择幼儿</Text>
-              <View className="bg-gray-50 rounded-xl px-4 py-3 mb-4">
+              <View className="relative bg-gray-50 rounded-xl px-4 py-3 mb-4">
                 <View style={{ display: 'flex', alignItems: 'center' }}>
                   <Text className="block text-sm flex-1 text-gray-500">
                     {selectedChildId ? students.find(s => s.id === selectedChildId)?.child_name || '请选择' : '请选择幼儿'}
@@ -253,7 +253,7 @@ export default function RecordsPage() {
                     const idx = e.detail.value
                     setSelectedChildId(students[idx]?.id || '')
                   }}
-                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0 }}
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0, zIndex: 1 }}
                 />
               </View>
 
