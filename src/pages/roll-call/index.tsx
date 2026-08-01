@@ -131,6 +131,7 @@ export default function RollCallPage() {
       setIsLocked(true)
       setHasUnsaved(false)
       Taro.showToast({ title: '保存成功', icon: 'success' })
+      setTimeout(() => Taro.navigateBack(), 1500)
     } catch (e) {
       Taro.showToast({ title: '保存失败', icon: 'none' })
     }
