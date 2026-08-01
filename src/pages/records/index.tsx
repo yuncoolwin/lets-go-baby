@@ -218,7 +218,7 @@ export default function RecordsPage() {
             <View
               style={{
                 backgroundColor: '#fff', width: '100%', borderRadius: '16px 16px 0 0',
-                padding: '20px', maxHeight: '80vh', overflowY: 'auto'
+                padding: '20px', maxHeight: '85vh', overflowY: 'auto'
               }}
             >
               <View className="flex items-center justify-between mb-4">
@@ -231,19 +231,6 @@ export default function RecordsPage() {
               {/* 选择幼儿 */}
               <Text className="block text-sm font-medium mb-2">选择幼儿</Text>
               <View className="relative bg-gray-50 rounded-xl px-4 py-3 mb-4">
-                <View style={{ display: 'flex', alignItems: 'center' }}>
-                  <Text className="block text-sm flex-1 text-gray-500">
-                    {selectedChildId ? students.find(s => s.id === selectedChildId)?.child_name || '请选择' : '请选择幼儿'}
-                  </Text>
-                  <View 
-                    style={{ 
-                      width: 0, height: 0, 
-                      borderLeft: '6px solid transparent', 
-                      borderRight: '6px solid transparent', 
-                      borderTop: '6px solid #999'
-                    }} 
-                  />
-                </View>
                 <Picker
                   mode="selector"
                   range={students}
@@ -253,8 +240,22 @@ export default function RecordsPage() {
                     const idx = e.detail.value
                     setSelectedChildId(students[idx]?.id || '')
                   }}
-                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0, zIndex: 1 }}
-                />
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 }}
+                >
+                  <View style={{ display: 'flex', alignItems: 'center' }}>
+                    <Text className="block text-sm flex-1 text-gray-500">
+                      {selectedChildId ? students.find(s => s.id === selectedChildId)?.child_name || '请选择' : '请选择幼儿'}
+                    </Text>
+                    <View 
+                      style={{ 
+                        width: 0, height: 0, 
+                        borderLeft: '6px solid transparent', 
+                        borderRight: '6px solid transparent', 
+                        borderTop: '6px solid #999'
+                      }} 
+                    />
+                  </View>
+                </Picker>
               </View>
 
               {/* 餐食 */}
@@ -266,7 +267,7 @@ export default function RecordsPage() {
                     variant={mealStatus === val ? 'default' : 'outline'}
                     size="sm"
                     className={`flex-1 rounded-lg ${mealStatus === val ? 'bg-primary' : ''}`}
-                    onClick={() => setMealStatus(val)}
+                    onClick={() => setMealStatus(mealStatus === val ? '' : val)}
                   >
                     <Text>{label}</Text>
                   </Button>
@@ -282,7 +283,7 @@ export default function RecordsPage() {
                     variant={sleepStatus === val ? 'default' : 'outline'}
                     size="sm"
                     className={`flex-1 rounded-lg ${sleepStatus === val ? 'bg-primary' : ''}`}
-                    onClick={() => setSleepStatus(val)}
+                    onClick={() => setSleepStatus(sleepStatus === val ? '' : val)}
                   >
                     <Text>{label}</Text>
                   </Button>
@@ -298,7 +299,7 @@ export default function RecordsPage() {
                     variant={moodStatus === val ? 'default' : 'outline'}
                     size="sm"
                     className={`flex-1 rounded-lg ${moodStatus === val ? 'bg-primary' : ''}`}
-                    onClick={() => setMoodStatus(val)}
+                    onClick={() => setMoodStatus(moodStatus === val ? '' : val)}
                   >
                     <Text>{label}</Text>
                   </Button>
