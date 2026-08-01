@@ -305,7 +305,7 @@ export default function RecordsPage() {
             <View
               style={{
                 backgroundColor: '#fff', width: '100%', borderRadius: '16px 16px 0 0',
-                padding: '20px 20px 40px', maxHeight: '85vh', overflowY: 'auto'
+                padding: '20px 20px 100px', maxHeight: '85vh', overflowY: 'auto'
               }}
             >
               <View className="flex items-center justify-between mb-4">
