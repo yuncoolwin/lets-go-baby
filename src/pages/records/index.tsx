@@ -176,7 +176,13 @@ export default function RecordsPage() {
           <Button
             size="sm"
             className="bg-primary text-primary-foreground rounded-lg"
-            onClick={() => setShowAddModal(true)}
+            onClick={() => {
+              setShowAddModal(true);
+              // 每次打开弹窗时重新加载幼儿列表，同步最新考勤状态
+              if (currentRole?.role_type === 'teacher') {
+                loadStudents();
+              }
+            }}
           >
             <Plus size={14} className="mr-1" color="#fff" />
             <Text className="text-xs text-primary-foreground">新增</Text>
