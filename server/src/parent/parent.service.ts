@@ -82,31 +82,76 @@ export class ParentService {
   }
 
   async getFeedbacks(parentRoleId?: string) {
-    // Demo data when no real data
-    return [
-      {
-        id: '1',
-        child_name: '演示宝宝',
-        feedback_date: new Date().toISOString().split('T')[0],
-        meal_status: 'good',
-        sleep_status: 'good',
-        mood_status: 'happy',
-        activities: '上午进行了户外游戏，下午做了手工绘画',
-        notes: '今天表现很棒，和小朋友们相处融洽',
-        teacher_name: '王老师',
-      },
-      {
-        id: '2',
-        child_name: '演示宝宝',
-        feedback_date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
-        meal_status: 'normal',
-        sleep_status: 'good',
-        mood_status: 'normal',
-        activities: '学习了新的儿歌，参与了团体游戏',
-        notes: '午饭吃得稍少，下午加了一点心',
-        teacher_name: '李老师',
-      },
-    ];
+    // 获取家长关联的幼儿
+    let childId: string | null = null;
+    if (parentRoleId) {
+      const { data: relation } = await this.client
+        .from('child_parent_relations')
+        .select('child_id')
+        .eq('parent_id', parentRoleId)
+        .maybeSingle();
+      if (relation) {
+        childId = relation.child_id;
+      }
+    }
+
+    if (!childId) {
+      // 没有关联幼儿，返回空
+      return [];
+    }
+
+    // 从数据库查询该幼儿的反馈记录
+    const { data, error } = await this.client
+      .from('daily_feedbacks')
+      .select(`
+        id,
+        feedback_date,
+        meal_status,
+        sleep_status,
+        mood_status,
+        activities,
+        notes,
+        teacher_id
+      `)
+      .eq('child_id', childId)
+      .order('feedback_date', { ascending: false })
+      .limit(30);
+
+    if (error) {
+      console.error('[ParentService] getFeedbacks error:', error);
+      return [];
+    }
+
+    if (!data || data.length === 0) return [];
+
+    // 获取教师名称
+    const teacherIds = [...new Set(data.map(f => f.teacher_id).filter(Boolean))];
+    if (teacherIds.length > 0) {
+      const { data: teachers } = await this.client
+        .from('user_roles')
+        .select('id, real_name')
+        .in('id', teacherIds);
+      var teacherMap = new Map(teachers?.map(t => [t.id, t.real_name]) || []);
+    }
+
+    // 获取幼儿名称
+    const { data: child } = await this.client
+      .from('children')
+      .select('name')
+      .eq('id', childId)
+      .maybeSingle();
+
+    return data.map(f => ({
+      id: f.id,
+      child_name: child?.name || '幼儿',
+      feedback_date: f.feedback_date,
+      meal_status: f.meal_status,
+      sleep_status: f.sleep_status,
+      mood_status: f.mood_status,
+      activities: f.activities,
+      notes: f.notes,
+      teacher_name: f.teacher_id ? (teacherMap?.get(f.teacher_id) || '老师') : '老师',
+    }));
   }
 
   async getAttendance(parentRoleId?: string) {

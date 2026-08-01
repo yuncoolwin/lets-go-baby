@@ -164,19 +164,58 @@ export class TeacherService {
   }
 
   async getFeedbacks(teacherRoleId?: string) {
-    return [
-      {
-        id: '1',
-        child_name: '张小明',
-        feedback_date: new Date().toISOString().split('T')[0],
-        meal_status: 'good',
-        sleep_status: 'good',
-        mood_status: 'happy',
-        activities: '户外游戏、手工绘画',
-        notes: '表现优秀',
-        teacher_name: '王老师',
-      },
-    ];
+    // 从数据库查询真实记录
+    const { data, error } = await this.client
+      .from('daily_feedbacks')
+      .select(`
+        id,
+        child_id,
+        feedback_date,
+        meal_status,
+        sleep_status,
+        mood_status,
+        activities,
+        notes,
+        teacher_id
+      `)
+      .order('feedback_date', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error('[TeacherService] getFeedbacks error:', error);
+      return [];
+    }
+
+    if (!data || data.length === 0) return [];
+
+    // 获取幼儿名称
+    const childIds = [...new Set(data.map(f => f.child_id))];
+    const { data: children } = await this.client
+      .from('children')
+      .select('id, name')
+      .in('id', childIds);
+    const childMap = new Map(children?.map(c => [c.id, c.name]) || []);
+
+    // 获取教师名称
+    const teacherIds = [...new Set(data.map(f => f.teacher_id).filter(Boolean))];
+    const { data: teachers } = await this.client
+      .from('user_roles')
+      .select('id, real_name')
+      .in('id', teacherIds);
+    const teacherMap = new Map(teachers?.map(t => [t.id, t.real_name]) || []);
+
+    return data.map(f => ({
+      id: f.id,
+      child_id: f.child_id,
+      child_name: childMap.get(f.child_id) || '未知',
+      feedback_date: f.feedback_date,
+      meal_status: f.meal_status,
+      sleep_status: f.sleep_status,
+      mood_status: f.mood_status,
+      activities: f.activities,
+      notes: f.notes,
+      teacher_name: f.teacher_id ? (teacherMap.get(f.teacher_id) || '老师') : '老师',
+    }));
   }
 
   async submitAttendance(data: {
