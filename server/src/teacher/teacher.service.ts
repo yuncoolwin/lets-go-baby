@@ -273,7 +273,7 @@ export class TeacherService {
       .from('daily_feedbacks')
       .insert({
         child_id: data.child_id,
-        teacher_role_id: data.teacher_role_id || null,
+        teacher_id: data.teacher_role_id || null,
         feedback_date: today,
         meal_status: data.meal_status,
         sleep_status: data.sleep_status,

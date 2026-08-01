@@ -98,7 +98,13 @@ export default function RecordsPage() {
       })
       console.log('[Records] students:', res.data)
       if (res.data?.data) {
-        setStudents(res.data.data)
+        // 按考勤状态排序：出勤 > 其他
+        const sorted = [...res.data.data].sort((a: any, b: any) => {
+          if (a.attendance_status === 'present' && b.attendance_status !== 'present') return -1
+          if (a.attendance_status !== 'present' && b.attendance_status === 'present') return 1
+          return 0
+        })
+        setStudents(sorted)
       }
     } catch (err) {
       console.error('[Records] load students error:', err)
@@ -126,9 +132,12 @@ export default function RecordsPage() {
       if (res.data?.code === 200) {
         setShowAddModal(false)
         setSelectedChildId('')
+        setMealStatus('')
+        setSleepStatus('')
+        setMoodStatus('')
         setActivities('')
         setNotes('')
-        loadFeedbacks()
+        await loadFeedbacks()
       }
     } catch (err) {
       console.error('[Records] submit error:', err)
