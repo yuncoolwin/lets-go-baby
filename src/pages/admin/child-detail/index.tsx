@@ -42,13 +42,6 @@ const statusMap: Record<string, { label: string; className: string }> = {
   suspended: { label: '休学', className: 'bg-orange-100 text-orange-700' },
 }
 
-const levelMap: Record<string, string> = {
-  nursery: '托育',
-  small: '小班',
-  medium: '中班',
-  large: '大班',
-}
-
 const calculateAge = formatAge
 
 export default function ChildDetailPage() {
@@ -155,11 +148,6 @@ export default function ChildDetailPage() {
               <View className="flex-1">
                 <View className="flex items-center gap-2">
                   <Text className="text-xl font-bold text-foreground">{child.name}</Text>
-                  {child.course_type && (
-                    <Badge className="bg-purple-50 text-purple-700 text-xs">
-                      <Text className="text-xs">{child.course_type}</Text>
-                    </Badge>
-                  )}
                   <Badge className={`${statusMap[child.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
                     <Text className="text-xs">{statusMap[child.status]?.label || child.status}</Text>
                   </Badge>
@@ -178,42 +166,6 @@ export default function ChildDetailPage() {
               <View className="flex items-center justify-between py-2 border-b border-border">
                 <Text className="text-sm text-muted-foreground">在读状态</Text>
                 <Text className="text-sm text-foreground">{statusMap[child.status]?.label || child.status}</Text>
-              </View>
-              {child.course_type && (
-                <View className="flex items-center justify-between py-2 border-b border-border">
-                  <Text className="text-sm text-muted-foreground">课程类型</Text>
-                  <Text className="text-sm text-foreground">{child.course_type}</Text>
-                </View>
-              )}
-              {child.enrollment_duration && (
-                <View className="flex items-center justify-between py-2 border-b border-border">
-                  <Text className="text-sm text-muted-foreground">报读时长</Text>
-                  <Text className="text-sm text-foreground">{child.enrollment_duration}</Text>
-                </View>
-              )}
-              {child.enrollment_duration === '计日' && child.custom_days && (
-                <View className="flex items-center justify-between py-2 border-b border-border">
-                  <Text className="text-sm text-muted-foreground">计日天数</Text>
-                  <Text className="text-sm text-foreground">{child.custom_days}天</Text>
-                </View>
-              )}
-              {child.start_date && (
-                <View className="flex items-center justify-between py-2 border-b border-border">
-                  <Text className="text-sm text-muted-foreground">开始日期</Text>
-                  <Text className="text-sm text-foreground">{child.start_date}</Text>
-                </View>
-              )}
-              {child.end_date && (
-                <View className="flex items-center justify-between py-2 border-b border-border">
-                  <Text className="text-sm text-muted-foreground">结束日期</Text>
-                  <Text className="text-sm text-foreground">{child.end_date}</Text>
-                </View>
-              )}
-              <View className="flex items-center justify-between py-2 border-b border-border">
-                <Text className="text-sm text-muted-foreground">所在班级</Text>
-                <Text className="text-sm text-foreground">
-                  {child.class_info ? `${child.class_info.name}（${levelMap[child.class_info.level] || child.class_info.level}）` : '未分班'}
-                </Text>
               </View>
               <View className="flex items-center justify-between py-2 border-b border-border">
                 <Text className="text-sm text-muted-foreground">教室</Text>
