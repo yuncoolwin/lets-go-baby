@@ -78,13 +78,7 @@ export function createDateCalculator(
     const targetDay = Math.min(d, lastDay)
     // 结束日期 = 对应日期 - 1天
     const endDate = new Date(Date.UTC(targetYear, targetMonth, targetDay - 1))
-    let dateStr = endDate.toISOString().split('T')[0]
-    // 如果结束日期是法定节假日，顺延到下一个工作日
-    while (holidays.has(dateStr)) {
-      endDate.setUTCDate(endDate.getUTCDate() + 1)
-      dateStr = endDate.toISOString().split('T')[0]
-    }
-    return dateStr
+    return endDate.toISOString().split('T')[0]
   }
 
   function addSaturdays(startDate: string, numDays: number): string {
