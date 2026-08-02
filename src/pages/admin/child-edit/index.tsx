@@ -38,6 +38,16 @@ function todayStr(): string {
   return new Date().toISOString().split('T')[0]
 }
 
+function getNearestMonday(dateStr: string): string {
+  const date = new Date(dateStr + 'T00:00:00+08:00')
+  const dayOfWeek = date.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
+  if (dayOfWeek === 1) return dateStr
+  // 回退到上一个周一
+  const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  date.setDate(date.getDate() - daysToSubtract)
+  return date.toISOString().split('T')[0]
+}
+
 export default function ChildEditPage() {
   const router = useRouter()
   const { id } = router.params
@@ -202,6 +212,14 @@ export default function ChildEditPage() {
       if (value !== '其他') {
         setCustomDays('')
       }
+      // 一周体验的开始日期只能是周一
+      if (value === '一周体验') {
+        const monday = getNearestMonday(startDate)
+        if (monday !== startDate) {
+          setStartDate(monday)
+          Taro.showToast({ title: '开始日期已自动调整为周一', icon: 'none' })
+        }
+      }
     }
   }
 
@@ -339,7 +357,20 @@ export default function ChildEditPage() {
               <Picker
                 mode="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.detail.value)}
+                onChange={(e) => {
+                  const newDate = e.detail.value
+                  if (enrollmentDuration === '一周体验') {
+                    const monday = getNearestMonday(newDate)
+                    if (monday !== newDate) {
+                      setStartDate(monday)
+                      Taro.showToast({ title: '一周体验的开始日期只能是周一，已自动调整', icon: 'none' })
+                    } else {
+                      setStartDate(newDate)
+                    }
+                  } else {
+                    setStartDate(newDate)
+                  }
+                }}
               >
                 <View className="mt-1 bg-gray-50 rounded-lg px-3 py-2">
                   <Text className="text-sm text-foreground">
