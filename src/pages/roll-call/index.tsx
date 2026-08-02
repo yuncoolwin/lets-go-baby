@@ -39,6 +39,7 @@ export default function RollCallPage() {
   const [hasUnsaved, setHasUnsaved] = useState(false)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [tempAttendance, setTempAttendance] = useState<Record<string, AttendanceItem['status']>>({})
+  const [dateList, setDateList] = useState<string[]>([])
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -67,10 +68,21 @@ export default function RollCallPage() {
       setClassId(theClassId)
       setClassName(teacherData.class_name || '')
 
+      // 加载有考勤记录的日期列表
+      try {
+        const dateRes = await Network.request({
+          url: `/api/attendance/dates/${theClassId}`,
+        })
+        const dates: string[] = dateRes.data?.data || []
+        setDateList(dates)
+      } catch (e) {
+        console.error('[RollCall] load dates error:', e)
+      }
+
       // 直接使用考勤接口返回的数据（包含所有幼儿及其考勤状态）
       const attendanceRes = await Network.request({
         url: '/api/attendance',
-        data: { class_id: theClassId, date: today },
+        data: { class_id: theClassId, date: selectedDate },
       })
       const list: ChildItem[] = attendanceRes.data?.data?.list || attendanceRes.data?.data || []
       setChildren(list)
@@ -182,13 +194,14 @@ export default function RollCallPage() {
       <View className="bg-white px-4 py-3 flex items-center justify-between border-b border-gray-100">
         <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
           <Picker
-            mode="date"
-            value={selectedDate}
+            mode="selector"
+            range={dateList}
+            value={dateList.indexOf(selectedDate) >= 0 ? dateList.indexOf(selectedDate) : 0}
             onChange={(e) => {
-              const val = e.detail.value
+              const idx = e.detail.value
+              const val = dateList[idx] || selectedDate
               setSelectedDate(val)
             }}
-            fields="day"
           >
             <View className="flex items-center">
               <Text className="block text-sm text-gray-500">{selectedDate === today ? '今天' : selectedDate}</Text>
@@ -199,12 +212,14 @@ export default function RollCallPage() {
             <Text className="block text-xs text-orange-500">（历史记录，只读）</Text>
           )}
         </View>
-        <Text 
-          className="block text-sm text-red-500"
-          onClick={handleClear}
-        >
-          清除
-        </Text>
+        {selectedDate === today && (
+          <Text 
+            className="block text-sm text-red-500"
+            onClick={handleClear}
+          >
+            清除
+          </Text>
+        )}
       </View>
 
       <ScrollView scrollY className="h-[calc(100vh-220px)]">

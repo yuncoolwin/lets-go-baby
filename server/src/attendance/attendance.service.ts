@@ -108,4 +108,15 @@ export class AttendanceService {
     if (error) throw error;
     return { deleted: true };
   }
+
+  async getDates(classId: string) {
+    const { data, error } = await this.client
+      .from('attendance')
+      .select('date')
+      .eq('class_id', classId)
+      .order('date', { ascending: false });
+    if (error) throw error;
+    const dates = [...new Set(data?.map((r: any) => r.date?.split('T')[0]) || [])];
+    return dates;
+  }
 }

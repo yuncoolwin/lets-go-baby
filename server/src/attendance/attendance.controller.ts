@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, HttpCode, Param } from '@nestjs/common';
 import { AttendanceService } from './attendance.service';
 
 @Controller('attendance')
@@ -38,6 +38,13 @@ export class AttendanceController {
     @Body() body: { class_id: string; date: string },
   ) {
     const data = await this.attendanceService.clearByClassAndDate(body.class_id, body.date);
+    return { code: 200, msg: 'success', data };
+  }
+
+  @Get('dates/:classId')
+  @HttpCode(200)
+  async getDates(@Param('classId') classId: string) {
+    const data = await this.attendanceService.getDates(classId);
     return { code: 200, msg: 'success', data };
   }
 }
