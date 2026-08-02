@@ -150,14 +150,16 @@ export default function HolidaysPage() {
     <View className="min-h-screen bg-background">
       {/* 顶部操作栏 */}
       <View style={{ position: 'sticky', top: 0, zIndex: 10 }} className="bg-background px-4 pt-4 pb-2">
-        <Button
-          className="w-full bg-primary text-primary-foreground rounded-xl"
-          onClick={handleUpdate}
-          disabled={updating}
-        >
-          <RefreshCw size={16} className="mr-2" color="#fff" />
-          <Text className="block">{updating ? '更新中...' : `更新${year}年节假日信息`}</Text>
-        </Button>
+        <View className="flex justify-end">
+          <Button
+            className="bg-gray-100 text-gray-600 rounded-lg px-3 py-1 text-xs"
+            onClick={handleUpdate}
+            disabled={updating}
+          >
+            <RefreshCw size={14} className="mr-1" color="#666" />
+            <Text className="block text-xs">{updating ? '更新中...' : '更新'}</Text>
+          </Button>
+        </View>
 
         {/* 年份标签 */}
         <View className="flex items-center gap-2 mt-3 overflow-x-auto">
@@ -213,7 +215,7 @@ export default function HolidaysPage() {
               {year}年暂无节假日数据
             </Text>
             <Text className="block text-xs text-gray-300 mt-1">
-              点击上方{'\u201C'}更新{year}年节假日信息{'\u201D'}获取
+              点击右上角{'\u201C'}更新{'\u201D'}获取
             </Text>
           </View>
         ) : (
