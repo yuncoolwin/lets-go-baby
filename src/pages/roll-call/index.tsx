@@ -338,7 +338,11 @@ export default function RollCallPage() {
 
       {/* 底部操作栏 */}
       <View className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 flex gap-3">
-        {isLocked ? (
+        {selectedDate !== today ? (
+          <View className="flex-1 py-3 rounded-xl text-center font-medium bg-gray-100">
+            <Text className="block text-base font-medium text-gray-400">历史记录，只读查看</Text>
+          </View>
+        ) : isLocked ? (
           <View 
             className="flex-1 py-3 rounded-xl text-center font-medium bg-blue-500 text-white"
             onClick={handleUnlock}
