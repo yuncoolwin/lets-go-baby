@@ -266,7 +266,7 @@ export default function ChildDetailPage() {
                   </Text>
                   {(enr.payment_amount || enr.payment_channel) && (
                     <Text className="text-xs text-gray-500 mt-1">
-                      缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{enr.payment_amount && enr.payment_channel ? ' · ' : ''}{enr.payment_channel || ''}
+                      缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{enr.payment_channel ? `（${enr.payment_channel}）` : ''}
                     </Text>
                   )}
                 </View>
