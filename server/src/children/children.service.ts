@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { calculateEndDate } from './utils/date-calculator';
 
 @Injectable()
 export class ChildrenService {
@@ -236,6 +237,16 @@ export class ChildrenService {
     // 如果状态改为毕业或休学，自动清除班级
     if (dto.status === 'graduated' || dto.status === 'suspended') {
       dto.class_id = null;
+    }
+
+    // 如果有报读时长和开始日期但没传结束日期，自动计算
+    if (dto.enrollment_duration && dto.start_date && !dto.end_date) {
+      dto.end_date = calculateEndDate(
+        dto.start_date as string,
+        dto.course_type as string || '',
+        dto.enrollment_duration as string,
+        ''
+      );
     }
 
     const { data, error } = await this.client

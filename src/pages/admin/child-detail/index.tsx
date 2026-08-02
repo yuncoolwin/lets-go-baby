@@ -23,6 +23,9 @@ interface ChildDetail {
   allergies: string | null
   status: string
   course_type: string | null
+  enrollment_duration: string | null
+  start_date: string | null
+  end_date: string | null
   created_at: string
   class_info?: {
     id: string
@@ -172,6 +175,24 @@ export default function ChildDetailPage() {
                 <View className="flex items-center justify-between py-2 border-b border-border">
                   <Text className="text-sm text-muted-foreground">课程类型</Text>
                   <Text className="text-sm text-foreground">{child.course_type}</Text>
+                </View>
+              )}
+              {child.enrollment_duration && (
+                <View className="flex items-center justify-between py-2 border-b border-border">
+                  <Text className="text-sm text-muted-foreground">报读时长</Text>
+                  <Text className="text-sm text-foreground">{child.enrollment_duration}</Text>
+                </View>
+              )}
+              {child.start_date && (
+                <View className="flex items-center justify-between py-2 border-b border-border">
+                  <Text className="text-sm text-muted-foreground">开始日期</Text>
+                  <Text className="text-sm text-foreground">{child.start_date}</Text>
+                </View>
+              )}
+              {child.end_date && (
+                <View className="flex items-center justify-between py-2 border-b border-border">
+                  <Text className="text-sm text-muted-foreground">结束日期</Text>
+                  <Text className="text-sm text-foreground">{child.end_date}</Text>
                 </View>
               )}
               <View className="flex items-center justify-between py-2 border-b border-border">

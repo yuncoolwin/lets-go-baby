@@ -22,6 +22,9 @@ interface Child {
   allergies: string | null
   status: string
   course_type: string | null
+  enrollment_duration: string | null
+  start_date: string | null
+  end_date: string | null
   teacher_names: string[]
   created_at: string
 }
@@ -194,6 +197,19 @@ export default function ChildrenManagePage() {
                       )}
                     </View>
                   </View>
+                  {(child.enrollment_duration || child.start_date) && (
+                    <View className="flex items-center gap-2 mt-1">
+                      {child.enrollment_duration && (
+                        <Text className="text-xs text-muted-foreground">报读: {child.enrollment_duration}</Text>
+                      )}
+                      {child.start_date && (
+                        <Text className="text-xs text-muted-foreground">{child.start_date}</Text>
+                      )}
+                      {child.end_date && (
+                        <Text className="text-xs text-muted-foreground">~ {child.end_date}</Text>
+                      )}
+                    </View>
+                  )}
                 </View>
               </CardContent>
             </Card>

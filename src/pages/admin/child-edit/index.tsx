@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { View, Text, Picker } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
@@ -34,27 +34,6 @@ const durationOptions = [
   { value: '其他', label: '其他' },
 ]
 
-/** 获取报读时长对应的天数 */
-function getDurationDays(duration: string, customDays: string): number {
-  switch (duration) {
-    case '一周体验': return 7
-    case '1个月': return 30
-    case '3个月': return 90
-    case '6个月': return 180
-    case '12个月': return 365
-    case '其他': return parseInt(customDays) || 0
-    default: return 0
-  }
-}
-
-/** 计算结束日期 */
-function calcEndDate(start: string, days: number): string {
-  if (!start || days <= 0) return ''
-  const d = new Date(start)
-  d.setDate(d.getDate() + days)
-  return d.toISOString().split('T')[0]
-}
-
 function todayStr(): string {
   return new Date().toISOString().split('T')[0]
 }
@@ -80,17 +59,50 @@ export default function ChildEditPage() {
   const [startDate, setStartDate] = useState(todayStr())
   const [endDate, setEndDate] = useState('')
   const [customDays, setCustomDays] = useState('')
+  const calcTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // 当报读时长或开始日期变化时，自动计算结束日期
-  const computedEndDate = useMemo(() => {
-    const days = getDurationDays(enrollmentDuration, customDays)
-    return calcEndDate(startDate, days)
-  }, [enrollmentDuration, customDays, startDate])
-
-  // 同步 computedEndDate 到 endDate
+  // 当课程类型切换为周六托/兴趣班时，报读时长自动切换为"其他"
+  const prevCourseTypeRef = useRef(courseType)
   useEffect(() => {
-    setEndDate(computedEndDate)
-  }, [computedEndDate])
+    const prev = prevCourseTypeRef.current
+    prevCourseTypeRef.current = courseType
+    if ((courseType === '周六托' || courseType === '兴趣班') && prev !== courseType) {
+      setEnrollmentDuration('其他')
+    }
+  }, [courseType])
+
+  // 当相关字段变化时，调用后端 API 计算结束日期
+  const fetchEndDate = useCallback(async () => {
+    if (!enrollmentDuration || !startDate) {
+      setEndDate('')
+      return
+    }
+    try {
+      const res = await childrenApi.calcEndDate({
+        course_type: courseType,
+        enrollment_duration: enrollmentDuration,
+        start_date: startDate,
+        custom_days: enrollmentDuration === '其他' ? customDays : undefined,
+      })
+      if (res.code === 200 && res.data?.end_date) {
+        setEndDate(res.data.end_date)
+      }
+    } catch {
+      // 静默失败
+    }
+  }, [courseType, enrollmentDuration, startDate, customDays])
+
+  useEffect(() => {
+    if (calcTimerRef.current) {
+      clearTimeout(calcTimerRef.current)
+    }
+    calcTimerRef.current = setTimeout(() => {
+      fetchEndDate()
+    }, 300)
+    return () => {
+      if (calcTimerRef.current) clearTimeout(calcTimerRef.current)
+    }
+  }, [fetchEndDate])
 
   const loadData = useCallback(async () => {
     if (!id) return
@@ -177,6 +189,11 @@ export default function ChildEditPage() {
   }
 
   const handleDurationSelect = (value: string) => {
+    // 周六托/兴趣班只允许选择"其他"
+    if ((courseType === '周六托' || courseType === '兴趣班') && value !== '其他') {
+      Taro.showToast({ title: '该课程类型仅支持自定义天数', icon: 'none' })
+      return
+    }
     if (enrollmentDuration === value) {
       setEnrollmentDuration('')
       setCustomDays('')

@@ -56,6 +56,9 @@ interface ChildItem {
   birth_date?: string
   status: string
   course_type?: string | null
+  enrollment_duration?: string | null
+  start_date?: string | null
+  end_date?: string | null
 }
 
 interface TeacherItem {
@@ -379,6 +382,19 @@ export default function ClassManagePage() {
                                 </View>
                                 {child.birth_date && (
                                   <Text className="block text-xs text-muted-foreground">年龄: {formatAge(child.birth_date)}</Text>
+                                )}
+                                {(child.enrollment_duration || child.start_date) && (
+                                  <View className="flex items-center gap-2 mt-1">
+                                    {child.enrollment_duration && (
+                                      <Text className="text-xs text-muted-foreground">报读: {child.enrollment_duration}</Text>
+                                    )}
+                                    {child.start_date && (
+                                      <Text className="text-xs text-muted-foreground">{child.start_date}</Text>
+                                    )}
+                                    {child.end_date && (
+                                      <Text className="text-xs text-muted-foreground">~ {child.end_date}</Text>
+                                    )}
+                                  </View>
                                 )}
                               </CardContent>
                             </Card>
