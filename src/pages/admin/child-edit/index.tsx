@@ -61,6 +61,7 @@ export default function ChildEditPage() {
         setParentPhone(child.parent_phone || '')
         setAllergies(child.allergies || '')
         setHealthInfo(child.health_info || '')
+        setCourseType(child.course_type || '')
       }
       if (classRes.code === 200 && classRes.data) {
         const classData = classRes.data as any
