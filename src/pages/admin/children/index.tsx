@@ -23,6 +23,7 @@ interface Child {
   status: string
   course_type: string | null
   enrollment_duration: string | null
+  custom_days: string | null
   start_date: string | null
   end_date: string | null
   teacher_names: string[]
@@ -201,6 +202,9 @@ export default function ChildrenManagePage() {
                     <View className="flex items-center gap-2 mt-1">
                       {child.enrollment_duration && (
                         <Text className="text-xs text-muted-foreground">报读: {child.enrollment_duration}</Text>
+                      )}
+                      {child.enrollment_duration === '计日' && child.custom_days && (
+                        <Text className="text-xs text-muted-foreground">{child.custom_days}天</Text>
                       )}
                       {child.start_date && (
                         <Text className="text-xs text-muted-foreground">{child.start_date}</Text>

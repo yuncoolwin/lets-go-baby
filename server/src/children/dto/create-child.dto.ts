@@ -16,6 +16,7 @@ export interface CreateChildDto {
   enrollment_duration?: string;
   start_date?: string;
   end_date?: string;
+  custom_days?: string;
 }
 
 export interface UpdateChildDto {
@@ -34,6 +35,7 @@ export interface UpdateChildDto {
   enrollment_duration?: string;
   start_date?: string;
   end_date?: string;
+  custom_days?: string;
 }
 
 export interface ChildQueryDto {

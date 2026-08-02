@@ -124,6 +124,7 @@ export default function ChildEditPage() {
         setHealthInfo(child.health_info || '')
         setCourseType(child.course_type || '')
         setEnrollmentDuration(child.enrollment_duration || '')
+        setCustomDays(child.custom_days || '')
         setStartDate(child.start_date || todayStr())
         setEndDate(child.end_date || '')
       }
@@ -166,6 +167,7 @@ export default function ChildEditPage() {
         health_info: healthInfo || undefined,
         course_type: courseType || undefined,
         enrollment_duration: enrollmentDuration || undefined,
+        custom_days: enrollmentDuration === '计日' ? customDays || undefined : undefined,
         start_date: startDate || undefined,
         end_date: enrollmentDuration ? endDate || undefined : undefined,
       }

@@ -24,6 +24,7 @@ interface ChildDetail {
   status: string
   course_type: string | null
   enrollment_duration: string | null
+  custom_days: string | null
   start_date: string | null
   end_date: string | null
   created_at: string
@@ -181,6 +182,12 @@ export default function ChildDetailPage() {
                 <View className="flex items-center justify-between py-2 border-b border-border">
                   <Text className="text-sm text-muted-foreground">报读时长</Text>
                   <Text className="text-sm text-foreground">{child.enrollment_duration}</Text>
+                </View>
+              )}
+              {child.enrollment_duration === '计日' && child.custom_days && (
+                <View className="flex items-center justify-between py-2 border-b border-border">
+                  <Text className="text-sm text-muted-foreground">计日天数</Text>
+                  <Text className="text-sm text-foreground">{child.custom_days}天</Text>
                 </View>
               )}
               {child.start_date && (

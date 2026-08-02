@@ -33,6 +33,7 @@ export class ChildrenService {
     enrollment_duration?: string;
     start_date?: string;
     end_date?: string;
+    custom_days?: string;
   }) {
     // 检查是否已存在同名幼儿
     const { data: existing } = await this.client
@@ -60,6 +61,7 @@ export class ChildrenService {
         enrollment_duration: dto.enrollment_duration || null,
         start_date: dto.start_date || null,
         end_date: dto.end_date || null,
+        custom_days: dto.custom_days || null,
       })
       .select()
       .single();
@@ -247,8 +249,8 @@ export class ChildrenService {
       dto.class_id = null;
     }
 
-    // 提取 custom_days（前端传入但非数据库字段）
-    const { custom_days, ...updateData } = dto as any;
+    // 复制所有字段到 updateData（custom_days 已作为数据库字段）
+    const updateData = { ...(dto as any) } as any;
 
     // 如果有报读时长和开始日期但没传结束日期，自动计算
     if (dto.enrollment_duration && dto.start_date && !dto.end_date) {
@@ -260,9 +262,14 @@ export class ChildrenService {
         dto.start_date as string,
         dto.course_type as string || '',
         dto.enrollment_duration as string,
-        custom_days || ''
+        (dto as any).custom_days || ''
       );
     }
+
+    // 清理 null 和 undefined 字段
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) delete updateData[key];
+    });
 
     const { data, error } = await this.client
       .from('children')
