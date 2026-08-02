@@ -189,6 +189,7 @@ export class HolidaysService {
       { date: '2025-02-01', type: 'holiday', name: '春节', year: 2025 },
       { date: '2025-02-02', type: 'holiday', name: '春节', year: 2025 },
       { date: '2025-02-03', type: 'holiday', name: '春节', year: 2025 },
+      { date: '2025-02-04', type: 'holiday', name: '春节', year: 2025 },
       { date: '2025-01-26', type: 'work_weekend', name: '春节调休', year: 2025 },
       { date: '2025-02-08', type: 'work_weekend', name: '春节调休', year: 2025 },
 
@@ -204,7 +205,7 @@ export class HolidaysService {
       { date: '2025-05-04', type: 'holiday', name: '劳动节', year: 2025 },
       { date: '2025-05-05', type: 'holiday', name: '劳动节', year: 2025 },
       { date: '2025-04-27', type: 'work_weekend', name: '劳动节调休', year: 2025 },
-      { date: '2025-05-10', type: 'work_weekend', name: '劳动节调休', year: 2025 },
+      
 
       // 端午节：5月31日-6月2日（3天）
       { date: '2025-05-31', type: 'holiday', name: '端午节', year: 2025 },
