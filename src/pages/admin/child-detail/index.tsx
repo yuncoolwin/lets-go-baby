@@ -264,6 +264,11 @@ export default function ChildDetailPage() {
                   <Text className="text-xs text-gray-500">
                     日期：{enr.start_date || '--'} ~ {enr.end_date || '--'}
                   </Text>
+                  {(enr.payment_amount || enr.payment_channel) && (
+                    <Text className="text-xs text-gray-500 mt-1">
+                      缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{enr.payment_amount && enr.payment_channel ? ' · ' : ''}{enr.payment_channel || ''}
+                    </Text>
+                  )}
                 </View>
               ))}
             </CardContent>

@@ -24,6 +24,8 @@ interface Enrollment {
   duration_days: number
   start_date: string
   end_date: string
+  payment_amount: string | null
+  payment_channel: string | null
   status: string
   created_at: string
 }
@@ -84,6 +86,8 @@ export default function ChildEditPage() {
   const [formStartDate, setFormStartDate] = useState(todayStr())
   const [formEndDate, setFormEndDate] = useState('')
   const [formStatus, setFormStatus] = useState('进行中')
+  const [formPaymentAmount, setFormPaymentAmount] = useState('')
+  const [formPaymentChannel, setFormPaymentChannel] = useState('')
   const [formSubmitting, setFormSubmitting] = useState(false)
 
   // 删除确认弹窗
@@ -174,6 +178,8 @@ export default function ChildEditPage() {
     setFormStartDate(todayStr())
     setFormEndDate('')
     setFormStatus('进行中')
+    setFormPaymentAmount('')
+    setFormPaymentChannel('')
     setShowEnrollmentDialog(true)
   }
 
@@ -186,6 +192,8 @@ export default function ChildEditPage() {
     setFormStartDate(enr.start_date || todayStr())
     setFormEndDate(enr.end_date || '')
     setFormStatus(enr.status)
+    setFormPaymentAmount(enr.payment_amount || '')
+    setFormPaymentChannel(enr.payment_channel || '')
     setShowEnrollmentDialog(true)
   }
 
@@ -217,6 +225,8 @@ export default function ChildEditPage() {
         duration_days: formDurationType === '计日' ? parseInt(formDurationDays) || 0 : 0,
         start_date: formStartDate,
         end_date: formEndDate || undefined,
+        payment_amount: formPaymentAmount || undefined,
+        payment_channel: formPaymentChannel || undefined,
         status: formStatus,
       }
 
@@ -531,6 +541,11 @@ export default function ChildEditPage() {
                     <Text className="text-xs text-gray-500">
                       日期：{enr.start_date || '--'} ~ {enr.end_date || '--'}
                     </Text>
+                    {(enr.payment_amount || enr.payment_channel) && (
+                      <Text className="text-xs text-gray-500">
+                        缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{enr.payment_amount && enr.payment_channel ? ' · ' : ''}{enr.payment_channel || ''}
+                      </Text>
+                    )}
                   </View>
                 </View>
               ))
@@ -668,6 +683,37 @@ export default function ChildEditPage() {
                       onClick={() => setFormStatus(s)}
                     >
                       <Text className="text-sm">{s}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              {/* 缴费记录 */}
+              <View>
+                <Label className="text-sm font-medium text-foreground">缴费记录</Label>
+                <View className="mt-1 bg-gray-50 rounded-lg px-3 py-2">
+                  <Input
+                    className="w-full bg-transparent text-sm"
+                    placeholder="请输入缴费金额"
+                    value={formPaymentAmount}
+                    onInput={(e) => setFormPaymentAmount(e.detail.value)}
+                  />
+                </View>
+              </View>
+
+              {/* 缴费渠道 */}
+              <View>
+                <Label className="text-sm font-medium text-foreground">缴费渠道</Label>
+                <View className="mt-1 flex gap-2">
+                  {['微信', '支付宝', '现金'].map((ch) => (
+                    <View
+                      key={ch}
+                      className={`px-4 py-2 rounded-lg text-sm ${
+                        formPaymentChannel === ch ? 'bg-primary text-white' : 'bg-gray-100 text-foreground'
+                      }`}
+                      onClick={() => setFormPaymentChannel(ch)}
+                    >
+                      <Text className="text-sm">{ch}</Text>
                     </View>
                   ))}
                 </View>

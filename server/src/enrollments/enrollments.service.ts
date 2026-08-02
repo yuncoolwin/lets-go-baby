@@ -9,6 +9,8 @@ export interface Enrollment {
   duration_days: number;
   start_date: string | null;
   end_date: string | null;
+  payment_amount: string | null;
+  payment_channel: string | null;
   status: string;
   created_at: string;
   updated_at: string;
@@ -21,6 +23,8 @@ export interface CreateEnrollmentDto {
   duration_days: number;
   start_date?: string;
   end_date?: string;
+  payment_amount?: string;
+  payment_channel?: string;
   status?: string;
 }
 
@@ -30,6 +34,8 @@ export interface UpdateEnrollmentDto {
   duration_days?: number;
   start_date?: string;
   end_date?: string;
+  payment_amount?: string;
+  payment_channel?: string;
   status?: string;
 }
 
@@ -85,6 +91,8 @@ export class EnrollmentsService {
         duration_days: dto.duration_days || 0,
         start_date: dto.start_date || null,
         end_date: dto.end_date || null,
+        payment_amount: dto.payment_amount || null,
+        payment_channel: dto.payment_channel || null,
         status: dto.status || '进行中',
       })
       .select()
@@ -101,6 +109,8 @@ export class EnrollmentsService {
     if (dto.duration_days !== undefined) updateData.duration_days = dto.duration_days;
     if (dto.start_date !== undefined) updateData.start_date = dto.start_date;
     if (dto.end_date !== undefined) updateData.end_date = dto.end_date;
+    if (dto.payment_amount !== undefined) updateData.payment_amount = dto.payment_amount;
+    if (dto.payment_channel !== undefined) updateData.payment_channel = dto.payment_channel;
     if (dto.status !== undefined) updateData.status = dto.status;
     updateData.updated_at = new Date().toISOString();
 

@@ -1,4 +1,4 @@
-import { pgTable, index, foreignKey, varchar, timestamp, serial, text, unique, boolean, jsonb, integer, date, check, uuid } from "drizzle-orm/pg-core"
+import { pgTable, index, foreignKey, varchar, timestamp, serial, text, unique, boolean, jsonb, integer, date, check, uuid, numeric } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
@@ -261,6 +261,8 @@ export const children = pgTable("children", {
 	enrollmentDuration: varchar("enrollment_duration", { length: 50 }).default(''),
 	startDate: date("start_date"),
 	endDate: date("end_date"),
+		paymentAmount: numeric("payment_amount", { precision: 10, scale: 2 }).default("0"),
+		paymentChannel: varchar("payment_channel", { length: 20 }).default(""),
 	customDays: varchar("custom_days", { length: 20 }).default(''),
 }, (table) => [
 	index("children_family_id_idx").using("btree", table.familyId.asc().nullsLast().op("text_ops")),
@@ -325,6 +327,8 @@ export const enrollments = pgTable("enrollments", {
 	durationDays: integer("duration_days").default(0),
 	startDate: date("start_date"),
 	endDate: date("end_date"),
+		paymentAmount: numeric("payment_amount", { precision: 10, scale: 2 }).default("0"),
+		paymentChannel: varchar("payment_channel", { length: 20 }).default(""),
 	status: varchar({ length: 20 }).notNull().default('进行中'),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
