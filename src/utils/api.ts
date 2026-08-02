@@ -196,3 +196,22 @@ export const authApi = {
     });
   },
 };
+
+// ============ 报读记录 API ============
+
+export const enrollmentApi = {
+  list: (childId: string) =>
+    request({ url: `/api/enrollments/child/${childId}`, method: 'GET' }),
+
+  activeList: (childId: string) =>
+    request({ url: `/api/enrollments/child/${childId}/active`, method: 'GET' }),
+
+  create: (data: Record<string, any>) =>
+    request({ url: '/api/enrollments', method: 'POST', data }),
+
+  update: (id: string, data: Record<string, any>) =>
+    request({ url: `/api/enrollments/${id}`, method: 'PATCH', data }),
+
+  remove: (id: string) =>
+    request({ url: `/api/enrollments/${id}`, method: 'DELETE' }),
+};

@@ -5,9 +5,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { childrenApi } from '@/utils/api'
+import { childrenApi, enrollmentApi } from '@/utils/api'
 import BackButton from '@/components/back-button'
-import { Pencil, Trash2 } from 'lucide-react-taro'
+import { Pencil, Trash2, BookOpen } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge } from '@/utils/format'
 
@@ -57,16 +57,23 @@ export default function ChildDetailPage() {
   const [child, setChild] = useState<ChildDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
+  const [enrollments, setEnrollments] = useState<any[]>([])
 
   const loadData = useCallback(async () => {
     if (!id) return
     setLoading(true)
     try {
-      const res = await childrenApi.detail(id)
-      if (res.code === 200 && res.data) {
-        setChild(res.data as unknown as ChildDetail)
+      const [childRes, enrRes] = await Promise.all([
+        childrenApi.detail(id),
+        enrollmentApi.list(id!),
+      ])
+      if (childRes.code === 200 && childRes.data) {
+        setChild(childRes.data as unknown as ChildDetail)
       } else {
-        Taro.showToast({ title: res.msg || '加载失败', icon: 'none' })
+        Taro.showToast({ title: childRes.msg || '加载失败', icon: 'none' })
+      }
+      if (enrRes.code === 200 && Array.isArray(enrRes.data)) {
+        setEnrollments(enrRes.data as any[])
       }
     } catch {
       Taro.showToast({ title: '网络错误', icon: 'none' })
@@ -231,6 +238,37 @@ export default function ChildDetailPage() {
             </View>
           </CardContent>
         </Card>
+
+        {/* 报读记录卡片 */}
+        {enrollments.length > 0 && (
+          <Card className="bg-white rounded-xl border-0 shadow-sm">
+            <CardContent className="p-4">
+              <View className="flex items-center gap-2 mb-3">
+                <BookOpen size={16} color="#666" />
+                <Text className="text-base font-semibold text-foreground">报读记录</Text>
+              </View>
+              {enrollments.map((enr) => (
+                <View
+                  key={enr.id}
+                  className="bg-gray-50 rounded-xl p-3 mb-2"
+                >
+                  <View className="flex items-center justify-between mb-1">
+                    <Text className="text-sm font-semibold text-foreground">{enr.course_type}</Text>
+                    <Badge className={enr.status === '进行中' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
+                      <Text className="text-xs">{enr.status}</Text>
+                    </Badge>
+                  </View>
+                  <Text className="text-xs text-gray-500">
+                    时长：{enr.duration_type === '计日' ? `${enr.duration_days}天` : enr.duration_type}
+                  </Text>
+                  <Text className="text-xs text-gray-500">
+                    日期：{enr.start_date || '--'} ~ {enr.end_date || '--'}
+                  </Text>
+                </View>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {/* 操作按钮 */}
         <View className="flex gap-3">

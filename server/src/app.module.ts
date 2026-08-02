@@ -21,6 +21,8 @@ import { AttendanceController } from '@/attendance/attendance.controller';
 import { AttendanceService } from '@/attendance/attendance.service';
 import { HolidaysController } from '@/holidays/holidays.controller';
 import { HolidaysService } from '@/holidays/holidays.service';
+import { EnrollmentsController } from '@/enrollments/enrollments.controller';
+import { EnrollmentsService } from '@/enrollments/enrollments.service';
 
 @Module({
   imports: [],
@@ -36,6 +38,7 @@ import { HolidaysService } from '@/holidays/holidays.service';
     NotificationsController,
     AttendanceController,
     HolidaysController,
+    EnrollmentsController,
   ],
   providers: [
     AppService,
@@ -49,6 +52,7 @@ import { HolidaysService } from '@/holidays/holidays.service';
     NotificationsService,
     AttendanceService,
     HolidaysService,
+    EnrollmentsService,
   ],
 })
 export class AppModule {}
