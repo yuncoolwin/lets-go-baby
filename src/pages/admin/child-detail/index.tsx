@@ -258,14 +258,14 @@ export default function ChildDetailPage() {
                       <Text className="text-xs">{enr.status}</Text>
                     </Badge>
                   </View>
-                  <Text className="text-xs text-gray-500">
+                  <Text className="block text-xs text-gray-500">
                     时长：{enr.duration_type === '计日' ? `${enr.duration_days}天` : enr.duration_type}
                   </Text>
-                  <Text className="text-xs text-gray-500">
+                  <Text className="block text-xs text-gray-500 mt-1">
                     日期：{enr.start_date || '--'} ~ {enr.end_date || '--'}
                   </Text>
                   {(enr.payment_amount || enr.payment_channel) && (
-                    <Text className="text-xs text-gray-500 mt-1">
+                    <Text className="block text-xs text-gray-500 mt-1">
                       缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{enr.payment_channel ? `（${enr.payment_channel}）` : ''}
                     </Text>
                   )}
