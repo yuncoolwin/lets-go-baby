@@ -126,8 +126,6 @@ export class HolidaysService {
     return [
       // ===== 2024年 =====
       // 元旦：12月30日-1月1日（跨年）
-      { date: '2023-12-30', type: 'holiday', name: '元旦', year: 2024 },
-      { date: '2023-12-31', type: 'holiday', name: '元旦', year: 2024 },
       { date: '2024-01-01', type: 'holiday', name: '元旦', year: 2024 },
 
       // 春节：2月10日-2月16日（7天）
