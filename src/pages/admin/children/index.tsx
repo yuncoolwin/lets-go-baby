@@ -21,6 +21,7 @@ interface Child {
   parent_name: string | null
   allergies: string | null
   status: string
+  course_type: string | null
   teacher_names: string[]
   created_at: string
 }
@@ -172,6 +173,16 @@ export default function ChildrenManagePage() {
                     </View>
                   </View>
                   <View style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
+                    <View style={{ flex: 1 }}>
+                      <Text className="text-xs text-muted-foreground">过敏: {child.allergies || '无'}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      {child.course_type && (
+                        <Text className="text-xs text-blue-500">课程: {child.course_type}</Text>
+                      )}
+                    </View>
+                  </View>
+                  <View style={{ display: "flex", flexDirection: "row", gap: "12px" }}>
                     <View style={{ flex: 1 }}>
                       <Text className="text-xs text-muted-foreground">过敏: {child.allergies || '无'}</Text>
                     </View>

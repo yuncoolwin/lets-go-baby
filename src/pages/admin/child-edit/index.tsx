@@ -41,6 +41,7 @@ export default function ChildEditPage() {
   const [parentPhone, setParentPhone] = useState('')
   const [allergies, setAllergies] = useState('')
   const [healthInfo, setHealthInfo] = useState('')
+  const [courseType, setCourseType] = useState("")
 
   const loadData = useCallback(async () => {
     if (!id) return
@@ -197,6 +198,22 @@ export default function ChildEditPage() {
                     onClick={() => setStatus(opt.value)}
                   >
                     <Text className="text-sm">{opt.label}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* 课程类型 */}
+            <View>
+              <Label className="text-sm font-medium text-foreground">课程类型</Label>
+              <View className="mt-1 flex flex-wrap gap-2">
+                {['全日托', '半日托', '周六托', '晚间托', '兴趣班'].map((t) => (
+                  <View
+                    key={t}
+                    className={"px-4 py-2 rounded-lg text-sm " + (courseType === t ? 'bg-primary text-white' : 'bg-gray-100 text-foreground')}
+                    onClick={() => setCourseType(courseType === t ? '' : t)}
+                  >
+                    <Text className="text-sm">{t}</Text>
                   </View>
                 ))}
               </View>
