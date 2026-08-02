@@ -99,6 +99,7 @@ export default function ChildEditPage() {
         parent_phone: parentPhone || undefined,
         allergies: allergies || undefined,
         health_info: healthInfo || undefined,
+        course_type: courseType || undefined,
       })
       if (res.code === 200) {
         Taro.showToast({ title: '保存成功', icon: 'success' })

@@ -22,6 +22,7 @@ interface ChildDetail {
   health_info: string | null
   allergies: string | null
   status: string
+  course_type: string | null
   created_at: string
   class_info?: {
     id: string
@@ -143,6 +144,11 @@ export default function ChildDetailPage() {
               <View className="flex-1">
                 <View className="flex items-center gap-2">
                   <Text className="text-xl font-bold text-foreground">{child.name}</Text>
+                  {child.course_type && (
+                    <Badge className="bg-purple-50 text-purple-700 text-xs">
+                      <Text className="text-xs">{child.course_type}</Text>
+                    </Badge>
+                  )}
                   <Badge className={`${statusMap[child.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
                     <Text className="text-xs">{statusMap[child.status]?.label || child.status}</Text>
                   </Badge>
@@ -162,6 +168,12 @@ export default function ChildDetailPage() {
                 <Text className="text-sm text-muted-foreground">在读状态</Text>
                 <Text className="text-sm text-foreground">{statusMap[child.status]?.label || child.status}</Text>
               </View>
+              {child.course_type && (
+                <View className="flex items-center justify-between py-2 border-b border-border">
+                  <Text className="text-sm text-muted-foreground">课程类型</Text>
+                  <Text className="text-sm text-foreground">{child.course_type}</Text>
+                </View>
+              )}
               <View className="flex items-center justify-between py-2 border-b border-border">
                 <Text className="text-sm text-muted-foreground">所在班级</Text>
                 <Text className="text-sm text-foreground">

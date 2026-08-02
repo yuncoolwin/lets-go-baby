@@ -155,9 +155,16 @@ export default function ChildrenManagePage() {
                       {child.gender === 'male' ? '男' : '女'}
                     </Text>
                   </View>
-                  <Badge className={`${statusMap[child.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
-                    <Text className="text-xs">{statusMap[child.status]?.label || child.status}</Text>
-                  </Badge>
+                  <View className="flex items-center gap-1">
+                    {child.course_type && (
+                      <Badge className="bg-purple-50 text-purple-700 text-xs">
+                        <Text className="text-xs">{child.course_type}</Text>
+                      </Badge>
+                    )}
+                    <Badge className={`${statusMap[child.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
+                      <Text className="text-xs">{statusMap[child.status]?.label || child.status}</Text>
+                    </Badge>
+                  </View>
                 </View>
                 <View className="space-y-2">
                   <View style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
@@ -173,16 +180,6 @@ export default function ChildrenManagePage() {
                     </View>
                   </View>
                   <View style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
-                    <View style={{ flex: 1 }}>
-                      <Text className="text-xs text-muted-foreground">过敏: {child.allergies || '无'}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      {child.course_type && (
-                        <Text className="text-xs text-blue-500">课程: {child.course_type}</Text>
-                      )}
-                    </View>
-                  </View>
-                  <View style={{ display: "flex", flexDirection: "row", gap: "12px" }}>
                     <View style={{ flex: 1 }}>
                       <Text className="text-xs text-muted-foreground">过敏: {child.allergies || '无'}</Text>
                     </View>

@@ -26,6 +26,7 @@ export interface UpdateChildDto {
   status?: 'active' | 'graduated' | 'suspended';
   avatar_url?: string;
   notes?: string;
+  course_type?: string;
 }
 
 export interface ChildQueryDto {

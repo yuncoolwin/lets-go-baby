@@ -20,6 +20,7 @@ export class ChildrenService {
     health_info?: string;
     allergies?: string;
     status?: string;
+    course_type?: string;
   }) {
     // 检查是否已存在同名幼儿
     const { data: existing } = await this.client
@@ -43,6 +44,7 @@ export class ChildrenService {
         health_info: dto.health_info || null,
         allergies: dto.allergies || null,
         status: dto.status || 'active',
+        course_type: dto.course_type || null,
       })
       .select()
       .single();
@@ -182,6 +184,7 @@ export class ChildrenService {
     status?: string;
     avatar_url?: string;
     notes?: string;
+    course_type?: string;
   }) {
     // 如果变更了 class_id，检查目标班级容量
     if (dto.class_id !== undefined) {

@@ -55,6 +55,7 @@ interface ChildItem {
   gender: string
   birth_date?: string
   status: string
+  course_type?: string | null
 }
 
 interface TeacherItem {
@@ -370,6 +371,11 @@ export default function ClassManagePage() {
                                   <Text className="text-xs text-muted-foreground">
                                     {child.gender === 'male' ? '男' : '女'}
                                   </Text>
+                                  {child.course_type && (
+                                    <Badge className="bg-purple-50 text-purple-700 text-xs">
+                                      <Text className="text-xs">{child.course_type}</Text>
+                                    </Badge>
+                                  )}
                                 </View>
                                 {child.birth_date && (
                                   <Text className="block text-xs text-muted-foreground">年龄: {formatAge(child.birth_date)}</Text>
