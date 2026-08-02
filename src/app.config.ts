@@ -26,6 +26,7 @@ export default typeof defineAppConfig === 'function'
       'pages/admin/child-detail/index',
       'pages/admin/child-edit/index',
       'pages/admin/child-add/index',
+      'pages/admin/holidays/index',
       'pages/child-setting/index',
     ],
     tabBar: {
@@ -90,6 +91,7 @@ export default typeof defineAppConfig === 'function'
       'pages/admin/teacher-manage/index',
       'pages/admin/notification-manage/index',
       'pages/admin/notification-edit/index',
+      'pages/admin/holidays/index',
     ],
     tabBar: {
       color: '#999999',

@@ -1,11 +1,15 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, HttpCode } from '@nestjs/common';
 import { ChildrenService } from './children.service';
 import { CreateChildDto, UpdateChildDto, ChildQueryDto } from './dto/create-child.dto';
-import { calculateEndDate } from './utils/date-calculator';
+import { createDateCalculator } from './utils/date-calculator';
+import { HolidaysService } from '@/holidays/holidays.service';
 
 @Controller('children')
 export class ChildrenController {
-  constructor(private readonly childrenService: ChildrenService) {}
+  constructor(
+    private readonly childrenService: ChildrenService,
+    private readonly holidaysService: HolidaysService,
+  ) {}
 
   @Post()
   @HttpCode(200)
@@ -37,13 +41,29 @@ export class ChildrenController {
   @Post('calc-end-date')
   @HttpCode(200)
   async calcEndDate(@Body() body: { start_date: string; course_type: string; enrollment_duration: string; custom_days: string }) {
-    const endDate = calculateEndDate(
-      body.start_date,
-      body.course_type,
-      body.enrollment_duration,
-      body.custom_days || '',
-    );
-    return { code: 200, msg: 'success', data: { end_date: endDate } };
+    // 从数据库读取节假日数据
+    try {
+      const year = body.start_date ? new Date(body.start_date).getFullYear() : 2026;
+      const { holidays, workWeekends } = await this.holidaysService.getDateSets(year);
+      const calculator = createDateCalculator(holidays, workWeekends);
+      const endDate = calculator.calculateEndDate(
+        body.start_date,
+        body.course_type,
+        body.enrollment_duration,
+        body.custom_days || '',
+      );
+      return { code: 200, msg: 'success', data: { end_date: endDate } };
+    } catch {
+      // 兜底：使用默认硬编码数据
+      const calculator = createDateCalculator();
+      const endDate = calculator.calculateEndDate(
+        body.start_date,
+        body.course_type,
+        body.enrollment_duration,
+        body.custom_days || '',
+      );
+      return { code: 200, msg: 'success', data: { end_date: endDate } };
+    }
   }
 
   @Get(':id')
