@@ -12,6 +12,10 @@ export interface CreateChildDto {
   health_info?: string;
   allergies?: string;
   status?: 'active' | 'graduated' | 'suspended';
+  course_type?: string;
+  enrollment_duration?: string;
+  start_date?: string;
+  end_date?: string;
 }
 
 export interface UpdateChildDto {
@@ -27,6 +31,9 @@ export interface UpdateChildDto {
   avatar_url?: string;
   notes?: string;
   course_type?: string;
+  enrollment_duration?: string;
+  start_date?: string;
+  end_date?: string;
 }
 
 export interface ChildQueryDto {

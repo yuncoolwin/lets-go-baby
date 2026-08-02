@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { View, Text, Picker } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
@@ -25,6 +25,40 @@ const genderOptions = [
   { value: 'female', label: '女' },
 ]
 
+const durationOptions = [
+  { value: '一周体验', label: '一周体验' },
+  { value: '1个月', label: '1个月' },
+  { value: '3个月', label: '3个月' },
+  { value: '6个月', label: '6个月' },
+  { value: '12个月', label: '12个月' },
+  { value: '其他', label: '其他' },
+]
+
+/** 获取报读时长对应的天数 */
+function getDurationDays(duration: string, customDays: string): number {
+  switch (duration) {
+    case '一周体验': return 7
+    case '1个月': return 30
+    case '3个月': return 90
+    case '6个月': return 180
+    case '12个月': return 365
+    case '其他': return parseInt(customDays) || 0
+    default: return 0
+  }
+}
+
+/** 计算结束日期 */
+function calcEndDate(start: string, days: number): string {
+  if (!start || days <= 0) return ''
+  const d = new Date(start)
+  d.setDate(d.getDate() + days)
+  return d.toISOString().split('T')[0]
+}
+
+function todayStr(): string {
+  return new Date().toISOString().split('T')[0]
+}
+
 export default function ChildEditPage() {
   const router = useRouter()
   const { id } = router.params
@@ -41,7 +75,22 @@ export default function ChildEditPage() {
   const [parentPhone, setParentPhone] = useState('')
   const [allergies, setAllergies] = useState('')
   const [healthInfo, setHealthInfo] = useState('')
-  const [courseType, setCourseType] = useState("")
+  const [courseType, setCourseType] = useState('')
+  const [enrollmentDuration, setEnrollmentDuration] = useState('')
+  const [startDate, setStartDate] = useState(todayStr())
+  const [endDate, setEndDate] = useState('')
+  const [customDays, setCustomDays] = useState('')
+
+  // 当报读时长或开始日期变化时，自动计算结束日期
+  const computedEndDate = useMemo(() => {
+    const days = getDurationDays(enrollmentDuration, customDays)
+    return calcEndDate(startDate, days)
+  }, [enrollmentDuration, customDays, startDate])
+
+  // 同步 computedEndDate 到 endDate
+  useEffect(() => {
+    setEndDate(computedEndDate)
+  }, [computedEndDate])
 
   const loadData = useCallback(async () => {
     if (!id) return
@@ -62,6 +111,9 @@ export default function ChildEditPage() {
         setAllergies(child.allergies || '')
         setHealthInfo(child.health_info || '')
         setCourseType(child.course_type || '')
+        setEnrollmentDuration(child.enrollment_duration || '')
+        setStartDate(child.start_date || todayStr())
+        setEndDate(child.end_date || '')
       }
       if (classRes.code === 200 && classRes.data) {
         const classData = classRes.data as any
@@ -90,7 +142,7 @@ export default function ChildEditPage() {
 
     setSubmitting(true)
     try {
-      const res = await childrenApi.update(id!, {
+      const payload: Record<string, any> = {
         name: name.trim(),
         gender,
         birth_date: birthDate,
@@ -101,14 +153,17 @@ export default function ChildEditPage() {
         allergies: allergies || undefined,
         health_info: healthInfo || undefined,
         course_type: courseType || undefined,
-      })
+        enrollment_duration: enrollmentDuration || undefined,
+        start_date: startDate || undefined,
+        end_date: enrollmentDuration ? endDate || undefined : undefined,
+      }
+      const res = await childrenApi.update(id!, payload)
       if (res.code === 200) {
         Taro.showToast({ title: '保存成功', icon: 'success' })
         setTimeout(() => {
           Taro.navigateBack()
         }, 1500)
       } else {
-        // 捕获容量错误等后端异常
         const errMsg = res.msg || (res as any).message || '保存失败'
         Taro.showToast({ title: errMsg, icon: 'none', duration: 3000 })
         setSubmitting(false)
@@ -118,6 +173,18 @@ export default function ChildEditPage() {
       setSubmitting(false)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleDurationSelect = (value: string) => {
+    if (enrollmentDuration === value) {
+      setEnrollmentDuration('')
+      setCustomDays('')
+    } else {
+      setEnrollmentDuration(value)
+      if (value !== '其他') {
+        setCustomDays('')
+      }
     }
   }
 
@@ -218,6 +285,60 @@ export default function ChildEditPage() {
                     <Text className="text-sm">{t}</Text>
                   </View>
                 ))}
+              </View>
+            </View>
+
+            {/* 报读时长 */}
+            <View>
+              <Label className="text-sm font-medium text-foreground">报读时长</Label>
+              <View className="mt-1 flex flex-wrap gap-2">
+                {durationOptions.map((opt) => (
+                  <View
+                    key={opt.value}
+                    className={`px-4 py-2 rounded-lg text-sm ${
+                      enrollmentDuration === opt.value ? 'bg-primary text-white' : 'bg-gray-100 text-foreground'
+                    }`}
+                    onClick={() => handleDurationSelect(opt.value)}
+                  >
+                    <Text className="text-sm">{opt.label}</Text>
+                  </View>
+                ))}
+              </View>
+              {enrollmentDuration === '其他' && (
+                <View className="mt-2 bg-gray-50 rounded-lg px-3 py-2">
+                  <Input
+                    className="w-full bg-transparent text-sm"
+                    placeholder="请输入天数"
+                    value={customDays}
+                    onInput={(e) => setCustomDays(e.detail.value)}
+                  />
+                </View>
+              )}
+            </View>
+
+            {/* 开始日期 */}
+            <View>
+              <Label className="text-sm font-medium text-foreground">开始日期</Label>
+              <Picker
+                mode="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.detail.value)}
+              >
+                <View className="mt-1 bg-gray-50 rounded-lg px-3 py-2">
+                  <Text className="text-sm text-foreground">
+                    {startDate || '请选择开始日期'}
+                  </Text>
+                </View>
+              </Picker>
+            </View>
+
+            {/* 结束日期（只读） */}
+            <View>
+              <Label className="text-sm font-medium text-foreground">结束日期</Label>
+              <View className="mt-1 bg-gray-50 rounded-lg px-3 py-2">
+                <Text className="text-sm text-foreground">
+                  {endDate || '请先选择报读时长和开始日期'}
+                </Text>
               </View>
             </View>
 
