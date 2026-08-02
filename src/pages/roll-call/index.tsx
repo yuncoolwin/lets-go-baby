@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text, ScrollView, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAppStore } from '@/store/app'
@@ -37,13 +37,14 @@ export default function RollCallPage() {
   const [loading, setLoading] = useState(true)
   const [isLocked, setIsLocked] = useState(false)
   const [hasUnsaved, setHasUnsaved] = useState(false)
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [tempAttendance, setTempAttendance] = useState<Record<string, AttendanceItem['status']>>({})
 
   const today = new Date().toISOString().split('T')[0]
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [selectedDate])
 
   const loadData = async () => {
     setLoading(true)
@@ -155,7 +156,7 @@ export default function RollCallPage() {
             await Network.request({
               url: '/api/attendance/clear',
               method: 'POST',
-              data: { class_id: classId, date: today },
+              data: { class_id: classId, date: selectedDate },
             })
             setAttendance({})
             setTempAttendance({})
@@ -179,7 +180,25 @@ export default function RollCallPage() {
     <View className="min-h-screen bg-gray-50 pb-safe">
       {/* 头部信息 */}
       <View className="bg-white px-4 py-3 flex items-center justify-between border-b border-gray-100">
-        <Text className="block text-sm text-gray-400">{today}</Text>
+        <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
+          <Picker
+            mode="date"
+            value={selectedDate}
+            onChange={(e) => {
+              const val = e.detail.value
+              setSelectedDate(val)
+            }}
+            fields="day"
+          >
+            <View className="flex items-center">
+              <Text className="block text-sm text-gray-500">{selectedDate === today ? '今天' : selectedDate}</Text>
+              <Text className="block text-xs text-gray-300 ml-1">▼</Text>
+            </View>
+          </Picker>
+          {selectedDate !== today && (
+            <Text className="block text-xs text-orange-500">（历史记录，只读）</Text>
+          )}
+        </View>
         <Text 
           className="block text-sm text-red-500"
           onClick={handleClear}
