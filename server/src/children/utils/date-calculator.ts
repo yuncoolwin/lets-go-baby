@@ -103,7 +103,7 @@ export function createDateCalculator(
       case '3个月': return 3
       case '6个月': return 6
       case '12个月': return 12
-      case '其他': return parseInt(customDays) || 0
+      case '计日': return parseInt(customDays) || 0
       default: return 0
     }
   }

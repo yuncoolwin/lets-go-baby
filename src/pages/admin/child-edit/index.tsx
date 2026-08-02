@@ -31,7 +31,7 @@ const durationOptions = [
   { value: '3个月', label: '3个月' },
   { value: '6个月', label: '6个月' },
   { value: '12个月', label: '12个月' },
-  { value: '其他', label: '其他' },
+  { value: '计日', label: '计日' },
 ]
 
 function todayStr(): string {
@@ -61,13 +61,13 @@ export default function ChildEditPage() {
   const [customDays, setCustomDays] = useState('')
   const calcTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // 当课程类型切换为周六托/兴趣班时，报读时长自动切换为"其他"
+  // 当课程类型切换为周六托/兴趣班时，报读时长自动切换为"计日"
   const prevCourseTypeRef = useRef(courseType)
   useEffect(() => {
     const prev = prevCourseTypeRef.current
     prevCourseTypeRef.current = courseType
     if ((courseType === '周六托' || courseType === '兴趣班') && prev !== courseType) {
-      setEnrollmentDuration('其他')
+      setEnrollmentDuration('计日')
     }
   }, [courseType])
 
@@ -82,7 +82,7 @@ export default function ChildEditPage() {
         course_type: courseType,
         enrollment_duration: enrollmentDuration,
         start_date: startDate,
-        custom_days: enrollmentDuration === '其他' ? customDays : undefined,
+        custom_days: enrollmentDuration === '计日' ? customDays : undefined,
       })
       if (res.code === 200 && res.data?.end_date) {
         setEndDate(res.data.end_date)
@@ -189,8 +189,8 @@ export default function ChildEditPage() {
   }
 
   const handleDurationSelect = (value: string) => {
-    // 周六托/兴趣班只允许选择"其他"
-    if ((courseType === '周六托' || courseType === '兴趣班') && value !== '其他') {
+    // 周六托/兴趣班只允许选择"计日"
+    if ((courseType === '周六托' || courseType === '兴趣班') && value !== '计日') {
       Taro.showToast({ title: '该课程类型仅支持自定义天数', icon: 'none' })
       return
     }
@@ -199,7 +199,7 @@ export default function ChildEditPage() {
       setCustomDays('')
     } else {
       setEnrollmentDuration(value)
-      if (value !== '其他') {
+      if (value !== '计日') {
         setCustomDays('')
       }
     }
@@ -321,7 +321,7 @@ export default function ChildEditPage() {
                   </View>
                 ))}
               </View>
-              {enrollmentDuration === '其他' && (
+              {enrollmentDuration === '计日' && (
                 <View className="mt-2 bg-gray-50 rounded-lg px-3 py-2">
                   <Input
                     className="w-full bg-transparent text-sm"
