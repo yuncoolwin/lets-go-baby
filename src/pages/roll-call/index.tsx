@@ -74,6 +74,11 @@ export default function RollCallPage() {
           url: `/api/attendance/dates/${theClassId}`,
         })
         const dates: string[] = dateRes.data?.data || []
+        // 确保"今天"始终在列表中
+        const todayStr = new Date().toISOString().split('T')[0]
+        if (!dates.includes(todayStr)) {
+          dates.unshift(todayStr)
+        }
         setDateList(dates)
       } catch (e) {
         console.error('[RollCall] load dates error:', e)
