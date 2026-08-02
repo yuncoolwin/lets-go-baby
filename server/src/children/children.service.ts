@@ -1,12 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
-import { calculateEndDate } from './utils/date-calculator';
+import { createDateCalculator } from './utils/date-calculator';
+import { HolidaysService } from '@/holidays/holidays.service';
 
 @Injectable()
 export class ChildrenService {
+  constructor(
+    @Inject(forwardRef(() => HolidaysService))
+    private holidaysService: HolidaysService,
+  ) {}
+
   private get client() {
     return getSupabaseClient();
   }
+
+  
 
   /**
    * 创建幼儿档案
@@ -239,19 +247,26 @@ export class ChildrenService {
       dto.class_id = null;
     }
 
+    // 提取 custom_days（前端传入但非数据库字段）
+    const { custom_days, ...updateData } = dto as any;
+
     // 如果有报读时长和开始日期但没传结束日期，自动计算
     if (dto.enrollment_duration && dto.start_date && !dto.end_date) {
-      dto.end_date = calculateEndDate(
+      // 从数据库读取节假日数据
+      const year = new Date(dto.start_date).getFullYear();
+      const { holidays: holidaySet, workWeekends: workWeekendSet } = await this.holidaysService.getDateSets(year);
+      const calc = createDateCalculator(holidaySet, workWeekendSet);
+      updateData.end_date = calc.calculateEndDate(
         dto.start_date as string,
         dto.course_type as string || '',
         dto.enrollment_duration as string,
-        ''
+        custom_days || ''
       );
     }
 
     const { data, error } = await this.client
       .from('children')
-      .update(dto)
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
