@@ -38,13 +38,13 @@ function todayStr(): string {
   return new Date().toISOString().split('T')[0]
 }
 
-function getNearestMonday(dateStr: string): string {
+function getNextMonday(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00+08:00')
   const dayOfWeek = date.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
   if (dayOfWeek === 1) return dateStr
-  // 回退到上一个周一
-  const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1
-  date.setDate(date.getDate() - daysToSubtract)
+  // 顺延到下一个周一
+  const daysToAdd = dayOfWeek === 0 ? 1 : 8 - dayOfWeek
+  date.setDate(date.getDate() + daysToAdd)
   return date.toISOString().split('T')[0]
 }
 
@@ -214,10 +214,10 @@ export default function ChildEditPage() {
       }
       // 一周体验的开始日期只能是周一
       if (value === '一周体验') {
-        const monday = getNearestMonday(startDate)
+        const monday = getNextMonday(startDate)
         if (monday !== startDate) {
           setStartDate(monday)
-          Taro.showToast({ title: '开始日期已自动调整为周一', icon: 'none' })
+          Taro.showToast({ title: '开始日期已自动调整为下一个周一', icon: 'none' })
         }
       }
     }
@@ -360,10 +360,10 @@ export default function ChildEditPage() {
                 onChange={(e) => {
                   const newDate = e.detail.value
                   if (enrollmentDuration === '一周体验') {
-                    const monday = getNearestMonday(newDate)
+                    const monday = getNextMonday(newDate)
                     if (monday !== newDate) {
                       setStartDate(monday)
-                      Taro.showToast({ title: '一周体验的开始日期只能是周一，已自动调整', icon: 'none' })
+                      Taro.showToast({ title: '一周体验的开始日期只能是周一，已自动调整为下一个周一', icon: 'none' })
                     } else {
                       setStartDate(newDate)
                     }
