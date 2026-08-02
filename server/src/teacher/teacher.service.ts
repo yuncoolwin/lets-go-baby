@@ -43,15 +43,16 @@ export class TeacherService {
       className = cls?.name || null;
     }
     
-    // 查询该班级的在读幼儿数量
+    // 查询该班级通过报读关联的在读幼儿数量
     let studentCount = 0;
     if (classId) {
-      const { count } = await this.client
-        .from('children')
-        .select('id', { count: 'exact', head: true })
+      const { data: enrollments } = await this.client
+        .from('enrollments')
+        .select('child_id')
         .eq('class_id', classId)
-        .eq('status', 'active');
-      studentCount = count || 0;
+        .eq('status', '进行中');
+      const childIds = [...new Set(enrollments?.map(e => e.child_id) || [])];
+      studentCount = childIds.length;
     }
 
     // 查询当天该班级的考勤人数
@@ -106,16 +107,18 @@ export class TeacherService {
 
     if (classError || !cls) return [];
 
-    // 查询该班级的在读幼儿数量
-    const { data: children, error: childError } = await this.client
-      .from('children')
-      .select('id')
+    // 查询通过报读记录关联到该班级的在读幼儿数量
+    const { data: enrollments, error: enrollError } = await this.client
+      .from('enrollments')
+      .select('child_id')
       .eq('class_id', teacherClassId)
-      .eq('status', 'active');
+      .eq('status', '进行中');
 
-    if (childError) throw new Error(`查询幼儿失败: ${childError.message}`);
+    if (enrollError) throw new Error(`查询报读记录失败: ${enrollError.message}`);
 
-    const studentCount = children?.length || 0;
+    // 去重得到唯一的幼儿ID
+    const childIds = [...new Set(enrollments?.map(e => e.child_id) || [])];
+    const studentCount = childIds.length;
 
     // 查询当天该班级的考勤人数
     const now = new Date();
@@ -145,11 +148,24 @@ export class TeacherService {
   }
 
   async getClassStudents(classId: string) {
-    // 查询指定班级的在读幼儿
+    // 查询通过报读记录关联到该班级的幼儿
+    const { data: enrollments, error: enrollError } = await this.client
+      .from('enrollments')
+      .select('child_id')
+      .eq('class_id', classId)
+      .eq('status', '进行中');
+
+    if (enrollError) throw new Error(`查询报读记录失败: ${enrollError.message}`);
+    if (!enrollments || enrollments.length === 0) return [];
+
+    // 去重得到唯一的幼儿ID
+    const childIds = [...new Set(enrollments.map(e => e.child_id))];
+
+    // 查询幼儿信息
     const { data, error } = await this.client
       .from('children')
       .select('id, name, gender')
-      .eq('class_id', classId)
+      .in('id', childIds)
       .eq('status', 'active');
 
     if (error) throw new Error(`查询幼儿失败: ${error.message}`);

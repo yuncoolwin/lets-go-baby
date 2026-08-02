@@ -24,6 +24,7 @@ interface Enrollment {
   duration_days: number
   start_date: string
   end_date: string
+  class_id: string | null
   payment_amount: string | null
   payment_channel: string | null
   status: string
@@ -85,6 +86,7 @@ export default function ChildEditPage() {
   const [formDurationDays, setFormDurationDays] = useState('')
   const [formStartDate, setFormStartDate] = useState(todayStr())
   const [formEndDate, setFormEndDate] = useState('')
+  const [formClassId, setFormClassId] = useState('')
   const [formStatus, setFormStatus] = useState('进行中')
   const [formPaymentAmount, setFormPaymentAmount] = useState('')
   const [formPaymentChannel, setFormPaymentChannel] = useState('')
@@ -177,6 +179,7 @@ export default function ChildEditPage() {
     setFormDurationDays('')
     setFormStartDate(todayStr())
     setFormEndDate('')
+    setFormClassId('')
     setFormStatus('进行中')
     setFormPaymentAmount('')
     setFormPaymentChannel('')
@@ -191,6 +194,7 @@ export default function ChildEditPage() {
     setFormDurationDays(enr.duration_days > 0 ? String(enr.duration_days) : '')
     setFormStartDate(enr.start_date || todayStr())
     setFormEndDate(enr.end_date || '')
+    setFormClassId(enr.class_id || '')
     setFormStatus(enr.status)
     setFormPaymentAmount(enr.payment_amount || '')
     setFormPaymentChannel(enr.payment_channel || '')
@@ -225,6 +229,7 @@ export default function ChildEditPage() {
         duration_days: formDurationType === '计日' ? parseInt(formDurationDays) || 0 : 0,
         start_date: formStartDate,
         end_date: formEndDate || undefined,
+        class_id: formClassId || undefined,
         payment_amount: formPaymentAmount || undefined,
         payment_channel: formPaymentChannel || undefined,
         status: formStatus,
@@ -402,32 +407,6 @@ export default function ChildEditPage() {
                     onClick={() => setStatus(opt.value)}
                   >
                     <Text className="text-sm">{opt.label}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            {/* 班级 */}
-            <View>
-              <Label className="text-sm font-medium text-foreground">所在班级</Label>
-              <View className="mt-1 flex flex-wrap gap-2">
-                <View
-                  className={`px-4 py-2 rounded-lg text-sm ${
-                    !classId ? 'bg-primary text-white' : 'bg-gray-100 text-foreground'
-                  }`}
-                  onClick={() => setClassId('')}
-                >
-                  <Text className="text-sm">未分班</Text>
-                </View>
-                {classes.map((cls) => (
-                  <View
-                    key={cls.id}
-                    className={`px-4 py-2 rounded-lg text-sm ${
-                      classId === cls.id ? 'bg-primary text-white' : 'bg-gray-100 text-foreground'
-                    }`}
-                    onClick={() => setClassId(cls.id)}
-                  >
-                    <Text className="text-sm">{cls.name}</Text>
                   </View>
                 ))}
               </View>
@@ -667,6 +646,32 @@ export default function ChildEditPage() {
                   <Text className="text-sm text-foreground">
                     {formEndDate || '请先选择报读时长和开始日期'}
                   </Text>
+                </View>
+              </View>
+
+              {/* 班级 */}
+              <View>
+                <Label className="text-sm font-medium text-foreground">所在班级</Label>
+                <View className="mt-1 flex flex-wrap gap-2">
+                  <View
+                    className={`px-4 py-2 rounded-lg text-sm ${
+                      !formClassId ? 'bg-primary text-white' : 'bg-gray-100 text-foreground'
+                    }`}
+                    onClick={() => setFormClassId('')}
+                  >
+                    <Text className="text-sm">未分班</Text>
+                  </View>
+                  {classes.map((cls) => (
+                    <View
+                      key={cls.id}
+                      className={`px-4 py-2 rounded-lg text-sm ${
+                        formClassId === cls.id ? 'bg-primary text-white' : 'bg-gray-100 text-foreground'
+                      }`}
+                      onClick={() => setFormClassId(cls.id)}
+                    >
+                      <Text className="text-sm">{cls.name}</Text>
+                    </View>
+                  ))}
                 </View>
               </View>
 

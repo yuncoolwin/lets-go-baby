@@ -4,6 +4,7 @@ import { getSupabaseClient } from '@/storage/database/supabase-client';
 export interface Enrollment {
   id: string;
   child_id: string;
+  class_id: string;
   course_type: string;
   duration_type: string;
   duration_days: number;
@@ -18,6 +19,7 @@ export interface Enrollment {
 
 export interface CreateEnrollmentDto {
   child_id: string;
+  class_id?: string;
   course_type: string;
   duration_type: string;
   duration_days: number;
@@ -37,6 +39,7 @@ export interface UpdateEnrollmentDto {
   payment_amount?: string;
   payment_channel?: string;
   status?: string;
+  class_id?: string;
 }
 
 @Injectable()
@@ -86,6 +89,7 @@ export class EnrollmentsService {
       .from('enrollments')
       .insert({
         child_id: dto.child_id,
+        class_id: dto.class_id || '',
         course_type: dto.course_type || '',
         duration_type: dto.duration_type || '',
         duration_days: dto.duration_days || 0,
@@ -112,6 +116,7 @@ export class EnrollmentsService {
     if (dto.payment_amount !== undefined) updateData.payment_amount = dto.payment_amount;
     if (dto.payment_channel !== undefined) updateData.payment_channel = dto.payment_channel;
     if (dto.status !== undefined) updateData.status = dto.status;
+    if (dto.class_id !== undefined) updateData.class_id = dto.class_id;
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await this.client
