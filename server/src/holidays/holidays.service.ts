@@ -230,6 +230,7 @@ export class HolidaysService {
       { date: '2026-01-01', type: 'holiday', name: '元旦', year: 2026 },
       { date: '2026-01-02', type: 'holiday', name: '元旦', year: 2026 },
       { date: '2026-01-03', type: 'holiday', name: '元旦', year: 2026 },
+      { date: '2026-01-10', type: 'work_weekend', name: '元旦调休', year: 2026 },
 
       // 春节：2月15日-2月21日（7天）
       { date: '2026-02-15', type: 'holiday', name: '春节', year: 2026 },
@@ -264,8 +265,7 @@ export class HolidaysService {
 
       // 中秋节：9月25日-9月27日（3天）
       { date: '2026-09-25', type: 'holiday', name: '中秋节', year: 2026 },
-      { date: '2026-09-26', type: 'holiday', name: '中秋节', year: 2026 },
-      { date: '2026-09-27', type: 'holiday', name: '中秋节', year: 2026 },
+      { date: '2026-09-26', type: 'work_weekend', name: '国庆调休', year: 2026 },
 
       // 国庆节：10月1日-10月7日（7天）
       { date: '2026-10-01', type: 'holiday', name: '国庆节', year: 2026 },
