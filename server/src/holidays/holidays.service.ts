@@ -138,8 +138,9 @@ export class HolidaysService {
       { date: '2024-02-14', type: 'holiday', name: '春节', year: 2024 },
       { date: '2024-02-15', type: 'holiday', name: '春节', year: 2024 },
       { date: '2024-02-16', type: 'holiday', name: '春节', year: 2024 },
+      { date: '2024-02-17', type: 'holiday', name: '春节', year: 2024 },
       { date: '2024-02-04', type: 'work_weekend', name: '春节调休', year: 2024 },
-      { date: '2024-02-17', type: 'work_weekend', name: '春节调休', year: 2024 },
+      { date: '2024-02-18', type: 'work_weekend', name: '春节调休', year: 2024 },
 
       // 清明节：4月4日-4月6日（3天）
       { date: '2024-04-04', type: 'holiday', name: '清明节', year: 2024 },
