@@ -39,7 +39,19 @@ export class EnrollmentsService {
     return getSupabaseClient();
   }
 
+  private async syncExpiredStatus(): Promise<void> {
+    const today = new Date().toISOString().split('T')[0];
+    const { error } = await this.client
+      .from('enrollments')
+      .update({ status: '已结束', updated_at: new Date().toISOString() })
+      .eq('status', '进行中')
+      .lt('end_date', today);
+
+    if (error) console.error('自动更新过期报读状态失败:', error.message);
+  }
+
   async findByChild(childId: string): Promise<Enrollment[]> {
+    await this.syncExpiredStatus();
     const { data, error } = await this.client
       .from('enrollments')
       .select('*')
@@ -51,6 +63,7 @@ export class EnrollmentsService {
   }
 
   async findActiveByChild(childId: string): Promise<Enrollment[]> {
+    await this.syncExpiredStatus();
     const { data, error } = await this.client
       .from('enrollments')
       .select('*')
