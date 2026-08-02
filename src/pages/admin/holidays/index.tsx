@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Network } from '@/network'
-import { RefreshCw, Calendar, Sun, Briefcase, Plus, Trash2 } from 'lucide-react-taro'
+import { Calendar, Sun, Briefcase, Plus, Trash2 } from 'lucide-react-taro'
 
 interface HolidayRecord {
   id: string
@@ -21,7 +21,6 @@ const MONTH_NAMES = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8�
 export default function HolidaysPage() {
   const [holidays, setHolidays] = useState<HolidayRecord[]>([])
   const [loading, setLoading] = useState(false)
-  const [updating, setUpdating] = useState(false)
   const [year, setYear] = useState(new Date().getFullYear())
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [newYear, setNewYear] = useState('')
@@ -53,28 +52,6 @@ export default function HolidaysPage() {
       console.error('[节假日] 加载年份失败:', err)
     }
   }, [])
-
-  const handleUpdate = async () => {
-    Taro.showLoading({ title: '更新中...' })
-    setUpdating(true)
-    try {
-      const res = await Network.request({ url: `/api/holidays/update/${year}`, method: 'POST' })
-      console.log('[节假日] 更新结果:', res.data)
-      if (res.data?.code === 200) {
-        Taro.showToast({ title: `更新成功，共${res.data.data.count}条`, icon: 'success' })
-        loadHolidays()
-        loadYears()
-      } else {
-        Taro.showToast({ title: res.data?.msg || '无该年份数据', icon: 'none' })
-      }
-    } catch (err) {
-      console.error('[节假日] 更新失败:', err)
-      Taro.showToast({ title: '更新失败', icon: 'none' })
-    } finally {
-      setUpdating(false)
-      Taro.hideLoading()
-    }
-  }
 
   const handleDeleteYear = async () => {
     Taro.showModal({
@@ -150,17 +127,6 @@ export default function HolidaysPage() {
     <View className="min-h-screen bg-background">
       {/* 顶部操作栏 */}
       <View style={{ position: 'sticky', top: 0, zIndex: 10 }} className="bg-background px-4 pt-4 pb-2">
-        <View className="flex justify-end">
-          <Button
-            className="bg-gray-100 text-gray-600 rounded-lg px-3 py-1 text-xs"
-            onClick={handleUpdate}
-            disabled={updating}
-          >
-            <RefreshCw size={14} className="mr-1" color="#666" />
-            <Text className="block text-xs">{updating ? '更新中...' : '更新'}</Text>
-          </Button>
-        </View>
-
         {/* 年份标签 */}
         <View className="flex items-center gap-2 mt-3 overflow-x-auto">
           {allYearTabs.map(y => (
