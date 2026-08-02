@@ -1,10 +1,12 @@
 import { View, Text, ScrollView } from '@tarojs/components'
+import { Input } from '@/components/ui/input'
 import Taro from '@tarojs/taro'
 import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Network } from '@/network'
-import { RefreshCw, Calendar, Sun, Briefcase } from 'lucide-react-taro'
+import { RefreshCw, Calendar, Sun, Briefcase, Plus, Trash2 } from 'lucide-react-taro'
 
 interface HolidayRecord {
   id: string
@@ -21,6 +23,9 @@ export default function HolidaysPage() {
   const [loading, setLoading] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [year, setYear] = useState(new Date().getFullYear())
+  const [showAddDialog, setShowAddDialog] = useState(false)
+  const [newYear, setNewYear] = useState('')
+  const [availableYears, setAvailableYears] = useState<number[]>([])
 
   const loadHolidays = useCallback(async () => {
     setLoading(true)
@@ -37,17 +42,30 @@ export default function HolidaysPage() {
     }
   }, [year])
 
+  const loadYears = useCallback(async () => {
+    try {
+      const res = await Network.request({ url: '/api/holidays/years' })
+      console.log('[节假日] 可用年份:', res.data)
+      if (res.data?.code === 200) {
+        setAvailableYears(res.data.data || [])
+      }
+    } catch (err) {
+      console.error('[节假日] 加载年份失败:', err)
+    }
+  }, [])
+
   const handleUpdate = async () => {
     Taro.showLoading({ title: '更新中...' })
     setUpdating(true)
     try {
-      const res = await Network.request({ url: '/api/holidays/update', method: 'POST' })
+      const res = await Network.request({ url: `/api/holidays/update/${year}`, method: 'POST' })
       console.log('[节假日] 更新结果:', res.data)
       if (res.data?.code === 200) {
         Taro.showToast({ title: `更新成功，共${res.data.data.count}条`, icon: 'success' })
         loadHolidays()
+        loadYears()
       } else {
-        Taro.showToast({ title: '更新失败', icon: 'none' })
+        Taro.showToast({ title: res.data?.msg || '无该年份数据', icon: 'none' })
       }
     } catch (err) {
       console.error('[节假日] 更新失败:', err)
@@ -58,6 +76,57 @@ export default function HolidaysPage() {
     }
   }
 
+  const handleDeleteYear = async () => {
+    Taro.showModal({
+      title: '确认删除',
+      content: `确定要删除${year}年的所有节假日数据吗？`,
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            const delRes = await Network.request({ url: `/api/holidays/${year}`, method: 'DELETE' })
+            console.log('[节假日] 删除结果:', delRes.data)
+            if (delRes.data?.code === 200) {
+              Taro.showToast({ title: '删除成功', icon: 'success' })
+              setHolidays([])
+              loadYears()
+            }
+          } catch (err) {
+            console.error('[节假日] 删除失败:', err)
+            Taro.showToast({ title: '删除失败', icon: 'none' })
+          }
+        }
+      }
+    })
+  }
+
+  const handleAddYear = async () => {
+    const yearNum = parseInt(newYear, 10)
+    if (!yearNum || yearNum < 2020 || yearNum > 2100) {
+      Taro.showToast({ title: '请输入有效年份（2020-2100）', icon: 'none' })
+      return
+    }
+    Taro.showLoading({ title: '添加中...' })
+    try {
+      const res = await Network.request({ url: `/api/holidays/update/${yearNum}`, method: 'POST' })
+      console.log('[节假日] 添加结果:', res.data)
+      if (res.data?.code === 200) {
+        Taro.showToast({ title: `添加成功，共${res.data.data.count}条`, icon: 'success' })
+        setShowAddDialog(false)
+        setNewYear('')
+        setYear(yearNum)
+        loadYears()
+      } else {
+        Taro.showToast({ title: res.data?.msg || '暂无该年份数据', icon: 'none' })
+      }
+    } catch (err) {
+      console.error('[节假日] 添加失败:', err)
+      Taro.showToast({ title: '添加失败', icon: 'none' })
+    } finally {
+      Taro.hideLoading()
+    }
+  }
+
+  useEffect(() => { loadYears() }, [])
   useEffect(() => { loadHolidays() }, [loadHolidays])
 
   // 按月份分组
@@ -74,6 +143,9 @@ export default function HolidaysPage() {
     return '周' + names[d.getDay()]
   }
 
+  // 构建年份标签列表
+  const allYearTabs = [...new Set([...availableYears, 2024, 2025, 2026].sort())]
+
   return (
     <View className="min-h-screen bg-background">
       {/* 顶部操作栏 */}
@@ -84,20 +156,32 @@ export default function HolidaysPage() {
           disabled={updating}
         >
           <RefreshCw size={16} className="mr-2" color="#fff" />
-          <Text>{updating ? '更新中...' : '更新节假日信息'}</Text>
+          <Text className="block">{updating ? '更新中...' : `更新${year}年节假日信息`}</Text>
         </Button>
 
-        {/* 年份选择 */}
-        <View className="flex items-center gap-2 mt-3">
-          {[2025, 2026, 2027].map(y => (
+        {/* 年份标签 */}
+        <View className="flex items-center gap-2 mt-3 overflow-x-auto">
+          {allYearTabs.map(y => (
             <View
               key={y}
-              className={`px-4 py-1 rounded-full text-sm ${y === year ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600'}`}
+              className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm whitespace-nowrap
+                ${y === year ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600'}`}
               onClick={() => setYear(y)}
             >
               <Text className="block">{y}年</Text>
+              {y === year && (
+                <Trash2 size={12} color={y === year ? '#fff' : '#999'} onClick={e => { e.stopPropagation(); handleDeleteYear() }} />
+              )}
             </View>
           ))}
+          {/* 添加年份按钮 */}
+          <View
+            className="flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-gray-50 border border-dashed border-gray-300 text-gray-500 whitespace-nowrap"
+            onClick={() => { setNewYear(''); setShowAddDialog(true) }}
+          >
+            <Plus size={14} color="#999" />
+            <Text className="block">添加年份</Text>
+          </View>
         </View>
 
         {/* 图例 */}
@@ -110,6 +194,10 @@ export default function HolidaysPage() {
             <View className="w-3 h-3 rounded-sm bg-blue-100" />
             <Text className="text-xs text-gray-500">补班日</Text>
           </View>
+          <View className="flex-1" />
+          {holidays.length > 0 && (
+            <Text className="text-xs text-gray-400">共{holidays.length}条记录</Text>
+          )}
         </View>
       </View>
 
@@ -121,7 +209,12 @@ export default function HolidaysPage() {
         ) : holidays.length === 0 ? (
           <View className="flex items-center justify-center py-20">
             <Calendar size={40} color="#d1d5db" />
-            <Text className="block text-sm text-gray-400 mt-2">暂无节假日数据</Text>
+            <Text className="block text-sm text-gray-400 mt-2">
+              {year}年暂无节假日数据
+            </Text>
+            <Text className="block text-xs text-gray-300 mt-1">
+              点击上方{'\u201C'}更新{year}年节假日信息{'\u201D'}获取
+            </Text>
           </View>
         ) : (
           Object.keys(grouped).sort((a, b) => Number(a) - Number(b)).map(monthStr => {
@@ -169,6 +262,34 @@ export default function HolidaysPage() {
           })
         )}
       </ScrollView>
+
+      {/* 添加年份弹窗 */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto">
+          <Text className="block text-lg font-semibold text-foreground text-center mb-4">添加年份</Text>
+          <View className="bg-gray-50 rounded-xl px-4 py-3 mb-4">
+            <Input
+              className="w-full text-base text-center"
+              type="number"
+              placeholder="请输入年份（如2027）"
+              value={newYear}
+              onInput={(e) => setNewYear(e.detail.value)}
+            />
+          </View>
+          <View className="flex items-center gap-3">
+            <View className="flex-1">
+              <Button className="w-full bg-gray-100 text-gray-600 rounded-xl" onClick={() => setShowAddDialog(false)}>
+                <Text className="block">取消</Text>
+              </Button>
+            </View>
+            <View className="flex-1">
+              <Button className="w-full bg-primary text-primary-foreground rounded-xl" onClick={handleAddYear}>
+                <Text className="block">添加</Text>
+              </Button>
+            </View>
+          </View>
+        </DialogContent>
+      </Dialog>
     </View>
   )
 }
