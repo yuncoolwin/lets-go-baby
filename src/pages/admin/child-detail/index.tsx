@@ -279,10 +279,16 @@ export default function ChildDetailPage() {
         enrollmentApi.list(id!),
         classApi.list({ page: 1, page_size: 100 }),
       ])
-      // 解析 API 响应（data 可能是字符串或对象）
-      const childData = typeof childRes.data === 'string' ? JSON.parse(childRes.data) : childRes.data
-      const enrData = typeof enrRes.data === 'string' ? JSON.parse(enrRes.data) : enrRes.data
-      const clsData = typeof clsRes.data === 'string' ? JSON.parse(clsRes.data) : clsRes.data
+      // 统一处理 API 响应
+      const childData = childRes.data?.code !== undefined 
+        ? childRes.data  // 嵌套结构：{ code, msg, data }
+        : (typeof childRes.data === 'string' ? JSON.parse(childRes.data) : childRes.data)
+      const enrData = enrRes.data?.code !== undefined
+        ? enrRes.data
+        : (typeof enrRes.data === 'string' ? JSON.parse(enrRes.data) : enrRes.data)
+      const clsData = clsRes.data?.code !== undefined
+        ? clsRes.data
+        : (typeof clsRes.data === 'string' ? JSON.parse(clsRes.data) : clsRes.data)
       
       if (childData?.code === 200 && childData?.data) {
         setChild(childData.data as unknown as ChildDetail)
