@@ -87,7 +87,7 @@ export class EnrollmentsService {
   async create(dto: CreateEnrollmentDto): Promise<Enrollment> {
     const { class_id, ...rest } = dto;
 
-    // 先插入记录
+    // 插入新记录
     const { error: insertError } = await this.client
       .from('enrollments')
       .insert({
@@ -104,11 +104,6 @@ export class EnrollmentsService {
       });
 
     if (insertError) throw new Error(`创建报读记录失败: ${insertError.message}`);
-
-    // 同步更新幼儿的班级字段
-    if (class_id) {
-      await this.client.from('children').update({ class_id }).eq('id', rest.child_id);
-    }
 
     // 查询刚插入的记录（按时间倒序取第一条，确保是刚插入的）
     const { data, error } = await this.client
