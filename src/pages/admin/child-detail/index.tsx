@@ -279,16 +279,21 @@ export default function ChildDetailPage() {
         enrollmentApi.list(id!),
         classApi.list({ page: 1, page_size: 100 }),
       ])
-      if (childRes.code === 200 && childRes.data) {
-        setChild(childRes.data as unknown as ChildDetail)
+      // 解析 API 响应（data 可能是字符串或对象）
+      const childData = typeof childRes.data === 'string' ? JSON.parse(childRes.data) : childRes.data
+      const enrData = typeof enrRes.data === 'string' ? JSON.parse(enrRes.data) : enrRes.data
+      const clsData = typeof clsRes.data === 'string' ? JSON.parse(clsRes.data) : clsRes.data
+      
+      if (childData?.code === 200 && childData?.data) {
+        setChild(childData.data as unknown as ChildDetail)
       } else {
-        Taro.showToast({ title: childRes.msg || '加载失败', icon: 'none' })
+        Taro.showToast({ title: childData?.msg || '加载失败', icon: 'none' })
       }
-      if (enrRes.code === 200 && Array.isArray(enrRes.data)) {
-        setEnrollments(enrRes.data as any[])
+      if (enrData?.code === 200 && Array.isArray(enrData?.data)) {
+        setEnrollments(enrData.data as any[])
       }
-      if (clsRes.code === 200 && clsRes.data?.list && Array.isArray(clsRes.data.list)) {
-        setClasses(clsRes.data.list)
+      if (clsData?.code === 200 && clsData?.data?.list && Array.isArray(clsData.data.list)) {
+        setClasses(clsData.data.list)
       }
     } catch {
       Taro.showToast({ title: '网络错误', icon: 'none' })
