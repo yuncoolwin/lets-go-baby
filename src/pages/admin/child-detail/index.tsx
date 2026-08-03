@@ -79,7 +79,7 @@ export default function ChildDetailPage() {
     setFormStatus('进行中')
     setFormPaymentAmount('')
     setFormPaymentChannel('')
-    setFormClassId(child?.class_id || '')
+    setFormClassId('')
     setShowEnrollmentForm(true)
   }
 
@@ -93,7 +93,7 @@ export default function ChildDetailPage() {
     setFormStatus(enr.status || '进行中')
     setFormPaymentAmount(enr.payment_amount || '')
     setFormPaymentChannel(enr.payment_channel || '')
-    setFormClassId(enr.class_id || child?.class_id || '')
+    setFormClassId(enr.class_id || '')
     setShowEnrollmentForm(true)
   }
 
@@ -203,8 +203,8 @@ export default function ChildDetailPage() {
       if (enrRes.code === 200 && Array.isArray(enrRes.data)) {
         setEnrollments(enrRes.data as any[])
       }
-      if (clsRes.code === 200 && Array.isArray(clsRes.data)) {
-        setClasses(clsRes.data as any[])
+      if (clsRes.code === 200 && clsRes.data?.data && Array.isArray(clsRes.data.data)) {
+        setClasses(clsRes.data.data)
       }
     } catch {
       Taro.showToast({ title: '网络错误', icon: 'none' })
@@ -522,7 +522,17 @@ export default function ChildDetailPage() {
               <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">所在班级</Text>
                 <View className="flex flex-wrap gap-2">
-                  {classes.length > 0 ? classes.map((c: any) => (
+                  <View
+                    className={`px-3 py-2 rounded-lg text-sm ${
+                      !formClassId
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}
+                    onClick={() => setFormClassId('')}
+                  >
+                    <Text>未分班</Text>
+                  </View>
+                  {classes.map((c: any) => (
                     <View
                       key={c.id}
                       className={`px-3 py-2 rounded-lg text-sm ${
@@ -534,9 +544,7 @@ export default function ChildDetailPage() {
                     >
                       <Text>{c.name}{c.room ? `（${c.room}）` : ''}</Text>
                     </View>
-                  )) : (
-                    <Text className="block text-sm text-gray-400">暂无可用班级</Text>
-                  )}
+                  ))}
                 </View>
               </View>
               <View>
