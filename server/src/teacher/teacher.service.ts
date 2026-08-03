@@ -200,6 +200,127 @@ export class TeacherService {
     }];
   }
 
+  async getGroupedOverview(teacherRoleId?: string) {
+    // 获取教师信息
+    const teacherData = await this.getMe(teacherRoleId);
+    const teacherClassId = teacherData?.class_id || null;
+    if (!teacherClassId) return [];
+
+    // 查询班级信息
+    const { data: cls } = await this.client
+      .from('classes')
+      .select('id, name')
+      .eq('id', teacherClassId)
+      .eq('status', 'active')
+      .single();
+    if (!cls) return [];
+
+    // 查询该班级的进行中报读（通过 enrollments.class_id）
+    const { data: enrollments } = await this.client
+      .from('enrollments')
+      .select('id, child_id, course_type, status')
+      .eq('class_id', teacherClassId)
+      .eq('status', '进行中');
+
+    const enrollmentList = enrollments || [];
+
+    // 按 child_id 分组，每人只取一条（全日托优先）
+    const childEnrollmentMap = new Map<string, { child_id: string; course_type: string }>();
+    const sortOrder = ['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日'];
+    for (const e of enrollmentList) {
+      const existing = childEnrollmentMap.get(e.child_id);
+      if (!existing) {
+        childEnrollmentMap.set(e.child_id, { child_id: e.child_id, course_type: e.course_type });
+      } else {
+        const existingIdx = sortOrder.indexOf(existing.course_type);
+        const newIdx = sortOrder.indexOf(e.course_type);
+        if (newIdx < existingIdx) {
+          childEnrollmentMap.set(e.child_id, { child_id: e.child_id, course_type: e.course_type });
+        }
+      }
+    }
+
+    const childIds = [...childEnrollmentMap.keys()];
+
+    // 查询幼儿信息
+    let childrenMap: Record<string, { name: string; gender: string }> = {};
+    if (childIds.length > 0) {
+      const { data: childrenData } = await this.client
+        .from('children')
+        .select('id, name, gender')
+        .in('id', childIds);
+      childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender }; });
+    }
+
+    // 构建课程类型分组（key: course_type）
+    const groupMap = new Map<string, Array<{ id: string; name: string; gender: string; course_type: string }>>();
+    for (const [childId, enrollment] of childEnrollmentMap) {
+      const ct = enrollment.course_type;
+      if (!groupMap.has(ct)) groupMap.set(ct, []);
+      groupMap.get(ct)!.push({
+        id: childId,
+        name: childrenMap[childId]?.name || '',
+        gender: childrenMap[childId]?.gender || '',
+        course_type: ct,
+      });
+    }
+
+    // 查询当天考勤数据
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const { data: attendance } = await this.client
+      .from('attendance')
+      .select('child_id, status')
+      .eq('class_id', teacherClassId)
+      .eq('date', today);
+
+    const attendanceMap = new Map<string, string>();
+    attendance?.forEach(a => {
+      attendanceMap.set(a.child_id, a.status === '出勤' ? 'present' : a.status === '缺勤' ? 'absent' : a.status === '请假' ? 'leave' : 'unknown');
+    });
+
+    // 组装分组结果，按优先级排序
+    const groups: Array<{
+      group_id: string;
+      class_id: string;
+      class_name: string;
+      course_type: string;
+      student_count: number;
+      today_attendance: { present: number; absent: number; leave: number };
+      students: Array<{ id: string; name: string; gender: string; attendance_status: string }>;
+    }> = [];
+
+    const sortedTypes = [...groupMap.keys()].sort((a, b) => {
+      const ai = sortOrder.indexOf(a);
+      const bi = sortOrder.indexOf(b);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+
+    for (const ct of sortedTypes) {
+      const students = groupMap.get(ct)!;
+      let present = 0, absent = 0, leave = 0;
+      const studentList = students.map(s => {
+        const attStatus = attendanceMap.get(s.id) || 'unknown';
+        if (attStatus === 'present') present++;
+        else if (attStatus === 'absent') absent++;
+        else if (attStatus === 'leave') leave++;
+        return { id: s.id, name: s.name, gender: s.gender, attendance_status: attStatus };
+      });
+
+      groups.push({
+        group_id: `${teacherClassId}__${ct}`,
+        class_id: teacherClassId,
+        class_name: cls.name,
+        course_type: ct,
+        student_count: students.length,
+        today_attendance: { present, absent, leave },
+        students: studentList,
+      });
+    }
+
+    return groups;
+  }
+
   async getClassStudents(classId: string) {
     // 查询该班级的在读幼儿
     const { data: children, error: childError } = await this.client

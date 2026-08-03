@@ -25,46 +25,29 @@ interface BabyStatus {
   } | null
 }
 
-interface ClassOverview {
-  id: string
-  name: string
+interface GroupOverview {
+  group_id: string
+  class_id: string
+  class_name: string
+  course_type: string
   student_count: number
-  today_attendance: number | { present: number; absent: number; leave: number }
-  class_teacher?: TeachersItem[]
-  active_children?: ChildrenItem[]
-}
-
-interface ChildrenItem {
-  id: string
-  name: string
-  birth_date: string
-  gender: string
-  allergies?: string
-  avatar_url?: string
-  class_id?: string
-  class_name?: string
-  teacher_name?: string
-}
-
-interface TeachersItem {
-  id: string
-  name: string
-  nickname?: string
-  title?: string
-  avatar_url?: string
+  today_attendance: { present: number; absent: number; leave: number }
+  students: Array<{
+    id: string
+    name: string
+    gender: string
+    attendance_status: string
+  }>
 }
 
 export default function IndexPage() {
   const { isLoggedIn, currentRole, isLoading, fetchUserInfo, children, currentChildIndex, setCurrentChild, nickname } = useAppStore()
   const [babyStatus, setBabyStatus] = useState<BabyStatus | null>(null)
-  const [classList, setClassList] = useState<ClassOverview[]>([])
+  const [groupList, setGroupList] = useState<GroupOverview[]>([])
   const [pendingCount, setPendingCount] = useState(0)
   const [pageLoading, setPageLoading] = useState(true)
   const [storeReady, setStoreReady] = useState(false)
-  const [teacherClass, setTeacherClass] = useState<ClassOverview | null>(null)
-  const [expandedChildren, setExpandedChildren] = useState<any[]>([])
-  const [expandedChildrenLoading, setExpandedChildrenLoading] = useState(false)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null)
   const currentChild = children[currentChildIndex] || null
 
   // 等待 store 从持久化中恢复
@@ -107,21 +90,22 @@ export default function IndexPage() {
         loadPageData(roleType)
       })
       
-      // 如果有展开的班级卡片，重新加载考勤数据
-      if (expandedId) {
-        setExpandedChildrenLoading(true)
-        Network.request({
-          url: '/api/attendance',
-          data: { class_id: expandedId }
-        }).then((res: any) => {
-          if (res.data?.data) {
-            setExpandedChildren(res.data.data)
-          }
-        }).catch((err: any) => {
-          console.error('[Index] refresh attendance error:', err)
-        }).finally(() => {
-          setExpandedChildrenLoading(false)
-        })
+      // 如果有展开的分组，重新加载分组数据
+      if (expandedGroupId) {
+        const tid = Taro.getStorageSync('teacherId') || currentState.currentRole?.id
+        if (tid) {
+          Network.request({
+            url: '/api/teachers/grouped-overview',
+            method: 'GET',
+            data: { teacher_role_id: tid },
+          }).then((res: any) => {
+            if (res.data?.data) {
+              setGroupList(res.data.data)
+            }
+          }).catch((err: any) => {
+            console.error('[Index] refresh groups error:', err)
+          })
+        }
       }
     }
   })
@@ -160,40 +144,16 @@ export default function IndexPage() {
   }
 
   const loadTeacherData = async () => {
-    // 如果有教师ID，获取该教师的班级信息
-    const teacherId = Taro.getStorageSync('teacherId')
+    const teacherId = Taro.getStorageSync('teacherId') || currentRole?.id
     if (teacherId) {
       const res = await Network.request({
-        url: `/api/teachers/${teacherId}`,
+        url: '/api/teachers/grouped-overview',
         method: 'GET',
+        data: { teacher_role_id: teacherId },
       })
-      console.log('[Index] teacher info:', res.data)
+      console.log('[Index] grouped overview:', res.data)
       if (res.data?.data) {
-        const teacherData = res.data.data
-        // 如果教师有班级信息，构建班级对象
-        if (teacherData.class_id) {
-          const classOverview = {
-            id: teacherData.class_id,
-            name: teacherData.class_name || '',
-            student_count: teacherData.student_count || 0,
-            today_attendance: teacherData.today_attendance || 0,
-            class_teacher: teacherData.class_teacher,
-            active_children: teacherData.active_children,
-          }
-          setTeacherClass(classOverview)
-          setClassList([classOverview])
-        }
-      }
-    } else {
-      const tid = Taro.getStorageSync('teacherId')
-      const res = await Network.request({
-        url: '/api/teachers/class-overview',
-        method: 'GET',
-        data: tid ? { teacher_id: tid } : {},
-      })
-      console.log('[Index] class overview:', res.data)
-      if (res.data?.data) {
-        setClassList(res.data.data)
+        setGroupList(res.data.data)
       }
     }
   }
@@ -514,54 +474,39 @@ export default function IndexPage() {
           </Text>
         </View>
 
-        {/* 班级卡片 - 只显示老师所在班级 */}
-        {teacherClass || classList.length > 0 ? (
+        {/* 课程类型分组卡片 */}
+        {groupList.length > 0 ? (
           <View className="mb-4">
-            {classList.map((cls) => {
-              const isExpanded = expandedId === cls.id
+            {groupList.map((group) => {
+              const isExpanded = expandedGroupId === group.group_id
               return (
-                <Card key={cls.id} className="bg-white rounded-xl border-0 shadow-sm mb-3">
+                <Card key={group.group_id} className="bg-white rounded-xl border-0 shadow-sm mb-3">
                   <CardContent className="p-0">
                     {/* 卡片头部 */}
                     <View
                       className="flex items-center justify-between p-4"
-                      onClick={async () => {
+                      onClick={() => {
                         if (isExpanded) {
-                          setExpandedId(null)
-                          setExpandedChildren([])
+                          setExpandedGroupId(null)
                         } else {
-                          setExpandedId(cls.id)
-                          setExpandedChildrenLoading(true)
-                          try {
-                            const res = await Network.request({
-                              url: '/api/attendance',
-                              data: { class_id: cls.id }
-                            })
-                            console.log('[Index] attendance list:', res.data)
-                            if (res.data?.data) {
-                              setExpandedChildren(res.data.data)
-                            } else {
-                              setExpandedChildren([])
-                            }
-                          } catch (err) {
-                            console.error('[Index] load attendance error:', err)
-                            setExpandedChildren([])
-                          } finally {
-                            setExpandedChildrenLoading(false)
-                          }
+                          setExpandedGroupId(group.group_id)
                         }
                       }}
                     >
-                      <View>
-                        <Text className="block text-base font-semibold text-foreground">{cls.name}</Text>
+                      <View className="flex-1">
+                        <View className="flex items-center gap-2 mb-1">
+                          <Text className="block text-base font-semibold text-foreground">
+                            {group.class_name}·{group.course_type}
+                          </Text>
+                          <Badge
+                            variant="secondary"
+                            className="text-xs px-2 py-1 rounded-full"
+                          >
+                            {group.course_type}
+                          </Badge>
+                        </View>
                         <Text className="block text-sm text-muted-foreground">
-                          {(() => {
-                            const att = cls.today_attendance
-                            const present = typeof att === 'object' ? att.present : att
-                            const absent = typeof att === 'object' ? att.absent : 0
-                            const leave = typeof att === 'object' ? att.leave : 0
-                            return `${cls.student_count || 0} 名幼儿 · 出勤 ${present || 0} 人 · 缺勤 ${absent || 0} 人 · 请假 ${leave || 0} 人`
-                          })()}
+                          {group.student_count} 名幼儿 · 出勤 {group.today_attendance.present} 人 · 缺勤 {group.today_attendance.absent} 人 · 请假 {group.today_attendance.leave} 人
                         </Text>
                       </View>
                       {isExpanded ? (
@@ -571,89 +516,43 @@ export default function IndexPage() {
                       )}
                     </View>
 
-                    {/* 展开内容 */}
+                    {/* 展开内容 - 幼儿列表 */}
                     {isExpanded && (
-                      <View className="border-t border-gray-100">
-                        {/* 幼儿列表 */}
-                        {expandedChildrenLoading ? (
-                          <View className="p-4">
-                            <View className="space-y-2">
-                              {[1, 2].map(i => (
-                                <View key={i} className="flex items-center gap-2 p-2 rounded-lg">
-                                  <View className="w-8 h-8 rounded-full bg-gray-100" />
-                                  <View className="flex-1">
-                                    <View className="w-20 h-4 bg-gray-100 rounded mb-1" />
-                                    <View className="w-16 h-3 bg-gray-100 rounded" />
-                                  </View>
-                                </View>
-                              ))}
-                            </View>
-                          </View>
-                        ) : expandedChildren.length > 0 ? (
-                          <View className="p-4">
-                            {(() => {
-                              // 按课程类型分组
-                              const courseTypeOrder = ['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日']
-                              const groups: Record<string, any[]> = {}
-                              expandedChildren.forEach((child: any) => {
-                                const ct = child.course_type || '其他'
-                                if (!groups[ct]) groups[ct] = []
-                                groups[ct].push(child)
-                              })
-                              // 按优先级排序
-                              const sortedTypes = Object.keys(groups).sort((a, b) => {
-                                const ai = courseTypeOrder.indexOf(a)
-                                const bi = courseTypeOrder.indexOf(b)
-                                return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
-                              })
-                              // 考勤状态配置
+                      <View className="border-t border-gray-100 p-4">
+                        {group.students.length > 0 ? (
+                          <View className="space-y-1">
+                            {group.students.map((child) => {
                               const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
                                 present: { label: '出勤', bg: 'bg-green-100', text: 'text-green-700' },
                                 absent: { label: '缺勤', bg: 'bg-red-100', text: 'text-red-700' },
                                 leave: { label: '请假', bg: 'bg-yellow-100', text: 'text-yellow-700' },
                               }
+                              const config = statusConfig[child.attendance_status] || { label: '未考勤', bg: 'bg-gray-100', text: 'text-gray-500' }
                               return (
-                                <View className="space-y-3">
-                                  {sortedTypes.map(type => (
-                                    <View key={type}>
-                                      <Text className="block text-sm font-medium text-foreground mb-2">
-                                        {type}（{groups[type].length}人）：
-                                      </Text>
-                                      <View className="space-y-1">
-                                        {groups[type].map((child) => {
-                                          const status = child.attendance_status
-                                          const config = statusConfig[status as keyof typeof statusConfig] || { label: '未考勤', bg: 'bg-gray-100', text: 'text-gray-500' }
-                                          return (
-                                            <View
-                                              key={child.id}
-                                              className="flex items-center gap-2 px-3 py-2 rounded-lg"
-                                              onClick={() => {
-                                                Taro.navigateTo({ url: `/pages/baby-profile/index?id=${child.id}` })
-                                              }}
-                                            >
-                                              <View className={`w-8 h-8 rounded-full flex items-center justify-center ${child.gender === 'male' ? 'bg-blue-100' : 'bg-pink-100'}`}>
-                                                <Text className={`text-sm font-medium ${child.gender === 'male' ? 'text-blue-700' : 'text-pink-700'}`}>
-                                                  {(child.name || '幼').charAt(0)}
-                                                </Text>
-                                              </View>
-                                              <Text className="block text-sm text-foreground flex-1">{child.name}</Text>
-                                              <View className={`px-2 py-1 rounded ${config.bg}`}>
-                                                <Text className={`text-xs font-medium ${config.text}`}>{config.label}</Text>
-                                              </View>
-                                            </View>
-                                          )
-                                        })}
-                                      </View>
-                                    </View>
-                                  ))}
+                                <View
+                                  key={child.id}
+                                  className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                                  onClick={() => {
+                                    Taro.navigateTo({ url: `/pages/baby-profile/index?id=${child.id}` })
+                                  }}
+                                >
+                                  <View className={`w-8 h-8 rounded-full flex items-center justify-center ${child.gender === 'male' ? 'bg-blue-100' : 'bg-pink-100'}`}>
+                                    <Text className={`text-sm font-medium ${child.gender === 'male' ? 'text-blue-700' : 'text-pink-700'}`}>
+                                      {(child.name || '幼').charAt(0)}
+                                    </Text>
+                                  </View>
+                                  <Text className="block text-sm text-foreground flex-1">{child.name}</Text>
+                                  <View className={`px-2 py-1 rounded ${config.bg}`}>
+                                    <Text className={`text-xs font-medium ${config.text}`}>{config.label}</Text>
+                                  </View>
                                 </View>
                               )
-                            })()}
+                            })}
                           </View>
                         ) : (
-                          <View className="p-4 flex flex-col items-center">
+                          <View className="flex flex-col items-center py-4">
                             <Users size={32} color="#999" />
-                            <Text className="block text-sm text-muted-foreground mt-2">暂无在读幼儿</Text>
+                            <Text className="block text-sm text-muted-foreground mt-2">暂无幼儿</Text>
                           </View>
                         )}
                       </View>
@@ -667,7 +566,7 @@ export default function IndexPage() {
           <Card className="bg-white rounded-xl border-0 shadow-sm mb-4">
             <CardContent className="p-8 flex flex-col items-center">
               <Users size={48} color="#999999" />
-              <Text className="block text-sm text-muted-foreground mt-3">暂无班级</Text>
+              <Text className="block text-sm text-muted-foreground mt-3">暂无分组</Text>
             </CardContent>
           </Card>
         )}

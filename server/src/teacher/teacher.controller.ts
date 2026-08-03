@@ -23,6 +23,17 @@ export class TeacherController {
     return { code: 200, msg: 'success', data };
   }
 
+  @Get('grouped-overview')
+  @HttpCode(200)
+  async getGroupedOverview(
+    @Query('teacher_role_id') teacherRoleId?: string,
+    @Query('teacher_id') teacherId?: string,
+  ) {
+    const id = teacherRoleId || teacherId;
+    const data = await this.teacherService.getGroupedOverview(id);
+    return { code: 200, msg: 'success', data };
+  }
+
   @Get('class-students')
   @HttpCode(200)
   async getClassStudents(@Query('class_id') classId: string) {
