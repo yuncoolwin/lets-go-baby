@@ -29,6 +29,7 @@ interface GroupOverview {
   group_id: string
   class_id: string
   class_name: string
+  room: string | null
   course_type: string
   student_count: number
   today_attendance: { present: number; absent: number; leave: number }
@@ -37,7 +38,18 @@ interface GroupOverview {
     name: string
     gender: string
     attendance_status: string
+    start_date: string | null
+    end_date: string | null
   }>
+}
+
+const courseTypeColors: Record<string, string> = {
+  '全日托': 'bg-orange-50 text-orange-700 border-orange-200',
+  '半日托': 'bg-sky-50 text-sky-700 border-sky-200',
+  '周六托': 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  '晚间托': 'bg-purple-50 text-purple-700 border-purple-200',
+  '兴趣班': 'bg-pink-50 text-pink-700 border-pink-200',
+  '计日': 'bg-teal-50 text-teal-700 border-teal-200',
 }
 
 export default function IndexPage() {
@@ -498,13 +510,15 @@ export default function IndexPage() {
                           <Text className="block text-base font-semibold text-foreground">
                             {group.class_name}·{group.course_type}
                           </Text>
-                          <Badge
-                            variant="secondary"
-                            className="text-xs px-2 py-1 rounded-full"
-                          >
-                            {group.course_type}
-                          </Badge>
+                          <View className={`text-xs px-2 py-1 rounded-full border ${courseTypeColors[group.course_type] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                            <Text className="text-xs font-medium">{group.course_type}</Text>
+                          </View>
                         </View>
+                        {group.room && (
+                          <Text className="block text-xs text-muted-foreground mb-1">
+                            教室：{group.room}
+                          </Text>
+                        )}
                         <Text className="block text-sm text-muted-foreground">
                           {group.student_count} 名幼儿 · 出勤 {group.today_attendance.present} 人 · 缺勤 {group.today_attendance.absent} 人 · 请假 {group.today_attendance.leave} 人
                         </Text>
@@ -528,6 +542,9 @@ export default function IndexPage() {
                                 leave: { label: '请假', bg: 'bg-yellow-100', text: 'text-yellow-700' },
                               }
                               const config = statusConfig[child.attendance_status] || { label: '未考勤', bg: 'bg-gray-100', text: 'text-gray-500' }
+                              const dateRange = child.start_date || child.end_date
+                                ? `${child.start_date || '?'} ~ ${child.end_date || '?'}`
+                                : null
                               return (
                                 <View
                                   key={child.id}
@@ -541,7 +558,12 @@ export default function IndexPage() {
                                       {(child.name || '幼').charAt(0)}
                                     </Text>
                                   </View>
-                                  <Text className="block text-sm text-foreground flex-1">{child.name}</Text>
+                                  <View className="flex-1">
+                                    <Text className="block text-sm text-foreground">{child.name}</Text>
+                                    {dateRange && (
+                                      <Text className="block text-xs text-muted-foreground">{dateRange}</Text>
+                                    )}
+                                  </View>
                                   <View className={`px-2 py-1 rounded ${config.bg}`}>
                                     <Text className={`text-xs font-medium ${config.text}`}>{config.label}</Text>
                                   </View>
