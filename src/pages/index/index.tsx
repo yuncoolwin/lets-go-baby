@@ -508,7 +508,7 @@ export default function IndexPage() {
                       <View className="flex-1">
                         <View className="flex items-center gap-2 mb-1">
                           <Text className="block text-base font-semibold text-foreground">
-                            {group.class_name}·{group.course_type}
+                            {group.class_name}
                           </Text>
                           <View className={`text-xs px-2 py-1 rounded-full border ${courseTypeColors[group.course_type] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
                             <Text className="text-xs font-medium">{group.course_type}</Text>
@@ -516,7 +516,7 @@ export default function IndexPage() {
                         </View>
                         {group.room && (
                           <Text className="block text-xs text-muted-foreground mb-1">
-                            教室：{group.room}
+                            {group.room}
                           </Text>
                         )}
                         <Text className="block text-sm text-muted-foreground">

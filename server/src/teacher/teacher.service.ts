@@ -227,13 +227,14 @@ export class TeacherService {
     // 收集所有 child_id
     const childIds = [...new Set(enrollmentList.map(e => e.child_id))];
 
-    // 查询幼儿信息
+    // 查询幼儿信息（仅 active 状态）
     let childrenMap: Record<string, { name: string; gender: string }> = {};
     if (childIds.length > 0) {
       const { data: childrenData } = await this.client
         .from('children')
         .select('id, name, gender')
-        .in('id', childIds);
+        .in('id', childIds)
+        .eq('status', 'active');
       childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender }; });
     }
 
