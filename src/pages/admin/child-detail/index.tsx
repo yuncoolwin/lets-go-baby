@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { childrenApi, enrollmentApi } from '@/utils/api'
+import { childrenApi, enrollmentApi, classApi } from '@/utils/api'
 import BackButton from '@/components/back-button'
 import { Pencil, Trash2, BookOpen } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
@@ -51,14 +51,16 @@ export default function ChildDetailPage() {
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
   const [enrollments, setEnrollments] = useState<any[]>([])
+  const [classes, setClasses] = useState<any[]>([])
 
   const loadData = useCallback(async () => {
     if (!id) return
     setLoading(true)
     try {
-      const [childRes, enrRes] = await Promise.all([
+      const [childRes, enrRes, clsRes] = await Promise.all([
         childrenApi.detail(id),
         enrollmentApi.list(id!),
+        classApi.list(),
       ])
       if (childRes.code === 200 && childRes.data) {
         setChild(childRes.data as unknown as ChildDetail)
@@ -67,6 +69,7 @@ export default function ChildDetailPage() {
       }
       if (enrRes.code === 200 && Array.isArray(enrRes.data)) {
         setEnrollments(enrRes.data as any[])
+        if (clsRes.code === 200 && Array.isArray(clsRes.data)) { setClasses(clsRes.data as any[]) }
       }
     } catch {
       Taro.showToast({ title: '网络错误', icon: 'none' })
@@ -168,10 +171,6 @@ export default function ChildDetailPage() {
                 <Text className="text-sm text-foreground">{statusMap[child.status]?.label || child.status}</Text>
               </View>
               <View className="flex items-center justify-between py-2 border-b border-border">
-                <Text className="text-sm text-muted-foreground">教室</Text>
-                <Text className="text-sm text-foreground">{child.class_info?.room || '未设置'}</Text>
-              </View>
-              <View className="flex items-center justify-between py-2 border-b border-border">
                 <Text className="text-sm text-muted-foreground">过敏情况</Text>
                 <Text className="text-sm text-foreground">{child.allergies || '无'}</Text>
               </View>
@@ -212,6 +211,9 @@ export default function ChildDetailPage() {
                   </View>
                   <Text className="block text-xs text-gray-500">
                     时长：{enr.duration_type === '计日' ? `${enr.duration_days}天` : enr.duration_type}
+                  </Text>
+                  <Text className="block text-xs text-gray-500 mt-1">
+                    班级：{enr.class_id ? (() => { const cls = classes.find((c: any) => c.id === enr.class_id); return cls ? `${cls.name}${cls.room ? `（${cls.room}）` : ''}` : '' })() : ''}
                   </Text>
                   <Text className="block text-xs text-gray-500 mt-1">
                     日期：{enr.start_date || '--'} ~ {enr.end_date || '--'}
