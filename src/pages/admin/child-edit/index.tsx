@@ -544,7 +544,7 @@ export default function ChildEditPage() {
 
       {/* 新增/编辑报读弹窗 */}
       {showEnrollmentDialog && (
-        <View className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+        <View className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(255,248,240,0.9)' }}>
           <View className="bg-white rounded-2xl w-[90%] max-w-md max-h-[80vh] overflow-y-auto p-5">
             <View className="flex items-center justify-between mb-4">
               <Text className="text-base font-semibold text-foreground">
@@ -739,7 +739,7 @@ export default function ChildEditPage() {
 
       {/* 删除确认弹窗 */}
       {showDeleteConfirm && (
-        <View className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+        <View className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(255,248,240,0.9)' }}>
           <View className="bg-white rounded-2xl p-5 w-[80%] max-w-sm">
             <Text className="text-base font-semibold text-foreground mb-2">确认删除</Text>
             <Text className="text-sm text-gray-500 mb-4">确定要删除这条报读记录吗？</Text>
