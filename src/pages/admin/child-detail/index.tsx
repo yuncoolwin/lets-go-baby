@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text, Image, Picker } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { childrenApi, enrollmentApi, classApi } from '@/utils/api'
 import BackButton from '@/components/back-button'
-import { Pencil, Trash2, BookOpen } from 'lucide-react-taro'
+import { Pencil, Trash2, BookOpen, Plus, X } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge } from '@/utils/format'
 
@@ -52,6 +53,115 @@ export default function ChildDetailPage() {
   const [deleting, setDeleting] = useState(false)
   const [enrollments, setEnrollments] = useState<any[]>([])
   const [classes, setClasses] = useState<any[]>([])
+  const [editingEnrollment, setEditingEnrollment] = useState<any | null>(null)
+  const [formCourseType, setFormCourseType] = useState('')
+  const [formDurationType, setFormDurationType] = useState('计日')
+  const [formDurationDays, setFormDurationDays] = useState('')
+  const [formStartDate, setFormStartDate] = useState('')
+  const [formEndDate, setFormEndDate] = useState('')
+  const [formStatus, setFormStatus] = useState('进行中')
+  const [formPaymentAmount, setFormPaymentAmount] = useState('')
+  const [formPaymentChannel, setFormPaymentChannel] = useState('')
+  const [formClassId, setFormClassId] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [showEnrollmentForm, setShowEnrollmentForm] = useState(false)
+
+
+  const openAddEnrollment = () => {
+    setEditingEnrollment(null)
+    setFormCourseType('')
+    setFormDurationType('计日')
+    setFormDurationDays('')
+    const today = new Date()
+    const dateStr = today.toISOString().split('T')[0]
+    setFormStartDate(dateStr)
+    setFormEndDate('')
+    setFormStatus('进行中')
+    setFormPaymentAmount('')
+    setFormPaymentChannel('')
+    setFormClassId(child?.class_id || '')
+    setShowEnrollmentForm(true)
+  }
+
+  const openEditEnrollment = (enr: any) => {
+    setEditingEnrollment(enr)
+    setFormCourseType(enr.course_type || '')
+    setFormDurationType(enr.duration_type || '计日')
+    setFormDurationDays(enr.duration_days ? String(enr.duration_days) : '')
+    setFormStartDate(enr.start_date || '')
+    setFormEndDate(enr.end_date || '')
+    setFormStatus(enr.status || '进行中')
+    setFormPaymentAmount(enr.payment_amount || '')
+    setFormPaymentChannel(enr.payment_channel || '')
+    setFormClassId(enr.class_id || child?.class_id || '')
+    setShowEnrollmentForm(true)
+  }
+
+  const handleSubmitEnrollment = async () => {
+    if (!formCourseType) {
+      Taro.showToast({ title: '请选择课程类型', icon: 'none' })
+      return
+    }
+    if (!formStartDate) {
+      Taro.showToast({ title: '请选择开始日期', icon: 'none' })
+      return
+    }
+    setSubmitting(true)
+    try {
+      const payload: any = {
+        child_id: id,
+        course_type: formCourseType,
+        duration_type: formDurationType,
+        duration_days: formDurationType === '计日' ? (parseInt(formDurationDays) || 0) : 0,
+        start_date: formStartDate,
+        end_date: formEndDate || null,
+        status: formStatus,
+        payment_amount: formPaymentAmount || null,
+        payment_channel: formPaymentChannel || null,
+        class_id: formClassId || null,
+      }
+      let result
+      if (editingEnrollment) {
+        result = await enrollmentApi.update(editingEnrollment.id, payload)
+      } else {
+        result = await enrollmentApi.create(payload)
+      }
+      if (result.code === 200) {
+        Taro.showToast({ title: editingEnrollment ? '修改成功' : '新增成功', icon: 'success' })
+        setShowEnrollmentForm(false)
+        loadData()
+      } else {
+        Taro.showToast({ title: result.msg || '操作失败', icon: 'none' })
+      }
+    } catch {
+      Taro.showToast({ title: '网络错误', icon: 'none' })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDeleteEnrollment = (enr: any) => {
+    Taro.showModal({
+      title: '确认删除',
+      content: `确定要删除"${enr.course_type}"报读记录吗？`,
+      confirmColor: '#E8651A',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            const result = await enrollmentApi.remove(enr.id)
+            if (result.code === 200) {
+              Taro.showToast({ title: '删除成功', icon: 'success' })
+              loadData()
+            } else {
+              Taro.showToast({ title: result.msg || '删除失败', icon: 'none' })
+            }
+          } catch {
+            Taro.showToast({ title: '网络错误', icon: 'none' })
+          }
+        }
+      },
+    })
+  }
 
   const loadData = useCallback(async () => {
     if (!id) return
@@ -191,23 +301,47 @@ export default function ChildDetailPage() {
         </Card>
 
         {/* 报读记录卡片 */}
-        {enrollments.length > 0 && (
-          <Card className="bg-white rounded-xl border-0 shadow-sm">
-            <CardContent className="p-4">
-              <View className="flex items-center gap-2 mb-3">
+        <Card className="bg-white rounded-xl border-0 shadow-sm">
+          <CardContent className="p-4">
+            <View className="flex items-center justify-between mb-3">
+              <View className="flex items-center gap-2">
                 <BookOpen size={16} color="#666" />
                 <Text className="text-base font-semibold text-foreground">报读记录</Text>
               </View>
-              {enrollments.map((enr) => (
+              <Button className="h-8 px-3 bg-primary text-white rounded-lg" onClick={openAddEnrollment}>
+                <View className="flex items-center gap-1">
+                  <Plus size={14} color="#fff" />
+                  <Text className="text-xs text-white">新增报读</Text>
+                </View>
+              </Button>
+            </View>
+            {enrollments.length === 0 ? (
+              <View className="py-8 flex items-center justify-center">
+                <Text className="text-sm text-muted-foreground">暂无报读记录，点击&quot;新增报读&quot;添加</Text>
+              </View>
+            ) : (
+              enrollments.map((enr) => (
                 <View
                   key={enr.id}
                   className="bg-gray-50 rounded-xl p-3 mb-2"
                 >
                   <View className="flex items-center justify-between mb-1">
                     <Text className="text-sm font-semibold text-foreground">{enr.course_type}</Text>
-                    <Badge className={enr.status === '进行中' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
-                      <Text className="text-xs">{enr.status}</Text>
-                    </Badge>
+                    <View className="flex items-center gap-2">
+                      <Pencil
+                        size={14}
+                        color="#999"
+                        onClick={() => openEditEnrollment(enr)}
+                      />
+                      <Trash2
+                        size={14}
+                        color="#999"
+                        onClick={() => handleDeleteEnrollment(enr)}
+                      />
+                      <Badge className={enr.status === '进行中' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
+                        <Text className="text-xs">{enr.status}</Text>
+                      </Badge>
+                    </View>
                   </View>
                   <Text className="block text-xs text-gray-500">
                     时长：{enr.duration_type === '计日' ? `${enr.duration_days}天` : enr.duration_type}
@@ -224,10 +358,10 @@ export default function ChildDetailPage() {
                     </Text>
                   )}
                 </View>
-              ))}
-            </CardContent>
-          </Card>
-        )}
+              ))
+            )}
+          </CardContent>
+        </Card>
 
         {/* 操作按钮 */}
         <View className="flex gap-3">
@@ -252,6 +386,181 @@ export default function ChildDetailPage() {
           </Button>
         </View>
       </View>
+      {/* 报读表单弹窗 */}
+      {showEnrollmentForm && (
+        <View
+          className="fixed inset-0 z-50"
+          style={{ backgroundColor: 'rgba(255,248,240,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setShowEnrollmentForm(false)}
+        >
+          <View
+            className="bg-white rounded-2xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <View className="flex items-center justify-between p-4 border-b border-border">
+              <Text className="text-lg font-semibold">{editingEnrollment ? '编辑报读' : '新增报读'}</Text>
+              <X size={20} color="#666" onClick={() => setShowEnrollmentForm(false)} />
+            </View>
+            <View className="p-4 space-y-4">
+              <View>
+                <Text className="block text-sm font-medium text-foreground mb-1">课程类型</Text>
+                <View className="flex flex-wrap gap-2">
+                  {['全日托', '半日托', '周六托', '晚间托', '兴趣班'].map((t) => (
+                    <View
+                      key={t}
+                      className={`px-3 py-2 rounded-lg text-sm \${
+                        formCourseType === t
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                      onClick={() => {
+                        setFormCourseType(t)
+                        if (['周六托', '兴趣班'].includes(t)) {
+                          setFormDurationType('计日')
+                          setFormDurationDays("")
+                          setFormDurationDays('')
+                        }
+                      }}
+                    >
+                      <Text>{t}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+              <View>
+                <Text className="block text-sm font-medium text-foreground mb-1">报读时长</Text>
+                <View className="flex flex-wrap gap-2">
+                  {['一周体验', '1个月', '3个月', '6个月', '12个月', '计日'].map((t) => {
+                    const disabled = ['周六托', '兴趣班'].includes(formCourseType) && t !== '计日'
+                    return (
+                      <View
+                        key={t}
+                        className={`px-3 py-2 rounded-lg text-sm \${
+                          disabled ? 'bg-gray-100 text-gray-300' : formDurationType === t ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600'
+                        }`}
+                        onClick={() => {
+                          if (!disabled) {
+                            setFormDurationType(t)
+                            if (t !== '计日') {
+                              setFormDurationDays('')
+                              setFormDurationDays("")
+                            }
+                          }
+                        }}
+                      >
+                        <Text>{t}</Text>
+                      </View>
+                    )
+                  })}
+                </View>
+              </View>
+              {formDurationType === '计日' && (
+                <View>
+                  <Text className="block text-sm font-medium text-foreground mb-1">计日天数</Text>
+                  <View className="bg-gray-50 rounded-xl px-4 py-3">
+                    <Input
+                      className="w-full bg-transparent"
+                      type="number"
+                      placeholder="请输入天数"
+                      value={formDurationDays}
+                      onInput={(e) => setFormDurationDays(e.detail.value)}
+                    />
+                  </View>
+                </View>
+              )}
+              <View>
+                <Text className="block text-sm font-medium text-foreground mb-1">开始日期</Text>
+                <View className="bg-gray-50 rounded-xl px-4 py-3">
+                  <Picker
+                    mode="date"
+                    value={formStartDate}
+                    onChange={(e) => {
+                      setFormStartDate(e.detail.value)
+                      // end date will be calculated on save
+                    }}
+                  >
+                    <Text className={`w-full bg-transparent \${formStartDate ? '' : 'text-gray-400'}`}>
+                      {formStartDate || '请选择开始日期'}
+                    </Text>
+                  </Picker>
+                </View>
+              </View>
+              <View>
+                <Text className="block text-sm font-medium text-foreground mb-1">结束日期</Text>
+                <View className="bg-gray-50 rounded-xl px-4 py-3">
+                  <Text className="text-sm text-gray-600">{formEndDate || '自动计算'}</Text>
+                </View>
+              </View>
+              <View>
+                <Text className="block text-sm font-medium text-foreground mb-1">所在班级</Text>
+                <View className="bg-gray-50 rounded-xl px-4 py-3">
+                  <Picker
+                    mode="selector"
+                    range={classes.map((c) => c.name)}
+                    value={classes.findIndex((c) => c.id === formClassId)}
+                    onChange={(e) => setFormClassId(classes[e.detail.value]?.id || '')}
+                  >
+                    <Text className={`w-full bg-transparent \${formClassId ? '' : 'text-gray-400'}`}>
+                      {formClassId ? classes.find((c) => c.id === formClassId)?.name || '未选择' : '请选择班级'}
+                    </Text>
+                  </Picker>
+                </View>
+              </View>
+              <View>
+                <Text className="block text-sm font-medium text-foreground mb-1">状态</Text>
+                <View className="flex flex-wrap gap-2">
+                  {['进行中', '已结束'].map((s) => (
+                    <View
+                      key={s}
+                      className={`px-3 py-2 rounded-lg text-sm \${
+                        formStatus === s ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600'
+                      }`}
+                      onClick={() => setFormStatus(s)}
+                    >
+                      <Text>{s}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+              <View>
+                <Text className="block text-sm font-medium text-foreground mb-1">缴费记录</Text>
+                <View className="bg-gray-50 rounded-xl px-4 py-3">
+                  <Input
+                    className="w-full bg-transparent"
+                    type="number"
+                    placeholder="请输入缴费金额"
+                    value={formPaymentAmount}
+                    onInput={(e) => setFormPaymentAmount(e.detail.value)}
+                  />
+                </View>
+              </View>
+              <View>
+                <Text className="block text-sm font-medium text-foreground mb-1">缴费渠道</Text>
+                <View className="flex flex-wrap gap-2">
+                  {['微信', '支付宝', '现金'].map((c) => (
+                    <View
+                      key={c}
+                      className={`px-3 py-2 rounded-lg text-sm \${
+                        formPaymentChannel === c ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600'
+                      }`}
+                      onClick={() => setFormPaymentChannel(c)}
+                    >
+                      <Text>{c}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+              <Button
+                className="w-full bg-primary text-primary-foreground rounded-xl py-3"
+                onClick={handleSubmitEnrollment}
+                disabled={submitting}
+              >
+                <Text>{submitting ? '保存中...' : '保存'}</Text>
+              </Button>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   )
 }
