@@ -109,12 +109,15 @@ export default function ChildDetailPage() {
         parent_name: formChildParentName || null,
         parent_phone: formChildParentPhone || null,
       })
-      if (result.data?.code === 200) {
+      const responseData = typeof result.data === 'string' 
+        ? JSON.parse(result.data) 
+        : result.data
+      if (responseData?.code === 200) {
         Taro.showToast({ title: '保存成功', icon: 'success' })
         setEditingBasicInfo(false)
         loadData()
       } else {
-        Taro.showToast({ title: result.data?.msg || '保存失败', icon: 'none' })
+        Taro.showToast({ title: responseData?.msg || '保存失败', icon: 'none' })
       }
     } catch {
       Taro.showToast({ title: '网络错误', icon: 'none' })
@@ -223,12 +226,16 @@ export default function ChildDetailPage() {
       } else {
         result = await enrollmentApi.create(payload)
       }
-      if (result.data?.code === 200) {
+      // 确保 result.data 是解析后的对象
+      const responseData = typeof result.data === 'string' 
+        ? JSON.parse(result.data) 
+        : result.data
+      if (responseData?.code === 200) {
         Taro.showToast({ title: editingEnrollment ? '修改成功' : '新增成功', icon: 'success' })
         closeEnrollmentForm()
         loadData()
       } else {
-        Taro.showToast({ title: result.data?.msg || '操作失败', icon: 'none' })
+        Taro.showToast({ title: responseData?.msg || '操作失败', icon: 'none' })
       }
     } catch {
       Taro.showToast({ title: '网络错误', icon: 'none' })
@@ -246,11 +253,14 @@ export default function ChildDetailPage() {
         if (res.confirm) {
           try {
             const result = await enrollmentApi.remove(enr.id)
-            if (result.data?.code === 200) {
+            const responseData = typeof result.data === 'string' 
+              ? JSON.parse(result.data) 
+              : result.data
+            if (responseData?.code === 200) {
               Taro.showToast({ title: '删除成功', icon: 'success' })
               loadData()
             } else {
-              Taro.showToast({ title: result.data?.msg || '删除失败', icon: 'none' })
+              Taro.showToast({ title: responseData?.msg || '删除失败', icon: 'none' })
             }
           } catch {
             Taro.showToast({ title: '网络错误', icon: 'none' })
@@ -304,13 +314,16 @@ export default function ChildDetailPage() {
         if (res.confirm) {
           try {
             const result = await childrenApi.remove(id!)
-            if (result.data?.code === 200) {
+            const responseData = typeof result.data === 'string' 
+              ? JSON.parse(result.data) 
+              : result.data
+            if (responseData?.code === 200) {
               Taro.showToast({ title: '删除成功', icon: 'success' })
               setTimeout(() => {
                 Taro.navigateBack()
               }, 1500)
             } else {
-              Taro.showToast({ title: result.data?.msg || '删除失败', icon: 'none' })
+              Taro.showToast({ title: responseData?.msg || '删除失败', icon: 'none' })
             }
           } catch {
             Taro.showToast({ title: '网络错误', icon: 'none' })
