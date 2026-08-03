@@ -12,8 +12,8 @@ import BackButton from '@/components/back-button'
 import { Pencil, Trash2, BookOpen, Plus, X } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge } from '@/utils/format'
-import { format } from 'date-fns'
-import { Calendar } from '@/components/ui/calendar'
+
+import { CalendarOverlay } from '@/components/ui/calendar-overlay'
 
 interface ChildDetail {
   id: string
@@ -766,38 +766,22 @@ export default function ChildDetailPage() {
       )}
 
       {/* 日历选择器浮层 */}
-      {showCalendar && (
-        <View style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <View onClick={() => setShowCalendar(null)} style={{ flex: 1 }} />
-          <View className="bg-white rounded-t-2xl p-4">
-            <View className="flex justify-end mb-2">
-              <Text className="text-primary text-sm" onClick={() => setShowCalendar(null)}>完成</Text>
-            </View>
-            <Calendar
-              mode="single"
-              selected={
-                showCalendar === 'birthDate'
-                  ? (editBirthDate ? new Date(editBirthDate) : undefined)
-                  : (formStartDate ? new Date(formStartDate) : undefined)
-              }
-              onSelect={(date) => {
-                if (date) {
-                  const dateStr = format(date, 'yyyy-MM-dd')
-                  if (showCalendar === 'birthDate') {
-                    setEditBirthDate(dateStr)
-                  } else {
-                    setFormStartDate(dateStr)
-                    calcEndDate(formCourseType, formDurationType, formDurationDays, dateStr)
-                  }
-                  setShowCalendar(null)
-                }
-              }}
-              disabled={showCalendar === 'startDate' && formCourseType === '周六托' ? (date) => date.getDay() !== 6 : undefined}
-              className="border-0"
-            />
-          </View>
-        </View>
-      )}
+      <CalendarOverlay
+        visible={showCalendar === 'birthDate'}
+        onClose={() => setShowCalendar(null)}
+        value={editBirthDate}
+        onChange={(dateStr) => setEditBirthDate(dateStr)}
+      />
+      <CalendarOverlay
+        visible={showCalendar === 'startDate'}
+        onClose={() => setShowCalendar(null)}
+        value={formStartDate}
+        onChange={(dateStr) => {
+          setFormStartDate(dateStr)
+          calcEndDate(formCourseType, formDurationType, formDurationDays, dateStr)
+        }}
+        disabled={formCourseType === '周六托' ? (date) => date.getDay() !== 6 : undefined}
+      />
     </View>
   )
 }

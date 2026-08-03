@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { Calendar } from '@/components/ui/calendar'
-import { format } from 'date-fns'
+import { CalendarOverlay } from '@/components/ui/calendar-overlay'
+
 import {
   AlertDialog,
   AlertDialogContent,
@@ -390,30 +390,18 @@ export default function TeacherEditPage() {
       </AlertDialog>
 
       {/* 日历选择器浮层 */}
-      {showCalendar && (
-        <View style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <View onClick={() => setShowCalendar(null)} style={{ flex: 1 }} />
-          <View className="bg-white rounded-t-2xl p-4">
-            <View className="flex justify-end mb-2">
-              <Text className="text-primary text-sm" onClick={() => setShowCalendar(null)}>完成</Text>
-            </View>
-            <Calendar
-              mode="single"
-              selected={showCalendar === 'entryDate' ? (formData.entry_date ? new Date(formData.entry_date) : undefined) : (formData.leave_date ? new Date(formData.leave_date) : undefined)}
-              onSelect={(date) => {
-                if (date) {
-                  setFormData(prev => ({
-                    ...prev,
-                    [showCalendar === 'entryDate' ? 'entry_date' : 'leave_date']: format(date, 'yyyy-MM-dd')
-                  }))
-                  setShowCalendar(null)
-                }
-              }}
-              className="border-0"
-            />
-          </View>
-        </View>
-      )}
+      <CalendarOverlay
+        visible={showCalendar === 'entryDate'}
+        onClose={() => setShowCalendar(null)}
+        value={formData.entry_date}
+        onChange={(dateStr) => { setFormData(prev => ({ ...prev, entry_date: dateStr })); setShowCalendar(null) }}
+      />
+      <CalendarOverlay
+        visible={showCalendar === 'leaveDate'}
+        onClose={() => setShowCalendar(null)}
+        value={formData.leave_date}
+        onChange={(dateStr) => { setFormData(prev => ({ ...prev, leave_date: dateStr })); setShowCalendar(null) }}
+      />
     </View>
   )
 }

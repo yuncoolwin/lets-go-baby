@@ -9,8 +9,8 @@ import BackButton from '@/components/back-button'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { Network } from '@/network'
 import { formatAge } from '@/utils/format'
-import { Calendar } from '@/components/ui/calendar'
-import { format } from 'date-fns'
+import { CalendarOverlay } from '@/components/ui/calendar-overlay'
+
 
 interface ChildDetail {
   id: string
@@ -352,27 +352,12 @@ export default function ChildSettingPage() {
       )}
 
       {/* 日历选择器浮层 */}
-      {showCalendar && (
-        <View style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <View onClick={() => setShowCalendar(false)} style={{ flex: 1 }} />
-          <View className="bg-white rounded-t-2xl p-4">
-            <View className="flex justify-end mb-2">
-              <Text className="text-primary text-sm" onClick={() => setShowCalendar(false)}>完成</Text>
-            </View>
-            <Calendar
-              mode="single"
-              selected={birthDate ? new Date(birthDate) : undefined}
-              onSelect={(date) => {
-                if (date) {
-                  setBirthDate(format(date, 'yyyy-MM-dd'))
-                  setShowCalendar(false)
-                }
-              }}
-              className="border-0"
-            />
-          </View>
-        </View>
-      )}
+      <CalendarOverlay
+        visible={showCalendar}
+        onClose={() => setShowCalendar(false)}
+        value={birthDate}
+        onChange={(dateStr) => { setBirthDate(dateStr); setShowCalendar(false) }}
+      />
     </View>
   )
 }
