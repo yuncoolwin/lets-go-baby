@@ -46,6 +46,20 @@ const statusMap: Record<string, { label: string; className: string }> = {
 
 const calculateAge = formatAge
 
+/** 获取下一个周六的日期，若今天就是周六则返回今天 */
+const getNextSaturday = (): string => {
+  const now = new Date()
+  const day = now.getDay() // 0=周日, 1=周一, ..., 6=周六
+  if (day === 6) {
+    return now.toISOString().split('T')[0]
+  }
+  // 距离下一个周六的天数
+  const daysUntilSaturday = day === 0 ? 6 : 6 - day
+  const next = new Date(now)
+  next.setDate(now.getDate() + daysUntilSaturday)
+  return next.toISOString().split('T')[0]
+}
+
 export default function ChildDetailPage() {
   const router = useRouter()
   const { id } = router.params
@@ -402,6 +416,9 @@ export default function ChildDetailPage() {
                         <Text className="block text-sm text-foreground">{editBirthDate || '请选择出生日期'}</Text>
                       </View>
                     </Picker>
+                  {formCourseType === '周六托' && (
+                    <Text className="block text-xs text-orange-500 mt-1">周六托仅可选择周六</Text>
+                  )}
                   </View>
                   {/* 在读状态 */}
                   <View>
@@ -578,7 +595,14 @@ export default function ChildDetailPage() {
                       onClick={() => {
                         const newType = t
                         setFormCourseType(newType)
-                        if (['周六托', '兴趣班'].includes(newType)) {
+                        // 周六托默认开始日期为下周六
+                        if (newType === '周六托') {
+                          const saturdayDate = getNextSaturday()
+                          setFormStartDate(saturdayDate)
+                          setFormDurationType('计日')
+                          setFormDurationDays('')
+                          calcEndDate(newType, '计日', '', saturdayDate)
+                        } else if (newType === '兴趣班') {
                           setFormDurationType('计日')
                           setFormDurationDays('')
                           calcEndDate(newType, '计日', '', formStartDate)
@@ -644,6 +668,14 @@ export default function ChildDetailPage() {
                     value={formStartDate}
                     onChange={(e) => {
                       const newDate = e.detail.value
+                      // 周六托只允许选择周六
+                      if (formCourseType === '周六托') {
+                        const selected = new Date(newDate)
+                        if (selected.getDay() !== 6) {
+                          Taro.showToast({ title: '周六托仅可选择周六', icon: 'none' })
+                          return
+                        }
+                      }
                       setFormStartDate(newDate)
                       calcEndDate(formCourseType, formDurationType, formDurationDays, newDate)
                     }}
