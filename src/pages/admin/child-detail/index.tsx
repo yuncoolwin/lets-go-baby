@@ -203,8 +203,8 @@ export default function ChildDetailPage() {
       if (enrRes.code === 200 && Array.isArray(enrRes.data)) {
         setEnrollments(enrRes.data as any[])
       }
-      if (clsRes.code === 200 && clsRes.data?.data && Array.isArray(clsRes.data.data)) {
-        setClasses(clsRes.data.data)
+      if (clsRes.code === 200 && clsRes.data?.list && Array.isArray(clsRes.data.list)) {
+        setClasses(clsRes.data.list)
       }
     } catch {
       Taro.showToast({ title: '网络错误', icon: 'none' })
