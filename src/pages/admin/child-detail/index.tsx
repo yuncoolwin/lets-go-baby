@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Label } from '@/components/ui/label'
 import { childrenApi, enrollmentApi, classApi } from '@/utils/api'
 import BackButton from '@/components/back-button'
 import { Pencil, Trash2, BookOpen, Plus, X } from 'lucide-react-taro'
@@ -65,82 +64,6 @@ export default function ChildDetailPage() {
   const [formClassId, setFormClassId] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [showEnrollmentForm, setShowEnrollmentForm] = useState(false)
-
-  // 幼儿基本信息编辑
-  const [isEditingChild, setIsEditingChild] = useState(false)
-  const [editName, setEditName] = useState('')
-  const [editGender, setEditGender] = useState('male')
-  const [editBirthDate, setEditBirthDate] = useState('')
-  const [editStatus, setEditStatus] = useState('active')
-  const [editParentName, setEditParentName] = useState('')
-  const [editParentPhone, setEditParentPhone] = useState('')
-  const [editAllergies, setEditAllergies] = useState('')
-  const [editHealthInfo, setEditHealthInfo] = useState('')
-  const [editSubmitting, setEditSubmitting] = useState(false)
-
-  const statusOptions = [
-    { value: 'active', label: '在读' },
-    { value: 'graduated', label: '毕业' },
-    { value: 'suspended', label: '休学' },
-  ]
-
-  const genderOptions = [
-    { value: 'male', label: '男' },
-    { value: 'female', label: '女' },
-  ]
-
-  const startEditing = () => {
-    if (!child) return
-    setEditName(child.name || '')
-    setEditGender(child.gender || 'male')
-    setEditBirthDate(child.birth_date || '')
-    setEditStatus(child.status || 'active')
-    setEditParentName(child.parent_name || '')
-    setEditParentPhone(child.parent_phone || '')
-    setEditAllergies(child.allergies || '')
-    setEditHealthInfo(child.health_info || '')
-    setIsEditingChild(true)
-  }
-
-  const cancelEditing = () => {
-    setIsEditingChild(false)
-  }
-
-  const handleSaveChild = async () => {
-    if (!editName.trim()) {
-      Taro.showToast({ title: '请输入幼儿姓名', icon: 'none' })
-      return
-    }
-    if (!editBirthDate) {
-      Taro.showToast({ title: '请选择出生日期', icon: 'none' })
-      return
-    }
-    setEditSubmitting(true)
-    try {
-      const payload: Record<string, any> = {
-        name: editName.trim(),
-        gender: editGender,
-        birth_date: editBirthDate,
-        status: editStatus,
-        parent_name: editParentName || undefined,
-        parent_phone: editParentPhone || undefined,
-        allergies: editAllergies || undefined,
-        health_info: editHealthInfo || undefined,
-      }
-      const res = await childrenApi.update(id!, payload)
-      if (res.code === 200) {
-        Taro.showToast({ title: '保存成功', icon: 'success' })
-        setIsEditingChild(false)
-        loadData()
-      } else {
-        Taro.showToast({ title: res.msg || '保存失败', icon: 'none' })
-      }
-    } catch {
-      Taro.showToast({ title: '网络错误', icon: 'none' })
-    } finally {
-      setEditSubmitting(false)
-    }
-  }
 
 
   const openAddEnrollment = () => {
@@ -368,122 +291,36 @@ export default function ChildDetailPage() {
                 </Text>
               </View>
               <View className="flex items-center gap-3 flex-shrink-0 pt-1">
-                <Pencil size={18} color="#999" onClick={startEditing} />
+                <Pencil size={18} color="#999" onClick={() => Taro.navigateTo({ url: `/pages/admin/child-edit/index?id=${child.id}` })} />
                 <Trash2 size={18} color="#E8651A" onClick={handleDelete} />
               </View>
             </View>
 
             <View className="space-y-3">
-              {isEditingChild ? (
-                <>
-                  {/* 姓名 */}
-                  <View>
-                    <Label className="text-sm font-medium text-foreground">姓名 *</Label>
-                    <View className="mt-1 bg-gray-50 rounded-lg px-3 py-2">
-                      <Input className="w-full bg-transparent text-sm" placeholder="请输入幼儿姓名" value={editName} onInput={(e) => setEditName(e.detail.value)} />
-                    </View>
-                  </View>
-                  {/* 性别 */}
-                  <View>
-                    <Label className="text-sm font-medium text-foreground">性别 *</Label>
-                    <View className="mt-1 flex gap-2">
-                      {genderOptions.map((opt) => (
-                        <View key={opt.value} className={`px-4 py-2 rounded-lg text-sm ${editGender === opt.value ? 'bg-primary text-white' : 'bg-gray-100 text-foreground'}`} onClick={() => setEditGender(opt.value)}>
-                          <Text className="block text-sm">{opt.label}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                  {/* 出生日期 */}
-                  <View>
-                    <Label className="text-sm font-medium text-foreground">出生日期 *</Label>
-                    <Picker mode="date" value={editBirthDate} onChange={(e) => setEditBirthDate(e.detail.value)}>
-                      <View className="mt-1 bg-gray-50 rounded-lg px-3 py-2">
-                        <Text className="block text-sm text-foreground">{editBirthDate || '请选择出生日期'}</Text>
-                      </View>
-                    </Picker>
-                  </View>
-                  {/* 在读状态 */}
-                  <View>
-                    <Label className="text-sm font-medium text-foreground">在读状态 *</Label>
-                    <View className="mt-1 flex gap-2">
-                      {statusOptions.map((opt) => (
-                        <View key={opt.value} className={`px-4 py-2 rounded-lg text-sm ${editStatus === opt.value ? 'bg-primary text-white' : 'bg-gray-100 text-foreground'}`} onClick={() => setEditStatus(opt.value)}>
-                          <Text className="block text-sm">{opt.label}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                  {/* 过敏情况 */}
-                  <View>
-                    <Label className="text-sm font-medium text-foreground">过敏情况</Label>
-                    <View className="mt-1 bg-gray-50 rounded-lg px-3 py-2">
-                      <Input className="w-full bg-transparent text-sm" placeholder="无" value={editAllergies} onInput={(e) => setEditAllergies(e.detail.value)} />
-                    </View>
-                  </View>
-                  {/* 家长姓名 */}
-                  <View>
-                    <Label className="text-sm font-medium text-foreground">家长姓名</Label>
-                    <View className="mt-1 bg-gray-50 rounded-lg px-3 py-2">
-                      <Input className="w-full bg-transparent text-sm" placeholder="请输入家长姓名" value={editParentName} onInput={(e) => setEditParentName(e.detail.value)} />
-                    </View>
-                  </View>
-                  {/* 家长电话 */}
-                  <View>
-                    <Label className="text-sm font-medium text-foreground">家长电话</Label>
-                    <View className="mt-1 bg-gray-50 rounded-lg px-3 py-2">
-                      <Input className="w-full bg-transparent text-sm" placeholder="请输入家长电话" value={editParentPhone} onInput={(e) => setEditParentPhone(e.detail.value)} />
-                    </View>
-                  </View>
-                  {/* 健康信息 */}
-                  <View>
-                    <Label className="text-sm font-medium text-foreground">健康信息</Label>
-                    <View className="mt-1 bg-gray-50 rounded-lg px-3 py-2">
-                      <Input className="w-full bg-transparent text-sm" placeholder="请输入健康信息" value={editHealthInfo} onInput={(e) => setEditHealthInfo(e.detail.value)} />
-                    </View>
-                  </View>
-                  {/* 操作按钮 */}
-                  <View className="flex gap-3 pt-2">
-                    <View className="flex-1">
-                      <Button className="w-full bg-gray-100 text-foreground rounded-xl py-3" onClick={cancelEditing}>
-                        <Text>取消</Text>
-                      </Button>
-                    </View>
-                    <View className="flex-1">
-                      <Button className="w-full bg-primary text-primary-foreground rounded-xl py-3" onClick={handleSaveChild} disabled={editSubmitting}>
-                        <Text>{editSubmitting ? '保存中...' : '保存'}</Text>
-                      </Button>
-                    </View>
-                  </View>
-                </>
-              ) : (
-                <>
-                  <View className="flex items-center justify-between py-2 border-b border-border">
-                    <Text className="text-sm text-muted-foreground">出生日期</Text>
-                    <Text className="text-sm text-foreground">{child.birth_date || '未设置'}</Text>
-                  </View>
-                  <View className="flex items-center justify-between py-2 border-b border-border">
-                    <Text className="text-sm text-muted-foreground">在读状态</Text>
-                    <Text className="text-sm text-foreground">{statusMap[child.status]?.label || child.status}</Text>
-                  </View>
-                  <View className="flex items-center justify-between py-2 border-b border-border">
-                    <Text className="text-sm text-muted-foreground">过敏情况</Text>
-                    <Text className="text-sm text-foreground">{child.allergies || '无'}</Text>
-                  </View>
-                  <View className="flex items-center justify-between py-2 border-b border-border">
-                    <Text className="text-sm text-muted-foreground">家长姓名</Text>
-                    <Text className="text-sm text-foreground">{child.parent_name || '未设置'}</Text>
-                  </View>
-                  <View className="flex items-center justify-between py-2 border-b border-border">
-                    <Text className="text-sm text-muted-foreground">家长电话</Text>
-                    <Text className="text-sm text-foreground">{child.parent_phone || '未设置'}</Text>
-                  </View>
-                  <View className="flex items-center justify-between py-2">
-                    <Text className="text-sm text-muted-foreground">健康信息</Text>
-                    <Text className="text-sm text-foreground">{child.health_info || '无'}</Text>
-                  </View>
-                </>
-              )}
+              <View className="flex items-center justify-between py-2 border-b border-border">
+                <Text className="text-sm text-muted-foreground">出生日期</Text>
+                <Text className="text-sm text-foreground">{child.birth_date || '未设置'}</Text>
+              </View>
+              <View className="flex items-center justify-between py-2 border-b border-border">
+                <Text className="text-sm text-muted-foreground">在读状态</Text>
+                <Text className="text-sm text-foreground">{statusMap[child.status]?.label || child.status}</Text>
+              </View>
+              <View className="flex items-center justify-between py-2 border-b border-border">
+                <Text className="text-sm text-muted-foreground">过敏情况</Text>
+                <Text className="text-sm text-foreground">{child.allergies || '无'}</Text>
+              </View>
+              <View className="flex items-center justify-between py-2 border-b border-border">
+                <Text className="text-sm text-muted-foreground">家长姓名</Text>
+                <Text className="text-sm text-foreground">{child.parent_name || '未设置'}</Text>
+              </View>
+              <View className="flex items-center justify-between py-2 border-b border-border">
+                <Text className="text-sm text-muted-foreground">家长电话</Text>
+                <Text className="text-sm text-foreground">{child.parent_phone || '未设置'}</Text>
+              </View>
+              <View className="flex items-center justify-between py-2">
+                <Text className="text-sm text-muted-foreground">健康信息</Text>
+                <Text className="text-sm text-foreground">{child.health_info || '无'}</Text>
+              </View>
             </View>
           </CardContent>
         </Card>

@@ -16,41 +16,12 @@ export class AttendanceService {
     // 默认当天
     const targetDate = date || new Date().toISOString().split('T')[0];
 
-    // 先查询该班级进行中报读的幼儿（从 enrollments 表，数据源统一）
-    const { data: enrollments, error: enrErr } = await this.client
-      .from('enrollments')
-      .select('child_id, course_type')
-      .eq('class_id', classId)
-      .eq('status', '进行中');
-    if (enrErr) throw enrErr;
-
-    // 按 child_id 去重（全日托优先）
-    const sortOrder = ['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日'];
-    const childEnrollmentMap = new Map<string, string>();
-    for (const e of enrollments || []) {
-      const existing = childEnrollmentMap.get(e.child_id);
-      if (!existing) {
-        childEnrollmentMap.set(e.child_id, e.course_type);
-      } else {
-        const existingIdx = sortOrder.indexOf(existing);
-        const newIdx = sortOrder.indexOf(e.course_type);
-        if (newIdx < existingIdx) {
-          childEnrollmentMap.set(e.child_id, e.course_type);
-        }
-      }
-    }
-
-    const activeChildIds = [...childEnrollmentMap.keys()];
-
-    if (activeChildIds.length === 0) {
-      return [];
-    }
-
-    // 查询幼儿完整信息
+    // 先查询班级在读幼儿（完整信息）
     const { data: children, error: childErr } = await this.client
       .from('children')
       .select('id, name, gender, birth_date, avatar_url, allergies, status')
-      .in('id', activeChildIds);
+      .eq('class_id', classId)
+      .eq('status', 'active');
     if (childErr) throw childErr;
 
     // 查询当天点名记录
@@ -65,12 +36,11 @@ export class AttendanceService {
     const recordMap: Record<string, any> = {};
     (records || []).forEach(r => { recordMap[r.child_id] = r; });
 
-    // 合并：所有在班幼儿 + 考勤状态 + 课程类型
+    // 合并：所有在班幼儿 + 考勤状态
     const mergedList = (children || []).map(c => {
       const record = recordMap[c.id];
       return {
         ...c,
-        course_type: childEnrollmentMap.get(c.id) || null,
         attendance_id: record?.id || null,
         attendance_status: record?.status || null,
         updated_at: record?.updated_at || null,

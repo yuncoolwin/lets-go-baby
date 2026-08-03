@@ -1,18 +1,11 @@
-import { useState, useEffect } from 'react'
-import { View, Text, Picker } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import { useState } from 'react'
+import { View, Text, Picker, ScrollView } from '@tarojs/components'
+import Taro, { useRouter } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { childrenApi, classApi } from '@/utils/api'
+import { childrenApi } from '@/utils/api'
 import BackButton from '@/components/back-button'
-
-interface ClassItem {
-  id: string
-  name: string
-  level: string
-}
 
 const statusOptions = [
   { value: 'active', label: '在读' },
@@ -25,10 +18,13 @@ const genderOptions = [
   { value: 'female', label: '女' },
 ]
 
-export default function ChildAddPage() {
+export default function ChildEditPage() {
+  const router = useRouter()
+  const { id } = router.params
+  const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [classes, setClasses] = useState<ClassItem[]>([])
 
+  // 幼儿基本信息
   const [name, setName] = useState('')
   const [gender, setGender] = useState('male')
   const [birthDate, setBirthDate] = useState('')
@@ -39,21 +35,42 @@ export default function ChildAddPage() {
   const [allergies, setAllergies] = useState('')
   const [healthInfo, setHealthInfo] = useState('')
 
-  useEffect(() => {
-    const loadClasses = async () => {
-      try {
-        const res = await classApi.list({ page: 1, page_size: 100 })
-        if (res.code === 200 && res.data) {
-          const classData = res.data as any
-          setClasses(Array.isArray(classData.list) ? classData.list : [])
-        }
-      } catch {
-        // ignore
+  // 加载数据
+  const loadData = async () => {
+    if (!id) return
+    try {
+      const [childRes] = await Promise.all([
+        childrenApi.detail(id),
+      ])
+      if (childRes.code === 200 && childRes.data) {
+        const child = childRes.data as any
+        setName(child.name || '')
+        setGender(child.gender || 'male')
+        setBirthDate(child.birth_date || '')
+        setStatus(child.status || 'active')
+        setClassId(child.class_id || '')
+        setParentName(child.parent_name || '')
+        setParentPhone(child.parent_phone || '')
+        setAllergies(child.allergies || '')
+        setHealthInfo(child.health_info || '')
       }
+    } catch {
+      Taro.showToast({ title: '加载失败', icon: 'none' })
+    } finally {
+      setLoading(false)
     }
-    loadClasses()
-  }, [])
+  }
 
+  if (id) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const [loaded, setLoaded] = useState(false)
+    if (!loaded) {
+      setLoaded(true)
+      loadData()
+    }
+  }
+
+  // 保存
   const handleSubmit = async () => {
     if (!name.trim()) {
       Taro.showToast({ title: '请输入幼儿姓名', icon: 'none' })
@@ -66,7 +83,7 @@ export default function ChildAddPage() {
 
     setSubmitting(true)
     try {
-      const res = await childrenApi.create({
+      const payload: Record<string, any> = {
         name: name.trim(),
         gender,
         birth_date: birthDate,
@@ -76,20 +93,31 @@ export default function ChildAddPage() {
         parent_phone: parentPhone || undefined,
         allergies: allergies || undefined,
         health_info: healthInfo || undefined,
-      })
+      }
+      const res = await childrenApi.update(id!, payload)
       if (res.code === 200) {
-        Taro.showToast({ title: '创建成功', icon: 'success' })
+        Taro.showToast({ title: '保存成功', icon: 'success' })
         setTimeout(() => {
           Taro.navigateBack()
         }, 1500)
       } else {
-        Taro.showToast({ title: res.msg || '创建失败', icon: 'none' })
+        Taro.showToast({ title: res.msg || '保存失败', icon: 'none', duration: 3000 })
+        setSubmitting(false)
       }
     } catch {
-      Taro.showToast({ title: '网络错误', icon: 'none' })
+      Taro.showToast({ title: '网络错误', icon: 'none', duration: 3000 })
+      setSubmitting(false)
     } finally {
       setSubmitting(false)
     }
+  }
+
+  if (loading) {
+    return (
+      <View className="min-h-screen bg-background p-4">
+        <Text className="block">加载中...</Text>
+      </View>
+    )
   }
 
   return (
@@ -97,12 +125,15 @@ export default function ChildAddPage() {
       {/* 顶部导航 */}
       <View className="flex items-center gap-3 p-4 bg-white border-b border-border">
         <BackButton />
-        <Text className="text-lg font-semibold text-foreground">新增幼儿</Text>
+        <Text className="block text-lg font-semibold text-foreground">编辑幼儿</Text>
       </View>
 
-      <View className="p-4 space-y-4">
+      <ScrollView className="p-4" scrollY>
+        {/* 基本信息卡片 */}
         <Card className="bg-white rounded-xl border-0 shadow-sm">
           <CardContent className="p-4 space-y-4">
+            <Text className="block text-base font-semibold text-foreground">基本信息</Text>
+
             {/* 姓名 */}
             <View>
               <Label className="text-sm font-medium text-foreground">姓名 *</Label>
@@ -128,7 +159,7 @@ export default function ChildAddPage() {
                     }`}
                     onClick={() => setGender(opt.value)}
                   >
-                    <Text className="text-sm">{opt.label}</Text>
+                    <Text className="block text-sm">{opt.label}</Text>
                   </View>
                 ))}
               </View>
@@ -143,7 +174,7 @@ export default function ChildAddPage() {
                 onChange={(e) => setBirthDate(e.detail.value)}
               >
                 <View className="mt-1 bg-gray-50 rounded-lg px-3 py-2">
-                  <Text className="text-sm text-foreground">
+                  <Text className="block text-sm text-foreground">
                     {birthDate || '请选择出生日期'}
                   </Text>
                 </View>
@@ -162,33 +193,7 @@ export default function ChildAddPage() {
                     }`}
                     onClick={() => setStatus(opt.value)}
                   >
-                    <Text className="text-sm">{opt.label}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            {/* 班级 */}
-            <View>
-              <Label className="text-sm font-medium text-foreground">所在班级</Label>
-              <View className="mt-1 flex flex-wrap gap-2">
-                <View
-                  className={`px-4 py-2 rounded-lg text-sm ${
-                    !classId ? 'bg-primary text-white' : 'bg-gray-100 text-foreground'
-                  }`}
-                  onClick={() => setClassId('')}
-                >
-                  <Text className="text-sm">未分班</Text>
-                </View>
-                {classes.map((cls) => (
-                  <View
-                    key={cls.id}
-                    className={`px-4 py-2 rounded-lg text-sm ${
-                      classId === cls.id ? 'bg-primary text-white' : 'bg-gray-100 text-foreground'
-                    }`}
-                    onClick={() => setClassId(cls.id)}
-                  >
-                    <Text className="text-sm">{cls.name}</Text>
+                    <Text className="block text-sm">{opt.label}</Text>
                   </View>
                 ))}
               </View>
@@ -245,18 +250,23 @@ export default function ChildAddPage() {
                 />
               </View>
             </View>
+
+            {/* 保存按钮 */}
+            <View className="pt-4">
+              <View
+                className={`w-full py-3 rounded-lg text-center ${
+                  submitting ? 'bg-gray-300' : 'bg-primary'
+                }`}
+                onClick={submitting ? undefined : handleSubmit}
+              >
+                <Text className="block text-white font-medium">
+                  {submitting ? '保存中...' : '保存'}
+                </Text>
+              </View>
+            </View>
           </CardContent>
         </Card>
-
-        {/* 提交按钮 */}
-        <Button
-          className="w-full bg-primary text-white rounded-xl py-3"
-          onClick={handleSubmit}
-          disabled={submitting}
-        >
-          <Text className="text-white">{submitting ? '创建中...' : '创建幼儿'}</Text>
-        </Button>
-      </View>
+      </ScrollView>
     </View>
   )
 }

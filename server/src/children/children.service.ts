@@ -129,47 +129,7 @@ export class ChildrenService {
       }
     }
 
-    // 逐条获取班级名称，附加教师信息 和 enrollments
-    const childIds = (data || []).map(c => c.id);
-    
-    // 批量查询所有进行中的 enrollments
-    let enrollmentsMap: Record<string, any[]> = {};
-    if (childIds.length > 0) {
-      const { data: enrollments } = await this.client
-        .from('enrollments')
-        .select('*')
-        .in('child_id', childIds)
-        .eq('status', '进行中');
-      
-      // 收集所有 enrollments 中的 class_id，批量查询班级名称
-      const enrClassIds = [...new Set((enrollments || []).map(e => e.class_id).filter(Boolean))];
-      const enrClassMap: Record<string, string> = {};
-      if (enrClassIds.length > 0) {
-        const { data: enrClasses } = await this.client
-          .from('classes')
-          .select('id, name, room')
-          .in('id', enrClassIds);
-        for (const cls of enrClasses || []) {
-          enrClassMap[cls.id] = cls.room ? `${cls.name}（${cls.room}）` : cls.name;
-        }
-      }
-      
-      for (const enr of enrollments || []) {
-        if (!enrollmentsMap[enr.child_id]) enrollmentsMap[enr.child_id] = [];
-        enrollmentsMap[enr.child_id].push({
-          id: enr.id,
-          course_type: enr.course_type,
-          duration_type: enr.duration_type,
-          start_date: enr.start_date,
-          end_date: enr.end_date,
-          status: enr.status,
-          class_name: enr.class_id ? (enrClassMap[enr.class_id] || null) : null,
-          payment_amount: enr.payment_amount,
-          payment_channel: enr.payment_channel,
-        });
-      }
-    }
-
+    // 逐条获取班级名称，附加教师信息
     const results = await Promise.all(
       (data || []).map(async (child) => {
         let className = null;
@@ -185,7 +145,6 @@ export class ChildrenService {
           ...child,
           class_name: className,
           teacher_names: teachersMap[child.class_id] || [],
-          enrollments: enrollmentsMap[child.id] || [],
         };
       })
     );

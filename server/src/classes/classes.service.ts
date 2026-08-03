@@ -87,24 +87,22 @@ export class ClassesService {
       return { error: true, code: 500, msg: `查询失败: ${error.message}` };
     }
 
-    // 统计每个班级的幼儿数量（从 enrollments 表查询进行中报读，去重）
+    // 统计每个班级的幼儿数量（从 children 表查询）
     if (data && data.length > 0) {
       const classIds = data.map(c => c.id);
-      const { data: enrollmentData } = await this.client
-        .from('enrollments')
-        .select('class_id, child_id')
-        .eq('status', '进行中')
+      const { data: childCounts } = await this.client
+        .from('children')
+        .select('class_id')
+        .eq('status', 'active')
         .in('class_id', classIds);
 
-      // 按 class_id 去重 child_id
-      const countMap: Record<string, Set<string>> = {};
-      (enrollmentData || []).forEach(e => {
-        const cid = e.class_id;
-        if (!countMap[cid]) countMap[cid] = new Set();
-        countMap[cid].add(e.child_id);
+      const countMap: Record<string, number> = {};
+      (childCounts || []).forEach(ch => {
+        const cid = (ch as { class_id: string }).class_id;
+        countMap[cid] = (countMap[cid] || 0) + 1;
       });
       data.forEach(cls => {
-        (cls as Record<string, unknown>).student_count = (countMap[cls.id]?.size) || 0;
+        (cls as Record<string, unknown>).student_count = countMap[cls.id] || 0;
       });
     }
 
@@ -164,19 +162,17 @@ export class ClassesService {
       title: t.title,
     }));
 
-    // 获取学生数量（从 enrollments 表查询进行中报读，去重）
-    const { data: enrollmentData } = await this.client
-      .from('enrollments')
-      .select('child_id')
+    // 获取学生数量（从 children 表查询）
+    const { count: studentCount } = await this.client
+      .from('children')
+      .select('*', { count: 'exact', head: true })
       .eq('class_id', id)
-      .eq('status', '进行中');
-    const uniqueChildIds = [...new Set((enrollmentData || []).map(e => e.child_id))];
-    const studentCount = uniqueChildIds.length;
+      .eq('status', 'active');
 
     return {
       ...classData,
       teachers,
-      student_count: studentCount,
+      student_count: studentCount || 0,
     };
   }
 

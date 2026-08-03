@@ -6,22 +6,10 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { childrenApi } from '@/utils/api'
-import { Search, Plus } from 'lucide-react-taro'
+import { Search, UserCheck, Plus } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge } from '@/utils/format'
 import { getNameInitial } from '@/utils/helpers'
-
-interface Enrollment {
-  id: string
-  course_type: string
-  duration_type: string | null
-  start_date: string | null
-  end_date: string | null
-  status: string
-  class_name: string | null
-  payment_amount: number | null
-  payment_channel: string | null
-}
 
 interface Child {
   id: string
@@ -33,9 +21,13 @@ interface Child {
   parent_name: string | null
   allergies: string | null
   status: string
+  course_type: string | null
+  enrollment_duration: string | null
+  custom_days: string | null
+  start_date: string | null
+  end_date: string | null
   teacher_names: string[]
   created_at: string
-  enrollments: Enrollment[]
 }
 
 const statusOptions = [
@@ -49,15 +41,6 @@ const statusMap: Record<string, { label: string; className: string }> = {
   active: { label: '在读', className: 'bg-green-100 text-green-700' },
   graduated: { label: '毕业', className: 'bg-blue-100 text-blue-700' },
   suspended: { label: '休学', className: 'bg-yellow-100 text-yellow-700' },
-}
-
-const courseTypeColors: Record<string, string> = {
-  '全日托': 'bg-orange-50 text-orange-700 border-orange-200',
-  '半日托': 'bg-sky-50 text-sky-700 border-sky-200',
-  '周六托': 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  '晚间托': 'bg-purple-50 text-purple-700 border-purple-200',
-  '兴趣班': 'bg-pink-50 text-pink-700 border-pink-200',
-  '计日': 'bg-teal-50 text-teal-700 border-teal-200',
 }
 
 export default function ChildrenManagePage() {
@@ -164,10 +147,9 @@ export default function ChildrenManagePage() {
               onClick={() => Taro.navigateTo({ url: `/pages/admin/child-detail/index?id=${child.id}` })}
             >
               <CardContent className="p-4">
-                {/* 姓名行 */}
                 <View className="flex items-center justify-between mb-2">
                   <View className="flex items-center gap-2">
-                    <View className={`w-6 h-6 rounded-full flex items-center justify-center ${child.gender === 'male' ? 'bg-blue-100' : 'bg-pink-100'}`}>
+                    <View className={`w-6 h-6 rounded-full flex items-center justify-center mr-1 ${child.gender === 'male' ? 'bg-blue-100' : 'bg-pink-100'}`}>
                       <Text className={`text-xs font-medium ${child.gender === 'male' ? 'text-blue-700' : 'text-pink-700'}`}>
                         {getNameInitial(child.name)}
                       </Text>
@@ -176,47 +158,63 @@ export default function ChildrenManagePage() {
                     <Text className="text-sm text-muted-foreground">
                       {child.gender === 'male' ? '男' : '女'}
                     </Text>
-                    <Text className="text-sm text-muted-foreground">
-                      {calculateAge(child.birth_date)}
-                    </Text>
+                  </View>
+                  <View className="flex items-center gap-1">
+                    {child.course_type && (
+                      <Badge className="bg-purple-50 text-purple-700 text-xs">
+                        <Text className="text-xs">{child.course_type}</Text>
+                      </Badge>
+                    )}
                     <Badge className={`${statusMap[child.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
                       <Text className="text-xs">{statusMap[child.status]?.label || child.status}</Text>
                     </Badge>
                   </View>
                 </View>
-
-                {/* 过敏信息 */}
-                {child.allergies && (
-                  <View className="mb-2">
-                    <Text className="text-sm text-amber-600">过敏：{child.allergies}</Text>
+                <View className="space-y-2">
+                  <View style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
+                    <View style={{ flex: 1 }}>
+                      <Text className="text-sm text-muted-foreground">年龄: {calculateAge(child.birth_date)}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      {child.class_name ? (
+                        <Text className="text-sm text-muted-foreground">班级: {child.class_name}</Text>
+                      ) : (
+                        <Text className="text-sm text-muted-foreground">班级: 未分班</Text>
+                      )}
+                    </View>
                   </View>
-                )}
-
-                {/* 课程标签行 */}
-                {child.enrollments && child.enrollments.length > 0 ? (
-                  <View className="space-y-1">
-                    {child.enrollments.map((enr) => (
-                      <View
-                        key={enr.id}
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs ${courseTypeColors[enr.course_type] || 'bg-gray-50 text-gray-700 border-gray-200'}`}
-                      >
-                        <Text className="text-xs font-medium">{enr.course_type}</Text>
-                        {enr.class_name && (
-                          <Text className="text-xs opacity-80">| {enr.class_name}</Text>
-                        )}
-                        {enr.start_date && (
-                          <Text className="text-xs opacity-70">
-                            {enr.start_date} ~ {enr.end_date || '至今'}
-                          </Text>
-                        )}
-                      </View>
-                    ))}
+                  <View style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
+                    <View style={{ flex: 1 }}>
+                      <Text className="text-xs text-muted-foreground">过敏: {child.allergies || '无'}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      {child.teacher_names && child.teacher_names.length > 0 && (
+                        <View className="flex items-center gap-1 flex-wrap">
+                          <UserCheck size={12} color="#d97706" />
+                          {child.teacher_names.map((name: string, i: number) => (
+                            <Text key={i} className="text-xs text-amber-600">带班老师: {name}</Text>
+                          ))}
+                        </View>
+                      )}
+                    </View>
                   </View>
-                ) : (
-                  <View className="flex items-center gap-1">
-                    <Text className="text-xs text-muted-foreground">暂无报读课程</Text>
-                  </View>
-                )}
+                  {(child.enrollment_duration || child.start_date) && (
+                    <View className="flex items-center gap-2 mt-1">
+                      {child.enrollment_duration && (
+                        <Text className="text-xs text-muted-foreground">报读: {child.enrollment_duration}</Text>
+                      )}
+                      {child.enrollment_duration === '计日' && child.custom_days && (
+                        <Text className="text-xs text-muted-foreground">{child.custom_days}天</Text>
+                      )}
+                      {child.start_date && (
+                        <Text className="text-xs text-muted-foreground">{child.start_date}</Text>
+                      )}
+                      {child.end_date && (
+                        <Text className="text-xs text-muted-foreground">~ {child.end_date}</Text>
+                      )}
+                    </View>
+                  )}
+                </View>
               </CardContent>
             </Card>
           ))}
