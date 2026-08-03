@@ -86,7 +86,9 @@ export class EnrollmentsService {
 
   async create(dto: CreateEnrollmentDto): Promise<Enrollment> {
     const { class_id, ...rest } = dto;
-    const { data, error } = await this.client
+
+    // 先插入记录
+    const { error: insertError } = await this.client
       .from('enrollments')
       .insert({
         child_id: rest.child_id,
@@ -99,18 +101,28 @@ export class EnrollmentsService {
         payment_channel: rest.payment_channel || null,
         status: rest.status || '进行中',
         class_id: class_id || null,
-      })
-      .select()
-      .single();
+      });
 
-    if (error) throw new Error(`创建报读记录失败: ${error.message}`);
+    if (insertError) throw new Error(`创建报读记录失败: ${insertError.message}`);
 
     // 同步更新幼儿的班级字段
     if (class_id) {
       await this.client.from('children').update({ class_id }).eq('id', rest.child_id);
     }
 
-    return data;
+    // 查询刚插入的记录（按时间倒序取第一条，确保是刚插入的）
+    const { data, error } = await this.client
+      .from('enrollments')
+      .select('*')
+      .eq('child_id', rest.child_id)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error || !data || data.length === 0) {
+      throw new Error(`创建报读记录失败: ${error?.message || '未找到插入的记录'}`);
+    }
+
+    return data[0];
   }
 
   async update(id: string, dto: UpdateEnrollmentDto): Promise<Enrollment> {
@@ -127,21 +139,33 @@ export class EnrollmentsService {
     if (class_id !== undefined) updateData.class_id = class_id;
     updateData.updated_at = new Date().toISOString();
 
-    const { data, error } = await this.client
+    // 先更新记录
+    const { error: updateError } = await this.client
       .from('enrollments')
       .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+      .eq('id', id);
 
-    if (error) throw new Error(`更新报读记录失败: ${error.message}`);
+    if (updateError) throw new Error(`更新报读记录失败: ${updateError.message}`);
+
+    // 查询更新后的记录
+    const { data, error } = await this.client
+      .from('enrollments')
+      .select('*')
+      .eq('id', id)
+      .limit(1);
+
+    if (error || !data || data.length === 0) {
+      throw new Error(`更新报读记录失败: ${error?.message || '未找到更新的记录'}`);
+    }
+
+    const updatedRecord = data[0];
 
     // 同步更新幼儿的班级字段
     if (class_id) {
-      await this.client.from('children').update({ class_id }).eq('id', data.child_id);
+      await this.client.from('children').update({ class_id }).eq('id', updatedRecord.child_id);
     }
 
-    return data;
+    return updatedRecord;
   }
 
   async remove(id: string): Promise<void> {
