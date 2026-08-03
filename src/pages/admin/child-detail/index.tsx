@@ -50,7 +50,6 @@ export default function ChildDetailPage() {
   const { id } = router.params
   const [child, setChild] = useState<ChildDetail | null>(null)
   const [loading, setLoading] = useState(true)
-  const [deleting, setDeleting] = useState(false)
   const [enrollments, setEnrollments] = useState<any[]>([])
   const [classes, setClasses] = useState<any[]>([])
   const [editingEnrollment, setEditingEnrollment] = useState<any | null>(null)
@@ -228,7 +227,6 @@ export default function ChildDetailPage() {
       confirmColor: '#E8651A',
       success: async (res) => {
         if (res.confirm) {
-          setDeleting(true)
           try {
             const result = await childrenApi.remove(id!)
             if (result.code === 200) {
@@ -241,8 +239,6 @@ export default function ChildDetailPage() {
             }
           } catch {
             Taro.showToast({ title: '网络错误', icon: 'none' })
-          } finally {
-            setDeleting(false)
           }
         }
       },
@@ -281,8 +277,8 @@ export default function ChildDetailPage() {
         {/* 基本信息卡片 */}
         <Card className="bg-white rounded-xl border-0 shadow-sm">
           <CardContent className="p-4">
-            <View className="flex items-center gap-4 mb-4">
-              <Image src={rabbitLogo} className="w-16 h-16 rounded-full" mode="aspectFit" />
+            <View className="flex items-start gap-4 mb-4">
+              <Image src={rabbitLogo} className="w-16 h-16 rounded-full flex-shrink-0" mode="aspectFit" />
               <View className="flex-1">
                 <View className="flex items-center gap-2">
                   <Text className="text-xl font-bold text-foreground">{child.name}</Text>
@@ -293,6 +289,10 @@ export default function ChildDetailPage() {
                 <Text className="block text-sm text-muted-foreground mt-1">
                   {child.gender === 'male' ? '男' : '女'} · {calculateAge(child.birth_date)}
                 </Text>
+              </View>
+              <View className="flex items-center gap-3 flex-shrink-0 pt-1">
+                <Pencil size={18} color="#999" onClick={() => Taro.navigateTo({ url: `/pages/admin/child-edit/index?id=${child.id}` })} />
+                <Trash2 size={18} color="#E8651A" onClick={handleDelete} />
               </View>
             </View>
 
@@ -384,29 +384,7 @@ export default function ChildDetailPage() {
           </CardContent>
         </Card>
 
-        {/* 操作按钮 */}
-        <View className="flex gap-3">
-          <Button
-            className="flex-1 bg-primary text-white rounded-xl"
-            onClick={() => Taro.navigateTo({ url: `/pages/admin/child-edit/index?id=${child.id}` })}
-          >
-            <View className="flex items-center justify-center gap-2">
-              <Pencil size={16} color="#fff" />
-              <Text className="text-white">编辑</Text>
-            </View>
-          </Button>
-          <Button
-            className="flex-1 bg-red-500 text-white rounded-xl"
-            onClick={handleDelete}
-            disabled={deleting}
-          >
-            <View className="flex items-center justify-center gap-2">
-              <Trash2 size={16} color="#fff" />
-              <Text className="text-white">{deleting ? '删除中...' : '删除'}</Text>
-            </View>
-          </Button>
         </View>
-      </View>
       {/* 报读表单弹窗 */}
       {showEnrollmentForm && (
         <View
