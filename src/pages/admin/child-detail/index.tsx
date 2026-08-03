@@ -674,6 +674,9 @@ export default function ChildDetailPage() {
                 {formCourseType === '周六托' && (
                   <Text className="block text-xs text-orange-500 mt-1">周六托仅可选择周六</Text>
                 )}
+                {formDurationType === '一周体验' && (
+                  <Text className="block text-xs text-orange-500 mt-1">一周体验不可选择周末</Text>
+                )}
               </View>
               <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">结束日期</Text>
@@ -780,7 +783,11 @@ export default function ChildDetailPage() {
           setFormStartDate(dateStr)
           calcEndDate(formCourseType, formDurationType, formDurationDays, dateStr)
         }}
-        disabled={formCourseType === '周六托' ? (date) => date.getDay() !== 6 : undefined}
+        disabled={(date) => {
+          if (formCourseType === '周六托') return date.getDay() !== 6
+          if (formDurationType === '一周体验') return date.getDay() === 0 || date.getDay() === 6
+          return false
+        }}
       />
     </View>
   )
