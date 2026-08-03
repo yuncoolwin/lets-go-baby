@@ -98,6 +98,7 @@ export class EnrollmentsService {
         payment_amount: rest.payment_amount || null,
         payment_channel: rest.payment_channel || null,
         status: rest.status || '进行中',
+        class_id: class_id || null,
       })
       .select()
       .single();
@@ -123,6 +124,7 @@ export class EnrollmentsService {
     if (rest.payment_amount !== undefined) updateData.payment_amount = rest.payment_amount;
     if (rest.payment_channel !== undefined) updateData.payment_channel = rest.payment_channel;
     if (rest.status !== undefined) updateData.status = rest.status;
+    if (class_id !== undefined) updateData.class_id = class_id;
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await this.client

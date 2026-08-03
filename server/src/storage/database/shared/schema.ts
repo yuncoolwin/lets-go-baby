@@ -158,6 +158,7 @@ export const enrollments = pgTable("enrollments", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	paymentAmount: numeric("payment_amount", { precision: 10, scale:  2 }).default('0'),
 	paymentChannel: varchar("payment_channel", { length: 20 }).default(''),
+	classId: varchar("class_id", { length: 36 }),
 }, (table) => [
 	index("enrollments_child_id_idx").using("btree", table.childId.asc().nullsLast().op("text_ops")),
 	index("enrollments_status_idx").using("btree", table.status.asc().nullsLast().op("text_ops")),
