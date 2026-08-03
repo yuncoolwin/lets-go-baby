@@ -404,7 +404,7 @@ export default function ChildDetailPage() {
                   {['全日托', '半日托', '周六托', '晚间托', '兴趣班'].map((t) => (
                     <View
                       key={t}
-                      className={`px-3 py-2 rounded-lg text-sm \${
+                      className={`px-3 py-2 rounded-lg text-sm ${
                         formCourseType === t
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-gray-100 text-gray-600'
@@ -431,7 +431,7 @@ export default function ChildDetailPage() {
                     return (
                       <View
                         key={t}
-                        className={`px-3 py-2 rounded-lg text-sm \${
+                        className={`px-3 py-2 rounded-lg text-sm ${
                           disabled ? 'bg-gray-100 text-gray-300' : formDurationType === t ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600'
                         }`}
                         onClick={() => {
@@ -475,7 +475,7 @@ export default function ChildDetailPage() {
                       // end date will be calculated on save
                     }}
                   >
-                    <Text className={`w-full bg-transparent \${formStartDate ? '' : 'text-gray-400'}`}>
+                    <Text className={`w-full bg-transparent ${formStartDate ? '' : 'text-gray-400'}`}>
                       {formStartDate || '请选择开始日期'}
                     </Text>
                   </Picker>
@@ -496,7 +496,7 @@ export default function ChildDetailPage() {
                     value={classes.findIndex((c) => c.id === formClassId)}
                     onChange={(e) => setFormClassId(classes[e.detail.value]?.id || '')}
                   >
-                    <Text className={`w-full bg-transparent \${formClassId ? '' : 'text-gray-400'}`}>
+                    <Text className={`w-full bg-transparent ${formClassId ? '' : 'text-gray-400'}`}>
                       {formClassId ? classes.find((c) => c.id === formClassId)?.name || '未选择' : '请选择班级'}
                     </Text>
                   </Picker>
@@ -508,7 +508,7 @@ export default function ChildDetailPage() {
                   {['进行中', '已结束'].map((s) => (
                     <View
                       key={s}
-                      className={`px-3 py-2 rounded-lg text-sm \${
+                      className={`px-3 py-2 rounded-lg text-sm ${
                         formStatus === s ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600'
                       }`}
                       onClick={() => setFormStatus(s)}
@@ -536,7 +536,7 @@ export default function ChildDetailPage() {
                   {['微信', '支付宝', '现金'].map((c) => (
                     <View
                       key={c}
-                      className={`px-3 py-2 rounded-lg text-sm \${
+                      className={`px-3 py-2 rounded-lg text-sm ${
                         formPaymentChannel === c ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600'
                       }`}
                       onClick={() => setFormPaymentChannel(c)}
