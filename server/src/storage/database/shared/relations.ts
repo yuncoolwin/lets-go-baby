@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { classes, classMembers, userRoles, bindingRequests, children, users, parentChildRelations, growthRecords, attendanceRecords, dailyFeedbacks, attendance, families } from "./schema";
+import { classes, classMembers, userRoles, bindingRequests, children, users, parentChildRelations, growthRecords, enrollments, attendanceRecords, dailyFeedbacks, attendance, families } from "./schema";
 
 export const classMembersRelations = relations(classMembers, ({one}) => ({
 	class: one(classes, {
@@ -39,6 +39,7 @@ export const childrenRelations = relations(children, ({one, many}) => ({
 	bindingRequests: many(bindingRequests),
 	parentChildRelations: many(parentChildRelations),
 	growthRecords: many(growthRecords),
+	enrollments: many(enrollments),
 	attendanceRecords: many(attendanceRecords),
 	dailyFeedbacks: many(dailyFeedbacks),
 	attendances: many(attendance),
@@ -76,6 +77,13 @@ export const growthRecordsRelations = relations(growthRecords, ({one}) => ({
 	userRole: one(userRoles, {
 		fields: [growthRecords.teacherId],
 		references: [userRoles.id]
+	}),
+}));
+
+export const enrollmentsRelations = relations(enrollments, ({one}) => ({
+	child: one(children, {
+		fields: [enrollments.childId],
+		references: [children.id]
 	}),
 }));
 

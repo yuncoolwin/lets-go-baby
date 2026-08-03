@@ -85,38 +85,44 @@ export class EnrollmentsService {
   }
 
   async create(dto: CreateEnrollmentDto): Promise<Enrollment> {
+    const { class_id, ...rest } = dto;
     const { data, error } = await this.client
       .from('enrollments')
       .insert({
-        child_id: dto.child_id,
-        class_id: dto.class_id || '',
-        course_type: dto.course_type || '',
-        duration_type: dto.duration_type || '',
-        duration_days: dto.duration_days || 0,
-        start_date: dto.start_date || null,
-        end_date: dto.end_date || null,
-        payment_amount: dto.payment_amount || null,
-        payment_channel: dto.payment_channel || null,
-        status: dto.status || '进行中',
+        child_id: rest.child_id,
+        course_type: rest.course_type || '',
+        duration_type: rest.duration_type || '',
+        duration_days: rest.duration_days || 0,
+        start_date: rest.start_date || null,
+        end_date: rest.end_date || null,
+        payment_amount: rest.payment_amount || null,
+        payment_channel: rest.payment_channel || null,
+        status: rest.status || '进行中',
       })
       .select()
       .single();
 
     if (error) throw new Error(`创建报读记录失败: ${error.message}`);
+
+    // 同步更新幼儿的班级字段
+    if (class_id) {
+      await this.client.from('children').update({ class_id }).eq('id', rest.child_id);
+    }
+
     return data;
   }
 
   async update(id: string, dto: UpdateEnrollmentDto): Promise<Enrollment> {
+    const { class_id, ...rest } = dto;
     const updateData: Record<string, any> = {};
-    if (dto.course_type !== undefined) updateData.course_type = dto.course_type;
-    if (dto.duration_type !== undefined) updateData.duration_type = dto.duration_type;
-    if (dto.duration_days !== undefined) updateData.duration_days = dto.duration_days;
-    if (dto.start_date !== undefined) updateData.start_date = dto.start_date;
-    if (dto.end_date !== undefined) updateData.end_date = dto.end_date;
-    if (dto.payment_amount !== undefined) updateData.payment_amount = dto.payment_amount;
-    if (dto.payment_channel !== undefined) updateData.payment_channel = dto.payment_channel;
-    if (dto.status !== undefined) updateData.status = dto.status;
-    if (dto.class_id !== undefined) updateData.class_id = dto.class_id;
+    if (rest.course_type !== undefined) updateData.course_type = rest.course_type;
+    if (rest.duration_type !== undefined) updateData.duration_type = rest.duration_type;
+    if (rest.duration_days !== undefined) updateData.duration_days = rest.duration_days;
+    if (rest.start_date !== undefined) updateData.start_date = rest.start_date;
+    if (rest.end_date !== undefined) updateData.end_date = rest.end_date;
+    if (rest.payment_amount !== undefined) updateData.payment_amount = rest.payment_amount;
+    if (rest.payment_channel !== undefined) updateData.payment_channel = rest.payment_channel;
+    if (rest.status !== undefined) updateData.status = rest.status;
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await this.client
@@ -127,6 +133,12 @@ export class EnrollmentsService {
       .single();
 
     if (error) throw new Error(`更新报读记录失败: ${error.message}`);
+
+    // 同步更新幼儿的班级字段
+    if (class_id) {
+      await this.client.from('children').update({ class_id }).eq('id', data.child_id);
+    }
+
     return data;
   }
 

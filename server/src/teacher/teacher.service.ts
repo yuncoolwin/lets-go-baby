@@ -43,16 +43,27 @@ export class TeacherService {
       className = cls?.name || null;
     }
     
-    // 查询该班级通过报读关联的在读幼儿数量
+    // 查询该班级在读幼儿数量
     let studentCount = 0;
     if (classId) {
-      const { data: enrollments } = await this.client
-        .from('enrollments')
-        .select('child_id')
+      const { data: children } = await this.client
+        .from('children')
+        .select('id')
         .eq('class_id', classId)
-        .eq('status', '进行中');
-      const childIds = [...new Set(enrollments?.map(e => e.child_id) || [])];
-      studentCount = childIds.length;
+        .eq('status', '在读');
+      studentCount = children?.length || 0;
+      
+      // 如果有 enrollment 系统，进一步过滤有进行中报读的幼儿
+      if (studentCount > 0) {
+        const childIds = children!.map(c => c.id);
+        const { data: enrollments } = await this.client
+          .from('enrollments')
+          .select('child_id')
+          .in('child_id', childIds)
+          .eq('status', '进行中');
+        const activeChildIds = [...new Set(enrollments?.map(e => e.child_id) || [])];
+        studentCount = activeChildIds.length;
+      }
     }
 
     // 查询当天该班级的考勤人数
@@ -107,18 +118,27 @@ export class TeacherService {
 
     if (classError || !cls) return [];
 
-    // 查询通过报读记录关联到该班级的在读幼儿数量
-    const { data: enrollments, error: enrollError } = await this.client
-      .from('enrollments')
-      .select('child_id')
+    // 查询该班级的在读幼儿
+    const { data: children, error: childError } = await this.client
+      .from('children')
+      .select('id')
       .eq('class_id', teacherClassId)
-      .eq('status', '进行中');
+      .eq('status', '在读');
 
-    if (enrollError) throw new Error(`查询报读记录失败: ${enrollError.message}`);
+    if (childError) throw new Error(`查询幼儿失败: ${childError.message}`);
 
-    // 去重得到唯一的幼儿ID
-    const childIds = [...new Set(enrollments?.map(e => e.child_id) || [])];
-    const studentCount = childIds.length;
+    // 过滤有进行中报读的幼儿
+    const childIds = children?.map(c => c.id) || [];
+    let studentCount = 0;
+    if (childIds.length > 0) {
+      const { data: enrollments } = await this.client
+        .from('enrollments')
+        .select('child_id')
+        .in('child_id', childIds)
+        .eq('status', '进行中');
+      const activeChildIds = [...new Set(enrollments?.map(e => e.child_id) || [])];
+      studentCount = activeChildIds.length;
+    }
 
     // 查询当天该班级的考勤人数
     const now = new Date();
@@ -148,28 +168,30 @@ export class TeacherService {
   }
 
   async getClassStudents(classId: string) {
-    // 查询通过报读记录关联到该班级的幼儿
-    const { data: enrollments, error: enrollError } = await this.client
-      .from('enrollments')
-      .select('child_id')
-      .eq('class_id', classId)
-      .eq('status', '进行中');
-
-    if (enrollError) throw new Error(`查询报读记录失败: ${enrollError.message}`);
-    if (!enrollments || enrollments.length === 0) return [];
-
-    // 去重得到唯一的幼儿ID
-    const childIds = [...new Set(enrollments.map(e => e.child_id))];
-
-    // 查询幼儿信息
-    const { data, error } = await this.client
+    // 查询该班级的在读幼儿
+    const { data: children, error: childError } = await this.client
       .from('children')
       .select('id, name, gender')
-      .in('id', childIds)
-      .eq('status', 'active');
+      .eq('class_id', classId)
+      .eq('status', '在读');
 
-    if (error) throw new Error(`查询幼儿失败: ${error.message}`);
-    if (!data) return [];
+    if (childError) throw new Error(`查询幼儿失败: ${childError.message}`);
+    if (!children || children.length === 0) return [];
+
+    // 过滤有进行中报读的幼儿
+    const childIds = children.map(c => c.id);
+    let activeChildIds: string[] = [];
+    if (childIds.length > 0) {
+      const { data: enrollments } = await this.client
+        .from('enrollments')
+        .select('child_id')
+        .in('child_id', childIds)
+        .eq('status', '进行中');
+      activeChildIds = [...new Set(enrollments?.map(e => e.child_id) || [])];
+    }
+
+    // 筛选出有进行中报读的幼儿
+    const activeChildren = children.filter(c => activeChildIds.includes(c.id));
 
     // 查询当天考勤记录（使用日期字符串匹配）
     const todayStr = new Date().toISOString().split('T')[0];
@@ -187,7 +209,7 @@ export class TeacherService {
       });
     }
 
-    return data.map((c) => ({
+    return activeChildren.map((c) => ({
       id: c.id,
       child_name: c.name,
       gender: c.gender || 'unknown',

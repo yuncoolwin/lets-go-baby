@@ -1,4 +1,4 @@
-import { pgTable, index, foreignKey, varchar, timestamp, serial, text, unique, boolean, jsonb, integer, date, check, uuid, numeric } from "drizzle-orm/pg-core"
+import { pgTable, index, foreignKey, varchar, timestamp, serial, text, unique, boolean, jsonb, integer, date, numeric, check, uuid } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
@@ -145,6 +145,29 @@ export const growthRecords = pgTable("growth_records", {
 		}),
 ]);
 
+export const enrollments = pgTable("enrollments", {
+	id: varchar({ length: 36 }).default(sql`gen_random_uuid()`).primaryKey().notNull(),
+	childId: varchar("child_id", { length: 36 }).notNull(),
+	courseType: varchar("course_type", { length: 50 }).default('').notNull(),
+	durationType: varchar("duration_type", { length: 50 }).default('').notNull(),
+	durationDays: integer("duration_days").default(0),
+	startDate: date("start_date"),
+	endDate: date("end_date"),
+	status: varchar({ length: 20 }).default('进行中').notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	paymentAmount: numeric("payment_amount", { precision: 10, scale:  2 }).default('0'),
+	paymentChannel: varchar("payment_channel", { length: 20 }).default(''),
+}, (table) => [
+	index("enrollments_child_id_idx").using("btree", table.childId.asc().nullsLast().op("text_ops")),
+	index("enrollments_status_idx").using("btree", table.status.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.childId],
+			foreignColumns: [children.id],
+			name: "enrollments_child_id_children_id_fk"
+		}).onDelete("cascade"),
+]);
+
 export const classes = pgTable("classes", {
 	id: varchar({ length: 36 }).default(sql`gen_random_uuid()`).primaryKey().notNull(),
 	name: varchar({ length: 64 }).notNull(),
@@ -261,9 +284,9 @@ export const children = pgTable("children", {
 	enrollmentDuration: varchar("enrollment_duration", { length: 50 }).default(''),
 	startDate: date("start_date"),
 	endDate: date("end_date"),
-		paymentAmount: numeric("payment_amount", { precision: 10, scale: 2 }).default("0"),
-		paymentChannel: varchar("payment_channel", { length: 20 }).default(""),
 	customDays: varchar("custom_days", { length: 20 }).default(''),
+	paymentAmount: numeric("payment_amount", { precision: 10, scale:  2 }).default('0'),
+	paymentChannel: varchar("payment_channel", { length: 20 }).default(''),
 }, (table) => [
 	index("children_family_id_idx").using("btree", table.familyId.asc().nullsLast().op("text_ops")),
 	index("children_name_idx").using("btree", table.name.asc().nullsLast().op("text_ops")),
@@ -318,29 +341,6 @@ export const notificationReads = pgTable("notification_reads", {
 	readAt: timestamp("read_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 });
-
-export const enrollments = pgTable("enrollments", {
-	id: varchar({ length: 36 }).default(sql`gen_random_uuid()`).primaryKey().notNull(),
-	childId: varchar("child_id", { length: 36 }).notNull(),
-	courseType: varchar("course_type", { length: 50 }).notNull().default(''),
-	durationType: varchar("duration_type", { length: 50 }).notNull().default(''),
-	durationDays: integer("duration_days").default(0),
-	startDate: date("start_date"),
-	endDate: date("end_date"),
-		paymentAmount: numeric("payment_amount", { precision: 10, scale: 2 }).default("0"),
-		paymentChannel: varchar("payment_channel", { length: 20 }).default(""),
-	status: varchar({ length: 20 }).notNull().default('进行中'),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-}, (table) => [
-	index("enrollments_child_id_idx").using("btree", table.childId.asc().nullsLast().op("text_ops")),
-	index("enrollments_status_idx").using("btree", table.status.asc().nullsLast().op("text_ops")),
-	foreignKey({
-			columns: [table.childId],
-			foreignColumns: [children.id],
-			name: "enrollments_child_id_children_id_fk"
-		}).onDelete("cascade"),
-]);
 
 export const holidays = pgTable("holidays", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
