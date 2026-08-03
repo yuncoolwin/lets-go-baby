@@ -1,18 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { View, Text, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { childrenApi, classApi } from '@/utils/api'
+import { childrenApi } from '@/utils/api'
 import BackButton from '@/components/back-button'
-
-interface ClassItem {
-  id: string
-  name: string
-  level: string
-}
 
 const statusOptions = [
   { value: 'active', label: '在读' },
@@ -27,32 +21,15 @@ const genderOptions = [
 
 export default function ChildAddPage() {
   const [submitting, setSubmitting] = useState(false)
-  const [classes, setClasses] = useState<ClassItem[]>([])
 
   const [name, setName] = useState('')
   const [gender, setGender] = useState('male')
   const [birthDate, setBirthDate] = useState('')
   const [status, setStatus] = useState('active')
-  const [classId, setClassId] = useState('')
   const [parentName, setParentName] = useState('')
   const [parentPhone, setParentPhone] = useState('')
   const [allergies, setAllergies] = useState('')
   const [healthInfo, setHealthInfo] = useState('')
-
-  useEffect(() => {
-    const loadClasses = async () => {
-      try {
-        const res = await classApi.list({ page: 1, page_size: 100 })
-        if (res.code === 200 && res.data) {
-          const classData = res.data as any
-          setClasses(Array.isArray(classData.list) ? classData.list : [])
-        }
-      } catch {
-        // ignore
-      }
-    }
-    loadClasses()
-  }, [])
 
   const handleSubmit = async () => {
     if (!name.trim()) {
@@ -71,7 +48,7 @@ export default function ChildAddPage() {
         gender,
         birth_date: birthDate,
         status,
-        class_id: classId || undefined,
+        class_id: undefined,
         parent_name: parentName || undefined,
         parent_phone: parentPhone || undefined,
         allergies: allergies || undefined,
@@ -163,32 +140,6 @@ export default function ChildAddPage() {
                     onClick={() => setStatus(opt.value)}
                   >
                     <Text className="text-sm">{opt.label}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            {/* 班级 */}
-            <View>
-              <Label className="text-sm font-medium text-foreground">所在班级</Label>
-              <View className="mt-1 flex flex-wrap gap-2">
-                <View
-                  className={`px-4 py-2 rounded-lg text-sm ${
-                    !classId ? 'bg-primary text-white' : 'bg-gray-100 text-foreground'
-                  }`}
-                  onClick={() => setClassId('')}
-                >
-                  <Text className="text-sm">未分班</Text>
-                </View>
-                {classes.map((cls) => (
-                  <View
-                    key={cls.id}
-                    className={`px-4 py-2 rounded-lg text-sm ${
-                      classId === cls.id ? 'bg-primary text-white' : 'bg-gray-100 text-foreground'
-                    }`}
-                    onClick={() => setClassId(cls.id)}
-                  >
-                    <Text className="text-sm">{cls.name}</Text>
                   </View>
                 ))}
               </View>
