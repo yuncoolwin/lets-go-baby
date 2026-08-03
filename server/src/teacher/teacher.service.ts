@@ -43,17 +43,27 @@ export class TeacherService {
       className = cls?.name || null;
     }
     
-    // 直接从 enrollments 表统计该班级进行中的报读幼儿数
+    // 查询该班级在读幼儿数量
     let studentCount = 0;
     if (classId) {
-      const { data: enrollments } = await this.client
-        .from('enrollments')
-        .select('child_id')
+      const { data: children } = await this.client
+        .from('children')
+        .select('id')
         .eq('class_id', classId)
-        .eq('status', '进行中');
-      // 使用 Set 去重统计幼儿数量
-      const activeChildIds = [...new Set(enrollments?.map(e => e.child_id) || [])];
-      studentCount = activeChildIds.length;
+        .eq('status', '在读');
+      studentCount = children?.length || 0;
+      
+      // 如果有 enrollment 系统，进一步过滤有进行中报读的幼儿
+      if (studentCount > 0) {
+        const childIds = children!.map(c => c.id);
+        const { data: enrollments } = await this.client
+          .from('enrollments')
+          .select('child_id')
+          .in('child_id', childIds)
+          .eq('status', '进行中');
+        const activeChildIds = [...new Set(enrollments?.map(e => e.child_id) || [])];
+        studentCount = activeChildIds.length;
+      }
     }
 
     // 查询当天该班级的考勤人数
@@ -90,7 +100,7 @@ export class TeacherService {
   async getClassOverview(teacherRoleId?: string) {
     // 获取当前教师的班级ID
     let teacherClassId: string | null = null;
-    
+
     if (teacherRoleId) {
       const teacherData = await this.getMe(teacherRoleId);
       teacherClassId = teacherData?.class_id || null;
@@ -106,17 +116,59 @@ export class TeacherService {
       .eq('status', 'active')
       .single();
 
-    if (classError || !cls) return [];
+    if (classError || !cls) {
+      return [];
+    }
 
-    // 直接从 enrollments 表统计该班级进行中的报读幼儿数
-    let studentCount = 0;
-    const { data: enrollmentsForCount } = await this.client
+    // 查询该班级的进行中报读（通过 enrollments.class_id）
+    const { data: enrollments } = await this.client
       .from('enrollments')
-      .select('child_id')
+      .select('id, child_id, course_type, status, start_date, end_date')
       .eq('class_id', teacherClassId)
       .eq('status', '进行中');
-    const activeChildIdsForCount = [...new Set(enrollmentsForCount?.map(e => e.child_id) || [])];
-    studentCount = activeChildIdsForCount.length;
+
+    const enrollmentList = enrollments || [];
+
+    // 按 child_id 分组，每人只取一条（全日托优先）
+    const childEnrollmentMap = new Map<string, typeof enrollmentList[0]>();
+    const sortOrder = ['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日'];
+    for (const e of enrollmentList) {
+      const existing = childEnrollmentMap.get(e.child_id);
+      if (!existing) {
+        childEnrollmentMap.set(e.child_id, e);
+      } else {
+        // 全日托 > 半日托 > 周六托 > 晚间托 > 兴趣班 > 计日
+        const existingIdx = sortOrder.indexOf(existing.course_type);
+        const newIdx = sortOrder.indexOf(e.course_type);
+        if (newIdx < existingIdx) {
+          childEnrollmentMap.set(e.child_id, e);
+        }
+      }
+    }
+
+    const childIds = [...childEnrollmentMap.keys()];
+
+    // 查询幼儿姓名
+    let childrenMap: Record<string, { name: string; gender: string }> = {};
+    if (childIds.length > 0) {
+      const { data: childrenData } = await this.client
+        .from('children')
+        .select('id, name, gender')
+        .in('id', childIds);
+      childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender }; });
+    }
+
+    // 组装学生列表（每人只显示一条）
+    const students = childIds.map(childId => {
+      const e = childEnrollmentMap.get(childId)!;
+      return {
+        id: childId,
+        name: childrenMap[childId]?.name || '',
+        gender: childrenMap[childId]?.gender || '',
+        course_type: e.course_type,
+        status: e.status,
+      };
+    });
 
     // 查询当天该班级的考勤人数
     const now = new Date();
@@ -126,7 +178,7 @@ export class TeacherService {
     const tomorrowStr = tomorrowUTC.toISOString().split('T')[0];
     const { data: attendance, error: attError } = await this.client
       .from('attendance')
-      .select('id')
+      .select('id, status')
       .eq('class_id', teacherClassId)
       .gte('date', today)
       .lt('date', tomorrowStr);
@@ -135,42 +187,46 @@ export class TeacherService {
       console.error('查询考勤失败:', attError);
     }
 
-    const todayAttendance = attendance?.length || 0;
+    const presentCount = attendance?.filter(a => a.status === '出勤')?.length || 0;
+    const absentCount = attendance?.filter(a => a.status === '缺勤')?.length || 0;
+    const leaveCount = attendance?.filter(a => a.status === '请假')?.length || 0;
 
     return [{
       id: cls.id,
       name: cls.name,
-      student_count: studentCount,
-      today_attendance: todayAttendance,
+      student_count: childIds.length,
+      today_attendance: { present: presentCount, absent: absentCount, leave: leaveCount },
+      students,
     }];
   }
 
   async getClassStudents(classId: string) {
-    // 直接从 enrollments 表查询该班级进行中的报读记录
-    const { data: enrollments, error: enrollError } = await this.client
-      .from('enrollments')
-      .select('child_id, course_type, duration_type')
-      .eq('class_id', classId)
-      .eq('status', '进行中');
-
-    if (enrollError) throw new Error(`查询报读记录失败: ${enrollError.message}`);
-    if (!enrollments || enrollments.length === 0) return { groups: [], total: 0 };
-
-    // 获取所有幼儿的 ID（去重）
-    const childIds = [...new Set(enrollments.map(e => e.child_id))];
-
-    // 查询幼儿详细信息
+    // 查询该班级的在读幼儿
     const { data: children, error: childError } = await this.client
       .from('children')
-      .select('id, name, gender, birth_date, allergies')
-      .in('id', childIds);
+      .select('id, name, gender')
+      .eq('class_id', classId)
+      .eq('status', '在读');
 
     if (childError) throw new Error(`查询幼儿失败: ${childError.message}`);
+    if (!children || children.length === 0) return [];
 
-    // 构建幼儿信息映射
-    const childMap = new Map(children?.map(c => [c.id, c]) || []);
+    // 过滤有进行中报读的幼儿
+    const childIds = children.map(c => c.id);
+    let activeChildIds: string[] = [];
+    if (childIds.length > 0) {
+      const { data: enrollments } = await this.client
+        .from('enrollments')
+        .select('child_id')
+        .in('child_id', childIds)
+        .eq('status', '进行中');
+      activeChildIds = [...new Set(enrollments?.map(e => e.child_id) || [])];
+    }
 
-    // 查询当天考勤记录
+    // 筛选出有进行中报读的幼儿
+    const activeChildren = children.filter(c => activeChildIds.includes(c.id));
+
+    // 查询当天考勤记录（使用日期字符串匹配）
     const todayStr = new Date().toISOString().split('T')[0];
     const { data: attendanceData } = await this.client
       .from('attendance')
@@ -186,60 +242,12 @@ export class TeacherService {
       });
     }
 
-    // 按 course_type 分组
-    const groupMap: Record<string, any[]> = {};
-    const courseTypeLabel: Record<string, string> = {
-      '全日托': '全日托',
-      '半日托': '半日托',
-      '暑期托': '暑期托',
-      '寒假托': '寒假托',
-      '延时托': '延时托',
-    };
-
-    enrollments.forEach(enrollment => {
-      const child = childMap.get(enrollment.child_id);
-      if (!child) return;
-
-      const courseType = enrollment.course_type || '其他';
-      if (!groupMap[courseType]) {
-        groupMap[courseType] = [];
-      }
-
-      groupMap[courseType].push({
-        id: child.id,
-        name: child.name,
-        gender: child.gender || 'unknown',
-        birth_date: child.birth_date || '',
-        allergies: child.allergies || null,
-        course_type: courseType,
-        duration_type: enrollment.duration_type || null,
-        attendance_status: attendanceMap[child.id] || 'unknown',
-      });
-    });
-
-    // 转换为分组数组
-    const groups = Object.entries(groupMap).map(([courseType, childrenList]) => ({
-      course_type: courseType,
-      course_type_label: courseTypeLabel[courseType] || courseType,
-      children: childrenList,
-      count: childrenList.length,
+    return activeChildren.map((c) => ({
+      id: c.id,
+      child_name: c.name,
+      gender: c.gender || 'unknown',
+      attendance_status: attendanceMap[c.id] || 'unknown',
     }));
-
-    // 按课程类型排序（托班优先）
-    const sortOrder = ['全日托', '半日托', '暑期托', '寒假托', '延时托'];
-    groups.sort((a, b) => {
-      const aIndex = sortOrder.indexOf(a.course_type);
-      const bIndex = sortOrder.indexOf(b.course_type);
-      if (aIndex === -1 && bIndex === -1) return a.course_type.localeCompare(b.course_type);
-      if (aIndex === -1) return 1;
-      if (bIndex === -1) return -1;
-      return aIndex - bIndex;
-    });
-
-    return {
-      groups,
-      total: childIds.length,
-    };
   }
 
   async getFeedbacks(teacherRoleId?: string) {
@@ -391,7 +399,7 @@ export class TeacherService {
   async getById(id: string) {
     const { data, error } = await this.client
       .from('teachers')
-      .select('id, real_name, nickname, title, class_id, status')
+      .select('id, real_name, nickname, title, class_id, status, entry_date, leave_date, phone, qualification, specialty, user_id')
       .eq('id', id)
       .eq('status', 'active')
       .single();
@@ -412,14 +420,13 @@ export class TeacherService {
         .single();
       className = classData?.name || null;
 
-      // 直接从 enrollments 表统计该班级进行中的报读幼儿数
-      const { data: enrollmentsForCount } = await this.client
-        .from('enrollments')
-        .select('child_id')
+      // 查询该班级的在读幼儿数量
+      const { count } = await this.client
+        .from('children')
+        .select('id', { count: 'exact', head: true })
         .eq('class_id', data.class_id)
-        .eq('status', '进行中');
-      const activeChildIdsForCount = [...new Set(enrollmentsForCount?.map(e => e.child_id) || [])];
-      studentCount = activeChildIdsForCount.length;
+        .eq('status', 'active');
+      studentCount = count || 0;
 
       // 查询当天该班级的考勤人数（使用UTC日期）
       const utcNow = new Date();

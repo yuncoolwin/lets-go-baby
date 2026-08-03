@@ -134,10 +134,6 @@ export const teacherApi = {
   getById: (id: string) =>
     request({ url: `/api/teachers/${id}`, method: 'GET' }),
 
-  // 获取班级学生列表（按课程类型分组）
-  getClassStudents: (classId: string) =>
-    request({ url: '/api/teachers/class-students', method: 'GET', data: { class_id: classId } }),
-
   update: (id: string, data: Record<string, any>) =>
     request({ url: `/api/teachers/${id}`, method: 'PATCH', data }),
 

@@ -86,9 +86,7 @@ export class EnrollmentsService {
 
   async create(dto: CreateEnrollmentDto): Promise<Enrollment> {
     const { class_id, ...rest } = dto;
-
-    // 插入新记录
-    const { data: insertData, error: insertError } = await this.client
+    const { data, error } = await this.client
       .from('enrollments')
       .insert({
         child_id: rest.child_id,
@@ -105,9 +103,14 @@ export class EnrollmentsService {
       .select()
       .single();
 
-    if (insertError) throw new Error(`创建报读记录失败: ${insertError.message}`);
+    if (error) throw new Error(`创建报读记录失败: ${error.message}`);
 
-    return insertData;
+    // 同步更新幼儿的班级字段
+    if (class_id) {
+      await this.client.from('children').update({ class_id }).eq('id', rest.child_id);
+    }
+
+    return data;
   }
 
   async update(id: string, dto: UpdateEnrollmentDto): Promise<Enrollment> {
@@ -124,23 +127,21 @@ export class EnrollmentsService {
     if (class_id !== undefined) updateData.class_id = class_id;
     updateData.updated_at = new Date().toISOString();
 
-    // 更新记录并返回更新后的数据
-    const { data: updatedRecord, error: updateError } = await this.client
+    const { data, error } = await this.client
       .from('enrollments')
       .update(updateData)
       .eq('id', id)
       .select()
       .single();
 
-    if (updateError) throw new Error(`更新报读记录失败: ${updateError.message}`);
-    if (!updatedRecord) throw new Error('更新报读记录失败: 未找到更新的记录');
+    if (error) throw new Error(`更新报读记录失败: ${error.message}`);
 
     // 同步更新幼儿的班级字段
     if (class_id) {
-      await this.client.from('children').update({ class_id }).eq('id', updatedRecord.child_id);
+      await this.client.from('children').update({ class_id }).eq('id', data.child_id);
     }
 
-    return updatedRecord;
+    return data;
   }
 
   async remove(id: string): Promise<void> {
