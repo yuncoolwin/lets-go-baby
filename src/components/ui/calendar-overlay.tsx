@@ -30,15 +30,12 @@ export function CalendarOverlay({
 
   return (
     <View
-      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.25)' }}
+      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
       onClick={onClose}
     >
-      {/* 点击遮罩关闭 */}
-      <View style={{ flex: 1 }} onClick={onClose} />
-
       {/* 日历弹窗 - 居中全宽 */}
       <View
-        style={{ backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: '16px 12px', width: '100%' }}
+        style={{ backgroundColor: '#fff', borderRadius: 16, padding: '16px 12px', width: '88%', maxWidth: 400 }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* 顶部栏：关闭按钮 */}
