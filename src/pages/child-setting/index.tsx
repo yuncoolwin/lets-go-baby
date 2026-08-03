@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import Taro from '@tarojs/taro'
-import { View, Text, Picker, Image } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -9,6 +9,8 @@ import BackButton from '@/components/back-button'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { Network } from '@/network'
 import { formatAge } from '@/utils/format'
+import { Calendar } from '@/components/ui/calendar'
+import { format } from 'date-fns'
 
 interface ChildDetail {
   id: string
@@ -50,6 +52,7 @@ export default function ChildSettingPage() {
   const [allergies, setAllergies] = useState('')
   const [relationship, setRelationship] = useState('')
   const [customRelationship, setCustomRelationship] = useState('')
+  const [showCalendar, setShowCalendar] = useState(false)
 
   useEffect(() => {
     const params = Taro.getCurrentInstance().router?.params
@@ -275,15 +278,12 @@ export default function ChildSettingPage() {
             {/* 出生日期 */}
             <View>
               <Text className="block text-sm text-muted-foreground mb-2">出生日期</Text>
-              <Picker
-                mode="date"
-                value={birthDate}
-                onChange={(e) => setBirthDate(e.detail.value)}
+              <View
+                className="bg-gray-50 rounded-lg px-3 py-2"
+                onClick={() => setShowCalendar(true)}
               >
-                <View className="bg-gray-50 rounded-lg px-3 py-2">
-                  <Text className="text-sm text-foreground">{birthDate || '请选择出生日期'}</Text>
-                </View>
-              </Picker>
+                <Text className="text-sm text-foreground">{birthDate || '请选择出生日期'}</Text>
+              </View>
             </View>
 
             {/* 过敏情况 */}
@@ -349,6 +349,29 @@ export default function ChildSettingPage() {
             </View>
           </CardContent>
         </Card>
+      )}
+
+      {/* 日历选择器浮层 */}
+      {showCalendar && (
+        <View style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <View onClick={() => setShowCalendar(false)} style={{ flex: 1 }} />
+          <View className="bg-white rounded-t-2xl p-4">
+            <View className="flex justify-end mb-2">
+              <Text className="text-primary text-sm" onClick={() => setShowCalendar(false)}>完成</Text>
+            </View>
+            <Calendar
+              mode="single"
+              selected={birthDate ? new Date(birthDate) : undefined}
+              onSelect={(date) => {
+                if (date) {
+                  setBirthDate(format(date, 'yyyy-MM-dd'))
+                  setShowCalendar(false)
+                }
+              }}
+              className="border-0"
+            />
+          </View>
+        </View>
       )}
     </View>
   )

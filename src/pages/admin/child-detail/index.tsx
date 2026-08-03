@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, Text, Image, Picker } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -81,6 +81,7 @@ export default function ChildDetailPage() {
   const [formClassId, setFormClassId] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [showEnrollmentForm, setShowEnrollmentForm] = useState(false)
+  const [showCalendar, setShowCalendar] = useState<'birthDate' | 'startDate' | null>(null)
 
   // 幼儿基本信息编辑
   const [isEditingChild, setIsEditingChild] = useState(false)
@@ -413,14 +414,12 @@ export default function ChildDetailPage() {
                   {/* 出生日期 */}
                   <View>
                     <Label className="text-sm font-medium text-foreground">出生日期 *</Label>
-                    <Picker mode="date" value={editBirthDate} onChange={(e) => setEditBirthDate(e.detail.value)}>
-                      <View className="mt-1 bg-gray-50 rounded-lg px-3 py-2">
-                        <Text className="block text-sm text-foreground">{editBirthDate || '请选择出生日期'}</Text>
-                      </View>
-                    </Picker>
-                  {formCourseType === '周六托' && (
-                    <Text className="block text-xs text-orange-500 mt-1">周六托仅可选择周六</Text>
-                  )}
+                    <View
+                      className="mt-1 bg-gray-50 rounded-lg px-3 py-2"
+                      onClick={() => setShowCalendar('birthDate')}
+                    >
+                      <Text className="block text-sm text-foreground">{editBirthDate || '请选择出生日期'}</Text>
+                    </View>
                   </View>
                   {/* 在读状态 */}
                   <View>
@@ -664,38 +663,16 @@ export default function ChildDetailPage() {
               )}
               <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">开始日期</Text>
-                {formCourseType === '周六托' ? (
-                  <View className="bg-gray-50 rounded-xl p-2">
-                    <Calendar
-                      mode="single"
-                      selected={formStartDate ? new Date(formStartDate) : undefined}
-                      onSelect={(date) => {
-                        if (date) {
-                          const dateStr = format(date, 'yyyy-MM-dd')
-                          setFormStartDate(dateStr)
-                          calcEndDate(formCourseType, formDurationType, formDurationDays, dateStr)
-                        }
-                      }}
-                      disabled={(date) => date.getDay() !== 6}
-                      className="border-0"
-                    />
-                  </View>
-                ) : (
-                  <View className="bg-gray-50 rounded-xl px-4 py-3">
-                    <Picker
-                      mode="date"
-                      value={formStartDate}
-                      onChange={(e) => {
-                        const newDate = e.detail.value
-                        setFormStartDate(newDate)
-                        calcEndDate(formCourseType, formDurationType, formDurationDays, newDate)
-                      }}
-                    >
-                      <Text className={`w-full bg-transparent ${formStartDate ? '' : 'text-gray-400'}`}>
-                        {formStartDate || '请选择开始日期'}
-                      </Text>
-                    </Picker>
-                  </View>
+                <View
+                  className="bg-gray-50 rounded-xl px-4 py-3"
+                  onClick={() => setShowCalendar('startDate')}
+                >
+                  <Text className={`text-sm ${formStartDate ? 'text-foreground' : 'text-gray-400'}`}>
+                    {formStartDate || '请选择开始日期'}
+                  </Text>
+                </View>
+                {formCourseType === '周六托' && (
+                  <Text className="block text-xs text-orange-500 mt-1">周六托仅可选择周六</Text>
                 )}
               </View>
               <View>
@@ -784,6 +761,40 @@ export default function ChildDetailPage() {
                 <Text>{submitting ? '保存中...' : '保存'}</Text>
               </Button>
             </View>
+          </View>
+        </View>
+      )}
+
+      {/* 日历选择器浮层 */}
+      {showCalendar && (
+        <View style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <View onClick={() => setShowCalendar(null)} style={{ flex: 1 }} />
+          <View className="bg-white rounded-t-2xl p-4">
+            <View className="flex justify-end mb-2">
+              <Text className="text-primary text-sm" onClick={() => setShowCalendar(null)}>完成</Text>
+            </View>
+            <Calendar
+              mode="single"
+              selected={
+                showCalendar === 'birthDate'
+                  ? (editBirthDate ? new Date(editBirthDate) : undefined)
+                  : (formStartDate ? new Date(formStartDate) : undefined)
+              }
+              onSelect={(date) => {
+                if (date) {
+                  const dateStr = format(date, 'yyyy-MM-dd')
+                  if (showCalendar === 'birthDate') {
+                    setEditBirthDate(dateStr)
+                  } else {
+                    setFormStartDate(dateStr)
+                    calcEndDate(formCourseType, formDurationType, formDurationDays, dateStr)
+                  }
+                  setShowCalendar(null)
+                }
+              }}
+              disabled={showCalendar === 'startDate' && formCourseType === '周六托' ? (date) => date.getDay() !== 6 : undefined}
+              className="border-0"
+            />
           </View>
         </View>
       )}
