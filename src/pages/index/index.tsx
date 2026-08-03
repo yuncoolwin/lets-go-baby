@@ -185,10 +185,11 @@ export default function IndexPage() {
         }
       }
     } else {
-      // 兼容旧逻辑
+      const tid = Taro.getStorageSync('teacherId')
       const res = await Network.request({
         url: '/api/teachers/class-overview',
         method: 'GET',
+        data: tid ? { teacher_id: tid } : {},
       })
       console.log('[Index] class overview:', res.data)
       if (res.data?.data) {

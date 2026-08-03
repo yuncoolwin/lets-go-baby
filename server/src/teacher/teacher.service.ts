@@ -100,7 +100,7 @@ export class TeacherService {
   async getClassOverview(teacherRoleId?: string) {
     // 获取当前教师的班级ID
     let teacherClassId: string | null = null;
-    
+
     if (teacherRoleId) {
       const teacherData = await this.getMe(teacherRoleId);
       teacherClassId = teacherData?.class_id || null;
@@ -116,29 +116,59 @@ export class TeacherService {
       .eq('status', 'active')
       .single();
 
-    if (classError || !cls) return [];
-
-    // 查询该班级的在读幼儿
-    const { data: children, error: childError } = await this.client
-      .from('children')
-      .select('id')
-      .eq('class_id', teacherClassId)
-      .eq('status', '在读');
-
-    if (childError) throw new Error(`查询幼儿失败: ${childError.message}`);
-
-    // 过滤有进行中报读的幼儿
-    const childIds = children?.map(c => c.id) || [];
-    let studentCount = 0;
-    if (childIds.length > 0) {
-      const { data: enrollments } = await this.client
-        .from('enrollments')
-        .select('child_id')
-        .in('child_id', childIds)
-        .eq('status', '进行中');
-      const activeChildIds = [...new Set(enrollments?.map(e => e.child_id) || [])];
-      studentCount = activeChildIds.length;
+    if (classError || !cls) {
+      return [];
     }
+
+    // 查询该班级的进行中报读（通过 enrollments.class_id）
+    const { data: enrollments } = await this.client
+      .from('enrollments')
+      .select('id, child_id, course_type, status, start_date, end_date')
+      .eq('class_id', teacherClassId)
+      .eq('status', '进行中');
+
+    const enrollmentList = enrollments || [];
+
+    // 按 child_id 分组，每人只取一条（全日托优先）
+    const childEnrollmentMap = new Map<string, typeof enrollmentList[0]>();
+    const sortOrder = ['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日'];
+    for (const e of enrollmentList) {
+      const existing = childEnrollmentMap.get(e.child_id);
+      if (!existing) {
+        childEnrollmentMap.set(e.child_id, e);
+      } else {
+        // 全日托 > 半日托 > 周六托 > 晚间托 > 兴趣班 > 计日
+        const existingIdx = sortOrder.indexOf(existing.course_type);
+        const newIdx = sortOrder.indexOf(e.course_type);
+        if (newIdx < existingIdx) {
+          childEnrollmentMap.set(e.child_id, e);
+        }
+      }
+    }
+
+    const childIds = [...childEnrollmentMap.keys()];
+
+    // 查询幼儿姓名
+    let childrenMap: Record<string, { name: string; gender: string }> = {};
+    if (childIds.length > 0) {
+      const { data: childrenData } = await this.client
+        .from('children')
+        .select('id, name, gender')
+        .in('id', childIds);
+      childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender }; });
+    }
+
+    // 组装学生列表（每人只显示一条）
+    const students = childIds.map(childId => {
+      const e = childEnrollmentMap.get(childId)!;
+      return {
+        id: childId,
+        name: childrenMap[childId]?.name || '',
+        gender: childrenMap[childId]?.gender || '',
+        course_type: e.course_type,
+        status: e.status,
+      };
+    });
 
     // 查询当天该班级的考勤人数
     const now = new Date();
@@ -148,7 +178,7 @@ export class TeacherService {
     const tomorrowStr = tomorrowUTC.toISOString().split('T')[0];
     const { data: attendance, error: attError } = await this.client
       .from('attendance')
-      .select('id')
+      .select('id, status')
       .eq('class_id', teacherClassId)
       .gte('date', today)
       .lt('date', tomorrowStr);
@@ -157,13 +187,16 @@ export class TeacherService {
       console.error('查询考勤失败:', attError);
     }
 
-    const todayAttendance = attendance?.length || 0;
+    const presentCount = attendance?.filter(a => a.status === '出勤')?.length || 0;
+    const absentCount = attendance?.filter(a => a.status === '缺勤')?.length || 0;
+    const leaveCount = attendance?.filter(a => a.status === '请假')?.length || 0;
 
     return [{
       id: cls.id,
       name: cls.name,
-      student_count: studentCount,
-      today_attendance: todayAttendance,
+      student_count: childIds.length,
+      today_attendance: { present: presentCount, absent: absentCount, leave: leaveCount },
+      students,
     }];
   }
 
