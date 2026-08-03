@@ -366,7 +366,7 @@ export class TeacherService {
   async getById(id: string) {
     const { data, error } = await this.client
       .from('teachers')
-      .select('id, real_name, nickname, title, class_id, status')
+      .select('id, real_name, nickname, title, class_id, status, entry_date, leave_date, phone, qualification, specialty, user_id')
       .eq('id', id)
       .eq('status', 'active')
       .single();
