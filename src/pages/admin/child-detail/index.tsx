@@ -194,6 +194,11 @@ export default function ChildDetailPage() {
       Taro.showToast({ title: '请选择课程类型', icon: 'none' })
       return
     }
+    if (!id) {
+      Taro.showToast({ title: '幼儿ID无效', icon: 'none' })
+      setSubmitting(false)
+      return
+    }
     if (!formStartDate) {
       Taro.showToast({ title: '请选择开始日期', icon: 'none' })
       return
