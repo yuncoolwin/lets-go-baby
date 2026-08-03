@@ -97,6 +97,29 @@ export default function ChildDetailPage() {
     setShowEnrollmentForm(true)
   }
 
+  // 计算结束日期
+  const calcEndDate = async (courseType: string, durationType: string, durationDays: string, startDate: string) => {
+    if (!courseType || !durationType || !startDate) {
+      setFormEndDate('')
+      return
+    }
+    try {
+      const res = await childrenApi.calcEndDate({
+        course_type: courseType,
+        enrollment_duration: durationType,
+        custom_days: durationType === '计日' ? durationDays : '',
+        start_date: startDate,
+      })
+      if (res.code === 200 && res.data?.end_date) {
+        setFormEndDate(res.data.end_date)
+      } else {
+        setFormEndDate('')
+      }
+    } catch {
+      setFormEndDate('')
+    }
+  }
+
   const handleSubmitEnrollment = async () => {
     if (!formCourseType) {
       Taro.showToast({ title: '请选择课程类型', icon: 'none' })
@@ -412,11 +435,14 @@ export default function ChildDetailPage() {
                           : 'bg-gray-100 text-gray-600'
                       }`}
                       onClick={() => {
-                        setFormCourseType(t)
-                        if (['周六托', '兴趣班'].includes(t)) {
+                        const newType = t
+                        setFormCourseType(newType)
+                        if (['周六托', '兴趣班'].includes(newType)) {
                           setFormDurationType('计日')
-                          setFormDurationDays("")
                           setFormDurationDays('')
+                          calcEndDate(newType, '计日', '', formStartDate)
+                        } else {
+                          calcEndDate(newType, formDurationType, formDurationDays, formStartDate)
                         }
                       }}
                     >
@@ -438,11 +464,10 @@ export default function ChildDetailPage() {
                         }`}
                         onClick={() => {
                           if (!disabled) {
-                            setFormDurationType(t)
-                            if (t !== '计日') {
-                              setFormDurationDays('')
-                              setFormDurationDays("")
-                            }
+                            const newDuration = t
+                            setFormDurationType(newDuration)
+                            setFormDurationDays('')
+                            calcEndDate(formCourseType, newDuration, '', formStartDate)
                           }
                         }}
                       >
@@ -461,7 +486,11 @@ export default function ChildDetailPage() {
                       type="number"
                       placeholder="请输入天数"
                       value={formDurationDays}
-                      onInput={(e) => setFormDurationDays(e.detail.value)}
+                      onInput={(e) => {
+                        const val = e.detail.value
+                        setFormDurationDays(val)
+                        calcEndDate(formCourseType, formDurationType, val, formStartDate)
+                      }}
                     />
                   </View>
                 </View>
@@ -473,8 +502,9 @@ export default function ChildDetailPage() {
                     mode="date"
                     value={formStartDate}
                     onChange={(e) => {
-                      setFormStartDate(e.detail.value)
-                      // end date will be calculated on save
+                      const newDate = e.detail.value
+                      setFormStartDate(newDate)
+                      calcEndDate(formCourseType, formDurationType, formDurationDays, newDate)
                     }}
                   >
                     <Text className={`w-full bg-transparent ${formStartDate ? '' : 'text-gray-400'}`}>
