@@ -411,6 +411,7 @@ export class TeacherService {
     let className = null;
     let studentCount = 0;
     let todayAttendance: number | { present: number; absent: number; leave: number } = 0;
+    let activeChildren: any[] = [];
     
     if (data.class_id) {
       const { data: classData } = await this.client
@@ -420,13 +421,54 @@ export class TeacherService {
         .single();
       className = classData?.name || null;
 
-      // 查询该班级的在读幼儿数量
-      const { count } = await this.client
-        .from('children')
-        .select('id', { count: 'exact', head: true })
+      // 从 enrollments 表统计进行中报读的幼儿数（数据源统一）
+      const { data: enrollments } = await this.client
+        .from('enrollments')
+        .select('id, child_id, course_type, status')
         .eq('class_id', data.class_id)
-        .eq('status', 'active');
-      studentCount = count || 0;
+        .eq('status', '进行中');
+
+      const enrollmentList = enrollments || [];
+
+      // 按 child_id 去重（全日托优先）
+      const sortOrder = ['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日'];
+      const childEnrollmentMap = new Map<string, typeof enrollmentList[0]>();
+      for (const e of enrollmentList) {
+        const existing = childEnrollmentMap.get(e.child_id);
+        if (!existing) {
+          childEnrollmentMap.set(e.child_id, e);
+        } else {
+          const existingIdx = sortOrder.indexOf(existing.course_type);
+          const newIdx = sortOrder.indexOf(e.course_type);
+          if (newIdx < existingIdx) {
+            childEnrollmentMap.set(e.child_id, e);
+          }
+        }
+      }
+
+      const childIds = [...childEnrollmentMap.keys()];
+      studentCount = childIds.length;
+
+      // 查询幼儿姓名和性别
+      let childrenMap: Record<string, { name: string; gender: string }> = {};
+      if (childIds.length > 0) {
+        const { data: childrenData } = await this.client
+          .from('children')
+          .select('id, name, gender')
+          .in('id', childIds);
+        childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender }; });
+      }
+
+      // 组装 active_children（含 course_type）
+      activeChildren = childIds.map(childId => {
+        const e = childEnrollmentMap.get(childId)!;
+        return {
+          id: childId,
+          name: childrenMap[childId]?.name || '',
+          gender: childrenMap[childId]?.gender || '',
+          course_type: e.course_type,
+        };
+      });
 
       // 查询当天该班级的考勤人数（使用UTC日期）
       const utcNow = new Date();
@@ -434,32 +476,16 @@ export class TeacherService {
       const todayStart = utcDate.toISOString().split('T')[0];
       const todayEnd = new Date(Date.UTC(utcNow.getUTCFullYear(), utcNow.getUTCMonth(), utcNow.getUTCDate() + 1)).toISOString().split('T')[0];
       
-      // 查询出勤人数
-      const { count: presentCount } = await this.client
+      const { data: attendanceData, error: attError } = await this.client
         .from('attendance')
-        .select('id', { count: 'exact', head: true })
+        .select('id, child_id, status')
         .eq('class_id', data.class_id)
-        .eq('status', 'present')
         .gte('date', todayStart)
         .lt('date', todayEnd);
-      
-      // 查询缺勤人数
-      const { count: absentCount } = await this.client
-        .from('attendance')
-        .select('id', { count: 'exact', head: true })
-        .eq('class_id', data.class_id)
-        .eq('status', 'absent')
-        .gte('date', todayStart)
-        .lt('date', todayEnd);
-      
-      // 查询请假人数
-      const { count: leaveCount } = await this.client
-        .from('attendance')
-        .select('id', { count: 'exact', head: true })
-        .eq('class_id', data.class_id)
-        .eq('status', 'leave')
-        .gte('date', todayStart)
-        .lt('date', todayEnd);
+
+      const presentCount = attendanceData?.filter(a => a.status === 'present')?.length || 0;
+      const absentCount = attendanceData?.filter(a => a.status === 'absent')?.length || 0;
+      const leaveCount = attendanceData?.filter(a => a.status === 'leave')?.length || 0;
       
       todayAttendance = {
         present: presentCount || 0,
@@ -474,6 +500,7 @@ export class TeacherService {
       display_name: data.nickname || data.real_name,
       student_count: studentCount,
       today_attendance: todayAttendance,
+      active_children: activeChildren,
     };
   }
 }

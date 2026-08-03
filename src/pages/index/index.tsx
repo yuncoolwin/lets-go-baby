@@ -591,43 +591,65 @@ export default function IndexPage() {
                           </View>
                         ) : expandedChildren.length > 0 ? (
                           <View className="p-4">
-                            <Text className="block text-xs text-muted-foreground mb-3">在读幼儿 ({expandedChildren.length})</Text>
-                            <View className="space-y-2">
-                              {expandedChildren.map((child) => {
-                                const status = child.attendance_status
-                                const statusConfig = {
-                                  present: { label: '出勤', bg: 'bg-green-100', text: 'text-green-700' },
-                                  absent: { label: '缺勤', bg: 'bg-red-100', text: 'text-red-700' },
-                                  leave: { label: '请假', bg: 'bg-yellow-100', text: 'text-yellow-700' },
-                                }
-                                const config = statusConfig[status as keyof typeof statusConfig] || { label: '未考勤', bg: 'bg-gray-100', text: 'text-gray-500' }
+                            {/* 按课程类型分组 */}
+                            {(() => {
+                              const groups: Record<string, any[]> = {}
+                              expandedChildren.forEach((child) => {
+                                const ct = child.course_type || '其他'
+                                if (!groups[ct]) groups[ct] = []
+                                groups[ct].push(child)
+                              })
+                              const courseTypeOrder = ['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日', '其他']
+                              const sortedKeys = Object.keys(groups).sort(
+                                (a, b) => courseTypeOrder.indexOf(a) - courseTypeOrder.indexOf(b)
+                              )
+                              return sortedKeys.map((ct) => {
+                                const children = groups[ct]
                                 return (
-                                  <View
-                                    key={child.id}
-                                    className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg"
-                                    onClick={() => {
-                                      Taro.navigateTo({ url: `/pages/baby-profile/index?id=${child.id}` })
-                                    }}
-                                  >
-                                    <View className={`w-8 h-8 rounded-full flex items-center justify-center ${child.gender === 'male' ? 'bg-blue-100' : 'bg-pink-100'}`}>
-                                      <Text className={`text-sm font-medium ${child.gender === 'male' ? 'text-blue-700' : 'text-pink-700'}`}>
-                                        {(child.name || '幼').charAt(0)}
-                                      </Text>
-                                    </View>
-                                    <View className="flex-1">
-                                      <Text className="block text-sm font-medium text-foreground">{child.name}</Text>
-                                      <Text className="block text-xs text-muted-foreground">
-                                        {formatAge(child.birth_date)} · {child.gender === 'male' ? '男' : '女'}
-                                        {child.allergies && ` · 过敏: ${child.allergies}`}
-                                      </Text>
-                                    </View>
-                                    <View className={`px-2 py-1 rounded ${config.bg}`}>
-                                      <Text className={`text-xs font-medium ${config.text}`}>{config.label}</Text>
+                                  <View key={ct} className="mb-3 last:mb-0">
+                                    <Text className="block text-xs text-muted-foreground mb-2">
+                                      {ct}（{children.length}人）
+                                    </Text>
+                                    <View className="space-y-2">
+                                      {children.map((child) => {
+                                        const status = child.attendance_status
+                                        const statusConfig = {
+                                          present: { label: '出勤', bg: 'bg-green-100', text: 'text-green-700' },
+                                          absent: { label: '缺勤', bg: 'bg-red-100', text: 'text-red-700' },
+                                          leave: { label: '请假', bg: 'bg-yellow-100', text: 'text-yellow-700' },
+                                        }
+                                        const config = statusConfig[status as keyof typeof statusConfig] || { label: '未考勤', bg: 'bg-gray-100', text: 'text-gray-500' }
+                                        return (
+                                          <View
+                                            key={child.id}
+                                            className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg"
+                                            onClick={() => {
+                                              Taro.navigateTo({ url: `/pages/baby-profile/index?id=${child.id}` })
+                                            }}
+                                          >
+                                            <View className={`w-8 h-8 rounded-full flex items-center justify-center ${child.gender === 'male' ? 'bg-blue-100' : 'bg-pink-100'}`}>
+                                              <Text className={`text-sm font-medium ${child.gender === 'male' ? 'text-blue-700' : 'text-pink-700'}`}>
+                                                {(child.name || '幼').charAt(0)}
+                                              </Text>
+                                            </View>
+                                            <View className="flex-1">
+                                              <Text className="block text-sm font-medium text-foreground">{child.name}</Text>
+                                              <Text className="block text-xs text-muted-foreground">
+                                                {formatAge(child.birth_date)} · {child.gender === 'male' ? '男' : '女'}
+                                                {child.allergies && ` · 过敏: ${child.allergies}`}
+                                              </Text>
+                                            </View>
+                                            <View className={`px-2 py-1 rounded ${config.bg}`}>
+                                              <Text className={`text-xs font-medium ${config.text}`}>{config.label}</Text>
+                                            </View>
+                                          </View>
+                                        )
+                                      })}
                                     </View>
                                   </View>
                                 )
-                              })}
-                            </View>
+                              })
+                            })()}
                           </View>
                         ) : (
                           <View className="p-4 flex flex-col items-center">
