@@ -328,16 +328,12 @@ export default function ChildDetailPage() {
                   <View className="flex items-center justify-between mb-1">
                     <Text className="text-sm font-semibold text-foreground">{enr.course_type}</Text>
                     <View className="flex items-center gap-2">
-                      <Pencil
-                        size={14}
-                        color="#999"
-                        onClick={() => openEditEnrollment(enr)}
-                      />
-                      <Trash2
-                        size={14}
-                        color="#999"
-                        onClick={() => handleDeleteEnrollment(enr)}
-                      />
+                      <View onClick={() => openEditEnrollment(enr)}>
+                        <Pencil size={14} color="#999" />
+                      </View>
+                      <View onClick={() => handleDeleteEnrollment(enr)}>
+                        <Trash2 size={14} color="#999" />
+                      </View>
                       <Badge className={enr.status === '进行中' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
                         <Text className="text-xs">{enr.status}</Text>
                       </Badge>
