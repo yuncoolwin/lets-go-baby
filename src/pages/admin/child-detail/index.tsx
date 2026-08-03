@@ -170,7 +170,7 @@ export default function ChildDetailPage() {
       const [childRes, enrRes, clsRes] = await Promise.all([
         childrenApi.detail(id),
         enrollmentApi.list(id!),
-        classApi.list(),
+        classApi.list({ page: 1, page_size: 100 }),
       ])
       if (childRes.code === 200 && childRes.data) {
         setChild(childRes.data as unknown as ChildDetail)
@@ -179,7 +179,9 @@ export default function ChildDetailPage() {
       }
       if (enrRes.code === 200 && Array.isArray(enrRes.data)) {
         setEnrollments(enrRes.data as any[])
-        if (clsRes.code === 200 && Array.isArray(clsRes.data)) { setClasses(clsRes.data as any[]) }
+      }
+      if (clsRes.code === 200 && Array.isArray(clsRes.data)) {
+        setClasses(clsRes.data as any[])
       }
     } catch {
       Taro.showToast({ title: '网络错误', icon: 'none' })
@@ -489,17 +491,22 @@ export default function ChildDetailPage() {
               </View>
               <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">所在班级</Text>
-                <View className="bg-gray-50 rounded-xl px-4 py-3">
-                  <Picker
-                    mode="selector"
-                    range={classes.map((c) => c.name)}
-                    value={classes.findIndex((c) => c.id === formClassId)}
-                    onChange={(e) => setFormClassId(classes[e.detail.value]?.id || '')}
-                  >
-                    <Text className={`w-full bg-transparent ${formClassId ? '' : 'text-gray-400'}`}>
-                      {formClassId ? classes.find((c) => c.id === formClassId)?.name || '未选择' : '请选择班级'}
-                    </Text>
-                  </Picker>
+                <View className="flex flex-wrap gap-2">
+                  {classes.length > 0 ? classes.map((c: any) => (
+                    <View
+                      key={c.id}
+                      className={`px-3 py-2 rounded-lg text-sm ${
+                        formClassId === c.id
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                      onClick={() => setFormClassId(c.id)}
+                    >
+                      <Text>{c.name}{c.room ? `（${c.room}）` : ''}</Text>
+                    </View>
+                  )) : (
+                    <Text className="block text-sm text-gray-400">暂无可用班级</Text>
+                  )}
                 </View>
               </View>
               <View>
