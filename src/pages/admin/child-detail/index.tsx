@@ -12,6 +12,8 @@ import BackButton from '@/components/back-button'
 import { Pencil, Trash2, BookOpen, Plus, X } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge } from '@/utils/format'
+import { format } from 'date-fns'
+import { Calendar } from '@/components/ui/calendar'
 
 interface ChildDetail {
   id: string
@@ -662,29 +664,39 @@ export default function ChildDetailPage() {
               )}
               <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">开始日期</Text>
-                <View className="bg-gray-50 rounded-xl px-4 py-3">
-                  <Picker
-                    mode="date"
-                    value={formStartDate}
-                    onChange={(e) => {
-                      const newDate = e.detail.value
-                      // 周六托只允许选择周六
-                      if (formCourseType === '周六托') {
-                        const selected = new Date(newDate)
-                        if (selected.getDay() !== 6) {
-                          Taro.showToast({ title: '周六托仅可选择周六', icon: 'none' })
-                          return
+                {formCourseType === '周六托' ? (
+                  <View className="bg-gray-50 rounded-xl p-2">
+                    <Calendar
+                      mode="single"
+                      selected={formStartDate ? new Date(formStartDate) : undefined}
+                      onSelect={(date) => {
+                        if (date) {
+                          const dateStr = format(date, 'yyyy-MM-dd')
+                          setFormStartDate(dateStr)
+                          calcEndDate(formCourseType, formDurationType, formDurationDays, dateStr)
                         }
-                      }
-                      setFormStartDate(newDate)
-                      calcEndDate(formCourseType, formDurationType, formDurationDays, newDate)
-                    }}
-                  >
-                    <Text className={`w-full bg-transparent ${formStartDate ? '' : 'text-gray-400'}`}>
-                      {formStartDate || '请选择开始日期'}
-                    </Text>
-                  </Picker>
-                </View>
+                      }}
+                      disabled={(date) => date.getDay() !== 6}
+                      className="border-0"
+                    />
+                  </View>
+                ) : (
+                  <View className="bg-gray-50 rounded-xl px-4 py-3">
+                    <Picker
+                      mode="date"
+                      value={formStartDate}
+                      onChange={(e) => {
+                        const newDate = e.detail.value
+                        setFormStartDate(newDate)
+                        calcEndDate(formCourseType, formDurationType, formDurationDays, newDate)
+                      }}
+                    >
+                      <Text className={`w-full bg-transparent ${formStartDate ? '' : 'text-gray-400'}`}>
+                        {formStartDate || '请选择开始日期'}
+                      </Text>
+                    </Picker>
+                  </View>
+                )}
               </View>
               <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">结束日期</Text>
