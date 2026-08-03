@@ -8,7 +8,7 @@ export class AttendanceService {
   }
 
   /**
-   * 批量获取某班级某天的点名记录（含完整幼儿信息）
+   * 批量获取某班级某天的点名记录（含完整幼儿信息和课程类型）
    * @param classId 班级ID
    * @param date 可选，默认当天
    */
@@ -23,6 +23,7 @@ export class AttendanceService {
       .eq('class_id', classId)
       .eq('status', 'active');
     if (childErr) throw childErr;
+    const childList = children || [];
 
     // 查询当天点名记录
     const { data: records, error } = await this.client
@@ -36,11 +37,30 @@ export class AttendanceService {
     const recordMap: Record<string, any> = {};
     (records || []).forEach(r => { recordMap[r.child_id] = r; });
 
-    // 合并：所有在班幼儿 + 考勤状态
-    const mergedList = (children || []).map(c => {
+    // 查询该班级进行中的报读记录（含 course_type）
+    const childIds = childList.map(c => c.id);
+    let enrollmentMap: Record<string, string> = {};
+    if (childIds.length > 0) {
+      const { data: enrollments } = await this.client
+        .from('enrollments')
+        .select('child_id, course_type')
+        .in('child_id', childIds)
+        .eq('class_id', classId)
+        .eq('status', '进行中');
+      (enrollments || []).forEach(e => {
+        // 如果同一幼儿有多个报读，取第一个（按优先顺序）
+        if (!enrollmentMap[e.child_id]) {
+          enrollmentMap[e.child_id] = e.course_type;
+        }
+      });
+    }
+
+    // 合并：所有在班幼儿 + 考勤状态 + 课程类型
+    const mergedList = childList.map(c => {
       const record = recordMap[c.id];
       return {
         ...c,
+        course_type: enrollmentMap[c.id] || '',
         attendance_id: record?.id || null,
         attendance_status: record?.status || null,
         updated_at: record?.updated_at || null,
