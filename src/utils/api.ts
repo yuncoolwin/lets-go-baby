@@ -105,7 +105,7 @@ export const childrenApi = {
       validateStatus: () => true,
     }),
 
-  calcEndDate: (data: { course_type: string; enrollment_duration: string; start_date: string; custom_days?: string }) =>
+  calcEndDate: (data: { course_type: string; enrollment_duration: string; start_date: string; custom_days?: string; date_calc_rule?: string }) =>
     request({ url: '/api/children/calc-end-date', method: 'POST', data }),
 
   remove: (id: string) =>

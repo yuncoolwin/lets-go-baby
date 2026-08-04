@@ -197,12 +197,14 @@ export default function ChildDetailPage() {
       setFormEndDate('')
       return
     }
+    const course = courses.find((c: any) => c.name === courseType)
     try {
       const res = await childrenApi.calcEndDate({
         course_type: courseType,
         enrollment_duration: durationType,
         custom_days: durationType === '计日' ? durationDays : '',
         start_date: startDate,
+        date_calc_rule: course?.date_calc_rule || '工作日',
       })
       if (res.code === 200 && res.data?.end_date) {
         setFormEndDate(res.data.end_date)
@@ -237,6 +239,7 @@ export default function ChildDetailPage() {
         payment_amount: formPaymentAmount || null,
         payment_channel: formPaymentChannel || null,
         class_id: formClassId || null,
+        date_calc_rule: (courses.find((c: any) => c.name === formCourseType)?.date_calc_rule) || '工作日',
       }
       let result
       if (editingEnrollment) {
@@ -603,13 +606,20 @@ export default function ChildDetailPage() {
                       onClick={() => {
                         const newType = c.name
                         setFormCourseType(newType)
-                        // 周六托默认开始日期为下周六
-                        if (newType === '周六托') {
+                        const rules = (c.date_calc_rule || '').split(',')
+                        // 如果包含周六规则，默认开始日期为下周六
+                        if (rules.includes('周六')) {
                           const saturdayDate = getNextSaturday()
                           setFormStartDate(saturdayDate)
-                          setFormDurationType('计日')
-                          setFormDurationDays('')
-                          calcEndDate(newType, '计日', '', saturdayDate)
+                          if (newType === '兴趣班' || rules.includes('工作日')) {
+                            setFormDurationType('计日')
+                            setFormDurationDays('')
+                            calcEndDate(newType, '计日', '', saturdayDate)
+                          } else {
+                            setFormDurationType('计日')
+                            setFormDurationDays('')
+                            calcEndDate(newType, '计日', '', saturdayDate)
+                          }
                         } else if (newType === '兴趣班') {
                           setFormDurationType('计日')
                           setFormDurationDays('')
@@ -791,8 +801,12 @@ export default function ChildDetailPage() {
           calcEndDate(formCourseType, formDurationType, formDurationDays, dateStr)
         }}
         disabled={(date) => {
-          if (formCourseType === '周六托') return date.getDay() !== 6
-          if (formDurationType === '一周体验') return date.getDay() === 0 || date.getDay() === 6
+          const selectedCourse = courses.find(c => c.name === formCourseType)
+          const rules = (selectedCourse?.date_calc_rule || '').split(',')
+          const hasWeekday = rules.includes('工作日')
+          const hasSaturday = rules.includes('周六')
+          if (hasSaturday && !hasWeekday) return date.getDay() !== 6
+          if (formDurationType === '一周体验' && hasWeekday) return date.getDay() === 0 || date.getDay() === 6
           return false
         }}
       />

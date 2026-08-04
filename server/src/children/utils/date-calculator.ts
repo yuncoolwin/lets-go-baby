@@ -117,12 +117,15 @@ export function createDateCalculator(
     courseType: string,
     enrollmentDuration: string,
     customDays: string,
+    dateCalcRule?: string,
   ): string {
     if (!startDate || !enrollmentDuration) return ''
     const isSaturdayType = courseType === '周六托' || courseType === '兴趣班'
+    // 如果传入了 dateCalcRule，优先使用它来判断日期计算规则
+    const useSaturday = dateCalcRule ? dateCalcRule.includes('周六') : isSaturdayType
     const days = getDurationDays(enrollmentDuration, customDays)
     if (days <= 0) return ''
-    if (isSaturdayType) return addSaturdays(startDate, days)
+    if (useSaturday) return addSaturdays(startDate, days)
     if (isCalendarMonthDuration(enrollmentDuration)) return addCalendarMonths(startDate, days)
     return addWorkingDays(startDate, days)
   }

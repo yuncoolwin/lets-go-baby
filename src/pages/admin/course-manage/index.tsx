@@ -52,8 +52,7 @@ export default function CourseManagePage() {
   const [formName, setFormName] = useState('')
   const [formClassId, setFormClassId] = useState('')
   const [formDurationOptions, setFormDurationOptions] = useState<string[]>([])
-  const [formDateCalcRule, setFormDateCalcRule] = useState('weekday')
-  const [formSortOrder, setFormSortOrder] = useState('0')
+  const [formDateCalcRule, setFormDateCalcRule] = useState<string[]>(['工作日'])
   const [formStatus, setFormStatus] = useState('启用')
 
   const loadCourses = useCallback(async () => {
@@ -103,8 +102,7 @@ export default function CourseManagePage() {
     setFormName(course.name)
     setFormClassId(course.class_id || '')
     setFormDurationOptions(course.duration_options || [])
-    setFormDateCalcRule(course.date_calc_rule || 'weekday')
-    setFormSortOrder(String(course.sort_order || 0))
+    setFormDateCalcRule(course.date_calc_rule ? course.date_calc_rule.split(',') : ['工作日'])
     setFormStatus(course.status || '启用')
     setDialogOpen(true)
   }
@@ -113,8 +111,7 @@ export default function CourseManagePage() {
     setFormName('')
     setFormClassId('')
     setFormDurationOptions([])
-    setFormDateCalcRule('weekday')
-    setFormSortOrder('0')
+    setFormDateCalcRule(['工作日'])
     setFormStatus('启用')
   }
 
@@ -134,8 +131,7 @@ export default function CourseManagePage() {
       name: formName.trim(),
       class_id: formClassId || null,
       duration_options: formDurationOptions,
-      date_calc_rule: formDateCalcRule,
-      sort_order: parseInt(formSortOrder) || 0,
+      date_calc_rule: formDateCalcRule.join(','),
       status: formStatus,
     }
 
@@ -187,9 +183,9 @@ export default function CourseManagePage() {
   }
 
   const getClassName = (classId: string | null) => {
-    if (!classId) return '—'
+    if (!classId) return '未关联'
     const cls = classes.find(c => c.id === classId)
-    return cls?.name || '—'
+    return cls?.name || '未关联'
   }
 
   const getColorClass = (name: string) => {
@@ -254,7 +250,7 @@ export default function CourseManagePage() {
                       报读时长：{course.duration_options?.length ? course.duration_options.join('、') : '未设置'}
                     </Text>
                     <Text className="block text-xs text-gray-500 mt-1">
-                      日期规则：{course.date_calc_rule === 'weekday' ? '工作日' : '周六'}　排序：{course.sort_order}
+                      日期规则：{course.date_calc_rule?.split(',').join('、') || '未设置'}
                     </Text>
                   </View>
                   <View className="flex items-center gap-2 flex-shrink-0 ml-2">
@@ -385,42 +381,27 @@ export default function CourseManagePage() {
 
             {/* 日期计算规则 */}
             <View className="mb-4">
-              <Label className="text-sm font-medium text-foreground mb-2 block">日期计算规则</Label>
+              <Label className="text-sm font-medium text-foreground mb-2 block">日期计算规则（可多选）</Label>
               <View className="flex flex-wrap gap-2">
-                <View
-                  className={`px-3 py-2 rounded-lg border text-sm cursor-pointer ${
-                    formDateCalcRule === 'weekday'
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-white text-gray-700 border-gray-200'
-                  }`}
-                  onClick={() => setFormDateCalcRule('weekday')}
-                >
-                  <Text>工作日</Text>
-                </View>
-                <View
-                  className={`px-3 py-2 rounded-lg border text-sm cursor-pointer ${
-                    formDateCalcRule === 'saturday'
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-white text-gray-700 border-gray-200'
-                  }`}
-                  onClick={() => setFormDateCalcRule('saturday')}
-                >
-                  <Text>周六</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* 排序 */}
-            <View className="mb-4">
-              <Label className="text-sm font-medium text-foreground mb-2 block">排序</Label>
-              <View className="bg-gray-50 rounded-xl px-4 py-3">
-                <Input
-                  className="w-full bg-transparent"
-                  type="number"
-                  placeholder="输入排序数字"
-                  value={formSortOrder}
-                  onInput={(e) => setFormSortOrder(e.detail.value)}
-                />
+                {['工作日', '周六'].map(rule => (
+                  <View
+                    key={rule}
+                    className={`px-3 py-2 rounded-lg border text-sm cursor-pointer ${
+                      formDateCalcRule.includes(rule)
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-white text-gray-700 border-gray-200'
+                    }`}
+                    onClick={() => {
+                      setFormDateCalcRule(prev =>
+                        prev.includes(rule)
+                          ? prev.filter(r => r !== rule)
+                          : [...prev, rule]
+                      )
+                    }}
+                  >
+                    <Text>{rule}</Text>
+                  </View>
+                ))}
               </View>
             </View>
 

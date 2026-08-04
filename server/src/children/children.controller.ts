@@ -40,7 +40,7 @@ export class ChildrenController {
 
   @Post('calc-end-date')
   @HttpCode(200)
-  async calcEndDate(@Body() body: { start_date: string; course_type: string; enrollment_duration: string; custom_days: string }) {
+  async calcEndDate(@Body() body: { start_date: string; course_type: string; enrollment_duration: string; custom_days: string; date_calc_rule?: string }) {
     // 从数据库读取节假日数据
     try {
       const year = body.start_date ? new Date(body.start_date).getFullYear() : 2026;
@@ -51,6 +51,7 @@ export class ChildrenController {
         body.course_type,
         body.enrollment_duration,
         body.custom_days || '',
+        body.date_calc_rule || '',
       );
       return { code: 200, msg: 'success', data: { end_date: endDate } };
     } catch {
@@ -61,6 +62,7 @@ export class ChildrenController {
         body.course_type,
         body.enrollment_duration,
         body.custom_days || '',
+        body.date_calc_rule || '',
       );
       return { code: 200, msg: 'success', data: { end_date: endDate } };
     }

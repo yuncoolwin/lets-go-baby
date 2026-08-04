@@ -9,20 +9,19 @@ export class CoursesService {
     const { data, error } = await this.supabase
       .from('courses')
       .select('*')
-      .order('sort_order', { ascending: true });
+      .order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
     return data || [];
   }
 
-  async create(body: { name: string; class_id?: string; duration_options?: string[]; date_calc_rule?: string; sort_order?: number; status?: string }) {
+  async create(body: { name: string; class_id?: string; duration_options?: string[]; date_calc_rule?: string; status?: string }) {
     const { data, error } = await this.supabase
       .from('courses')
       .insert({
         name: body.name,
         class_id: body.class_id || null,
         duration_options: body.duration_options || [],
-        date_calc_rule: body.date_calc_rule || 'weekday',
-        sort_order: body.sort_order || 0,
+        date_calc_rule: body.date_calc_rule || '工作日',
         status: body.status || '启用',
       })
       .select()
@@ -39,7 +38,6 @@ export class CoursesService {
         class_id: body.class_id,
         duration_options: body.duration_options,
         date_calc_rule: body.date_calc_rule,
-        sort_order: body.sort_order,
         status: body.status,
         updated_at: new Date().toISOString(),
       })
