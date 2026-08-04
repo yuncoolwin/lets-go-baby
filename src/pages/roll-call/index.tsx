@@ -162,7 +162,7 @@ export default function RollCallPage() {
           data: {
             child_id: child.id,
             class_id: classId,
-            date: today,
+            date: selectedDate,
             status,
             teacher_id: currentRole?.id || '',
           },
