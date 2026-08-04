@@ -25,7 +25,10 @@ export class CoursesController {
 
   @Delete(':id')
   async remove(@Param('id') id: string) {
-    await this.coursesService.remove(id);
+    const result = await this.coursesService.remove(id);
+    if (result.success === false) {
+      return { code: 400, msg: result.message };
+    }
     return { code: 200, msg: 'success' };
   }
 }

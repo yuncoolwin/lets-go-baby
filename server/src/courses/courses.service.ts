@@ -49,11 +49,25 @@ export class CoursesService {
   }
 
   async remove(id: string) {
+    // 检查是否有进行中的报读记录
+    const { data: activeEnrollments, error: queryError } = await this.supabase
+      .from('enrollments')
+      .select('id')
+      .eq('course_id', id)
+      .eq('status', '进行中')
+      .limit(1);
+    if (queryError) throw new Error(queryError.message);
+
+    if (activeEnrollments && activeEnrollments.length > 0) {
+      return { success: false, message: '该课程下有在读幼儿，无法删除' };
+    }
+
+    // 仅删除课程本身，不级联删除历史报读记录
     const { error } = await this.supabase
       .from('courses')
       .delete()
       .eq('id', id);
     if (error) throw new Error(error.message);
-    return { success: true };
+    return { success: true, message: '删除成功' };
   }
 }
