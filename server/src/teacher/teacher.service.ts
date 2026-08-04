@@ -238,6 +238,9 @@ export class TeacherService {
       childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender }; });
     }
 
+    // 考勤查询日期
+    const queryDate = date || new Date().toISOString().split('T')[0];
+
     // 按课程类型分组（一个 child 可出现在多个分组）
     const groupMap = new Map<string, Array<{
       child_id: string;
@@ -249,6 +252,9 @@ export class TeacherService {
 
     for (const e of enrollmentList) {
       const ct = e.course_type;
+      // 过滤日期范围：queryDate 必须在 start_date ~ end_date 之间
+      if (queryDate && e.start_date && queryDate < e.start_date) continue;
+      if (queryDate && e.end_date && queryDate > e.end_date) continue;
       if (!groupMap.has(ct)) groupMap.set(ct, []);
       groupMap.get(ct)!.push({
         child_id: e.child_id,
@@ -260,7 +266,6 @@ export class TeacherService {
     }
 
     // 查询当天考勤数据
-    const queryDate = date || new Date().toISOString().split('T')[0];
     const { data: attendance } = await this.client
       .from('attendance')
       .select('child_id, status')
