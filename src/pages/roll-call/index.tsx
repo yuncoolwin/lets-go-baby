@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { View, Text, ScrollView, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
 
@@ -14,6 +15,16 @@ interface ChildItem {
   allergy?: string
   avatar_url?: string
   attendance_status?: string | null
+  course_type?: string | null
+}
+
+const COURSE_TYPE_COLORS: Record<string, string> = {
+  '全日托': 'bg-orange-100 text-orange-700',
+  '半日托': 'bg-blue-100 text-blue-700',
+  '周六托': 'bg-purple-100 text-purple-700',
+  '晚间托': 'bg-indigo-100 text-indigo-700',
+  '兴趣班': 'bg-green-100 text-green-700',
+  '计日': 'bg-gray-100 text-gray-700',
 }
 
 interface AttendanceItem {
@@ -188,9 +199,6 @@ export default function RollCallPage() {
     })
   }
 
-  const presentCount = Object.values(tempAttendance).filter(s => s === 'present').length
-  const absentCount = Object.values(tempAttendance).filter(s => s === 'absent').length
-  const leaveCount = Object.values(tempAttendance).filter(s => s === 'leave').length
   const currentDisplay = isLocked ? attendance : tempAttendance
 
   return (
@@ -231,109 +239,156 @@ export default function RollCallPage() {
         {/* 班级信息 */}
         {className && (
           <View className="px-4 pt-4 pb-2">
-            <Text className="block text-sm text-gray-500">{className} 在读幼儿</Text>
+            <Text className="block text-sm text-gray-500">{className} 考勤分组</Text>
           </View>
         )}
 
-        {/* 统计 */}
-        <View className="px-4 pb-3 flex gap-3">
-          <View className="flex-1 bg-green-50 rounded-xl py-2 px-3 text-center">
-            <Text className="block text-xl font-bold text-green-600">{presentCount}</Text>
-            <Text className="block text-xs text-green-500">出勤</Text>
-          </View>
-          <View className="flex-1 bg-red-50 rounded-xl py-2 px-3 text-center">
-            <Text className="block text-xl font-bold text-red-500">{absentCount}</Text>
-            <Text className="block text-xs text-red-400">缺勤</Text>
-          </View>
-          <View className="flex-1 bg-yellow-50 rounded-xl py-2 px-3 text-center">
-            <Text className="block text-xl font-bold text-yellow-600">{leaveCount}</Text>
-            <Text className="block text-xs text-yellow-500">请假</Text>
-          </View>
-          <View className="flex-1 bg-gray-100 rounded-xl py-2 px-3 text-center">
-            <Text className="block text-xl font-bold text-gray-400">{children.length - presentCount - absentCount - leaveCount}</Text>
-            <Text className="block text-xs text-gray-400">未记录</Text>
-          </View>
-        </View>
-
-        {/* 幼儿列表 */}
-        <View className="px-4 pb-6 space-y-3">
-          {loading ? (
-            Array.from({ length: 4 }).map((_, i) => (
+        {loading ? (
+          <View className="px-4 space-y-4">
+            {Array.from({ length: 2 }).map((_a, i) => (
               <Card key={i}>
-                <CardContent className="p-4 flex items-center gap-4">
-                  <View className="w-12 h-12 rounded-full bg-gray-100 animate-pulse" />
-                  <View className="flex-1 space-y-2">
-                    <View className="h-4 bg-gray-100 rounded w-24 animate-pulse" />
-                    <View className="h-3 bg-gray-100 rounded w-16 animate-pulse" />
+                <CardContent className="p-4">
+                  <View className="flex gap-2 mb-3">
+                    <View className="h-6 bg-gray-100 rounded w-16 animate-pulse" />
+                    <View className="h-6 bg-gray-100 rounded w-24 animate-pulse" />
                   </View>
-                  <View className="flex gap-2">
-                    <View className="w-10 h-10 rounded-full bg-gray-100 animate-pulse" />
-                    <View className="w-10 h-10 rounded-full bg-gray-100 animate-pulse" />
-                    <View className="w-10 h-10 rounded-full bg-gray-100 animate-pulse" />
+                  <View className="flex gap-2 mb-4">
+                    {Array.from({ length: 4 }).map((_x, j) => (
+                      <View key={j} className="flex-1 h-16 bg-gray-100 rounded-xl animate-pulse" />
+                    ))}
                   </View>
+                  {Array.from({ length: 2 }).map((_b, j) => (
+                    <View key={j} className="flex items-center gap-3 mb-3">
+                      <View className="w-10 h-10 rounded-full bg-gray-100 animate-pulse" />
+                      <View className="h-4 bg-gray-100 rounded flex-1 animate-pulse" />
+                      <View className="flex gap-2">
+                        <View className="w-12 h-10 rounded-xl bg-gray-100 animate-pulse" />
+                        <View className="w-12 h-10 rounded-xl bg-gray-100 animate-pulse" />
+                        <View className="w-12 h-10 rounded-xl bg-gray-100 animate-pulse" />
+                      </View>
+                    </View>
+                  ))}
                 </CardContent>
               </Card>
-            ))
-          ) : children.length === 0 ? (
-            <View className="text-center py-12">
-              <Text className="block text-gray-400">暂无在读幼儿</Text>
-            </View>
-          ) : (
-            children.map(child => {
-              const current = currentDisplay[child.id] || 'unknown'
-              return (
-                <Card key={child.id}>
-                  <CardContent className="p-4">
-                    <View className="flex items-center gap-3 mb-3">
-                      <View
-                        className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                          child.gender === 'female' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700'
-                        }`}
-                      >
-                        {child.name.charAt(0)}
-                      </View>
-                      <Text className="block text-base font-medium text-gray-900 flex-1">{child.name}</Text>
-                      <View className={`px-2 py-1 rounded text-xs font-medium ${STATUS_CONFIG[current].color} ${STATUS_CONFIG[current].text}`}>
-                        <Text className="block text-xs">{STATUS_CONFIG[current].label}</Text>
-                      </View>
-                    </View>
-
-                    <View className="flex gap-2">
-                      {(['present', 'absent', 'leave'] as const).map(status => {
-                        const isSelected = current === status
-                        const isClickable = !isLocked
-                        return (
-                          <View
-                            key={status}
-                            className={`flex-1 py-2 rounded-xl text-center font-medium transition-all ${
-                              isSelected
-                                ? `${STATUS_CONFIG[status].color} ${STATUS_CONFIG[status].text}`
-                                : isClickable
-                                  ? 'bg-gray-100 text-gray-500 active:bg-gray-200'
-                                  : 'bg-gray-100 text-gray-300'
-                            }`}
-                            onClick={() => !isLocked && handleStatusChange(child.id, status)}
-                          >
-                            <Text className={`block text-sm font-medium ${
-                              isSelected
-                                ? STATUS_CONFIG[status].text
-                                : isClickable
-                                  ? 'text-gray-600'
-                                  : 'text-gray-300'
-                            }`}
-                            >
-                              {status === 'present' ? '✓ 到' : status === 'absent' ? '✗ 缺' : '△ 假'}
-                            </Text>
-                          </View>
-                        )
-                      })}
-                    </View>
-                  </CardContent>
-                </Card>
-              )
+            ))}
+          </View>
+        ) : children.length === 0 ? (
+          <View className="text-center py-12">
+            <Text className="block text-gray-400">暂无在读幼儿</Text>
+          </View>
+        ) : (
+          (() => {
+            // 按课程类型分组
+            const sortOrder = ['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日']
+            const groupMap = new Map<string, ChildItem[]>()
+            children.forEach(child => {
+              const ct = child.course_type || '其他'
+              if (!groupMap.has(ct)) groupMap.set(ct, [])
+              groupMap.get(ct)!.push(child)
             })
-          )}
-        </View>
+            const sortedGroups = [...groupMap.entries()].sort((a, b) => {
+              const ai = sortOrder.indexOf(a[0])
+              const bi = sortOrder.indexOf(b[0])
+              return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
+            })
+
+            return (
+              <View className="px-4 pb-6 space-y-4">
+                {sortedGroups.map(([courseType, groupChildren]) => {
+                  const present = groupChildren.filter(c => (currentDisplay[c.id] || 'unknown') === 'present').length
+                  const absent = groupChildren.filter(c => (currentDisplay[c.id] || 'unknown') === 'absent').length
+                  const leave = groupChildren.filter(c => (currentDisplay[c.id] || 'unknown') === 'leave').length
+                  const unrecorded = groupChildren.length - present - absent - leave
+                  const colorClass = COURSE_TYPE_COLORS[courseType] || 'bg-gray-100 text-gray-700'
+
+                  return (
+                    <Card key={courseType}>
+                      <CardContent className="p-4">
+                        {/* 分组头部 */}
+                        <View className="flex items-center gap-2 mb-3">
+                          <Badge className={colorClass}>{courseType}</Badge>
+                          <Text className="block text-sm text-gray-500">{groupChildren.length} 名幼儿</Text>
+                        </View>
+
+                        {/* 分组统计 */}
+                        <View className="flex gap-2 mb-4">
+                          <View className="flex-1 bg-green-50 rounded-xl py-2 px-3 text-center">
+                            <Text className="block text-xl font-bold text-green-600">{present}</Text>
+                            <Text className="block text-xs text-green-500">出勤</Text>
+                          </View>
+                          <View className="flex-1 bg-red-50 rounded-xl py-2 px-3 text-center">
+                            <Text className="block text-xl font-bold text-red-500">{absent}</Text>
+                            <Text className="block text-xs text-red-400">缺勤</Text>
+                          </View>
+                          <View className="flex-1 bg-yellow-50 rounded-xl py-2 px-3 text-center">
+                            <Text className="block text-xl font-bold text-yellow-600">{leave}</Text>
+                            <Text className="block text-xs text-yellow-500">请假</Text>
+                          </View>
+                          <View className="flex-1 bg-gray-100 rounded-xl py-2 px-3 text-center">
+                            <Text className="block text-xl font-bold text-gray-400">{unrecorded}</Text>
+                            <Text className="block text-xs text-gray-400">未记录</Text>
+                          </View>
+                        </View>
+
+                        {/* 分组幼儿列表 */}
+                        <View className="space-y-3">
+                          {groupChildren.map(child => {
+                            const current = currentDisplay[child.id] || 'unknown'
+                            return (
+                              <View key={child.id}>
+                                <View className="flex items-center gap-3 mb-3">
+                                  <View
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
+                                      child.gender === 'female' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700'
+                                    }`}
+                                  >
+                                    {child.name.charAt(0)}
+                                  </View>
+                                  <Text className="block text-base font-medium text-gray-900 flex-1">{child.name}</Text>
+                                </View>
+
+                                <View className="flex gap-2">
+                                  {(['present', 'absent', 'leave'] as const).map(status => {
+                                    const isSelected = current === status
+                                    const isClickable = !isLocked
+                                    return (
+                                      <View
+                                        key={status}
+                                        className={`flex-1 py-2 rounded-xl text-center font-medium transition-all ${
+                                          isSelected
+                                            ? `${STATUS_CONFIG[status].color} ${STATUS_CONFIG[status].text}`
+                                            : isClickable
+                                              ? 'bg-gray-100 text-gray-500 active:bg-gray-200'
+                                              : 'bg-gray-100 text-gray-300'
+                                        }`}
+                                        onClick={() => !isLocked && handleStatusChange(child.id, status)}
+                                      >
+                                        <Text className={`block text-sm font-medium ${
+                                          isSelected
+                                            ? STATUS_CONFIG[status].text
+                                            : isClickable
+                                              ? 'text-gray-600'
+                                              : 'text-gray-300'
+                                        }`}
+                                        >
+                                          {status === 'present' ? '✓ 到' : status === 'absent' ? '✗ 缺' : '△ 假'}
+                                        </Text>
+                                      </View>
+                                    )
+                                  })}
+                                </View>
+                              </View>
+                            )
+                          })}
+                        </View>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </View>
+            )
+          })()
+        )}
       </ScrollView>
 
       {/* 底部操作栏 */}
