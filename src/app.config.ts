@@ -26,7 +26,6 @@ export default typeof defineAppConfig === 'function'
       'pages/admin/child-detail/index',
       'pages/admin/child-add/index',
       'pages/admin/course-manage/index',
-      'pages/admin/course-manage/index',
       'pages/admin/holidays/index',
       'pages/child-setting/index',
     ],
@@ -92,6 +91,9 @@ export default typeof defineAppConfig === 'function'
       'pages/admin/teacher-manage/index',
       'pages/admin/notification-manage/index',
       'pages/admin/notification-edit/index',
+      'pages/admin/child-detail/index',
+      'pages/admin/child-add/index',
+      'pages/admin/course-manage/index',
       'pages/admin/holidays/index',
     ],
     tabBar: {
