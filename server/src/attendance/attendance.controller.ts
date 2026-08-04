@@ -26,6 +26,7 @@ export class AttendanceController {
       class_id: string;
       date: string;
       status: string;
+      course_type?: string;
     },
   ) {
     const data = await this.attendanceService.upsert(body);

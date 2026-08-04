@@ -9,14 +9,14 @@ export class AttendanceService {
 
   /**
    * 批量获取某班级某天的点名记录（含完整幼儿信息和课程类型）
+   * 每个幼儿可有多条记录（每个课程类型一条）
    * @param classId 班级ID
    * @param date 可选，默认当天
    */
   async findByClassAndDate(classId: string, date?: string) {
-    // 默认当天
     const targetDate = date || new Date().toISOString().split('T')[0];
 
-    // 先查询班级在读幼儿（完整信息）
+    // 查询班级在读幼儿
     const { data: children, error: childErr } = await this.client
       .from('children')
       .select('id, name, gender, birth_date, avatar_url, allergies, status')
@@ -24,22 +24,25 @@ export class AttendanceService {
       .eq('status', 'active');
     if (childErr) throw childErr;
     const childList = children || [];
+    const childIds = childList.map(c => c.id);
 
-    // 查询当天点名记录
-    const { data: records, error } = await this.client
+    // 查询当天点名记录（含 course_type）
+    const { data: records, error: recErr } = await this.client
       .from('attendance')
-      .select('id, child_id, status, updated_at')
+      .select('id, child_id, status, course_type, updated_at')
       .eq('class_id', classId)
       .eq('date', targetDate);
-    if (error) throw error;
+    if (recErr) throw recErr;
 
-    // 建立 child_id -> 考勤记录 映射
+    // 建立 child_id + course_type -> 考勤记录 映射
     const recordMap: Record<string, any> = {};
-    (records || []).forEach(r => { recordMap[r.child_id] = r; });
+    (records || []).forEach(r => {
+      const key = `${r.child_id}__${r.course_type || ''}`;
+      recordMap[key] = r;
+    });
 
-    // 查询该班级进行中的报读记录（含 course_type）
-    const childIds = childList.map(c => c.id);
-    let enrollmentMap: Record<string, string> = {};
+    // 查询该班级进行中的报读记录（不按 child_id 去重）
+    const enrollmentList: Array<{ child_id: string; course_type: string }> = [];
     if (childIds.length > 0) {
       const { data: enrollments } = await this.client
         .from('enrollments')
@@ -48,51 +51,70 @@ export class AttendanceService {
         .eq('class_id', classId)
         .eq('status', '进行中');
       (enrollments || []).forEach(e => {
-        // 如果同一幼儿有多个报读，取第一个（按优先顺序）
-        if (!enrollmentMap[e.child_id]) {
-          enrollmentMap[e.child_id] = e.course_type;
-        }
+        enrollmentList.push({ child_id: e.child_id, course_type: e.course_type });
       });
     }
 
-    // 合并：所有在班幼儿 + 考勤状态 + 课程类型
-    const mergedList = childList.map(c => {
-      const record = recordMap[c.id];
+    // 合并：每个幼儿按课程类型展开，每行一个 child_id + course_type 组合
+    const childMap: Record<string, any> = {};
+    childList.forEach(c => { childMap[c.id] = c; });
+
+    const mergedList = enrollmentList.map(e => {
+      const child = childMap[e.child_id];
+      if (!child) return null;
+      const key = `${e.child_id}__${e.course_type}`;
+      const record = recordMap[key];
       return {
-        ...c,
-        course_type: enrollmentMap[c.id] || '',
+        id: child.id,
+        name: child.name,
+        gender: child.gender,
+        birth_date: child.birth_date,
+        avatar_url: child.avatar_url,
+        allergies: child.allergies,
+        course_type: e.course_type,
         attendance_id: record?.id || null,
         attendance_status: record?.status || null,
         updated_at: record?.updated_at || null,
       };
-    });
+    }).filter(Boolean);
 
-    // 按考勤状态排序：出勤 > 缺席 > 请假 > 无记录
+    // 按课程类型排序，同类型按考勤状态排序
+    const courseTypeOrder: Record<string, number> = {
+      '全日托': 0, '半日托': 1, '周六托': 2, '晚间托': 3, '兴趣班': 4, '计日': 5,
+    };
     const statusOrder: Record<string, number> = { present: 0, absent: 1, leave: 2, null: 3 };
-    return mergedList.sort((a, b) => {
-      const orderA = statusOrder[a.attendance_status] ?? 4;
-      const orderB = statusOrder[b.attendance_status] ?? 4;
+    return mergedList
+      .filter((item): item is NonNullable<typeof item> => item !== null)
+      .sort((a, b) => {
+      const ctA = courseTypeOrder[a.course_type || ''] ?? 99;
+      const ctB = courseTypeOrder[b.course_type || ''] ?? 99;
+      if (ctA !== ctB) return ctA - ctB;
+      const orderA = statusOrder[a.attendance_status || 'null'] ?? 4;
+      const orderB = statusOrder[b.attendance_status || 'null'] ?? 4;
       if (orderA !== orderB) return orderA - orderB;
       return a.name.localeCompare(b.name, 'zh');
     });
   }
 
   /**
-   * 获取某幼儿某天的点名状态
+   * 获取某幼儿某天某课程类型的点名状态
    */
-  async findByChildAndDate(childId: string, date: string) {
-    const { data, error } = await this.client
+  async findByChildAndDate(childId: string, date: string, courseType?: string) {
+    let query = this.client
       .from('attendance')
       .select('*')
       .eq('child_id', childId)
-      .eq('date', date)
-      .single();
+      .eq('date', date);
+    if (courseType) {
+      query = query.eq('course_type', courseType);
+    }
+    const { data, error } = await query.single();
     if (error && error.code !== 'PGRST116') throw error;
     return data || null;
   }
 
   /**
-   * 记录/更新点名状态（upsert）
+   * 记录/更新点名状态（upsert），按 child_id + date + course_type 唯一
    */
   async upsert(dto: {
     child_id: string;
@@ -100,6 +122,7 @@ export class AttendanceService {
     class_id: string;
     date: string;
     status: string;
+    course_type?: string;
   }) {
     const { data, error } = await this.client
       .from('attendance')
@@ -109,9 +132,10 @@ export class AttendanceService {
         class_id: dto.class_id,
         date: dto.date,
         status: dto.status,
+        course_type: dto.course_type || '',
         updated_at: new Date().toISOString(),
       }, {
-        onConflict: 'child_id,date',
+        onConflict: 'child_id,date,course_type',
       })
       .select()
       .single();
@@ -119,22 +143,29 @@ export class AttendanceService {
     return data;
   }
 
-  async clearByClassAndDate(classId: string, date: string) {
-    const { error } = await this.client
+  async clearByClassAndDate(classId: string, date: string, courseType?: string) {
+    let query = this.client
       .from('attendance')
       .delete()
       .eq('class_id', classId)
       .eq('date', date);
+    if (courseType) {
+      query = query.eq('course_type', courseType);
+    }
+    const { error } = await query;
     if (error) throw error;
     return { deleted: true };
   }
 
-  async getDates(classId: string) {
-    const { data, error } = await this.client
+  async getDates(classId: string, courseType?: string) {
+    let query = this.client
       .from('attendance')
       .select('date')
-      .eq('class_id', classId)
-      .order('date', { ascending: false });
+      .eq('class_id', classId);
+    if (courseType) {
+      query = query.eq('course_type', courseType);
+    }
+    const { data, error } = await query.order('date', { ascending: false });
     if (error) throw error;
     const dates = [...new Set(data?.map((r: any) => r.date?.split('T')[0]) || [])];
     return dates;

@@ -265,16 +265,17 @@ export class TeacherService {
       });
     }
 
-    // 查询当天考勤数据
+    // 查询当天考勤数据（含 course_type）
     const { data: attendance } = await this.client
       .from('attendance')
-      .select('child_id, status')
+      .select('child_id, course_type, status')
       .eq('class_id', teacherClassId)
       .eq('date', queryDate);
 
     const attendanceMap = new Map<string, string>();
     attendance?.forEach(a => {
-      attendanceMap.set(a.child_id, a.status === '出勤' ? 'present' : a.status === '缺勤' ? 'absent' : a.status === '请假' ? 'leave' : 'unknown');
+      const key = a.course_type ? `${a.child_id}__${a.course_type}` : a.child_id;
+      attendanceMap.set(key, a.status === '出勤' ? 'present' : a.status === '缺勤' ? 'absent' : a.status === '请假' ? 'leave' : 'unknown');
     });
 
     // 排序优先级
@@ -293,6 +294,7 @@ export class TeacherService {
         id: string;
         name: string;
         gender: string;
+        course_type: string;
         attendance_status: string;
         start_date: string | null;
         end_date: string | null;
@@ -309,7 +311,8 @@ export class TeacherService {
       const students = groupMap.get(ct)!;
       let present = 0, absent = 0, leave = 0;
       const studentList = students.map(s => {
-        const attStatus = attendanceMap.get(s.child_id) || 'unknown';
+        const attKey = ct ? `${s.child_id}__${ct}` : s.child_id;
+        const attStatus = attendanceMap.get(attKey) || 'unknown';
         if (attStatus === 'present') present++;
         else if (attStatus === 'absent') absent++;
         else if (attStatus === 'leave') leave++;
@@ -317,6 +320,7 @@ export class TeacherService {
           id: s.child_id,
           name: s.name,
           gender: s.gender,
+          course_type: ct,
           attendance_status: attStatus,
           start_date: s.start_date,
           end_date: s.end_date,

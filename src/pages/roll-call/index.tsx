@@ -119,9 +119,9 @@ export default function RollCallPage() {
           })
           const status = s.attendance_status
           if (status === 'present' || status === 'absent' || status === 'leave') {
-            map[s.id] = status
+            map[s.id + '__' + g.course_type] = status
           } else {
-            map[s.id] = 'unknown'
+            map[s.id + '__' + g.course_type] = 'unknown'
           }
         })
       })
@@ -131,7 +131,7 @@ export default function RollCallPage() {
 
       // 如果有考勤记录（出勤/缺勤/请假），自动锁定
       const hasRecords = allChildren.some(c => {
-        const s = map[c.id]
+        const s = map[c.id + '__' + c.course_type]
         return s === 'present' || s === 'absent' || s === 'leave'
       })
       setIsLocked(hasRecords)
@@ -153,7 +153,8 @@ export default function RollCallPage() {
     try {
       // 遍历所有幼儿，包括未考勤的
       for (const child of children) {
-        const status = tempAttendance[child.id]
+        const key = child.id + '__' + child.course_type
+        const status = tempAttendance[key]
         // 未考勤的跳过
         if (status === 'unknown') continue
         await Network.request({
@@ -163,6 +164,7 @@ export default function RollCallPage() {
             child_id: child.id,
             class_id: classId,
             date: selectedDate,
+            course_type: child.course_type,
             status,
             teacher_id: currentRole?.id || '',
           },
@@ -307,9 +309,9 @@ export default function RollCallPage() {
             return (
               <View className="px-4 pb-6 space-y-4">
                 {sortedGroups.map(([courseType, groupChildren]) => {
-                  const present = groupChildren.filter(c => (currentDisplay[c.id] || 'unknown') === 'present').length
-                  const absent = groupChildren.filter(c => (currentDisplay[c.id] || 'unknown') === 'absent').length
-                  const leave = groupChildren.filter(c => (currentDisplay[c.id] || 'unknown') === 'leave').length
+                  const present = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'present').length
+                  const absent = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'absent').length
+                  const leave = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'leave').length
                   const unrecorded = groupChildren.length - present - absent - leave
                   const colorClass = COURSE_TYPE_COLORS[courseType] || 'bg-gray-100 text-gray-700'
 
@@ -357,9 +359,9 @@ export default function RollCallPage() {
                             {/* 分组幼儿列表 */}
                             <View className="space-y-3">
                               {groupChildren.map(child => {
-                                const current = currentDisplay[child.id] || 'unknown'
+                                const current = currentDisplay[child.id + '__' + child.course_type] || 'unknown'
                                 return (
-                                  <View key={child.id}>
+                                  <View key={child.id + '__' + child.course_type}>
                                     <View className="flex items-center gap-3 mb-3">
                                       <View
                                         className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
@@ -385,7 +387,7 @@ export default function RollCallPage() {
                                                   ? 'bg-gray-100 text-gray-500 active:bg-gray-200'
                                                   : 'bg-gray-100 text-gray-300'
                                             }`}
-                                            onClick={() => !isLocked && handleStatusChange(child.id, status)}
+                                            onClick={() => !isLocked && handleStatusChange(child.id + '__' + child.course_type, status)}
                                           >
                                             <Text className={`block text-sm font-medium ${
                                               isSelected
