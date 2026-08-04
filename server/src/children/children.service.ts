@@ -87,32 +87,73 @@ export class ChildrenService {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    let builder = this.client
+    // Step 1: 先获取所有匹配条件的幼儿（不含分页），仅取 id + created_at
+    let idBuilder = this.client
       .from('children')
-      .select('*', { count: 'exact' })
-      .neq('status', 'archived')
-      .order('created_at', { ascending: false });
+      .select('id, created_at', { count: 'exact' })
+      .neq('status', 'archived');
 
     if (query.class_id) {
-      builder = builder.eq('class_id', query.class_id);
+      idBuilder = idBuilder.eq('class_id', query.class_id);
     }
     if (query.status) {
-      builder = builder.eq('status', query.status);
+      idBuilder = idBuilder.eq('status', query.status);
     }
     if (query.keyword) {
-      builder = builder.ilike('name', `%${query.keyword}%`);
+      idBuilder = idBuilder.ilike('name', `%${query.keyword}%`);
     }
 
-    builder = builder.range(from, to);
-
-    const { data, count, error } = await builder;
+    const { data: allChildren, count, error } = await idBuilder;
 
     if (error) {
       return { error: true, code: 500, msg: `查询失败: ${error.message}` };
     }
 
+    const childIds = (allChildren || []).map(c => c.id);
+    const childCreatedAtMap = new Map((allChildren || []).map(c => [c.id, c.created_at]));
+
+    // Step 2: 查询所有 enrollments，获取每个幼儿的最新报读时间
+    let enrollmentTimeMap = new Map<string, string>();
+    if (childIds.length > 0) {
+      // 查询所有 enrollments（不限状态），按 child_id 分组取最大 created_at
+      const { data: enrollments } = await this.client
+        .from('enrollments')
+        .select('child_id, created_at')
+        .in('child_id', childIds);
+
+      for (const e of enrollments || []) {
+        const existing = enrollmentTimeMap.get(e.child_id);
+        if (!existing || e.created_at > existing) {
+          enrollmentTimeMap.set(e.child_id, e.created_at);
+        }
+      }
+    }
+
+    // Step 3: 按最新报读时间排序（降序），无报读的用幼儿 created_at 降序
+    const sortedIds = childIds.sort((a, b) => {
+      const timeA = enrollmentTimeMap.get(a) || childCreatedAtMap.get(a) || '';
+      const timeB = enrollmentTimeMap.get(b) || childCreatedAtMap.get(b) || '';
+      return timeB.localeCompare(timeA);
+    });
+
+    // Step 4: 分页
+    const pagedIds = sortedIds.slice(from, to + 1);
+
+    // Step 5: 查询完整幼儿数据
+    let fullData: any[] = [];
+    if (pagedIds.length > 0) {
+      const { data: childrenData } = await this.client
+        .from('children')
+        .select('*')
+        .in('id', pagedIds);
+      
+      // 保持分页顺序
+      const dataMap = new Map((childrenData || []).map(c => [c.id, c]));
+      fullData = pagedIds.map(id => dataMap.get(id)).filter(Boolean);
+    }
+
     // 收集所有班级ID，批量查询教师
-    const classIds = [...new Set((data || []).map((c) => c.class_id).filter(Boolean))];
+    const classIds = [...new Set((fullData || []).map((c: any) => c.class_id).filter(Boolean))];
     const teachersMap: Record<string, string[]> = {};
     if (classIds.length > 0) {
       const { data: teachers } = await this.client
@@ -129,16 +170,13 @@ export class ChildrenService {
       }
     }
 
-    // 逐条获取班级名称，附加教师信息 和 enrollments
-    const childIds = (data || []).map(c => c.id);
-    
     // 批量查询所有进行中的 enrollments
     let enrollmentsMap: Record<string, any[]> = {};
-    if (childIds.length > 0) {
+    if (pagedIds.length > 0) {
       const { data: enrollments } = await this.client
         .from('enrollments')
         .select('*')
-        .in('child_id', childIds)
+        .in('child_id', pagedIds)
         .eq('status', '进行中');
       
       // 收集所有 enrollments 中的 class_id，批量查询班级名称
@@ -171,7 +209,7 @@ export class ChildrenService {
     }
 
     const results = await Promise.all(
-      (data || []).map(async (child) => {
+      (fullData || []).map(async (child: any) => {
         let className = null;
         if (child.class_id) {
           const { data: cls } = await this.client
