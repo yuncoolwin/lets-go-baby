@@ -19,18 +19,6 @@ import {
 import { Trash2 } from 'lucide-react-taro'
 import { classApi } from '@/utils/api'
 
-const levelOptions = [
-  { value: 'nursery', label: '托班' },
-  { value: 'summer', label: '暑假班' },
-  { value: 'winter', label: '寒假班' },
-  { value: 'interest', label: '兴趣班' },
-]
-
-const statusOptions = [
-  { value: 'active', label: '正常' },
-  { value: 'inactive', label: '停用' },
-]
-
 export default function ClassEditPage() {
   const [isEdit, setIsEdit] = useState(false)
   const [editId, setEditId] = useState('')
@@ -40,10 +28,8 @@ export default function ClassEditPage() {
 
   // 表单字段
   const [name, setName] = useState('')
-  const [level, setLevel] = useState('nursery')
   const [capacity, setCapacity] = useState('30')
   const [room, setRoom] = useState('')
-  const [status, setStatus] = useState('active')
 
   useEffect(() => {
     const instance = Taro.getCurrentInstance()
@@ -65,10 +51,8 @@ export default function ClassEditPage() {
       if (res.code === 200 && res.data) {
         const d = res.data
         setName(d.name || '')
-        setLevel(d.level || 'nursery')
         setCapacity(String(d.capacity || 30))
         setRoom(d.room || '')
-        setStatus(d.status || 'active')
       }
     } catch (err) {
       console.error('[ClassEdit] load error:', err)
@@ -96,10 +80,8 @@ export default function ClassEditPage() {
     try {
       const data = {
         name: name.trim(),
-        level,
         capacity: parseInt(capacity, 10),
         room: room.trim() || undefined,
-        status,
       }
 
       let res
@@ -164,30 +146,6 @@ export default function ClassEditPage() {
       </View>
       <Card className="bg-white rounded-xl border-0 shadow-sm mb-4">
         <CardContent className="p-4 space-y-5">
-          {/* 级别选择（放在最上方） */}
-          <View>
-            <Label className="text-sm font-medium text-foreground mb-3">
-              <Text className="block">级别 *</Text>
-            </Label>
-            <View className="flex flex-wrap gap-2">
-              {levelOptions.map((opt) => (
-                <View
-                  key={opt.value}
-                  className={`px-4 py-2 rounded-full whitespace-nowrap ${
-                    level === opt.value
-                      ? 'bg-primary text-white'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}
-                  onClick={() => setLevel(opt.value)}
-                >
-                  <Text className={`text-sm ${level === opt.value ? 'text-white' : ''}`}>
-                    {opt.label}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
-
           {/* 班级名称 */}
           <View>
             <Label className="text-sm font-medium text-foreground mb-2">
@@ -231,30 +189,6 @@ export default function ClassEditPage() {
                 value={room}
                 onInput={(e) => setRoom(e.detail.value)}
               />
-            </View>
-          </View>
-
-          {/* 状态 */}
-          <View>
-            <Label className="text-sm font-medium text-foreground mb-3">
-              <Text className="block">状态</Text>
-            </Label>
-            <View className="flex flex-wrap gap-2">
-              {statusOptions.map((opt) => (
-                <View
-                  key={opt.value}
-                  className={`px-4 py-2 rounded-full whitespace-nowrap ${
-                    status === opt.value
-                      ? 'bg-primary text-white'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}
-                  onClick={() => setStatus(opt.value)}
-                >
-                  <Text className={`text-sm ${status === opt.value ? 'text-white' : ''}`}>
-                    {opt.label}
-                  </Text>
-                </View>
-              ))}
             </View>
           </View>
         </CardContent>
