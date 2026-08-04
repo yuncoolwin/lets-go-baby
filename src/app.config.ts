@@ -25,6 +25,8 @@ export default typeof defineAppConfig === 'function'
       'pages/admin/notification-edit/index',
       'pages/admin/child-detail/index',
       'pages/admin/child-add/index',
+      'pages/admin/course-manage/index',
+      'pages/admin/course-manage/index',
       'pages/admin/holidays/index',
       'pages/child-setting/index',
     ],

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { Bus, Users, Camera, GraduationCap, Plus, ChevronDown, ChevronUp } from 'lucide-react-taro'
+import { Bus, Users, Camera, GraduationCap, Plus, ChevronDown, ChevronUp, BookOpen } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge, formatTime } from '@/utils/format'
 
@@ -700,6 +700,18 @@ export default function IndexPage() {
                 <Users size={24} color="#8B5CF6" />
               </View>
               <Text className="text-sm text-foreground">教师管理</Text>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="bg-white rounded-xl border-0 shadow-sm"
+            onClick={() => Taro.navigateTo({ url: '/pages/admin/course-manage/index' })}
+          >
+            <CardContent className="p-4 flex flex-col items-center">
+              <View className="w-12 h-12 rounded-lg bg-amber-50 flex items-center justify-center mb-2">
+                <BookOpen size={24} color="#D97706" />
+              </View>
+              <Text className="text-sm text-foreground">课程管理</Text>
             </CardContent>
           </Card>
 
