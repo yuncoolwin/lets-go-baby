@@ -21,6 +21,7 @@ export interface CreateEnrollmentDto {
   child_id: string;
   class_id?: string;
   course_type: string;
+  course_id?: string;
   duration_type: string;
   duration_days: number;
   start_date?: string;
@@ -32,6 +33,7 @@ export interface CreateEnrollmentDto {
 
 export interface UpdateEnrollmentDto {
   course_type?: string;
+  course_id?: string;
   duration_type?: string;
   duration_days?: number;
   start_date?: string;
@@ -85,12 +87,34 @@ export class EnrollmentsService {
   }
 
   async create(dto: CreateEnrollmentDto): Promise<Enrollment> {
-    const { class_id, ...rest } = dto;
+    const { class_id, course_id, ...rest } = dto;
+
+    // 如果传了 course_id，从 courses 表查询名称；否则尝试按 course_type 查找
+    let finalCourseId = course_id || null;
+    let finalCourseType = rest.course_type || '';
+
+    if (finalCourseId) {
+      const { data: course } = await this.client
+        .from('courses')
+        .select('name')
+        .eq('id', finalCourseId)
+        .single();
+      if (course) finalCourseType = course.name;
+    } else if (finalCourseType) {
+      const { data: course } = await this.client
+        .from('courses')
+        .select('id')
+        .eq('name', finalCourseType)
+        .maybeSingle();
+      if (course) finalCourseId = course.id;
+    }
+
     const { data, error } = await this.client
       .from('enrollments')
       .insert({
         child_id: rest.child_id,
-        course_type: rest.course_type || '',
+        course_type: finalCourseType,
+        course_id: finalCourseId,
         duration_type: rest.duration_type || '',
         duration_days: rest.duration_days || 0,
         start_date: rest.start_date || null,
@@ -114,9 +138,10 @@ export class EnrollmentsService {
   }
 
   async update(id: string, dto: UpdateEnrollmentDto): Promise<Enrollment> {
-    const { class_id, ...rest } = dto;
+    const { class_id, course_id, ...rest } = dto;
     const updateData: Record<string, any> = {};
     if (rest.course_type !== undefined) updateData.course_type = rest.course_type;
+    if (course_id !== undefined) updateData.course_id = course_id;
     if (rest.duration_type !== undefined) updateData.duration_type = rest.duration_type;
     if (rest.duration_days !== undefined) updateData.duration_days = rest.duration_days;
     if (rest.start_date !== undefined) updateData.start_date = rest.start_date;
@@ -126,6 +151,16 @@ export class EnrollmentsService {
     if (rest.status !== undefined) updateData.status = rest.status;
     if (class_id !== undefined) updateData.class_id = class_id;
     updateData.updated_at = new Date().toISOString();
+
+    // 如果更新了 course_id，同步更新 course_type
+    if (course_id) {
+      const { data: course } = await this.client
+        .from('courses')
+        .select('name')
+        .eq('id', course_id)
+        .single();
+      if (course) updateData.course_type = course.name;
+    }
 
     const { data, error } = await this.client
       .from('enrollments')

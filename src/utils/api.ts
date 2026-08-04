@@ -24,7 +24,7 @@ interface ListParams {
 
 const request = async <T = any>(option: {
   url: string
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
   data?: any
   validateStatus?: (status: number) => boolean
 }): Promise<ApiResponse<T>> => {
@@ -217,4 +217,20 @@ export const enrollmentApi = {
 
   remove: (id: string) =>
     request({ url: `/api/enrollments/${id}`, method: 'DELETE' }),
+};
+
+// ============ 课程管理 API ============
+
+export const courseApi = {
+  list: (params?: ListParams) =>
+    request({ url: '/api/courses', method: 'GET', data: params }),
+
+  create: (data: Record<string, any>) =>
+    request({ url: '/api/courses', method: 'POST', data }),
+
+  update: (id: string, data: Record<string, any>) =>
+    request({ url: `/api/courses/${id}`, method: 'PUT', data }),
+
+  remove: (id: string) =>
+    request({ url: `/api/courses/${id}`, method: 'DELETE' }),
 };

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Label } from '@/components/ui/label'
-import { childrenApi, enrollmentApi, classApi } from '@/utils/api'
+import { childrenApi, enrollmentApi, classApi, courseApi } from '@/utils/api'
 import BackButton from '@/components/back-button'
 import { Pencil, Trash2, BookOpen, Plus, X } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
@@ -82,6 +82,7 @@ export default function ChildDetailPage() {
   const [submitting, setSubmitting] = useState(false)
   const [showEnrollmentForm, setShowEnrollmentForm] = useState(false)
   const [showCalendar, setShowCalendar] = useState<'birthDate' | 'startDate' | null>(null)
+  const [courses, setCourses] = useState<any[]>([])
 
   // 幼儿基本信息编辑
   const [isEditingChild, setIsEditingChild] = useState(false)
@@ -227,6 +228,7 @@ export default function ChildDetailPage() {
       const payload: any = {
         child_id: id,
         course_type: formCourseType,
+        course_id: (courses.find(c => c.name === formCourseType)?.id) || null,
         duration_type: formDurationType,
         duration_days: formDurationType === '计日' ? (parseInt(formDurationDays) || 0) : 0,
         start_date: formStartDate,
@@ -283,10 +285,11 @@ export default function ChildDetailPage() {
     if (!id) return
     setLoading(true)
     try {
-      const [childRes, enrRes, clsRes] = await Promise.all([
+      const [childRes, enrRes, clsRes, courseRes] = await Promise.all([
         childrenApi.detail(id),
         enrollmentApi.list(id!),
         classApi.list({ page: 1, page_size: 100 }),
+        courseApi.list(),
       ])
       if (childRes.code === 200 && childRes.data) {
         setChild(childRes.data as unknown as ChildDetail)
@@ -298,6 +301,9 @@ export default function ChildDetailPage() {
       }
       if (clsRes.code === 200 && clsRes.data?.list && Array.isArray(clsRes.data.list)) {
         setClasses(clsRes.data.list)
+      }
+      if (courseRes.code === 200 && courseRes.data?.list) {
+        setCourses(courseRes.data.list)
       }
     } catch {
       Taro.showToast({ title: '网络错误', icon: 'none' })
@@ -585,16 +591,16 @@ export default function ChildDetailPage() {
               <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">课程类型</Text>
                 <View className="flex flex-wrap gap-2">
-                  {['全日托', '半日托', '周六托', '晚间托', '兴趣班'].map((t) => (
+                  {courses.filter(c => c.status === '启用').map((c) => (
                     <View
-                      key={t}
+                      key={c.id}
                       className={`px-3 py-2 rounded-lg text-sm ${
-                        formCourseType === t
+                        formCourseType === c.name
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-gray-100 text-gray-600'
                       }`}
                       onClick={() => {
-                        const newType = t
+                        const newType = c.name
                         setFormCourseType(newType)
                         // 周六托默认开始日期为下周六
                         if (newType === '周六托') {
@@ -612,7 +618,7 @@ export default function ChildDetailPage() {
                         }
                       }}
                     >
-                      <Text>{t}</Text>
+                      <Text>{c.name}</Text>
                     </View>
                   ))}
                 </View>
