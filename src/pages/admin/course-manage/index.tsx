@@ -64,7 +64,7 @@ export default function CourseManagePage() {
       const res = await courseApi.list()
       console.log('[CourseManage] list:', res)
       if (res.code === 200 && res.data) {
-        setCourses(res.data || [])
+        setCourses(Array.isArray(res.data) ? res.data : res.data.list || [])
       }
     } catch (err) {
       console.error('[CourseManage] error:', err)

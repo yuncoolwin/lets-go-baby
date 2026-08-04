@@ -11,7 +11,7 @@ export class CoursesService {
       .select('*')
       .order('sort_order', { ascending: true });
     if (error) throw new Error(error.message);
-    return { list: data || [] };
+    return data || [];
   }
 
   async create(body: { name: string; class_id?: string; duration_options?: string[]; date_calc_rule?: string; sort_order?: number; status?: string }) {
