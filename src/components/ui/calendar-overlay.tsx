@@ -19,27 +19,29 @@ export function CalendarOverlay({
   disabled,
 }: CalendarOverlayProps) {
   const [show, setShow] = useState(false)
-  const [scale, setScale] = useState(0.8)
+  const [animating, setAnimating] = useState<'open' | 'close' | 'idle'>('idle')
   const timerRef = useRef<ReturnType<typeof setTimeout>>()
 
   useEffect(() => {
     if (visible) {
       setShow(true)
-      // 触发打开动画：scale 0.8 → 1.0
+      setAnimating('idle')
+      // 触发打开动画：scale 0.3 → 1.0, opacity 0 → 1
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          setScale(1)
+          setAnimating('open')
         })
       })
     }
   }, [visible])
 
   const handleClose = () => {
-    // 触发关闭动画：scale 1.0 → 0.8
-    setScale(0.8)
+    // 触发关闭动画：scale 1.0 → 0.3, opacity 1 → 0
+    setAnimating('close')
     clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => {
       setShow(false)
+      setAnimating('idle')
       onClose()
     }, 200)
   }
@@ -58,7 +60,7 @@ export function CalendarOverlay({
       style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
       onClick={handleClose}
     >
-      {/* 日历弹窗 - 居中全宽，带缩放动画 */}
+      {/* 日历弹窗 - 居中全宽，带缩放+透明度动画 */}
       <View
         style={{
           backgroundColor: '#fff',
@@ -66,8 +68,13 @@ export function CalendarOverlay({
           padding: '12px 12px 16px',
           width: '88%',
           maxWidth: 400,
-          transform: `scale(${scale})`,
-          transition: 'transform 200ms ease-out',
+          transform: animating === 'open' ? 'scale(1)' : 'scale(0.3)',
+          opacity: animating === 'idle' ? 0 : 1,
+          transition: animating === 'open'
+            ? 'transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 300ms ease-out'
+            : animating === 'close'
+            ? 'transform 200ms ease-in, opacity 200ms ease-in'
+            : 'none',
         }}
         onClick={(e) => e.stopPropagation()}
       >
