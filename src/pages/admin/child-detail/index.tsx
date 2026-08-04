@@ -302,8 +302,9 @@ export default function ChildDetailPage() {
       if (clsRes.code === 200 && clsRes.data?.list && Array.isArray(clsRes.data.list)) {
         setClasses(clsRes.data.list)
       }
-      if (courseRes.code === 200 && courseRes.data?.list) {
-        setCourses(courseRes.data.list)
+      if (courseRes.code === 200) {
+        const list = Array.isArray(courseRes.data) ? courseRes.data : courseRes.data?.list || []
+        setCourses(list)
       }
     } catch {
       Taro.showToast({ title: '网络错误', icon: 'none' })

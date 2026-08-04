@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
 import { Bus, Users, Camera, GraduationCap, Plus, ChevronDown, ChevronUp, BookOpen } from 'lucide-react-taro'
+import { courseApi } from '@/utils/api'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge, formatTime } from '@/utils/format'
 
@@ -60,6 +61,7 @@ export default function IndexPage() {
   const [pageLoading, setPageLoading] = useState(true)
   const [storeReady, setStoreReady] = useState(false)
   const [expandedGroupId, setExpandedGroupId] = useState<Set<string>>(new Set())
+  const [courseColors, setCourseColors] = useState<Record<string, string>>(courseTypeColors)
   const currentChild = children[currentChildIndex] || null
 
   // 等待 store 从持久化中恢复
@@ -158,14 +160,27 @@ export default function IndexPage() {
   const loadTeacherData = async () => {
     const teacherId = Taro.getStorageSync('teacherId') || currentRole?.id
     if (teacherId) {
-      const res = await Network.request({
-        url: '/api/teachers/grouped-overview',
-        method: 'GET',
-        data: { teacher_role_id: teacherId },
-      })
-      console.log('[Index] grouped overview:', res.data)
-      if (res.data?.data) {
-        setGroupList(res.data.data)
+      const [groupRes, courseRes] = await Promise.all([
+        Network.request({
+          url: '/api/teachers/grouped-overview',
+          method: 'GET',
+          data: { teacher_role_id: teacherId },
+        }),
+        courseApi.list(),
+      ])
+      console.log('[Index] grouped overview:', groupRes.data)
+      if (groupRes.data?.data) {
+        setGroupList(groupRes.data.data)
+      }
+      if (courseRes.code === 200) {
+        const list = Array.isArray(courseRes.data) ? courseRes.data : courseRes.data?.list || []
+        // 从 courses 表构建颜色映射
+        const colors = ['bg-orange-50 text-orange-700 border-orange-200','bg-sky-50 text-sky-700 border-sky-200','bg-indigo-50 text-indigo-700 border-indigo-200','bg-purple-50 text-purple-700 border-purple-200','bg-pink-50 text-pink-700 border-pink-200','bg-teal-50 text-teal-700 border-teal-200','bg-green-50 text-green-700 border-green-200','bg-rose-50 text-rose-700 border-rose-200']
+        const colorMap: Record<string, string> = {}
+        list.forEach((c: any, i: number) => {
+          colorMap[c.name] = colors[i % colors.length]
+        })
+        setCourseColors(colorMap)
       }
     }
   }
@@ -512,7 +527,7 @@ export default function IndexPage() {
                           <Text className="block text-base font-semibold text-foreground">
                             {group.class_name}
                           </Text>
-                          <View className={`text-xs px-2 py-1 rounded-full border ${courseTypeColors[group.course_type] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                          <View className={`text-xs px-2 py-1 rounded-full border ${courseColors[group.course_type] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
                             <Text className="text-xs font-medium">{group.course_type}</Text>
                           </View>
                         </View>
