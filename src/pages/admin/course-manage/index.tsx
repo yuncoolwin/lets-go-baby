@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, Text, Picker } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -29,9 +29,7 @@ interface ClassItem {
 
 const durationOptions = ['一周体验', '1个月', '3个月', '6个月', '12个月', '计日']
 
-const dateCalcRuleOptions = ['工作日', '周六']
-
-const statusOptions = ['启用', '停用']
+const allCourseNames = ['全日托', '半日托', '周六托', '晚间托', '兴趣班']
 
 const courseTypeColors: Record<string, string> = {
   '全日托': 'bg-orange-50 text-orange-700 border-orange-200',
@@ -198,8 +196,7 @@ export default function CourseManagePage() {
     return courseTypeColors[name] || 'bg-gray-50 text-gray-700 border-gray-200'
   }
 
-  const classPickerRange = classes.map(c => c.name)
-  const classPickerValues = classes.map(c => c.id)
+  // 不需要 classPickerRange/classPickerValues 了，直接用按钮组
 
   if (loading) {
     return (
@@ -295,52 +292,85 @@ export default function CourseManagePage() {
             <DialogClose onClick={() => setDialogOpen(false)} />
           </DialogHeader>
 
-          <View className="space-y-4 mt-4">
+          <View className="mt-4">
             {/* 课程名称 */}
-            <View>
-              <Label className="text-sm font-medium text-foreground mb-1 block">课程名称</Label>
-              <View className="bg-gray-50 rounded-xl px-4 py-3">
-                <Input
-                  className="w-full bg-transparent"
-                  placeholder="请输入课程名称"
-                  value={formName}
-                  onInput={(e) => setFormName(e.detail.value)}
-                />
+            <View className="mb-4">
+              <Label className="text-sm font-medium text-foreground mb-2 block">课程名称</Label>
+              <View className="flex flex-wrap gap-2">
+                {allCourseNames.map((name) => (
+                  <View
+                    key={name}
+                    className={`px-3 py-2 rounded-lg border text-sm cursor-pointer ${
+                      formName === name
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-white text-gray-700 border-gray-200'
+                    }`}
+                    onClick={() => setFormName(name)}
+                  >
+                    <Text>{name}</Text>
+                  </View>
+                ))}
+                <View
+                  className={`px-3 py-2 rounded-lg border text-sm cursor-pointer ${
+                    !allCourseNames.includes(formName) && formName
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-white text-gray-400 border-dashed border-gray-300'
+                  }`}
+                  onClick={() => setFormName('')}
+                >
+                  <Text>+ 自定义</Text>
+                </View>
               </View>
+              {!allCourseNames.includes(formName) && (
+                <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
+                  <Input
+                    className="w-full bg-transparent"
+                    placeholder="输入自定义课程名称"
+                    value={formName}
+                    onInput={(e) => setFormName(e.detail.value)}
+                  />
+                </View>
+              )}
             </View>
 
             {/* 关联班级 */}
-            <View>
-              <Label className="text-sm font-medium text-foreground mb-1 block">关联班级</Label>
-              <View className="bg-gray-50 rounded-xl px-4 py-3">
-                <Picker
-                  mode="selector"
-                  range={['不关联', ...classPickerRange]}
-                  value={formClassId ? classPickerValues.indexOf(formClassId) + 1 : 0}
-                  onChange={(e) => {
-                    const idx = parseInt(String(e.detail.value))
-                    if (idx === 0) {
-                      setFormClassId('')
-                    } else {
-                      setFormClassId(classPickerValues[idx - 1])
-                    }
-                  }}
+            <View className="mb-4">
+              <Label className="text-sm font-medium text-foreground mb-2 block">关联班级</Label>
+              <View className="flex flex-wrap gap-2">
+                <View
+                  className={`px-3 py-2 rounded-lg border text-sm cursor-pointer ${
+                    formClassId === ''
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-white text-gray-700 border-gray-200'
+                  }`}
+                  onClick={() => setFormClassId('')}
                 >
-                  <Text className="text-sm text-gray-700">
-                    {formClassId ? getClassName(formClassId) : '不关联'}
-                  </Text>
-                </Picker>
+                  <Text>不关联</Text>
+                </View>
+                {classes.map((cls) => (
+                  <View
+                    key={cls.id}
+                    className={`px-3 py-2 rounded-lg border text-sm cursor-pointer ${
+                      formClassId === cls.id
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-white text-gray-700 border-gray-200'
+                    }`}
+                    onClick={() => setFormClassId(cls.id)}
+                  >
+                    <Text>{cls.name}</Text>
+                  </View>
+                ))}
               </View>
             </View>
 
             {/* 可选报读时长 */}
-            <View>
+            <View className="mb-4">
               <Label className="text-sm font-medium text-foreground mb-2 block">可选报读时长（多选）</Label>
               <View className="flex flex-wrap gap-2">
                 {durationOptions.map((opt) => (
                   <View
                     key={opt}
-                    className={`px-3 py-1 rounded-lg border text-sm cursor-pointer ${
+                    className={`px-3 py-2 rounded-lg border text-sm cursor-pointer ${
                       formDurationOptions.includes(opt)
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-white text-gray-700 border-gray-200'
@@ -354,27 +384,35 @@ export default function CourseManagePage() {
             </View>
 
             {/* 日期计算规则 */}
-            <View>
-              <Label className="text-sm font-medium text-foreground mb-1 block">日期计算规则</Label>
-              <View className="bg-gray-50 rounded-xl px-4 py-3">
-                <Picker
-                  mode="selector"
-                  range={dateCalcRuleOptions}
-                  value={formDateCalcRule === 'weekday' ? 0 : 1}
-                  onChange={(e) => {
-                    setFormDateCalcRule(parseInt(String(e.detail.value)) === 0 ? 'weekday' : 'saturday')
-                  }}
+            <View className="mb-4">
+              <Label className="text-sm font-medium text-foreground mb-2 block">日期计算规则</Label>
+              <View className="flex flex-wrap gap-2">
+                <View
+                  className={`px-3 py-2 rounded-lg border text-sm cursor-pointer ${
+                    formDateCalcRule === 'weekday'
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-white text-gray-700 border-gray-200'
+                  }`}
+                  onClick={() => setFormDateCalcRule('weekday')}
                 >
-                  <Text className="text-sm text-gray-700">
-                    {formDateCalcRule === 'weekday' ? '工作日' : '周六'}
-                  </Text>
-                </Picker>
+                  <Text>工作日</Text>
+                </View>
+                <View
+                  className={`px-3 py-2 rounded-lg border text-sm cursor-pointer ${
+                    formDateCalcRule === 'saturday'
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-white text-gray-700 border-gray-200'
+                  }`}
+                  onClick={() => setFormDateCalcRule('saturday')}
+                >
+                  <Text>周六</Text>
+                </View>
               </View>
             </View>
 
             {/* 排序 */}
-            <View>
-              <Label className="text-sm font-medium text-foreground mb-1 block">排序</Label>
+            <View className="mb-4">
+              <Label className="text-sm font-medium text-foreground mb-2 block">排序</Label>
               <View className="bg-gray-50 rounded-xl px-4 py-3">
                 <Input
                   className="w-full bg-transparent"
@@ -387,19 +425,29 @@ export default function CourseManagePage() {
             </View>
 
             {/* 状态 */}
-            <View>
-              <Label className="text-sm font-medium text-foreground mb-1 block">状态</Label>
-              <View className="bg-gray-50 rounded-xl px-4 py-3">
-                <Picker
-                  mode="selector"
-                  range={statusOptions}
-                  value={formStatus === '启用' ? 0 : 1}
-                  onChange={(e) => {
-                    setFormStatus(parseInt(String(e.detail.value)) === 0 ? '启用' : '停用')
-                  }}
+            <View className="mb-4">
+              <Label className="text-sm font-medium text-foreground mb-2 block">状态</Label>
+              <View className="flex flex-wrap gap-2">
+                <View
+                  className={`px-3 py-2 rounded-lg border text-sm cursor-pointer ${
+                    formStatus === '启用'
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-white text-gray-700 border-gray-200'
+                  }`}
+                  onClick={() => setFormStatus('启用')}
                 >
-                  <Text className="text-sm text-gray-700">{formStatus}</Text>
-                </Picker>
+                  <Text>启用</Text>
+                </View>
+                <View
+                  className={`px-3 py-2 rounded-lg border text-sm cursor-pointer ${
+                    formStatus === '停用'
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-white text-gray-700 border-gray-200'
+                  }`}
+                  onClick={() => setFormStatus('停用')}
+                >
+                  <Text>停用</Text>
+                </View>
               </View>
             </View>
 
