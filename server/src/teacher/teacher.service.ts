@@ -9,7 +9,7 @@ export class TeacherService {
 
   async getMe(teacherRoleId?: string) {
     // teacherRoleId 即 teachers.id，先查 teachers 表
-    const { data: teacher, error: teacherError } = teacherRoleId
+    let { data: teacher, error: teacherError } = teacherRoleId
       ? await this.client
           .from('teachers')
           .select('*')
@@ -19,14 +19,29 @@ export class TeacherService {
       : { data: null, error: null };
     
     // 若 teachers 表无记录，降级查 user_roles
-    const { data: role } = !teacher && teacherRoleId
-      ? await this.client
-          .from('user_roles')
+    let role: any = null;
+    if (!teacher && teacherRoleId) {
+      const { data: roleData } = await this.client
+        .from('user_roles')
+        .select('*')
+        .eq('id', teacherRoleId)
+        .eq('role_type', 'teacher')
+        .single();
+      role = roleData;
+
+      // 从 user_roles 找到后，再按 real_name 查找 teachers 表获取 class_id
+      if (role?.real_name) {
+        const { data: teacherByName } = await this.client
+          .from('teachers')
           .select('*')
-          .eq('id', teacherRoleId)
-          .eq('role_type', 'teacher')
-          .single()
-      : { data: null };
+          .eq('real_name', role.real_name)
+          .eq('status', 'active')
+          .maybeSingle();
+        if (teacherByName) {
+          teacher = teacherByName;
+        }
+      }
+    }
 
     if (!teacher && !role) return null;
 
@@ -275,7 +290,7 @@ export class TeacherService {
     const attendanceMap = new Map<string, string>();
     attendance?.forEach(a => {
       const key = a.course_type ? `${a.child_id}__${a.course_type}` : a.child_id;
-      attendanceMap.set(key, a.status === '出勤' ? 'present' : a.status === '缺勤' ? 'absent' : a.status === '请假' ? 'leave' : 'unknown');
+      attendanceMap.set(key, a.status === 'present' ? 'present' : a.status === 'absent' ? 'absent' : a.status === 'leave' ? 'leave' : 'unknown');
     });
 
     // 排序优先级
