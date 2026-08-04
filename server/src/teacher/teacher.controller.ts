@@ -28,9 +28,10 @@ export class TeacherController {
   async getGroupedOverview(
     @Query('teacher_role_id') teacherRoleId?: string,
     @Query('teacher_id') teacherId?: string,
+    @Query('date') date?: string,
   ) {
     const id = teacherRoleId || teacherId;
-    const data = await this.teacherService.getGroupedOverview(id);
+    const data = await this.teacherService.getGroupedOverview(id, date);
     return { code: 200, msg: 'success', data };
   }
 

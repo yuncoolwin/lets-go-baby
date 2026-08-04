@@ -95,31 +95,41 @@ export default function RollCallPage() {
         console.error('[RollCall] load dates error:', e)
       }
 
-      // 直接使用考勤接口返回的数据（包含所有幼儿及其考勤状态）
-      const attendanceRes = await Network.request({
-        url: '/api/attendance',
-        data: { class_id: theClassId, date: selectedDate },
+      // 使用 grouped-overview 接口获取分组数据（与教师端首页一致）
+      const groupedRes = await Network.request({
+        url: '/api/teachers/grouped-overview',
+        data: { teacher_role_id: teacherId, date: selectedDate },
       })
-      const list: ChildItem[] = attendanceRes.data?.data?.list || attendanceRes.data?.data || []
-      setChildren(list)
+      const groups: any[] = groupedRes.data?.data || []
       setClassName(teacherData.class_name || '')
 
-      // 构建考勤状态 map
+      // 扁平化所有分组的幼儿数据
+      const allChildren: ChildItem[] = []
       const map: Record<string, AttendanceItem['status']> = {}
-      list.forEach(child => {
-        const status = child.attendance_status
-        if (status === 'present' || status === 'absent' || status === 'leave') {
-          map[child.id] = status
-        } else {
-          map[child.id] = 'unknown'
-        }
+      groups.forEach(g => {
+        (g.students || []).forEach((s: any) => {
+          allChildren.push({
+            id: s.id,
+            name: s.name,
+            gender: s.gender,
+            course_type: g.course_type,
+            attendance_status: s.attendance_status || null,
+          })
+          const status = s.attendance_status
+          if (status === 'present' || status === 'absent' || status === 'leave') {
+            map[s.id] = status
+          } else {
+            map[s.id] = 'unknown'
+          }
+        })
       })
+      setChildren(allChildren)
       setAttendance(map)
       setTempAttendance(map)
 
       // 如果有考勤记录（出勤/缺勤/请假），自动锁定
-      const hasRecords = list.some(c => {
-        const s = c.attendance_status
+      const hasRecords = allChildren.some(c => {
+        const s = map[c.id]
         return s === 'present' || s === 'absent' || s === 'leave'
       })
       setIsLocked(hasRecords)

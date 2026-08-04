@@ -200,7 +200,7 @@ export class TeacherService {
     }];
   }
 
-  async getGroupedOverview(teacherRoleId?: string) {
+  async getGroupedOverview(teacherRoleId?: string, date?: string) {
     // 获取教师信息
     const teacherData = await this.getMe(teacherRoleId);
     const teacherClassId = teacherData?.class_id || null;
@@ -260,13 +260,12 @@ export class TeacherService {
     }
 
     // 查询当天考勤数据
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const queryDate = date || new Date().toISOString().split('T')[0];
     const { data: attendance } = await this.client
       .from('attendance')
       .select('child_id, status')
       .eq('class_id', teacherClassId)
-      .eq('date', today);
+      .eq('date', queryDate);
 
     const attendanceMap = new Map<string, string>();
     attendance?.forEach(a => {
