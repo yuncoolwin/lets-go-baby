@@ -213,8 +213,8 @@ export default function IndexPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'present': return 'bg-green-100 text-green-700'
-      case 'absent': return 'bg-red-100 text-red-700'
-      case 'leave': return 'bg-yellow-100 text-yellow-700'
+      case 'absent': return 'bg-yellow-100 text-yellow-700'
+      case 'leave': return 'bg-red-100 text-red-700'
       default: return 'bg-gray-100 text-gray-700'
     }
   }
@@ -538,8 +538,8 @@ export default function IndexPage() {
                             {group.students.map((child) => {
                               const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
                                 present: { label: '出勤', bg: 'bg-green-100', text: 'text-green-700' },
-                                absent: { label: '缺勤', bg: 'bg-red-100', text: 'text-red-700' },
-                                leave: { label: '请假', bg: 'bg-yellow-100', text: 'text-yellow-700' },
+                                absent: { label: '缺勤', bg: 'bg-yellow-100', text: 'text-yellow-700' },
+                                leave: { label: '请假', bg: 'bg-red-100', text: 'text-red-700' },
                               }
                               const config = statusConfig[child.attendance_status] || { label: '未考勤', bg: 'bg-gray-100', text: 'text-gray-500' }
                               const dateRange = child.start_date || child.end_date

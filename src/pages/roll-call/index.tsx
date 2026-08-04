@@ -35,8 +35,8 @@ interface AttendanceItem {
 
 const STATUS_CONFIG = {
   present: { label: '到', color: 'bg-green-500', text: 'text-white' },
-  absent: { label: '缺', color: 'bg-red-500', text: 'text-white' },
-  leave: { label: '假', color: 'bg-yellow-400', text: 'text-yellow-800' },
+  absent: { label: '缺', color: 'bg-yellow-400', text: 'text-yellow-800' },
+  leave: { label: '假', color: 'bg-red-500', text: 'text-white' },
   unknown: { label: '—', color: 'bg-gray-100', text: 'text-gray-400' },
 } as const
 
@@ -342,13 +342,13 @@ export default function RollCallPage() {
                                 <Text className="block text-xl font-bold text-green-600">{present}</Text>
                                 <Text className="block text-xs text-green-500">出勤</Text>
                               </View>
-                              <View className="flex-1 bg-red-50 rounded-xl py-2 px-3 text-center">
-                                <Text className="block text-xl font-bold text-red-500">{absent}</Text>
-                                <Text className="block text-xs text-red-400">缺勤</Text>
-                              </View>
                               <View className="flex-1 bg-yellow-50 rounded-xl py-2 px-3 text-center">
-                                <Text className="block text-xl font-bold text-yellow-600">{leave}</Text>
-                                <Text className="block text-xs text-yellow-500">请假</Text>
+                                <Text className="block text-xl font-bold text-yellow-600">{absent}</Text>
+                                <Text className="block text-xs text-yellow-500">缺勤</Text>
+                              </View>
+                              <View className="flex-1 bg-red-50 rounded-xl py-2 px-3 text-center">
+                                <Text className="block text-xl font-bold text-red-500">{leave}</Text>
+                                <Text className="block text-xs text-red-400">请假</Text>
                               </View>
                               <View className="flex-1 bg-gray-100 rounded-xl py-2 px-3 text-center">
                                 <Text className="block text-xl font-bold text-gray-400">{unrecorded}</Text>
