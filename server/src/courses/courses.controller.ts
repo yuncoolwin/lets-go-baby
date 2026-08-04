@@ -19,8 +19,11 @@ export class CoursesController {
 
   @Put(':id')
   async update(@Param('id') id: string, @Body() body: any) {
-    const data = await this.coursesService.update(id, body);
-    return { code: 200, msg: 'success', data };
+    const result = await this.coursesService.update(id, body);
+    if (result && result.success === false) {
+      return { code: 400, msg: result.message };
+    }
+    return { code: 200, msg: 'success', data: result };
   }
 
   @Delete(':id')

@@ -31,6 +31,21 @@ export class CoursesService {
   }
 
   async update(id: string, body: any) {
+    // 如果尝试停用，检查是否有进行中的报读记录
+    if (body.status === '停用') {
+      const { data: activeEnrollments, error: queryError } = await this.supabase
+        .from('enrollments')
+        .select('id')
+        .eq('course_id', id)
+        .eq('status', '进行中')
+        .limit(1);
+      if (queryError) throw new Error(queryError.message);
+
+      if (activeEnrollments && activeEnrollments.length > 0) {
+        return { success: false, message: '该课程下有在读幼儿，无法停用' };
+      }
+    }
+
     const { data, error } = await this.supabase
       .from('courses')
       .update({
