@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Users, MapPin, Pencil, ChevronDown, ChevronUp } from 'lucide-react-taro'
+import { Plus, MapPin, Pencil, ChevronDown, ChevronUp } from 'lucide-react-taro'
 import { classApi } from '@/utils/api'
 
 const levelTabs = [
@@ -21,18 +21,6 @@ const levelLabelMap: Record<string, string> = {
   summer: '暑假班',
   winter: '寒假班',
   interest: '兴趣班',
-}
-
-const levelColorMap: Record<string, string> = {
-  nursery: 'bg-blue-50 text-blue-700',
-  summer: 'bg-orange-50 text-orange-700',
-  winter: 'bg-sky-50 text-sky-700',
-  interest: 'bg-purple-50 text-purple-700',
-}
-
-const statusLabelMap: Record<string, string> = {
-  active: '正常',
-  inactive: '停用',
 }
 
 const courseColorMap: Record<string, string> = {
@@ -51,8 +39,8 @@ interface ClassItem {
   room?: string
   status: string
   teacherCount?: number
-  studentCount?: number
   teacherNames?: string[]
+  enrollment_counts?: Record<string, number>
   created_at?: string
 }
 
@@ -96,7 +84,6 @@ export default function ClassManagePage() {
         const list: ClassItem[] = (res.data.list || res.data || []) as ClassItem[]
         setClasses(list.map(c => ({
           ...c,
-          studentCount: (c as any).student_count ?? 0,
           teacherNames: (c as any).teacher_names ?? [],
         })))
       }
@@ -237,7 +224,7 @@ export default function ClassManagePage() {
                     <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                       <View className="flex-1" onClick={() => toggleExpand(cls.id)}>
                         {/* 班级名称 + 展开图标 */}
-                        <View className="flex items-center gap-2 mb-1">
+                        <View className="flex items-center gap-2 mb-2">
                           <Text className="block text-base font-semibold text-foreground">
                             {cls.name}
                           </Text>
@@ -247,26 +234,8 @@ export default function ClassManagePage() {
                           }
                         </View>
 
-                        {/* 级别 + 状态标签 */}
-                        <View className="flex flex-wrap gap-2 mb-2">
-                          {cls.level && (
-                            <Badge className={`text-xs ${levelColorMap[cls.level] || 'bg-gray-100 text-gray-600'}`}>
-                              {levelLabelMap[cls.level] || cls.level}
-                            </Badge>
-                          )}
-                          <Badge className={`text-xs ${cls.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                            {statusLabelMap[cls.status] || cls.status}
-                          </Badge>
-                        </View>
-
-                        {/* 详细信息 */}
-                        <View className="flex flex-wrap gap-x-4 gap-y-1">
-                          <View className="flex items-center gap-1">
-                            <Users size={13} color="#9ca3af" />
-                            <Text className="block text-xs text-gray-500">
-                              {expandedId === cls.id ? totalStudents : (cls.studentCount ?? 0)}/{cls.capacity}人
-                            </Text>
-                          </View>
+                        {/* 教室 + 老师 */}
+                        <View className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
                           {cls.room && (
                             <View className="flex items-center gap-1">
                               <MapPin size={13} color="#9ca3af" />
@@ -282,6 +251,21 @@ export default function ClassManagePage() {
                               {cls.teacherCount}位教师
                             </Text>
                           ) : null}
+                        </View>
+
+                        {/* 各课程类型独立计数 */}
+                        <View className="flex flex-wrap gap-x-3 gap-y-1">
+                          {(Object.entries((cls as any).enrollment_counts || {}) as [string, number][]).map(([courseType, count]) => (
+                            <View key={courseType} className="flex items-center gap-1">
+                              <Badge className={`text-xs ${courseColorMap[courseType] || 'bg-gray-100 text-gray-600'}`}>
+                                {courseType}
+                              </Badge>
+                              <Text className="block text-xs text-gray-500">{count}/{cls.capacity}人</Text>
+                            </View>
+                          ))}
+                          {(!cls.enrollment_counts || Object.keys(cls.enrollment_counts).length === 0) && (
+                            <Text className="block text-xs text-gray-400">暂无在读幼儿</Text>
+                          )}
                         </View>
                       </View>
 

@@ -87,22 +87,26 @@ export class ClassesService {
       return { error: true, code: 500, msg: `查询失败: ${error.message}` };
     }
 
-    // 统计每个班级的幼儿数量（从 children 表查询）
+    // 统计每个班级的报读人数（从 enrollments 表按课程类型分组）
     if (data && data.length > 0) {
       const classIds = data.map(c => c.id);
-      const { data: childCounts } = await this.client
-        .from('children')
-        .select('class_id')
-        .eq('status', 'active')
+      const { data: enrollments } = await this.client
+        .from('enrollments')
+        .select('class_id, course_type')
+        .eq('status', '进行中')
         .in('class_id', classIds);
 
-      const countMap: Record<string, number> = {};
-      (childCounts || []).forEach(ch => {
-        const cid = (ch as { class_id: string }).class_id;
-        countMap[cid] = (countMap[cid] || 0) + 1;
+      const enrollmentCountMap: Record<string, Record<string, number>> = {};
+      (enrollments || []).forEach(e => {
+        const enr = e as { class_id: string; course_type: string };
+        if (!enrollmentCountMap[enr.class_id]) {
+          enrollmentCountMap[enr.class_id] = {};
+        }
+        const ct = enr.course_type;
+        enrollmentCountMap[enr.class_id][ct] = (enrollmentCountMap[enr.class_id][ct] || 0) + 1;
       });
       data.forEach(cls => {
-        (cls as Record<string, unknown>).student_count = countMap[cls.id] || 0;
+        (cls as Record<string, unknown>).enrollment_counts = enrollmentCountMap[cls.id] || {};
       });
     }
 
