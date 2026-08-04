@@ -6,8 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Plus, Users, MapPin, Pencil, ChevronDown, ChevronUp } from 'lucide-react-taro'
-import { classApi, childrenApi } from '@/utils/api'
-import { formatAge } from '@/utils/format'
+import { classApi } from '@/utils/api'
 
 const levelTabs = [
   { value: '', label: '全部' },
@@ -36,6 +35,14 @@ const statusLabelMap: Record<string, string> = {
   inactive: '停用',
 }
 
+const courseColorMap: Record<string, string> = {
+  '全日托': 'bg-green-50 text-green-700',
+  '半日托': 'bg-blue-50 text-blue-700',
+  '周六托': 'bg-purple-50 text-purple-700',
+  '晚间托': 'bg-indigo-50 text-indigo-700',
+  '兴趣班': 'bg-orange-50 text-orange-700',
+}
+
 interface ClassItem {
   id: string
   name: string
@@ -49,17 +56,17 @@ interface ClassItem {
   created_at?: string
 }
 
-interface ChildItem {
-  id: string
-  name: string
-  gender: string
-  birth_date?: string
-  status: string
-  course_type?: string | null
-  enrollment_duration?: string | null
-  custom_days?: string | null
-  start_date?: string | null
-  end_date?: string | null
+interface EnrollmentGroup {
+  course_type: string
+  students: {
+    enrollment_id: string
+    child_id: string
+    name: string
+    gender: string
+    birth_date?: string
+    start_date: string | null
+    end_date: string | null
+  }[]
 }
 
 interface TeacherItem {
@@ -76,7 +83,8 @@ export default function ClassManagePage() {
   // 展开卡片状态
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [expandedTeachers, setExpandedTeachers] = useState<TeacherItem[]>([])
-  const [expandedChildren, setExpandedChildren] = useState<ChildItem[]>([])
+  const [expandedGroups, setExpandedGroups] = useState<EnrollmentGroup[]>([])
+  const [totalStudents, setTotalStudents] = useState(0)
   const [childrenLoading, setChildrenLoading] = useState(false)
 
   const loadClasses = useCallback(async (showSkeleton = false) => {
@@ -101,19 +109,20 @@ export default function ClassManagePage() {
   const loadExpandedData = useCallback(async (classId: string) => {
     setChildrenLoading(true)
     try {
-      // 并行获取教师和幼儿列表
-      const [classDetailRes, childrenRes] = await Promise.all([
+      // 并行获取教师列表和报读记录
+      const [classDetailRes, enrollmentsRes] = await Promise.all([
         classApi.detail(classId),
-        childrenApi.list({ class_id: classId }),
+        classApi.enrollments(classId),
       ])
 
       if (classDetailRes.code === 200) {
         setExpandedTeachers(classDetailRes.data?.teachers || [])
       }
 
-      if (childrenRes.code === 200) {
-        const list: ChildItem[] = (childrenRes.data.list || childrenRes.data || []) as ChildItem[]
-        setExpandedChildren(list.filter(c => c.status === 'active'))
+      if (enrollmentsRes.code === 200) {
+        const data = enrollmentsRes.data
+        setExpandedGroups(data?.groups || [])
+        setTotalStudents(data?.total_students || 0)
       }
     } catch (err) {
       console.error('[ClassManage] load expanded data error:', err)
@@ -144,7 +153,8 @@ export default function ClassManagePage() {
     if (expandedId === id) {
       setExpandedId(null)
       setExpandedTeachers([])
-      setExpandedChildren([])
+      setExpandedGroups([])
+      setTotalStudents(0)
     } else {
       setExpandedId(id)
       await loadExpandedData(id)
@@ -179,7 +189,8 @@ export default function ClassManagePage() {
                 setActiveLevel(tab.value)
                 setExpandedId(null)
                 setExpandedTeachers([])
-                setExpandedChildren([])
+                setExpandedGroups([])
+                setTotalStudents(0)
               }}
             >
               <Text className={`text-sm ${activeLevel === tab.value ? 'text-white' : ''}`}>
@@ -253,7 +264,7 @@ export default function ClassManagePage() {
                           <View className="flex items-center gap-1">
                             <Users size={13} color="#9ca3af" />
                             <Text className="block text-xs text-gray-500">
-                              {cls.studentCount ?? 0}/{cls.capacity}人
+                              {expandedId === cls.id ? totalStudents : (cls.studentCount ?? 0)}/{cls.capacity}人
                             </Text>
                           </View>
                           {cls.room && (
@@ -339,10 +350,10 @@ export default function ClassManagePage() {
                       )}
                     </View>
 
-                    {/* 幼儿列表 */}
+                    {/* 幼儿列表（按课程类型分组） */}
                     <View>
                       <Text className="block text-xs text-muted-foreground ml-1 mb-1">
-                        在读幼儿 ({expandedChildren.length})
+                        在读幼儿 ({totalStudents})
                       </Text>
                       {childrenLoading ? (
                         <View className="space-y-2">
@@ -358,48 +369,41 @@ export default function ClassManagePage() {
                             </Card>
                           ))}
                         </View>
-                      ) : expandedChildren.length === 0 ? (
+                      ) : expandedGroups.length === 0 ? (
                         <Text className="block text-xs text-muted-foreground ml-1">暂无在读幼儿</Text>
                       ) : (
-                        <View className="space-y-2">
-                          {expandedChildren.map(child => (
-                            <Card key={child.id} className="bg-white rounded-xl border-0 shadow-sm">
+                        <View className="space-y-3">
+                          {expandedGroups.map((group) => (
+                            <Card key={group.course_type} className="bg-white rounded-xl border-0 shadow-sm">
                               <CardContent className="p-3">
-                                <View className="flex items-center gap-2 mb-1">
-                                  <View className={`w-6 h-6 rounded-full flex items-center justify-center ${child.gender === 'male' ? 'bg-blue-100' : 'bg-pink-100'}`}>
-                                    <Text className={`text-xs font-medium ${child.gender === 'male' ? 'text-blue-700' : 'text-pink-700'}`}>
-                                      {(child.name || '幼').charAt(0)}
-                                    </Text>
-                                  </View>
-                                  <Text className="text-sm font-semibold text-foreground">{child.name}</Text>
-                                  <Text className="text-xs text-muted-foreground">
-                                    {child.gender === 'male' ? '男' : '女'}
-                                  </Text>
-                                  {child.course_type && (
-                                    <Badge className="bg-purple-50 text-purple-700 text-xs">
-                                      <Text className="text-xs">{child.course_type}</Text>
-                                    </Badge>
-                                  )}
+                                {/* 课程类型标题 */}
+                                <View className="flex items-center gap-2 mb-2">
+                                  <Badge className={`text-xs ${courseColorMap[group.course_type] || 'bg-gray-100 text-gray-600'}`}>
+                                    {group.course_type}
+                                  </Badge>
+                                  <Text className="block text-xs text-gray-500">{group.students.length}人</Text>
                                 </View>
-                                {child.birth_date && (
-                                  <Text className="block text-xs text-muted-foreground">年龄: {formatAge(child.birth_date)}</Text>
-                                )}
-                                {(child.enrollment_duration || child.start_date) && (
-                                  <View className="flex items-center gap-2 mt-1">
-                                    {child.enrollment_duration && (
-                                      <Text className="text-xs text-muted-foreground">报读: {child.enrollment_duration}</Text>
-                                    )}
-                                    {child.enrollment_duration === '计日' && child.custom_days && (
-                                      <Text className="text-xs text-muted-foreground">{child.custom_days}天</Text>
-                                    )}
-                                    {child.start_date && (
-                                      <Text className="text-xs text-muted-foreground">{child.start_date}</Text>
-                                    )}
-                                    {child.end_date && (
-                                      <Text className="text-xs text-muted-foreground">~ {child.end_date}</Text>
-                                    )}
-                                  </View>
-                                )}
+                                {/* 幼儿列表 */}
+                                <View className="space-y-2">
+                                  {group.students.map((child) => (
+                                    <View key={child.enrollment_id} className="flex items-center justify-between py-1">
+                                      <View className="flex items-center gap-2">
+                                        <View className={`w-6 h-6 rounded-full flex items-center justify-center ${child.gender === 'male' ? 'bg-blue-100' : 'bg-pink-100'}`}>
+                                          <Text className={`text-xs font-medium ${child.gender === 'male' ? 'text-blue-700' : 'text-pink-700'}`}>
+                                            {(child.name || '幼').charAt(0)}
+                                          </Text>
+                                        </View>
+                                        <Text className="text-sm font-medium text-foreground">{child.name}</Text>
+                                        <Text className="text-xs text-muted-foreground">
+                                          {child.gender === 'male' ? '男' : '女'}
+                                        </Text>
+                                      </View>
+                                      <Text className="text-xs text-gray-400">
+                                        {child.start_date || ''}{child.end_date ? ` ~ ${child.end_date}` : ''}
+                                      </Text>
+                                    </View>
+                                  ))}
+                                </View>
                               </CardContent>
                             </Card>
                           ))}

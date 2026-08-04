@@ -303,6 +303,60 @@ export class ClassesService {
   }
 
   /**
+   * 获取班级的报读记录（按课程类型分组，只含进行中）
+   */
+  async getEnrollmentsByClass(classId: string) {
+    const { data, error } = await this.client
+      .from('enrollments')
+      .select(`
+        id,
+        child_id,
+        course_type,
+        start_date,
+        end_date,
+        status,
+        children!inner(id, name, gender, birth_date)
+      `)
+      .eq('class_id', classId)
+      .eq('status', '进行中')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return { error: true, code: 500, msg: `查询失败: ${error.message}` };
+    }
+
+    // 按 course_type 分组
+    const groups: Record<string, { course_type: string; students: any[] }> = {};
+    for (const row of data || []) {
+      const ct = row.course_type || '其他';
+      if (!groups[ct]) {
+        groups[ct] = { course_type: ct, students: [] };
+      }
+      const child = (row as any).children;
+      groups[ct].students.push({
+        enrollment_id: row.id,
+        child_id: row.child_id,
+        name: child.name,
+        gender: child.gender,
+        birth_date: child.birth_date,
+        start_date: row.start_date,
+        end_date: row.end_date,
+      });
+    }
+
+    // 转数组，按课程类型排序
+    const courseOrder = ['全日托', '半日托', '周六托', '晚间托', '兴趣班'];
+    const sorted = Object.values(groups).sort((a, b) => {
+      const ai = courseOrder.indexOf(a.course_type);
+      const bi = courseOrder.indexOf(b.course_type);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
+
+    const totalStudents = data?.length || 0;
+    return { groups: sorted, total_students: totalStudents };
+  }
+
+  /**
    * 统计信息
    */
   async getStats() {

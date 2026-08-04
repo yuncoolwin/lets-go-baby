@@ -72,6 +72,9 @@ export const classApi = {
   removeTeacher: (classId: string, teacherId: string) =>
     request({ url: `/api/classes/${classId}/teachers/${teacherId}`, method: 'DELETE' }),
 
+  enrollments: (classId: string) =>
+    request({ url: `/api/classes/${classId}/enrollments`, method: 'GET' }),
+
   stats: () =>
     request({ url: '/api/classes/stats', method: 'GET' }),
 }
