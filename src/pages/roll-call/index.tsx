@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
-import { View, Text, ScrollView, Picker } from '@tarojs/components'
+import { View, Text, ScrollView } from '@tarojs/components'
+import { CalendarOverlay } from '@/components/ui/calendar-overlay'
+import { format } from 'date-fns'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -53,6 +55,7 @@ export default function RollCallPage() {
   const [tempAttendance, setTempAttendance] = useState<Record<string, AttendanceItem['status']>>({})
   const [dateList, setDateList] = useState<string[]>([])
   const [expandedGroup, setExpandedGroup] = useState<Set<string>>(new Set())
+  const [calendarVisible, setCalendarVisible] = useState(false)
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -220,21 +223,12 @@ export default function RollCallPage() {
       {/* 头部信息 */}
       <View className="bg-white px-4 py-3 flex items-center justify-between border-b border-gray-100">
         <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
-          <Picker
-            mode="selector"
-            range={dateList}
-            value={dateList.indexOf(selectedDate) >= 0 ? dateList.indexOf(selectedDate) : 0}
-            onChange={(e) => {
-              const idx = e.detail.value
-              const val = dateList[idx] || selectedDate
-              setSelectedDate(val)
-            }}
-          >
-            <View className="flex items-center">
+          <View onClick={() => setCalendarVisible(true)}>
+            <View className="flex items-center flex-row">
               <Text className="block text-sm text-gray-500">{selectedDate === today ? '今天' : selectedDate}</Text>
               <Text className="block text-xs text-gray-300 ml-1">▼</Text>
             </View>
-          </Picker>
+          </View>
           {selectedDate !== today && (
             <Text className="block text-xs text-orange-500">（历史记录，只读）</Text>
           )}
@@ -426,6 +420,22 @@ export default function RollCallPage() {
           })()
         )}
       </ScrollView>
+
+      {/* 日历弹窗 */}
+      <CalendarOverlay
+        visible={calendarVisible}
+        value={selectedDate}
+        onChange={(dateStr) => {
+          setSelectedDate(dateStr)
+          setCalendarVisible(false)
+          loadData()
+        }}
+        onClose={() => setCalendarVisible(false)}
+        disabled={(date) => {
+          const formatted = format(date, 'yyyy-MM-dd')
+          return !dateList.includes(formatted)
+        }}
+      />
 
       {/* 底部操作栏 */}
       <View className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 flex gap-3">
