@@ -52,7 +52,7 @@ export default function RollCallPage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [tempAttendance, setTempAttendance] = useState<Record<string, AttendanceItem['status']>>({})
   const [dateList, setDateList] = useState<string[]>([])
-  const [expandedGroup, setExpandedGroup] = useState<string | null>(null)
+  const [expandedGroup, setExpandedGroup] = useState<Set<string>>(new Set())
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -315,14 +315,22 @@ export default function RollCallPage() {
                   const unrecorded = groupChildren.length - present - absent - leave
                   const colorClass = COURSE_TYPE_COLORS[courseType] || 'bg-gray-100 text-gray-700'
 
-                  const isExpanded = expandedGroup === courseType
+                  const isExpanded = expandedGroup.has(courseType)
                   return (
                     <Card key={courseType}>
                       <CardContent className="p-4">
                         {/* 分组头部 — 可点击展开/收起 */}
                         <View
                           className="flex items-center gap-2 active:opacity-60"
-                          onClick={() => setExpandedGroup(isExpanded ? null : courseType)}
+                          onClick={() => {
+                            const next = new Set(expandedGroup)
+                            if (next.has(courseType)) {
+                              next.delete(courseType)
+                            } else {
+                              next.add(courseType)
+                            }
+                            setExpandedGroup(next)
+                          }}
                         >
                           <Badge className={colorClass}>{courseType}</Badge>
                           <Text className="block text-sm text-gray-500 flex-1">{groupChildren.length} 名幼儿</Text>

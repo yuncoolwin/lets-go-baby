@@ -59,7 +59,7 @@ export default function IndexPage() {
   const [pendingCount, setPendingCount] = useState(0)
   const [pageLoading, setPageLoading] = useState(true)
   const [storeReady, setStoreReady] = useState(false)
-  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null)
+  const [expandedGroupId, setExpandedGroupId] = useState<Set<string>>(new Set())
   const currentChild = children[currentChildIndex] || null
 
   // 等待 store 从持久化中恢复
@@ -103,7 +103,7 @@ export default function IndexPage() {
       })
       
       // 如果有展开的分组，重新加载分组数据
-      if (expandedGroupId) {
+      if (expandedGroupId.size > 0) {
         const tid = Taro.getStorageSync('teacherId') || currentState.currentRole?.id
         if (tid) {
           Network.request({
@@ -490,7 +490,7 @@ export default function IndexPage() {
         {groupList.length > 0 ? (
           <View className="mb-4">
             {groupList.map((group) => {
-              const isExpanded = expandedGroupId === group.group_id
+              const isExpanded = expandedGroupId.has(group.group_id)
               return (
                 <Card key={group.group_id} className="bg-white rounded-xl border-0 shadow-sm mb-3">
                   <CardContent className="p-0">
@@ -498,11 +498,13 @@ export default function IndexPage() {
                     <View
                       className="flex items-center justify-between p-4"
                       onClick={() => {
-                        if (isExpanded) {
-                          setExpandedGroupId(null)
+                        const next = new Set(expandedGroupId)
+                        if (next.has(group.group_id)) {
+                          next.delete(group.group_id)
                         } else {
-                          setExpandedGroupId(group.group_id)
+                          next.add(group.group_id)
                         }
+                        setExpandedGroupId(next)
                       }}
                     >
                       <View className="flex-1">
