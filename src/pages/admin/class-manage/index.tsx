@@ -50,7 +50,7 @@ interface TeacherItem {
 export default function ClassManagePage() {
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeCourseType, setActiveCourseType] = useState('')
+  const [activeCourseType, setActiveCourseType] = useState('all')
   const [courses, setCourses] = useState<any[]>([])
   const isFirstMount = useRef(true)
 
