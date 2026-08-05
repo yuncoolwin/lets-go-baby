@@ -617,16 +617,16 @@ export default function ChildDetailPage() {
                           if (newType === '兴趣班' || rules.includes('工作日')) {
                             setFormDurationType('计日')
                             setFormDurationDays('')
-                            calcEndDate(newType, '计日', '', saturdayDate)
+                            // 计日天数未输入时不计算结束日期
                           } else {
                             setFormDurationType('计日')
                             setFormDurationDays('')
-                            calcEndDate(newType, '计日', '', saturdayDate)
+                            // 计日天数未输入时不计算结束日期
                           }
                         } else if (newType === '兴趣班') {
                           setFormDurationType('计日')
                           setFormDurationDays('')
-                          calcEndDate(newType, '计日', '', formStartDate)
+                          // 计日天数未输入时不计算结束日期
                         } else {
                           calcEndDate(newType, formDurationType, formDurationDays, formStartDate)
                         }
@@ -653,7 +653,11 @@ export default function ChildDetailPage() {
                             const newDuration = t
                             setFormDurationType(newDuration)
                             setFormDurationDays('')
-                            calcEndDate(formCourseType, newDuration, '', formStartDate)
+                            if (newDuration === '计日') {
+                              setFormEndDate('')
+                            } else {
+                              calcEndDate(formCourseType, newDuration, '', formStartDate)
+                            }
                           }
                         }}
                       >

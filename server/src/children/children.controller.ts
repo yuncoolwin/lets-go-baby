@@ -41,6 +41,10 @@ export class ChildrenController {
   @Post('calc-end-date')
   @HttpCode(200)
   async calcEndDate(@Body() body: { start_date: string; course_type: string; enrollment_duration: string; custom_days: string; date_calc_rule?: string }) {
+    // 计日类型必须传入天数
+    if (body.enrollment_duration === '计日' && (!body.custom_days || parseInt(body.custom_days) <= 0)) {
+      return { code: 400, msg: '计日天数不能为空', data: { end_date: '' } };
+    }
     // 从数据库读取节假日数据
     try {
       const year = body.start_date ? new Date(body.start_date).getFullYear() : 2026;
