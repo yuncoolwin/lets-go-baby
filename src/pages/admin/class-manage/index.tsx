@@ -260,15 +260,7 @@ export default function ClassManagePage() {
                               <Text className="block text-xs text-gray-500">{cls.room}</Text>
                             </View>
                           )}
-                          {cls.teacherNames && cls.teacherNames.length > 0 ? (
-                            <Text className="block text-xs text-gray-500">
-                              老师: {cls.teacherNames.join('、')}
-                            </Text>
-                          ) : cls.teacherCount !== undefined && cls.teacherCount > 0 ? (
-                            <Text className="block text-xs text-gray-500">
-                              {cls.teacherCount}位教师
-                            </Text>
-                          ) : null}
+                          
                         </View>
 
                         {/* 各课程类型独立计数 */}
@@ -306,53 +298,7 @@ export default function ClassManagePage() {
                 {/* 展开的教师 + 幼儿列表 */}
                 {expandedId === cls.id && (
                   <View className="mt-2 space-y-3">
-                    {/* 教师列表 */}
-                    <View>
-                      <Text className="block text-xs text-muted-foreground ml-1 mb-1">
-                        带班老师 ({expandedTeachers.length > 0 ? expandedTeachers.length : (cls.teacherNames?.length || 0)})
-                      </Text>
-                      {childrenLoading ? (
-                        <View className="space-y-2">
-                          <Skeleton className="h-8 w-full rounded-lg" />
-                        </View>
-                      ) : expandedTeachers.length > 0 ? (
-                        <View className="space-y-2">
-                          {expandedTeachers.map(teacher => (
-                            <Card key={teacher.id} className="bg-white rounded-xl border-0 shadow-sm">
-                              <CardContent className="p-3">
-                                <View className="flex items-center gap-2">
-                                  <View className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
-                                    <Text className="text-xs font-medium text-amber-700">
-                                      {(teacher.real_name || '师').charAt(0)}
-                                    </Text>
-                                  </View>
-                                  <Text className="text-sm font-semibold text-foreground">
-                                    {teacher.real_name || '未命名教师'}
-                                  </Text>
-                                </View>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </View>
-                      ) : cls.teacherNames && cls.teacherNames.length > 0 ? (
-                        <View className="space-y-2">
-                          {cls.teacherNames.map((name, idx) => (
-                            <Card key={idx} className="bg-white rounded-xl border-0 shadow-sm">
-                              <CardContent className="p-3">
-                                <View className="flex items-center gap-2">
-                                  <View className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
-                                    <Text className="text-xs font-medium text-amber-700">{name.charAt(0)}</Text>
-                                  </View>
-                                  <Text className="text-sm font-semibold text-foreground">{name}</Text>
-                                </View>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </View>
-                      ) : (
-                        <Text className="block text-xs text-muted-foreground ml-1">暂无带班老师</Text>
-                      )}
-                    </View>
+                    
 
                     {/* 幼儿列表（按课程类型分组） */}
                     <View>
@@ -386,6 +332,11 @@ export default function ClassManagePage() {
                                     {group.course_type}
                                   </Badge>
                                   <Text className="block text-xs text-gray-500">{group.students.length}人</Text>
+                                  {expandedTeachers.length > 0 && (
+                                    <Text className="block text-xs text-gray-400 ml-auto">
+                                      {expandedTeachers.map(t => t.real_name || '未命名').join('、')}
+                                    </Text>
+                                  )}
                                 </View>
                                 {/* 幼儿列表 */}
                                 <View className="space-y-2">
