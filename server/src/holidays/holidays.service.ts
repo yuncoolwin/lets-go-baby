@@ -169,6 +169,21 @@ export class HolidaysService {
       }
     }
 
+    // 合并 holidays_old 表中的法定节假日和调休数据
+    const { data: oldHolidays } = await this.supabase
+      .from('holidays_old')
+      .select('*')
+      .eq('year', year);
+
+    for (const h of oldHolidays || []) {
+      const dateStr = h.date;
+      if (h.type === 'holiday') {
+        holidays.add(dateStr);
+      } else if (h.type === 'work_weekend') {
+        workWeekends.add(dateStr);
+      }
+    }
+
     return { holidays, workWeekends };
   }
 

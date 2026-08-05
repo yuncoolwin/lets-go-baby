@@ -41,10 +41,13 @@ export class ChildrenController {
   @Post('calc-end-date')
   @HttpCode(200)
   async calcEndDate(@Body() body: { start_date: string; course_type: string; enrollment_duration: string; custom_days: string; date_calc_rule?: string }) {
+    console.log('[calcEndDate] 入参:', JSON.stringify(body));
     // 从数据库读取节假日数据
     try {
       const year = body.start_date ? new Date(body.start_date).getFullYear() : 2026;
+      console.log('[calcEndDate] 年份:', year);
       const { holidays, workWeekends } = await this.holidaysService.getDateSets(year);
+      console.log('[calcEndDate] holidays 数量:', holidays.size, 'workWeekends 数量:', workWeekends.size);
       const calculator = createDateCalculator(holidays, workWeekends);
       const endDate = calculator.calculateEndDate(
         body.start_date,
@@ -53,8 +56,10 @@ export class ChildrenController {
         body.custom_days || '',
         body.date_calc_rule || '',
       );
+      console.log('[calcEndDate] 计算结果:', endDate);
       return { code: 200, msg: 'success', data: { end_date: endDate } };
-    } catch {
+    } catch (e) {
+      console.log('[calcEndDate] 数据库查询失败，使用默认兜底:', e.message || e);
       // 兜底：使用默认硬编码数据
       const calculator = createDateCalculator();
       const endDate = calculator.calculateEndDate(
@@ -64,6 +69,7 @@ export class ChildrenController {
         body.custom_days || '',
         body.date_calc_rule || '',
       );
+      console.log('[calcEndDate] 兜底计算结果:', endDate);
       return { code: 200, msg: 'success', data: { end_date: endDate } };
     }
   }
