@@ -189,6 +189,17 @@ export default function ChildDetailPage() {
     setFormPaymentChannel(enr.payment_channel || '')
     setFormClassId(enr.class_id || '')
     setShowEnrollmentForm(true)
+    // 打开编辑时实时重算结束日期
+    if (enr.start_date) {
+      setTimeout(() => {
+        calcEndDate(
+          enr.course_type || '',
+          enr.duration_type || '计日',
+          enr.duration_days ? String(enr.duration_days) : '',
+          enr.start_date || ''
+        )
+      }, 100)
+    }
   }
 
   // 计算结束日期
