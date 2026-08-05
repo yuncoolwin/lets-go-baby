@@ -153,40 +153,6 @@ export class EnrollmentsService {
     return extendedDate;
   }
 
-  async repairAllExtendedEndDates(): Promise<{ total: number; fixed: number; errors: string[] }> {
-    const { data: enrollments, error } = await this.client
-      .from('enrollments')
-      .select('id, start_date, end_date, extended_end_date')
-      .not('start_date', 'is', null)
-      .not('end_date', 'is', null);
-
-    if (error) throw new Error(`查询报读记录失败: ${error.message}`);
-
-    const result = { total: 0, fixed: 0, errors: [] as string[] };
-    if (!enrollments) return result;
-
-    result.total = enrollments.length;
-
-    for (const enr of enrollments) {
-      try {
-        const newExtended = await this.calculateExtendedEndDate(enr.id);
-        const oldExtended = enr.extended_end_date;
-
-        if (newExtended !== oldExtended) {
-          await this.client
-            .from('enrollments')
-            .update({ extended_end_date: newExtended })
-            .eq('id', enr.id);
-          result.fixed++;
-        }
-      } catch (e: any) {
-        result.errors.push(`${enr.id}: ${e.message}`);
-      }
-    }
-
-    return result;
-  }
-
   async findByChild(childId: string): Promise<Enrollment[]> {
     await this.syncExpiredStatus();
     const { data, error } = await this.client

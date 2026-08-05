@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { View, Text, Image } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
@@ -189,53 +189,30 @@ export default function ChildDetailPage() {
     setFormPaymentChannel(enr.payment_channel || '')
     setFormClassId(enr.class_id || '')
     setShowEnrollmentForm(true)
-    // 打开编辑时实时重算结束日期
-    if (enr.start_date) {
-      setTimeout(() => {
-        calcEndDate(
-          enr.course_type || '',
-          enr.duration_type || '计日',
-          enr.duration_days ? String(enr.duration_days) : '',
-          enr.start_date || ''
-        )
-      }, 100)
-    }
   }
 
   // 计算结束日期
-  const calcEndDateRef = useRef(0)
   const calcEndDate = async (courseType: string, durationType: string, durationDays: string, startDate: string) => {
     if (!courseType || !durationType || !startDate) {
       setFormEndDate('')
       return
     }
     const course = courses.find((c: any) => c.name === courseType)
-    const seq = ++calcEndDateRef.current
-    const params = {
-      course_type: courseType,
-      enrollment_duration: durationType,
-      custom_days: durationType === '计日' ? durationDays : '',
-      start_date: startDate,
-      date_calc_rule: course?.date_calc_rule || '工作日',
-    }
-    console.log('[calcEndDate] req#' + seq + ' params:', params)
     try {
-      const res = await childrenApi.calcEndDate(params)
-      console.log('[calcEndDate] res#' + seq + ':', res)
-      if (seq !== calcEndDateRef.current) {
-        console.log('[calcEndDate] 忽略旧请求 #' + seq + ', 最新为 #' + calcEndDateRef.current)
-        return
-      }
+      const res = await childrenApi.calcEndDate({
+        course_type: courseType,
+        enrollment_duration: durationType,
+        custom_days: durationType === '计日' ? durationDays : '',
+        start_date: startDate,
+        date_calc_rule: course?.date_calc_rule || '工作日',
+      })
       if (res.code === 200 && res.data?.end_date) {
-        console.log('[calcEndDate] 设置结束日期:', res.data.end_date)
         setFormEndDate(res.data.end_date)
       } else {
         setFormEndDate('')
       }
     } catch {
-      if (seq === calcEndDateRef.current) {
-        setFormEndDate('')
-      }
+      setFormEndDate('')
     }
   }
 
