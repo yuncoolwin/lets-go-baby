@@ -1,3 +1,3 @@
 export default typeof definePageConfig === 'function'
-  ? definePageConfig({ navigationBarTitleText: '假期管理' })
-  : { navigationBarTitleText: '假期管理' }
+  ? definePageConfig({ navigationBarTitleText: '法定节假日' })
+  : { navigationBarTitleText: '法定节假日' }
