@@ -257,7 +257,7 @@ export default function ClassManagePage() {
                           {cls.room && (
                             <View className="flex items-center gap-1">
                               <MapPin size={13} color="#9ca3af" />
-                              <Text className="block text-xs text-gray-500">{cls.room}</Text>
+                              <Text className="block text-sm text-gray-500">{cls.room}</Text>
                             </View>
                           )}
                           
@@ -269,7 +269,7 @@ export default function ClassManagePage() {
                             .filter(([courseType]) => activeCourseType === 'all' || courseType === activeCourseType)
                             .map(([courseType, count]) => (
                             <View key={courseType} className="flex items-center gap-1">
-                              <Badge className={`text-xs ${courseColorMap[courseType] || 'bg-gray-100 text-gray-600'}`}>
+                              <Badge className={`text-sm ${courseColorMap[courseType] || 'bg-gray-100 text-gray-600'}`}>
                                 {courseType}
                               </Badge>
                               <Text className="block text-xs text-gray-500">{count}/{cls.capacity}人</Text>

@@ -236,20 +236,20 @@ export default function CourseManagePage() {
                 <View className="flex items-start justify-between mb-3">
                   <View className="flex-1">
                     <View className="flex items-center gap-2 mb-2">
-                      <Badge className={`${getColorClass(course.name)} border px-2 py-1 text-xs`}>
+                      <Badge className={`${getColorClass(course.name)} border px-2 py-1 text-sm`}>
                         {course.name}
                       </Badge>
-                      <Badge className={course.status === '启用' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-700 border-gray-200'}>
+                      <Badge className={course.status === '启用' ? 'bg-green-50 text-green-700 border-green-200 text-sm' : 'bg-gray-50 text-gray-700 border-gray-200 text-sm'}>
                         {course.status}
                       </Badge>
                     </View>
-                    <Text className="block text-xs text-gray-500">
+                    <Text className="block text-sm text-gray-500">
                       关联班级：{getClassName(course.class_id)}
                     </Text>
-                    <Text className="block text-xs text-gray-500 mt-1">
+                    <Text className="block text-sm text-gray-500 mt-1">
                       报读时长：{course.duration_options?.length ? course.duration_options.join('、') : '未设置'}
                     </Text>
-                    <Text className="block text-xs text-gray-500 mt-1">
+                    <Text className="block text-sm text-gray-500 mt-1">
                       日期规则：{course.date_calc_rule?.split(',').join('、') || '未设置'}
                     </Text>
                   </View>
