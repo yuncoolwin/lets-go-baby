@@ -564,8 +564,8 @@ export default function ChildDetailPage() {
                   <Text className="block text-xs text-gray-500 mt-1">
                     日期：{enr.start_date || '--'} ~ {enr.end_date || '--'}
                   </Text>
-                  <Text className="block text-xs text-gray-400 mt-1">
-                    顺延日期：{enr.extended_end_date || '无'}
+                  <Text className="block text-xs mt-1" style={enr.extended_end_date ? { color: '#E8651A' } : {}}>
+                    顺延结束日期：{enr.extended_end_date || '无'}
                   </Text>
                   {(enr.payment_amount || enr.payment_channel) && (
                     <Text className="block text-xs text-gray-500 mt-1">

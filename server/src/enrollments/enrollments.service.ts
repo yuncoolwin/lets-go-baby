@@ -67,6 +67,18 @@ export class EnrollmentsService {
   }
 
   /**
+   * 日期字符串加减天数（纯字符串操作，避免 timezone 问题）
+   */
+  private addDays(dateStr: string, days: number): string {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d + days);
+    const yy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yy}-${mm}-${dd}`;
+  }
+
+  /**
    * 计算顺延结束日期
    * 查询报读期间重叠的假期，累计天数后顺延
    */
@@ -109,43 +121,36 @@ export class EnrollmentsService {
       return false;
     });
 
-    // 获取报读期间的日期集合（排除周末）
-    const start = new Date(startDate + 'T00:00:00');
-    const end = new Date(endDate + 'T00:00:00');
+    // 收集报读期间内所有重叠的假期日期（纯字符串操作避免 timezone 偏移）
     const holidayDates = new Set<string>();
-
-    // 将假期日期范围展开，并只取报读期间内的日期
     for (const h of matchingHolidays) {
-      const hStart = new Date(h.start_date + 'T00:00:00');
-      const hEnd = new Date(h.end_date + 'T00:00:00');
-      const current = new Date(Math.max(hStart.getTime(), start.getTime()));
-      const maxDate = new Date(Math.min(hEnd.getTime(), end.getTime()));
+      let current = h.start_date > startDate ? h.start_date : startDate;
+      const maxDate = h.end_date < endDate ? h.end_date : endDate;
       while (current <= maxDate) {
-        holidayDates.add(current.toISOString().split('T')[0]);
-        current.setUTCDate(current.getUTCDate() + 1);
+        holidayDates.add(current);
+        current = this.addDays(current, 1);
       }
     }
 
-    // 累计假期天数
     const totalHolidayDays = holidayDates.size;
     if (totalHolidayDays === 0) return null;
 
-    // 顺延 endDate，并确保顺延后不是周末/节假日
-    const extendedDate = new Date(endDate + 'T00:00:00');
+    // 顺延 endDate，跳过顺延后的周末和节假日
+    let extendedDate = endDate;
     let remainingDays = totalHolidayDays;
 
     while (remainingDays > 0) {
-      extendedDate.setUTCDate(extendedDate.getUTCDate() + 1);
-      const dateStr = extendedDate.toISOString().split('T')[0];
-      const dayOfWeek = extendedDate.getUTCDay();
+      extendedDate = this.addDays(extendedDate, 1);
+      const [y, m, d] = extendedDate.split('-').map(Number);
+      const dayOfWeek = new Date(y, m - 1, d).getDay();
       // 跳过周末
       if (dayOfWeek === 0 || dayOfWeek === 6) continue;
       // 跳过法定节假日
-      if (holidayDates.has(dateStr)) continue;
+      if (holidayDates.has(extendedDate)) continue;
       remainingDays--;
     }
 
-    return extendedDate.toISOString().split('T')[0];
+    return extendedDate;
   }
 
   async findByChild(childId: string): Promise<Enrollment[]> {
