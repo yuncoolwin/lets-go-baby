@@ -9,11 +9,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Label } from '@/components/ui/label'
 import { childrenApi, enrollmentApi, classApi, courseApi } from '@/utils/api'
 import BackButton from '@/components/back-button'
-import { Pencil, Trash2, BookOpen, Plus, X } from 'lucide-react-taro'
+import { Pencil, Trash2, BookOpen, Plus, X, Info } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge } from '@/utils/format'
 
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface ChildDetail {
   id: string
@@ -83,6 +84,10 @@ export default function ChildDetailPage() {
   const [showEnrollmentForm, setShowEnrollmentForm] = useState(false)
   const [showCalendar, setShowCalendar] = useState<'birthDate' | 'startDate' | null>(null)
   const [courses, setCourses] = useState<any[]>([])
+  const [extendDetails, setExtendDetails] = useState<any[]>([])
+  const [extendTotalDays, setExtendTotalDays] = useState(0)
+  const [extendToDate, setExtendToDate] = useState('')
+  const [showExtendDialog, setShowExtendDialog] = useState(false)
 
   // 幼儿基本信息编辑
   const [isEditingChild, setIsEditingChild] = useState(false)
@@ -282,6 +287,20 @@ export default function ChildDetailPage() {
         }
       },
     })
+  }
+
+  const loadExtendDetail = async (enr: any) => {
+    try {
+      const res = await enrollmentApi.calcExtendedEndDate(enr.id)
+      if (res.code === 200 && res.data) {
+        setExtendDetails(res.data.details || [])
+        setExtendTotalDays(res.data.totalOverlapDays || 0)
+        setExtendToDate(res.data.extended_end_date || '')
+        setShowExtendDialog(true)
+      }
+    } catch (e) {
+      console.error('加载顺延详情失败', e)
+    }
   }
 
   const loadData = useCallback(async () => {
@@ -566,6 +585,11 @@ export default function ChildDetailPage() {
                   </Text>
                   <Text className="block text-xs mt-1" style={enr.extended_end_date ? { color: '#E8651A' } : {}}>
                     顺延结束日期：{enr.extended_end_date || '无'}
+                    {enr.extended_end_date && (
+                      <Text className="inline-block align-middle ml-1" onClick={() => loadExtendDetail(enr)}>
+                        <Info size={12} color="#999" />
+                      </Text>
+                    )}
                   </Text>
                   {(enr.payment_amount || enr.payment_channel) && (
                     <Text className="block text-xs text-gray-500 mt-1">
@@ -817,6 +841,41 @@ export default function ChildDetailPage() {
           return false
         }}
       />
+
+      <Dialog open={showExtendDialog} onOpenChange={setShowExtendDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">顺延原因</DialogTitle>
+          </DialogHeader>
+          <View className="py-2">
+            {extendDetails.length === 0 ? (
+              <Text className="block text-sm text-gray-500 text-center py-4">暂无顺延假期</Text>
+            ) : (
+              extendDetails.map((item, idx) => {
+                const typeLabel = item.type === 'all' ? '全园' : item.type === 'class' ? '班级' : '个人'
+                const typeColor = item.type === 'all' ? 'bg-blue-100 text-blue-700' : item.type === 'class' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                return (
+                  <View key={idx} className="flex flex-row items-start mb-3 pb-3" style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <View className="flex-1">
+                      <Text className="block text-sm font-medium">{item.name}</Text>
+                      <View className="flex flex-row items-center mt-1">
+                        <Text className={`inline-block text-xs px-2 py-1 rounded ${typeColor}`}>{typeLabel}</Text>
+                        <Text className="block text-xs text-gray-500 ml-2">{item.startDate} ~ {item.endDate}</Text>
+                      </View>
+                    </View>
+                    <Text className="block text-sm text-orange-500 font-medium ml-2">重叠{item.overlapDays}天</Text>
+                  </View>
+                )
+              })
+            )}
+          </View>
+          <View className="pt-3" style={{ borderTop: '1px solid #e5e5e5' }}>
+            <Text className="block text-sm text-gray-500 text-center">
+              共重叠 <Text className="font-bold text-orange-500">{extendTotalDays}</Text> 天，顺延至 <Text className="font-bold text-orange-500">{extendToDate}</Text>
+            </Text>
+          </View>
+        </DialogContent>
+      </Dialog>
     </View>
   )
 }

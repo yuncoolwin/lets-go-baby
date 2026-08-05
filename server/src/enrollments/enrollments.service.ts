@@ -1,6 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
+export interface HolidayDetail {
+  name: string;
+  type: string;
+  startDate: string;
+  endDate: string;
+  overlapDays: number;
+}
+
 export interface Enrollment {
   id: string;
   child_id: string;
@@ -82,7 +90,9 @@ export class EnrollmentsService {
    * 计算顺延结束日期
    * 查询报读期间重叠的假期，累计天数后顺延
    */
-  async calculateExtendedEndDate(enrollmentId: string): Promise<string | null> {
+  async calculateExtendedEndDate(enrollmentId: string): Promise<{ extended_end_date: string | null; details: HolidayDetail[] }> {
+    const result = { extended_end_date: null as string | null, details: [] as HolidayDetail[] };
+
     // 获取报读记录
     const { data: enr, error: enrError } = await this.client
       .from('enrollments')
@@ -90,8 +100,8 @@ export class EnrollmentsService {
       .eq('id', enrollmentId)
       .single();
 
-    if (enrError || !enr) return null;
-    if (!enr.start_date || !enr.end_date) return null;
+    if (enrError || !enr) return result;
+    if (!enr.start_date || !enr.end_date) return result;
 
     const startDate = enr.start_date;
     const endDate = enr.end_date;
@@ -121,19 +131,30 @@ export class EnrollmentsService {
       return false;
     });
 
-    // 收集报读期间内所有重叠的假期日期（纯字符串操作避免 timezone 偏移）
+    // 收集报读期间内所有重叠的假期日期，同时生成明细
     const holidayDates = new Set<string>();
     for (const h of matchingHolidays) {
       let current = h.start_date > startDate ? h.start_date : startDate;
       const maxDate = h.end_date < endDate ? h.end_date : endDate;
+      let overlapCount = 0;
       while (current <= maxDate) {
         holidayDates.add(current);
+        overlapCount++;
         current = this.addDays(current, 1);
+      }
+      if (overlapCount > 0) {
+        result.details.push({
+          name: h.name,
+          type: h.type,
+          startDate: h.start_date,
+          endDate: h.end_date,
+          overlapDays: overlapCount,
+        });
       }
     }
 
     const totalHolidayDays = holidayDates.size;
-    if (totalHolidayDays === 0) return null;
+    if (totalHolidayDays === 0) return result;
 
     // 顺延 endDate，跳过顺延后的周末和节假日
     let extendedDate = endDate;
@@ -150,7 +171,8 @@ export class EnrollmentsService {
       remainingDays--;
     }
 
-    return extendedDate;
+    result.extended_end_date = extendedDate;
+    return result;
   }
 
   async findByChild(childId: string): Promise<Enrollment[]> {
@@ -279,7 +301,7 @@ export class EnrollmentsService {
 
     // 如果有日期变更，重新计算并更新顺延结束日期
     if (data.start_date && data.end_date) {
-      const extendedDate = await this.calculateExtendedEndDate(data.id);
+      const { extended_end_date: extendedDate } = await this.calculateExtendedEndDate(data.id);
       if (extendedDate) {
         await this.client
           .from('enrollments')

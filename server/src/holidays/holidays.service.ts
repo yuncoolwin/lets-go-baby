@@ -213,7 +213,7 @@ export class HolidaysService {
 
     // 逐条重新计算并更新
     for (const enrId of enrollmentIds) {
-      const extendedDate = await this.enrollmentsService.calculateExtendedEndDate(enrId);
+      const { extended_end_date: extendedDate } = await this.enrollmentsService.calculateExtendedEndDate(enrId);
       if (extendedDate) {
         await this.supabase
           .from('enrollments')
