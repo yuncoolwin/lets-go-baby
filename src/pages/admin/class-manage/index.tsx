@@ -310,10 +310,7 @@ export default function ClassManagePage() {
                           {[1, 2].map(i => (
                             <Card key={i} className="bg-white rounded-xl border-0 shadow-sm">
                               <CardContent className="p-3">
-                                <View className="flex items-center gap-2 mb-1">
-                                  <Skeleton className="h-6 w-6 rounded-full" />
-                                  <Skeleton className="h-5 w-20" />
-                                </View>
+                                <Skeleton className="h-5 w-20 mb-1" />
                                 <Skeleton className="h-4 w-16" />
                               </CardContent>
                             </Card>
@@ -343,11 +340,6 @@ export default function ClassManagePage() {
                                   {group.students.map((child) => (
                                     <View key={child.enrollment_id} className="flex items-center justify-between py-1">
                                       <View className="flex items-center gap-2">
-                                        <View className={`w-6 h-6 rounded-full flex items-center justify-center ${child.gender === 'male' ? 'bg-blue-100' : 'bg-pink-100'}`}>
-                                          <Text className={`text-xs font-medium ${child.gender === 'male' ? 'text-blue-700' : 'text-pink-700'}`}>
-                                            {(child.name || '幼').charAt(0)}
-                                          </Text>
-                                        </View>
                                         <Text className="text-sm font-medium text-foreground">{child.name}</Text>
                                         <Text className="text-xs text-muted-foreground">
                                           {child.gender === 'male' ? '男' : '女'}
