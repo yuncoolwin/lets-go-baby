@@ -42,11 +42,6 @@ interface EnrollmentGroup {
   }[]
 }
 
-interface TeacherItem {
-  id: string
-  real_name: string | null
-}
-
 export default function ClassManagePage() {
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -56,7 +51,6 @@ export default function ClassManagePage() {
 
   // 展开卡片状态
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [expandedTeachers, setExpandedTeachers] = useState<TeacherItem[]>([])
   const [expandedGroups, setExpandedGroups] = useState<EnrollmentGroup[]>([])
   const [totalStudents, setTotalStudents] = useState(0)
   const [childrenLoading, setChildrenLoading] = useState(false)
@@ -95,16 +89,9 @@ export default function ClassManagePage() {
   const loadExpandedData = useCallback(async (classId: string, courseType?: string) => {
     setChildrenLoading(true)
     try {
-      // 并行获取教师列表和报读记录（按课程类型筛选）
+      // 获取报读记录（按课程类型筛选）
       const params = courseType && courseType !== 'all' ? { course_type: courseType } : undefined
-      const [classDetailRes, enrollmentsRes] = await Promise.all([
-        classApi.detail(classId),
-        classApi.enrollments(classId, params),
-      ])
-
-      if (classDetailRes.code === 200) {
-        setExpandedTeachers(classDetailRes.data?.teachers || [])
-      }
+      const enrollmentsRes = await classApi.enrollments(classId, params)
 
       if (enrollmentsRes.code === 200) {
         const data = enrollmentsRes.data
@@ -139,7 +126,7 @@ export default function ClassManagePage() {
   const toggleExpand = async (id: string) => {
     if (expandedId === id) {
       setExpandedId(null)
-      setExpandedTeachers([])
+      
       setExpandedGroups([])
       setTotalStudents(0)
     } else {
@@ -173,7 +160,7 @@ export default function ClassManagePage() {
             onClick={() => {
               setActiveCourseType('all')
               setExpandedId(null)
-              setExpandedTeachers([])
+              
               setExpandedGroups([])
               setTotalStudents(0)
             }}
@@ -193,7 +180,7 @@ export default function ClassManagePage() {
               onClick={() => {
                 setActiveCourseType(course.name)
                 setExpandedId(null)
-                setExpandedTeachers([])
+                
                 setExpandedGroups([])
                 setTotalStudents(0)
               }}
@@ -260,16 +247,7 @@ export default function ClassManagePage() {
                               <Text className="block text-xs text-gray-500">{cls.room}</Text>
                             </View>
                           )}
-                          {cls.teacherNames && cls.teacherNames.length > 0 ? (
-                            <Text className="block text-xs text-gray-500">
-                              老师: {cls.teacherNames.join('、')}
-                            </Text>
-                          ) : cls.teacherCount !== undefined && cls.teacherCount > 0 ? (
-                            <Text className="block text-xs text-gray-500">
-                              {cls.teacherCount}位教师
-                            </Text>
-                          ) : null}
-                        </View>
+                          </View>
 
                         {/* 各课程类型独立计数 */}
                         <View className="flex flex-wrap gap-x-3 gap-y-1">
@@ -280,7 +258,7 @@ export default function ClassManagePage() {
                               <Badge className={`text-xs ${courseColorMap[courseType] || 'bg-gray-100 text-gray-600'}`}>
                                 {courseType}
                               </Badge>
-                              <Text className="block text-xs text-gray-500">{count}/{cls.capacity}人</Text>
+                              <Text className="block text-xs text-gray-500">{count}/{cls.capacity}人 {cls.teacherNames?.join('/') || ''}</Text>
                             </View>
                           ))}
                           {(!cls.enrollment_counts || Object.keys(cls.enrollment_counts).length === 0) && (
@@ -306,53 +284,7 @@ export default function ClassManagePage() {
                 {/* 展开的教师 + 幼儿列表 */}
                 {expandedId === cls.id && (
                   <View className="mt-2 space-y-3">
-                    {/* 教师列表 */}
-                    <View>
-                      <Text className="block text-xs text-muted-foreground ml-1 mb-1">
-                        带班老师 ({expandedTeachers.length > 0 ? expandedTeachers.length : (cls.teacherNames?.length || 0)})
-                      </Text>
-                      {childrenLoading ? (
-                        <View className="space-y-2">
-                          <Skeleton className="h-8 w-full rounded-lg" />
-                        </View>
-                      ) : expandedTeachers.length > 0 ? (
-                        <View className="space-y-2">
-                          {expandedTeachers.map(teacher => (
-                            <Card key={teacher.id} className="bg-white rounded-xl border-0 shadow-sm">
-                              <CardContent className="p-3">
-                                <View className="flex items-center gap-2">
-                                  <View className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
-                                    <Text className="text-xs font-medium text-amber-700">
-                                      {(teacher.real_name || '师').charAt(0)}
-                                    </Text>
-                                  </View>
-                                  <Text className="text-sm font-semibold text-foreground">
-                                    {teacher.real_name || '未命名教师'}
-                                  </Text>
-                                </View>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </View>
-                      ) : cls.teacherNames && cls.teacherNames.length > 0 ? (
-                        <View className="space-y-2">
-                          {cls.teacherNames.map((name, idx) => (
-                            <Card key={idx} className="bg-white rounded-xl border-0 shadow-sm">
-                              <CardContent className="p-3">
-                                <View className="flex items-center gap-2">
-                                  <View className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
-                                    <Text className="text-xs font-medium text-amber-700">{name.charAt(0)}</Text>
-                                  </View>
-                                  <Text className="text-sm font-semibold text-foreground">{name}</Text>
-                                </View>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </View>
-                      ) : (
-                        <Text className="block text-xs text-muted-foreground ml-1">暂无带班老师</Text>
-                      )}
-                    </View>
+                    
 
                     {/* 幼儿列表（按课程类型分组） */}
                     <View>
