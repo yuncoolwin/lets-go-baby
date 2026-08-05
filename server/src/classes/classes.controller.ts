@@ -51,8 +51,11 @@ export class ClassesController {
 
   @Get(':id/enrollments')
   @HttpCode(200)
-  async getEnrollments(@Param('id') id: string) {
-    const data = await this.classesService.getEnrollmentsByClass(id);
+  async getEnrollments(
+    @Param('id') id: string,
+    @Query('course_type') courseType?: string,
+  ) {
+    const data = await this.classesService.getEnrollmentsByClass(id, courseType);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }

@@ -309,8 +309,8 @@ export class ClassesService {
   /**
    * 获取班级的报读记录（按课程类型分组，只含进行中）
    */
-  async getEnrollmentsByClass(classId: string) {
-    const { data, error } = await this.client
+  async getEnrollmentsByClass(classId: string, courseType?: string) {
+    let query = this.client
       .from('enrollments')
       .select(`
         id,
@@ -322,8 +322,13 @@ export class ClassesService {
         children!inner(id, name, gender, birth_date)
       `)
       .eq('class_id', classId)
-      .eq('status', '进行中')
-      .order('created_at', { ascending: false });
+      .eq('status', '进行中');
+
+    if (courseType) {
+      query = query.eq('course_type', courseType);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
       return { error: true, code: 500, msg: `查询失败: ${error.message}` };

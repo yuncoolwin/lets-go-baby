@@ -92,13 +92,14 @@ export default function ClassManagePage() {
     if (showSkeleton) setLoading(false)
   }, [activeCourseType])
 
-  const loadExpandedData = useCallback(async (classId: string) => {
+  const loadExpandedData = useCallback(async (classId: string, courseType?: string) => {
     setChildrenLoading(true)
     try {
-      // 并行获取教师列表和报读记录
+      // 并行获取教师列表和报读记录（按课程类型筛选）
+      const params = courseType && courseType !== 'all' ? { course_type: courseType } : undefined
       const [classDetailRes, enrollmentsRes] = await Promise.all([
         classApi.detail(classId),
-        classApi.enrollments(classId),
+        classApi.enrollments(classId, params),
       ])
 
       if (classDetailRes.code === 200) {
@@ -114,7 +115,7 @@ export default function ClassManagePage() {
       console.error('[ClassManage] load expanded data error:', err)
     }
     setChildrenLoading(false)
-  }, [])
+  }, [activeCourseType])
 
   useEffect(() => {
     loadClasses(true)
@@ -143,7 +144,7 @@ export default function ClassManagePage() {
       setTotalStudents(0)
     } else {
       setExpandedId(id)
-      await loadExpandedData(id)
+      await loadExpandedData(id, activeCourseType !== 'all' ? activeCourseType : undefined)
     }
   }
 
