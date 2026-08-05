@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { Bus, Users, Camera, GraduationCap, Plus, ChevronDown, ChevronUp, BookOpen, Calendar } from 'lucide-react-taro'
+import { Bus, Users, Camera, GraduationCap, Plus, ChevronDown, ChevronUp, BookOpen } from 'lucide-react-taro'
 import { courseApi } from '@/utils/api'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge, formatTime } from '@/utils/format'
@@ -739,18 +739,6 @@ export default function IndexPage() {
                 <Text className="text-purple-500 text-xl leading-none">📝</Text>
               </View>
               <Text className="text-sm text-foreground">通知管理</Text>
-            </CardContent>
-          </Card>
-
-          <Card
-            className="bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => Taro.navigateTo({ url: '/pages/admin/holidays/index' })}
-          >
-            <CardContent className="p-4 flex flex-col items-center">
-              <View className="w-12 h-12 rounded-lg bg-red-50 flex items-center justify-center mb-2">
-                <Calendar size={24} color="#EF4444" />
-              </View>
-              <Text className="text-sm text-foreground">节假日管理</Text>
             </CardContent>
           </Card>
         </View>
