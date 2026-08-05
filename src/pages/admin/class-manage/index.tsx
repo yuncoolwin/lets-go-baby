@@ -47,6 +47,25 @@ interface TeacherItem {
   real_name: string | null
 }
 
+function calcAge(birthDate?: string | null): string {
+  if (!birthDate) return ''
+  const birth = new Date(birthDate)
+  const today = new Date()
+  let years = today.getFullYear() - birth.getFullYear()
+  let months = today.getMonth() - birth.getMonth()
+  if (months < 0) { years--; months += 12 }
+  return years > 0 ? `${years}岁${months}个月` : `${months}个月`
+}
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}.${m}.${day}`
+}
+
 export default function ClassManagePage() {
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -338,15 +357,9 @@ export default function ClassManagePage() {
                                 {/* 幼儿列表 */}
                                 <View className="space-y-2">
                                   {group.students.map((child) => (
-                                    <View key={child.enrollment_id} className="flex items-center justify-between py-1">
-                                      <View className="flex items-center gap-2">
-                                        <Text className="text-sm font-medium text-foreground">{child.name}</Text>
-                                        <Text className="text-xs text-muted-foreground">
-                                          {child.gender === 'male' ? '男' : '女'}
-                                        </Text>
-                                      </View>
-                                      <Text className="text-xs text-gray-400">
-                                        {child.start_date || ''}{child.end_date ? ` ~ ${child.end_date}` : ''}
+                                    <View key={child.enrollment_id} className="flex items-center py-1">
+                                      <Text className="text-sm text-foreground">
+                                        {child.name}　{child.gender === 'male' ? '男' : '女'}　{calcAge(child.birth_date)}　{formatDate(child.start_date)}-{formatDate(child.end_date)}
                                       </Text>
                                     </View>
                                   ))}
