@@ -68,4 +68,15 @@ export class EnrollmentsController {
       return { code: 500, msg: e.message || '计算失败' };
     }
   }
+
+  @Post('repair')
+  @HttpCode(200)
+  async repairAll() {
+    try {
+      const result = await this.enrollmentsService.repairAllExtendedEndDates();
+      return { code: 200, msg: '修复完成', data: result };
+    } catch (e: any) {
+      return { code: 500, msg: e.message || '批量修复失败' };
+    }
+  }
 }
