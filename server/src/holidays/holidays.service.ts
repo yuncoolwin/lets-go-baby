@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { EnrollmentsService } from '@/enrollments/enrollments.service';
 
 @Injectable()
 export class HolidaysService {
   private supabase = getSupabaseClient();
+
+  constructor(private readonly enrollmentsService: EnrollmentsService) {}
 
   async findAll() {
     const { data, error } = await this.supabase
@@ -27,10 +30,21 @@ export class HolidaysService {
       .select()
       .single();
     if (error) throw error;
+
+    // 触发受影响报读的顺延日期重算
+    await this.recalcAffectedEnrollments(data);
+
     return { code: 200, msg: 'success', data };
   }
 
   async update(id: string, body: { name?: string; type?: string; target_id?: string; start_date?: string; end_date?: string }) {
+    // 先获取旧数据
+    const { data: oldData } = await this.supabase
+      .from('holidays')
+      .select('*')
+      .eq('id', id)
+      .single();
+
     const updateData: any = {};
     if (body.name !== undefined) updateData.name = body.name;
     if (body.type !== undefined) updateData.type = body.type;
@@ -49,15 +63,31 @@ export class HolidaysService {
       .select()
       .single();
     if (error) throw error;
+
+    // 触发受影响报读的顺延日期重算（旧数据和新数据的影响范围都要重算）
+    if (oldData) await this.recalcAffectedEnrollments(oldData);
+    await this.recalcAffectedEnrollments(data);
+
     return { code: 200, msg: 'success', data };
   }
 
   async remove(id: string) {
+    // 先获取旧数据
+    const { data: oldData } = await this.supabase
+      .from('holidays')
+      .select('*')
+      .eq('id', id)
+      .single();
+
     const { error } = await this.supabase
       .from('holidays')
       .delete()
       .eq('id', id);
     if (error) throw error;
+
+    // 触发受影响报读的顺延日期重算
+    if (oldData) await this.recalcAffectedEnrollments(oldData);
+
     return { code: 200, msg: '删除成功' };
   }
 
@@ -140,5 +170,61 @@ export class HolidaysService {
     }
 
     return { holidays, workWeekends };
+  }
+
+  /**
+   * 假期变更后，重新计算受影响报读的顺延结束日期
+   * 全园假期→全部进行中报读；班级假期→该班级幼儿的进行中报读；个人假期→该幼儿的进行中报读
+   */
+  private async recalcAffectedEnrollments(holiday: { type: string; target_id?: string | null }): Promise<void> {
+    let enrollmentIds: string[] = [];
+
+    if (holiday.type === 'all') {
+      // 全园假期→全部进行中报读
+      const { data: enrollments } = await this.supabase
+        .from('enrollments')
+        .select('id')
+        .eq('status', '进行中');
+      enrollmentIds = (enrollments || []).map(e => e.id);
+    } else if (holiday.type === 'class' && holiday.target_id) {
+      // 班级假期→该班级幼儿的进行中报读
+      const { data: children } = await this.supabase
+        .from('children')
+        .select('id')
+        .eq('class_id', holiday.target_id);
+      const childIds = (children || []).map(c => c.id);
+      if (childIds.length > 0) {
+        const { data: enrollments } = await this.supabase
+          .from('enrollments')
+          .select('id')
+          .in('child_id', childIds)
+          .eq('status', '进行中');
+        enrollmentIds = (enrollments || []).map(e => e.id);
+      }
+    } else if (holiday.type === 'personal' && holiday.target_id) {
+      // 个人假期→该幼儿的进行中报读
+      const { data: enrollments } = await this.supabase
+        .from('enrollments')
+        .select('id')
+        .eq('child_id', holiday.target_id)
+        .eq('status', '进行中');
+      enrollmentIds = (enrollments || []).map(e => e.id);
+    }
+
+    // 逐条重新计算并更新
+    for (const enrId of enrollmentIds) {
+      const extendedDate = await this.enrollmentsService.calculateExtendedEndDate(enrId);
+      if (extendedDate) {
+        await this.supabase
+          .from('enrollments')
+          .update({ extended_end_date: extendedDate })
+          .eq('id', enrId);
+      } else {
+        await this.supabase
+          .from('enrollments')
+          .update({ extended_end_date: null })
+          .eq('id', enrId);
+      }
+    }
   }
 }
