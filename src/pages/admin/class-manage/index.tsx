@@ -273,7 +273,9 @@ export default function ClassManagePage() {
 
                         {/* 各课程类型独立计数 */}
                         <View className="flex flex-wrap gap-x-3 gap-y-1">
-                          {(Object.entries((cls as any).enrollment_counts || {}) as [string, number][]).map(([courseType, count]) => (
+                          {(Object.entries((cls as any).enrollment_counts || {}) as [string, number][])
+                            .filter(([courseType]) => activeCourseType === 'all' || courseType === activeCourseType)
+                            .map(([courseType, count]) => (
                             <View key={courseType} className="flex items-center gap-1">
                               <Badge className={`text-xs ${courseColorMap[courseType] || 'bg-gray-100 text-gray-600'}`}>
                                 {courseType}
