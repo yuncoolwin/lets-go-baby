@@ -17,6 +17,39 @@ export class StatutoryHolidaysService {
     return { data: data || [] }
   }
 
+  /**
+   * 获取指定年份的法定节假日日期集合（用于基础结束日期计算）
+   * type='holiday' → 跳过（放假）
+   * type='work_weekend' → 算工作日（补班）
+   */
+  async getDateSets(year: number): Promise<{ holidays: Set<string>; workWeekends: Set<string> }> {
+    const supabase = getSupabaseClient();
+    const holidays = new Set<string>();
+    const workWeekends = new Set<string>();
+
+    const { data, error } = await supabase
+      .from('holidays_old')
+      .select('date, type')
+      .eq('year', year);
+
+    if (error) {
+      console.error('[StatutoryHolidays] getDateSets error:', error);
+      throw new Error(error.message);
+    }
+
+    for (const row of data || []) {
+      const dateStr = row.date?.substring(0, 10);
+      if (!dateStr) continue;
+      if (row.type === 'work_weekend') {
+        workWeekends.add(dateStr);
+      } else {
+        holidays.add(dateStr);
+      }
+    }
+
+    return { holidays, workWeekends };
+  }
+
   async getYears() {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
