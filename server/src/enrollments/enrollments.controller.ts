@@ -57,4 +57,15 @@ export class EnrollmentsController {
       return { code: 500, msg: e.message || '删除失败' };
     }
   }
+
+  @Get(':id/calc-extended-end-date')
+  @HttpCode(200)
+  async calcExtendedEndDate(@Param('id') id: string) {
+    try {
+      const data = await this.enrollmentsService.calculateExtendedEndDate(id);
+      return { code: 200, msg: 'success', data: { extended_end_date: data } };
+    } catch (e: any) {
+      return { code: 500, msg: e.message || '计算失败' };
+    }
+  }
 }

@@ -217,6 +217,9 @@ export const enrollmentApi = {
 
   remove: (id: string) =>
     request({ url: `/api/enrollments/${id}`, method: 'DELETE' }),
+
+  calcExtendedEndDate: (id: string) =>
+    request({ url: `/api/enrollments/${id}/calc-extended-end-date`, method: 'GET' }),
 };
 
 // ============ 课程管理 API ============

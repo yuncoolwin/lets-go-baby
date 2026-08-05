@@ -11,6 +11,7 @@ export interface Enrollment {
   duration_days: number;
   start_date: string | null;
   end_date: string | null;
+  extended_end_date: string | null;
   payment_amount: string | null;
   payment_channel: string | null;
   status: string;
@@ -63,6 +64,88 @@ export class EnrollmentsService {
       .lt('end_date', today);
 
     if (error) console.error('自动更新过期报读状态失败:', error.message);
+  }
+
+  /**
+   * 计算顺延结束日期
+   * 查询报读期间重叠的假期，累计天数后顺延
+   */
+  async calculateExtendedEndDate(enrollmentId: string): Promise<string | null> {
+    // 获取报读记录
+    const { data: enr, error: enrError } = await this.client
+      .from('enrollments')
+      .select('*')
+      .eq('id', enrollmentId)
+      .single();
+
+    if (enrError || !enr) return null;
+    if (!enr.start_date || !enr.end_date) return null;
+
+    const startDate = enr.start_date;
+    const endDate = enr.end_date;
+
+    // 获取幼儿所在班级
+    const { data: child } = await this.client
+      .from('children')
+      .select('class_id')
+      .eq('id', enr.child_id)
+      .single();
+
+    const classId = child?.class_id || '';
+
+    // 查询该报读期间内重叠的假期（全园 + 班级 + 个人）
+    const { data: holidays } = await this.client
+      .from('holidays')
+      .select('*')
+      .in('type', ['all', 'class', 'personal'])
+      .lte('start_date', endDate)
+      .gte('end_date', startDate);
+
+    // 筛选出匹配的假期（班级假期匹配班级ID，个人假期匹配幼儿ID）
+    const matchingHolidays = (holidays || []).filter(h => {
+      if (h.type === 'all') return true;
+      if (h.type === 'class') return h.target_id === classId;
+      if (h.type === 'personal') return h.target_id === enr.child_id;
+      return false;
+    });
+
+    // 获取报读期间的日期集合（排除周末）
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T00:00:00');
+    const holidayDates = new Set<string>();
+
+    // 将假期日期范围展开，并只取报读期间内的日期
+    for (const h of matchingHolidays) {
+      const hStart = new Date(h.start_date + 'T00:00:00');
+      const hEnd = new Date(h.end_date + 'T00:00:00');
+      const current = new Date(Math.max(hStart.getTime(), start.getTime()));
+      const maxDate = new Date(Math.min(hEnd.getTime(), end.getTime()));
+      while (current <= maxDate) {
+        holidayDates.add(current.toISOString().split('T')[0]);
+        current.setUTCDate(current.getUTCDate() + 1);
+      }
+    }
+
+    // 累计假期天数
+    const totalHolidayDays = holidayDates.size;
+    if (totalHolidayDays === 0) return null;
+
+    // 顺延 endDate，并确保顺延后不是周末/节假日
+    const extendedDate = new Date(endDate + 'T00:00:00');
+    let remainingDays = totalHolidayDays;
+
+    while (remainingDays > 0) {
+      extendedDate.setUTCDate(extendedDate.getUTCDate() + 1);
+      const dateStr = extendedDate.toISOString().split('T')[0];
+      const dayOfWeek = extendedDate.getUTCDay();
+      // 跳过周末
+      if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+      // 跳过法定节假日
+      if (holidayDates.has(dateStr)) continue;
+      remainingDays--;
+    }
+
+    return extendedDate.toISOString().split('T')[0];
   }
 
   async findByChild(childId: string): Promise<Enrollment[]> {
@@ -134,6 +217,18 @@ export class EnrollmentsService {
 
     if (error) throw new Error(`创建报读记录失败: ${error.message}`);
 
+    // 计算并更新顺延结束日期
+    if (data.start_date && data.end_date) {
+      const extendedDate = await this.calculateExtendedEndDate(data.id);
+      if (extendedDate) {
+        await this.client
+          .from('enrollments')
+          .update({ extended_end_date: extendedDate })
+          .eq('id', data.id);
+        data.extended_end_date = extendedDate;
+      }
+    }
+
     // 同步更新幼儿的班级字段
     if (class_id) {
       await this.client.from('children').update({ class_id }).eq('id', rest.child_id);
@@ -176,6 +271,25 @@ export class EnrollmentsService {
       .single();
 
     if (error) throw new Error(`更新报读记录失败: ${error.message}`);
+
+    // 如果有日期变更，重新计算并更新顺延结束日期
+    if (data.start_date && data.end_date) {
+      const extendedDate = await this.calculateExtendedEndDate(data.id);
+      if (extendedDate) {
+        await this.client
+          .from('enrollments')
+          .update({ extended_end_date: extendedDate })
+          .eq('id', data.id);
+        data.extended_end_date = extendedDate;
+      } else {
+        // 无顺延则清空
+        await this.client
+          .from('enrollments')
+          .update({ extended_end_date: null })
+          .eq('id', data.id);
+        data.extended_end_date = null;
+      }
+    }
 
     // 同步更新幼儿的班级字段
     if (class_id) {
