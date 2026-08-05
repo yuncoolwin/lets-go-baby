@@ -1,6 +1,7 @@
 import { View } from '@tarojs/components'
 import { useState, useEffect, useRef } from 'react'
 import { Calendar } from '@/components/ui/calendar'
+import { Portal } from '@/components/ui/portal'
 import { format } from 'date-fns'
 
 interface CalendarOverlayProps {
@@ -56,10 +57,11 @@ export function CalendarOverlay({
   if (!show) return null
 
   return (
-    <View
-      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
-      onClick={handleClose}
-    >
+    <Portal>
+      <View
+        style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
+        onClick={handleClose}
+      >
       {/* 日历弹窗 - 居中全宽，带缩放+透明度动画 */}
       <View
         style={{
@@ -86,5 +88,6 @@ export function CalendarOverlay({
         />
       </View>
     </View>
+    </Portal>
   )
 }
