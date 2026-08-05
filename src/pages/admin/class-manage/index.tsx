@@ -358,9 +358,10 @@ export default function ClassManagePage() {
                                 <View className="space-y-2">
                                   {group.students.map((child) => (
                                     <View key={child.enrollment_id} className="flex items-center py-1">
-                                      <Text className="text-sm text-foreground">
-                                        {child.name}　{child.gender === 'male' ? '男' : '女'}　{calcAge(child.birth_date)}　{formatDate(child.start_date)}-{formatDate(child.end_date)}
-                                      </Text>
+                                      <View className="flex flex-row items-baseline gap-1">
+                                        <Text className="text-sm font-medium text-black">{child.name}</Text>
+                                        <Text className="text-xs text-gray-400">{child.gender === 'male' ? '男' : '女'} {calcAge(child.birth_date)} {formatDate(child.start_date)}-{formatDate(child.end_date)}</Text>
+                                      </View>
                                     </View>
                                   ))}
                                 </View>
