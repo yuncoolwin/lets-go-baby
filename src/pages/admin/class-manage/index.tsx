@@ -6,22 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Plus, MapPin, Pencil, ChevronDown, ChevronUp } from 'lucide-react-taro'
-import { classApi } from '@/utils/api'
-
-const levelTabs = [
-  { value: '', label: '全部' },
-  { value: 'nursery', label: '托班' },
-  { value: 'summer', label: '暑假班' },
-  { value: 'winter', label: '寒假班' },
-  { value: 'interest', label: '兴趣班' },
-]
-
-const levelLabelMap: Record<string, string> = {
-  nursery: '托班',
-  summer: '暑假班',
-  winter: '寒假班',
-  interest: '兴趣班',
-}
+import { classApi, courseApi } from '@/utils/api'
 
 const courseColorMap: Record<string, string> = {
   '全日托': 'bg-green-50 text-green-700',
@@ -65,7 +50,8 @@ interface TeacherItem {
 export default function ClassManagePage() {
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeLevel, setActiveLevel] = useState('')
+  const [activeCourseType, setActiveCourseType] = useState('')
+  const [courses, setCourses] = useState<any[]>([])
   const isFirstMount = useRef(true)
 
   // 展开卡片状态
@@ -78,11 +64,24 @@ export default function ClassManagePage() {
   const loadClasses = useCallback(async (showSkeleton = false) => {
     if (showSkeleton) setLoading(true)
     try {
-      const res = await classApi.list(activeLevel ? { level: activeLevel } : undefined)
-      console.log('[ClassManage] list:', res)
-      if (res.code === 200) {
-        const list: ClassItem[] = (res.data.list || res.data || []) as ClassItem[]
-        setClasses(list.map(c => ({
+      const [classRes, courseRes] = await Promise.all([
+        classApi.list(),
+        courseApi.list(),
+      ])
+      console.log('[ClassManage] list:', classRes)
+      if (courseRes.code === 200) {
+        const courseList = Array.isArray(courseRes.data) ? courseRes.data : courseRes.data?.list || []
+        setCourses(courseList)
+      }
+      if (classRes.code === 200) {
+        const list: ClassItem[] = (classRes.data.list || classRes.data || []) as ClassItem[]
+        const filtered = activeCourseType && activeCourseType !== 'all'
+          ? list.filter(c => {
+              const ec = (c as any).enrollment_counts || {}
+              return Object.keys(ec).includes(activeCourseType)
+            })
+          : list
+        setClasses(filtered.map(c => ({
           ...c,
           teacherNames: (c as any).teacher_names ?? [],
         })))
@@ -91,7 +90,7 @@ export default function ClassManagePage() {
       console.error('[ClassManage] load error:', err)
     }
     if (showSkeleton) setLoading(false)
-  }, [activeLevel])
+  }, [activeCourseType])
 
   const loadExpandedData = useCallback(async (classId: string) => {
     setChildrenLoading(true)
@@ -161,27 +160,45 @@ export default function ClassManagePage() {
         </View>
       </View>
 
-      {/* 级别筛选标签 */}
+      {/* 课程类型筛选标签 */}
       <ScrollView scrollX className="bg-white border-b border-gray-100">
         <View className="flex px-3 py-2 gap-2" style={{ display: 'flex', flexDirection: 'row' }}>
-          {levelTabs.map((tab) => (
+          <View
+            className={`px-4 py-2 rounded-full whitespace-nowrap ${
+              activeCourseType === 'all'
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-600'
+            }`}
+            onClick={() => {
+              setActiveCourseType('all')
+              setExpandedId(null)
+              setExpandedTeachers([])
+              setExpandedGroups([])
+              setTotalStudents(0)
+            }}
+          >
+            <Text className={`text-sm ${activeCourseType === 'all' ? 'text-white' : ''}`}>
+              全部
+            </Text>
+          </View>
+          {courses.map((course) => (
             <View
-              key={tab.value}
+              key={course.id}
               className={`px-4 py-2 rounded-full whitespace-nowrap ${
-                activeLevel === tab.value
+                activeCourseType === course.name
                   ? 'bg-primary text-white'
                   : 'bg-gray-100 text-gray-600'
               }`}
               onClick={() => {
-                setActiveLevel(tab.value)
+                setActiveCourseType(course.name)
                 setExpandedId(null)
                 setExpandedTeachers([])
                 setExpandedGroups([])
                 setTotalStudents(0)
               }}
             >
-              <Text className={`text-sm ${activeLevel === tab.value ? 'text-white' : ''}`}>
-                {tab.label}
+              <Text className={`text-sm ${activeCourseType === course.name ? 'text-white' : ''}`}>
+                {course.name}
               </Text>
             </View>
           ))}
@@ -207,7 +224,7 @@ export default function ClassManagePage() {
           // 空状态
           <View className="flex flex-col items-center justify-center py-24">
             <Text className="block text-gray-400 text-base mb-4">
-              {activeLevel ? `暂无${levelLabelMap[activeLevel] || ''}班级` : '暂无班级'}
+              {activeCourseType && activeCourseType !== 'all' ? `暂无${activeCourseType}班级` : '暂无班级'}
             </Text>
             <Button className="bg-primary text-white rounded-xl px-6 py-2" onClick={goCreate}>
               <Text className="text-white text-sm">添加第一个班级</Text>
