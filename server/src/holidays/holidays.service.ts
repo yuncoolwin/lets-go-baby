@@ -139,37 +139,15 @@ export class HolidaysService {
   }
 
   /**
-   * 获取指定年份的节假日日期集合（用于日期计算器）
-   * 将 holidays 表的日期范围展开为 Set<string>
+   * 获取指定年份的法定节假日日期集合（用于基础结束日期计算）
+   * 仅从 holidays_old 表读取法定节假日和调休数据
+   * 假期管理（holidays 表）只影响顺延结束日期，不影响基础结束日期
    */
   async getDateSets(year: number): Promise<{ holidays: Set<string>; workWeekends: Set<string> }> {
     const holidays = new Set<string>();
     const workWeekends = new Set<string>();
 
-    const yearStart = `${year}-01-01`;
-    const yearEnd = `${year}-12-31`;
-
-    // 查询全园假期（type='all'）
-    const { data: allHolidays } = await this.supabase
-      .from('holidays')
-      .select('*')
-      .eq('type', 'all')
-      .lte('start_date', yearEnd)
-      .gte('end_date', yearStart);
-
-    // 将日期范围展开为单个日期
-    for (const h of allHolidays || []) {
-      const start = new Date(h.start_date);
-      const end = new Date(h.end_date);
-      const current = new Date(start);
-      while (current <= end) {
-        const dateStr = current.toISOString().split('T')[0];
-        holidays.add(dateStr);
-        current.setUTCDate(current.getUTCDate() + 1);
-      }
-    }
-
-    // 合并 holidays_old 表中的法定节假日和调休数据
+    // 查询 holidays_old 表中的法定节假日和调休数据（仅用于基础结束日期计算）
     const { data: oldHolidays } = await this.supabase
       .from('holidays_old')
       .select('*')
