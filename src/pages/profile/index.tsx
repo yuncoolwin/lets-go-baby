@@ -182,7 +182,7 @@ export default function ProfilePage() {
                 className="flex items-center justify-between p-4"
                 onClick={() => Taro.navigateTo({ url: '/pages/admin/holidays/index' })}
               >
-                <Text className="text-sm text-foreground">法定节假日</Text>
+                <Text className="text-sm text-foreground">假期管理</Text>
                 <ChevronRight size={16} color="#999" />
               </View>
               <Separator />

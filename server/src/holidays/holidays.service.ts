@@ -1,282 +1,144 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
-interface HolidayRecord {
-  date: string;
-  type: 'holiday' | 'work_weekend';
-  name: string;
-  year: number;
-}
-
 @Injectable()
 export class HolidaysService {
-  private get client() {
-    return getSupabaseClient();
-  }
+  private supabase = getSupabaseClient();
 
-  async getAll(year?: number) {
-    let query = this.client
+  async findAll() {
+    const { data, error } = await this.supabase
       .from('holidays')
       .select('*')
-      .order('date', { ascending: true });
-
-    if (year) {
-      query = query.eq('year', year);
-    }
-
-    const { data, error } = await query;
-    if (error) throw new Error(`查询节假日失败: ${error.message}`);
-    return data || [];
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return { code: 200, msg: 'success', data: data || [] };
   }
 
-  /** 获取节假日日期集合，供日期计算器使用 */
-  async getDateSets(year: number) {
-    const { data, error } = await this.client
+  async create(body: { name: string; type: string; target_id?: string; start_date: string; end_date: string }) {
+    const { data, error } = await this.supabase
       .from('holidays')
-      .select('date, type')
-      .eq('year', year);
+      .insert({
+        name: body.name,
+        type: body.type,
+        target_id: body.type === 'all' ? null : (body.target_id || null),
+        start_date: body.start_date,
+        end_date: body.end_date,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return { code: 200, msg: 'success', data };
+  }
 
-    if (error) throw new Error(`查询节假日数据失败: ${error.message}`);
+  async update(id: string, body: { name?: string; type?: string; target_id?: string; start_date?: string; end_date?: string }) {
+    const updateData: any = {};
+    if (body.name !== undefined) updateData.name = body.name;
+    if (body.type !== undefined) updateData.type = body.type;
+    if (body.start_date !== undefined) updateData.start_date = body.start_date;
+    if (body.end_date !== undefined) updateData.end_date = body.end_date;
+    if (body.type !== undefined) {
+      updateData.target_id = body.type === 'all' ? null : (body.target_id || null);
+    } else if (body.target_id !== undefined) {
+      updateData.target_id = body.target_id;
+    }
 
+    const { data, error } = await this.supabase
+      .from('holidays')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return { code: 200, msg: 'success', data };
+  }
+
+  async remove(id: string) {
+    const { error } = await this.supabase
+      .from('holidays')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return { code: 200, msg: '删除成功' };
+  }
+
+  async findByChild(childId: string) {
+    const today = new Date().toISOString().split('T')[0];
+
+    // 先查幼儿所在班级
+    const { data: child } = await this.supabase
+      .from('children')
+      .select('class_id')
+      .eq('id', childId)
+      .single();
+
+    const classId = child?.class_id || '';
+
+    // 查询全园假期
+    const { data: allHolidays } = await this.supabase
+      .from('holidays')
+      .select('*')
+      .eq('type', 'all')
+      .gte('end_date', today)
+      .order('start_date', { ascending: true });
+
+    // 查询班级假期
+    const { data: classHolidays } = await this.supabase
+      .from('holidays')
+      .select('*')
+      .eq('type', 'class')
+      .eq('target_id', classId)
+      .gte('end_date', today)
+      .order('start_date', { ascending: true });
+
+    // 查询个人假期
+    const { data: personalHolidays } = await this.supabase
+      .from('holidays')
+      .select('*')
+      .eq('type', 'personal')
+      .eq('target_id', childId)
+      .gte('end_date', today)
+      .order('start_date', { ascending: true });
+
+    const data = [
+      ...(allHolidays || []),
+      ...(classHolidays || []),
+      ...(personalHolidays || []),
+    ];
+
+    return { code: 200, msg: 'success', data };
+  }
+
+  /**
+   * 获取指定年份的节假日日期集合（用于日期计算器）
+   * 将 holidays 表的日期范围展开为 Set<string>
+   */
+  async getDateSets(year: number): Promise<{ holidays: Set<string>; workWeekends: Set<string> }> {
     const holidays = new Set<string>();
     const workWeekends = new Set<string>();
 
-    (data || []).forEach((row: { date: string; type: string }) => {
-      if (row.type === 'holiday') {
-        holidays.add(row.date);
-      } else if (row.type === 'work_weekend') {
-        workWeekends.add(row.date);
+    const yearStart = `${year}-01-01`;
+    const yearEnd = `${year}-12-31`;
+
+    // 查询全园假期（type='all'）
+    const { data: allHolidays } = await this.supabase
+      .from('holidays')
+      .select('*')
+      .eq('type', 'all')
+      .lte('start_date', yearEnd)
+      .gte('end_date', yearStart);
+
+    // 将日期范围展开为单个日期
+    for (const h of allHolidays || []) {
+      const start = new Date(h.start_date);
+      const end = new Date(h.end_date);
+      const current = new Date(start);
+      while (current <= end) {
+        const dateStr = current.toISOString().split('T')[0];
+        holidays.add(dateStr);
+        current.setUTCDate(current.getUTCDate() + 1);
       }
-    });
+    }
 
     return { holidays, workWeekends };
-  }
-
-  /** 更新指定年份的节假日数据 */
-  async updateByYear(year: number) {
-    const presetData = this.getPresetData();
-    const yearData = presetData.filter(d => d.year === year);
-
-    if (yearData.length === 0) {
-      throw new Error(`暂无${year}年法定节假日数据`);
-    }
-
-    // 删除该年份旧数据
-    const { error: delError } = await this.client
-      .from('holidays')
-      .delete()
-      .eq('year', year);
-
-    if (delError) throw new Error(`删除${year}年旧数据失败: ${delError.message}`);
-
-    // 插入新数据
-    const { error: insError } = await this.client
-      .from('holidays')
-      .insert(yearData);
-
-    if (insError) throw new Error(`插入${year}年数据失败: ${insError.message}`);
-
-    return { count: yearData.length, year };
-  }
-
-  /** 更新所有年份 */
-  async updateAll() {
-    const presetData = this.getPresetData();
-    const years = [...new Set(presetData.map(d => d.year))];
-
-    for (const year of years) {
-      const yearData = presetData.filter(d => d.year === year);
-      const { error: delError } = await this.client
-        .from('holidays')
-        .delete()
-        .eq('year', year);
-      if (delError) throw new Error(`删除${year}年旧数据失败: ${delError.message}`);
-
-      const { error: insError } = await this.client
-        .from('holidays')
-        .insert(yearData);
-      if (insError) throw new Error(`插入${year}年数据失败: ${insError.message}`);
-    }
-
-    return { count: presetData.length, years };
-  }
-
-  /** 删除指定年份的节假日数据 */
-  async deleteByYear(year: number) {
-    const { error } = await this.client
-      .from('holidays')
-      .delete()
-      .eq('year', year);
-    if (error) throw new Error(`删除${year}年数据失败: ${error.message}`);
-    return { year };
-  }
-
-  /** 获取所有可用的年份列表 */
-  async getAvailableYears(): Promise<number[]> {
-    const { data, error } = await this.client
-      .from('holidays')
-      .select('year')
-      .order('year', { ascending: true });
-
-    if (error) throw new Error(`查询年份失败: ${error.message}`);
-    return [...new Set((data || []).map(r => r.year))].sort();
-  }
-
-  private getPresetData(): HolidayRecord[] {
-    return [
-      // ===== 2024年 =====
-      // 元旦：12月30日-1月1日（跨年）
-      { date: '2024-01-01', type: 'holiday', name: '元旦', year: 2024 },
-
-      // 春节：2月10日-2月16日（7天）
-      { date: '2024-02-10', type: 'holiday', name: '春节', year: 2024 },
-      { date: '2024-02-11', type: 'holiday', name: '春节', year: 2024 },
-      { date: '2024-02-12', type: 'holiday', name: '春节', year: 2024 },
-      { date: '2024-02-13', type: 'holiday', name: '春节', year: 2024 },
-      { date: '2024-02-14', type: 'holiday', name: '春节', year: 2024 },
-      { date: '2024-02-15', type: 'holiday', name: '春节', year: 2024 },
-      { date: '2024-02-16', type: 'holiday', name: '春节', year: 2024 },
-      { date: '2024-02-17', type: 'holiday', name: '春节', year: 2024 },
-      { date: '2024-02-04', type: 'work_weekend', name: '春节调休', year: 2024 },
-      { date: '2024-02-18', type: 'work_weekend', name: '春节调休', year: 2024 },
-
-      // 清明节：4月4日-4月6日（3天）
-      { date: '2024-04-04', type: 'holiday', name: '清明节', year: 2024 },
-      { date: '2024-04-05', type: 'holiday', name: '清明节', year: 2024 },
-      { date: '2024-04-06', type: 'holiday', name: '清明节', year: 2024 },
-      { date: '2024-04-07', type: 'work_weekend', name: '清明调休', year: 2024 },
-
-      // 劳动节：5月1日-5月5日（5天）
-      { date: '2024-05-01', type: 'holiday', name: '劳动节', year: 2024 },
-      { date: '2024-05-02', type: 'holiday', name: '劳动节', year: 2024 },
-      { date: '2024-05-03', type: 'holiday', name: '劳动节', year: 2024 },
-      { date: '2024-05-04', type: 'holiday', name: '劳动节', year: 2024 },
-      { date: '2024-05-05', type: 'holiday', name: '劳动节', year: 2024 },
-      { date: '2024-04-28', type: 'work_weekend', name: '劳动节调休', year: 2024 },
-      { date: '2024-05-11', type: 'work_weekend', name: '劳动节调休', year: 2024 },
-
-      // 端午节：6月8日-6月10日（3天）
-      { date: '2024-06-08', type: 'holiday', name: '端午节', year: 2024 },
-      { date: '2024-06-09', type: 'holiday', name: '端午节', year: 2024 },
-      { date: '2024-06-10', type: 'holiday', name: '端午节', year: 2024 },
-
-      // 中秋节：9月15日-9月17日（3天）
-      { date: '2024-09-15', type: 'holiday', name: '中秋节', year: 2024 },
-      { date: '2024-09-16', type: 'holiday', name: '中秋节', year: 2024 },
-      { date: '2024-09-17', type: 'holiday', name: '中秋节', year: 2024 },
-      { date: '2024-09-14', type: 'work_weekend', name: '中秋调休', year: 2024 },
-
-      // 国庆节：10月1日-10月7日（7天）
-      { date: '2024-10-01', type: 'holiday', name: '国庆节', year: 2024 },
-      { date: '2024-10-02', type: 'holiday', name: '国庆节', year: 2024 },
-      { date: '2024-10-03', type: 'holiday', name: '国庆节', year: 2024 },
-      { date: '2024-10-04', type: 'holiday', name: '国庆节', year: 2024 },
-      { date: '2024-10-05', type: 'holiday', name: '国庆节', year: 2024 },
-      { date: '2024-10-06', type: 'holiday', name: '国庆节', year: 2024 },
-      { date: '2024-10-07', type: 'holiday', name: '国庆节', year: 2024 },
-      { date: '2024-09-29', type: 'work_weekend', name: '国庆调休', year: 2024 },
-      { date: '2024-10-12', type: 'work_weekend', name: '国庆调休', year: 2024 },
-
-      // ===== 2025年 =====
-      // 元旦：1月1日（1天）
-      { date: '2025-01-01', type: 'holiday', name: '元旦', year: 2025 },
-
-      // 春节：1月28日-2月3日（7天）
-      { date: '2025-01-28', type: 'holiday', name: '春节', year: 2025 },
-      { date: '2025-01-29', type: 'holiday', name: '春节', year: 2025 },
-      { date: '2025-01-30', type: 'holiday', name: '春节', year: 2025 },
-      { date: '2025-01-31', type: 'holiday', name: '春节', year: 2025 },
-      { date: '2025-02-01', type: 'holiday', name: '春节', year: 2025 },
-      { date: '2025-02-02', type: 'holiday', name: '春节', year: 2025 },
-      { date: '2025-02-03', type: 'holiday', name: '春节', year: 2025 },
-      { date: '2025-02-04', type: 'holiday', name: '春节', year: 2025 },
-      { date: '2025-01-26', type: 'work_weekend', name: '春节调休', year: 2025 },
-      { date: '2025-02-08', type: 'work_weekend', name: '春节调休', year: 2025 },
-
-      // 清明节：4月4日-4月6日（3天）
-      { date: '2025-04-04', type: 'holiday', name: '清明节', year: 2025 },
-      { date: '2025-04-05', type: 'holiday', name: '清明节', year: 2025 },
-      { date: '2025-04-06', type: 'holiday', name: '清明节', year: 2025 },
-
-      // 劳动节：5月1日-5月5日（5天）
-      { date: '2025-05-01', type: 'holiday', name: '劳动节', year: 2025 },
-      { date: '2025-05-02', type: 'holiday', name: '劳动节', year: 2025 },
-      { date: '2025-05-03', type: 'holiday', name: '劳动节', year: 2025 },
-      { date: '2025-05-04', type: 'holiday', name: '劳动节', year: 2025 },
-      { date: '2025-05-05', type: 'holiday', name: '劳动节', year: 2025 },
-      { date: '2025-04-27', type: 'work_weekend', name: '劳动节调休', year: 2025 },
-      
-
-      // 端午节：5月31日-6月2日（3天）
-      { date: '2025-05-31', type: 'holiday', name: '端午节', year: 2025 },
-      { date: '2025-06-01', type: 'holiday', name: '端午节', year: 2025 },
-      { date: '2025-06-02', type: 'holiday', name: '端午节', year: 2025 },
-
-      // 中秋节+国庆节：10月1日-10月8日（8天，中秋与国庆连休）
-      { date: '2025-10-01', type: 'holiday', name: '国庆节', year: 2025 },
-      { date: '2025-10-02', type: 'holiday', name: '国庆节', year: 2025 },
-      { date: '2025-10-03', type: 'holiday', name: '国庆节', year: 2025 },
-      { date: '2025-10-04', type: 'holiday', name: '国庆节', year: 2025 },
-      { date: '2025-10-05', type: 'holiday', name: '国庆节', year: 2025 },
-      { date: '2025-10-06', type: 'holiday', name: '中秋节', year: 2025 },
-      { date: '2025-10-07', type: 'holiday', name: '国庆节', year: 2025 },
-      { date: '2025-10-08', type: 'holiday', name: '国庆节', year: 2025 },
-      { date: '2025-09-28', type: 'work_weekend', name: '国庆调休', year: 2025 },
-      { date: '2025-10-11', type: 'work_weekend', name: '国庆调休', year: 2025 },
-
-      // ===== 2026年 =====
-      // 元旦：1月1日-1月3日（3天）
-      { date: '2026-01-01', type: 'holiday', name: '元旦', year: 2026 },
-      { date: '2026-01-02', type: 'holiday', name: '元旦', year: 2026 },
-      { date: '2026-01-03', type: 'holiday', name: '元旦', year: 2026 },
-      { date: '2026-01-04', type: 'work_weekend', name: '元旦调休', year: 2026 },
-
-      // 春节：2月15日-2月23日（9天）
-      { date: '2026-02-15', type: 'holiday', name: '春节', year: 2026 },
-      { date: '2026-02-16', type: 'holiday', name: '春节', year: 2026 },
-      { date: '2026-02-17', type: 'holiday', name: '春节', year: 2026 },
-      { date: '2026-02-18', type: 'holiday', name: '春节', year: 2026 },
-      { date: '2026-02-19', type: 'holiday', name: '春节', year: 2026 },
-      { date: '2026-02-20', type: 'holiday', name: '春节', year: 2026 },
-      { date: '2026-02-21', type: 'holiday', name: '春节', year: 2026 },
-      { date: '2026-02-22', type: 'holiday', name: '春节', year: 2026 },
-      { date: '2026-02-23', type: 'holiday', name: '春节', year: 2026 },
-      { date: '2026-02-14', type: 'work_weekend', name: '春节调休', year: 2026 },
-      { date: '2026-02-28', type: 'work_weekend', name: '春节调休', year: 2026 },
-
-      // 清明节：4月4日-4月6日（3天）
-      { date: '2026-04-04', type: 'holiday', name: '清明节', year: 2026 },
-      { date: '2026-04-05', type: 'holiday', name: '清明节', year: 2026 },
-      { date: '2026-04-06', type: 'holiday', name: '清明节', year: 2026 },
-
-      // 劳动节：5月1日-5月5日（5天）
-      { date: '2026-05-01', type: 'holiday', name: '劳动节', year: 2026 },
-      { date: '2026-05-02', type: 'holiday', name: '劳动节', year: 2026 },
-      { date: '2026-05-03', type: 'holiday', name: '劳动节', year: 2026 },
-      { date: '2026-05-04', type: 'holiday', name: '劳动节', year: 2026 },
-      { date: '2026-05-05', type: 'holiday', name: '劳动节', year: 2026 },
-      { date: '2026-05-09', type: 'work_weekend', name: '劳动节调休', year: 2026 },
-
-      // 端午节：6月19日-6月21日（3天）
-      { date: '2026-06-19', type: 'holiday', name: '端午节', year: 2026 },
-      { date: '2026-06-20', type: 'holiday', name: '端午节', year: 2026 },
-      { date: '2026-06-21', type: 'holiday', name: '端午节', year: 2026 },
-
-      // 中秋节：9月25日-9月27日（3天）
-      { date: '2026-09-25', type: 'holiday', name: '中秋节', year: 2026 },
-      { date: '2026-09-26', type: 'holiday', name: '中秋节', year: 2026 },
-      { date: '2026-09-27', type: 'holiday', name: '中秋节', year: 2026 },
-
-      // 国庆节：10月1日-10月7日（7天），补班：9月20日、10月10日
-      { date: '2026-09-20', type: 'work_weekend', name: '国庆调休', year: 2026 },
-      { date: '2026-10-01', type: 'holiday', name: '国庆节', year: 2026 },
-      { date: '2026-10-02', type: 'holiday', name: '国庆节', year: 2026 },
-      { date: '2026-10-03', type: 'holiday', name: '国庆节', year: 2026 },
-      { date: '2026-10-04', type: 'holiday', name: '国庆节', year: 2026 },
-      { date: '2026-10-05', type: 'holiday', name: '国庆节', year: 2026 },
-      { date: '2026-10-06', type: 'holiday', name: '国庆节', year: 2026 },
-      { date: '2026-10-07', type: 'holiday', name: '国庆节', year: 2026 },
-      { date: '2026-10-10', type: 'work_weekend', name: '国庆调休', year: 2026 },
-    ];
   }
 }

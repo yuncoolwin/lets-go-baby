@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Query, Param, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
 import { HolidaysService } from './holidays.service';
 
 @Controller('holidays')
@@ -6,39 +6,27 @@ export class HolidaysController {
   constructor(private readonly holidaysService: HolidaysService) {}
 
   @Get()
-  async getAll(@Query('year') year?: string) {
-    const data = await this.holidaysService.getAll(year ? parseInt(year) : undefined);
-    return { code: 200, msg: 'success', data };
+  findAll() {
+    return this.holidaysService.findAll();
   }
 
-  @Get('years')
-  async getYears() {
-    const data = await this.holidaysService.getAvailableYears();
-    return { code: 200, msg: 'success', data };
+  @Post()
+  create(@Body() body: { name: string; type: string; target_id?: string; start_date: string; end_date: string }) {
+    return this.holidaysService.create(body);
   }
 
-  @Post('update')
-  @HttpCode(200)
-  async updateAll() {
-    const result = await this.holidaysService.updateAll();
-    return { code: 200, msg: '节假日数据更新成功', data: result };
+  @Put(':id')
+  update(@Param('id') id: string, @Body() body: any) {
+    return this.holidaysService.update(id, body);
   }
 
-  @Post('update/:year')
-  @HttpCode(200)
-  async updateByYear(@Param('year') year: string) {
-    try {
-      const result = await this.holidaysService.updateByYear(parseInt(year));
-      return { code: 200, msg: `${year}年节假日数据更新成功`, data: result };
-    } catch (e: any) {
-      return { code: 404, msg: e.message || `${year}年暂无节假日数据` };
-    }
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.holidaysService.remove(id);
   }
 
-  @Delete(':year')
-  @HttpCode(200)
-  async deleteByYear(@Param('year') year: string) {
-    const result = await this.holidaysService.deleteByYear(parseInt(year));
-    return { code: 200, msg: `${year}年节假日数据已删除`, data: result };
+  @Get('child/:childId')
+  findByChild(@Param('childId') childId: string) {
+    return this.holidaysService.findByChild(childId);
   }
 }
