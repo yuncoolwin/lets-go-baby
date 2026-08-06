@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { View, Text, Image } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
@@ -89,6 +89,28 @@ export default function ChildDetailPage() {
   const [extendTotalDays, setExtendTotalDays] = useState(0)
   const [extendToDate, setExtendToDate] = useState('')
   const [showExtendDialog, setShowExtendDialog] = useState(false)
+  const [extendAnim, setExtendAnim] = useState<'open' | 'close' | 'idle'>('idle')
+  const extendTimerRef = useRef<ReturnType<typeof setTimeout>>()
+
+  useEffect(() => {
+    if (showExtendDialog) {
+      setExtendAnim('idle')
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setExtendAnim('open')
+        })
+      })
+    }
+  }, [showExtendDialog])
+
+  const handleCloseExtendDialog = () => {
+    setExtendAnim('close')
+    clearTimeout(extendTimerRef.current)
+    extendTimerRef.current = setTimeout(() => {
+      setShowExtendDialog(false)
+      setExtendAnim('idle')
+    }, 200)
+  }
 
   // 幼儿基本信息编辑
   const [isEditingChild, setIsEditingChild] = useState(false)
@@ -860,23 +882,17 @@ export default function ChildDetailPage() {
         }}
       />
 
-      <style>{`
-        @keyframes extendIn {
-          from { transform: scale(0.3); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
-        }
-        @keyframes extendOut {
-          from { transform: scale(1); opacity: 1; }
-          to { transform: scale(0.3); opacity: 0; }
-        }
-      `}</style>
-      <Dialog open={showExtendDialog} onOpenChange={setShowExtendDialog}>
+      <Dialog open={showExtendDialog} onOpenChange={(open) => { if (!open) handleCloseExtendDialog() }}>
         <DialogContent>
           <View
             style={{
-              animation: showExtendDialog
-                ? 'extendIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both'
-                : 'extendOut 0.2s ease-in both'
+              transform: extendAnim === 'open' ? 'scale(1)' : 'scale(0.3)',
+              opacity: extendAnim === 'idle' ? 0 : 1,
+              transition: extendAnim === 'open'
+                ? 'transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 300ms ease-out'
+                : extendAnim === 'close'
+                ? 'transform 200ms ease-in, opacity 200ms ease-in'
+                : 'none',
             }}
           >
           <DialogHeader>
