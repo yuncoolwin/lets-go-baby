@@ -225,7 +225,9 @@ export default function RollCallPage() {
         const s = map[c.id + '__' + c.course_type]
         return s === 'present' || s === 'absent' || s === 'leave' || s === 'full_day' || s === 'half_day'
       })
-      setIsLocked(hasRecords)
+      if (!isAdminUser) {
+        setIsLocked(hasRecords)
+      }
     } catch (e) {
       console.error('[RollCall] load error:', e)
     }
@@ -581,7 +583,7 @@ export default function RollCallPage() {
           loadData()
         }}
         onClose={() => setCalendarVisible(false)}
-        disabled={(date) => {
+        disabled={isAdmin ? undefined : (date) => {
           const formatted = format(date, 'yyyy-MM-dd')
           return !dateList.includes(formatted)
         }}
@@ -589,7 +591,22 @@ export default function RollCallPage() {
 
       {/* 底部操作栏 */}
       <View className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 flex gap-3">
-        {selectedDate !== today ? (
+        {isAdmin ? (
+          <>
+            <View 
+              className={`flex-1 py-3 rounded-xl text-center font-medium ${
+                hasUnsaved 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-100 text-gray-400'
+              }`}
+              onClick={hasUnsaved ? handleSave : undefined}
+            >
+              <Text className={`block text-base font-medium ${hasUnsaved ? 'text-white' : 'text-gray-400'}`}>
+                保存考勤 {hasUnsaved ? '' : '(无变化)'}
+              </Text>
+            </View>
+          </>
+        ) : selectedDate !== today ? (
           <View className="flex-1 py-3 rounded-xl text-center font-medium bg-gray-100">
             <Text className="block text-base font-medium text-gray-400">历史记录，只读查看</Text>
           </View>
