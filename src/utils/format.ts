@@ -34,6 +34,10 @@ export function formatAge(birthDate: string | null | undefined): string {
     return `${months}个月`
   }
 
+  if (months === 0) {
+    return `${years}岁整`
+  }
+
   return `${years}岁${months}个月`
 }
 
