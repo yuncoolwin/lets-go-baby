@@ -328,6 +328,7 @@ export default function ChildDetailPage() {
         Taro.showToast({ title: childRes.msg || '加载失败', icon: 'none' })
       }
       if (enrRes.code === 200 && Array.isArray(enrRes.data)) {
+        console.log('[ChildDetail] enrollments loaded:', enrRes.data.length, 'first enr extended_end_date:', enrRes.data[0]?.extended_end_date, 'enr keys:', Object.keys(enrRes.data[0] || {}).join(','));
         setEnrollments(enrRes.data as any[])
       }
       if (clsRes.code === 200 && clsRes.data?.list && Array.isArray(clsRes.data.list)) {
