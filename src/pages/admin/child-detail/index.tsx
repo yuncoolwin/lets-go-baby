@@ -292,13 +292,19 @@ export default function ChildDetailPage() {
   const loadExtendDetail = async (enr: any) => {
     try {
       const res = await enrollmentApi.calcExtendedEndDate(enr.id)
+      console.log('calcExtendedEndDate res:', res)
+      // res 是 Taro.request 返回的 { data, statusCode, header }
+      // res.data 是 HTTP 响应体: { code, msg, data }
       const body = res.data || res
-      if (body.code === 200 && body.data) {
-        const details = body.data.details || []
-        setExtendDetails(details)
-        setExtendTotalDays(details.reduce((sum: number, d: any) => sum + (d.overlapDays || 0), 0))
-        setExtendToDate(body.data.extended_end_date || '')
+      const actualData = body.data || body
+      if (actualData && actualData.details) {
+        setExtendDetails(actualData.details)
+        const total = actualData.details.reduce((sum: number, d: any) => sum + (d.overlapDays || 0), 0)
+        setExtendTotalDays(total)
+        setExtendToDate(actualData.extended_end_date || '')
         setShowExtendDialog(true)
+      } else {
+        console.warn('calcExtendedEndDate 数据格式异常:', body)
       }
     } catch (e) {
       console.error('加载顺延详情失败', e)
