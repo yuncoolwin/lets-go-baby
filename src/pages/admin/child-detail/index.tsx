@@ -292,10 +292,12 @@ export default function ChildDetailPage() {
   const loadExtendDetail = async (enr: any) => {
     try {
       const res = await enrollmentApi.calcExtendedEndDate(enr.id)
-      if (res.code === 200 && res.data) {
-        setExtendDetails(res.data.details || [])
-        setExtendTotalDays(res.data.totalOverlapDays || 0)
-        setExtendToDate(res.data.extended_end_date || '')
+      const body = res.data || res
+      if (body.code === 200 && body.data) {
+        const details = body.data.details || []
+        setExtendDetails(details)
+        setExtendTotalDays(details.reduce((sum: number, d: any) => sum + (d.overlapDays || 0), 0))
+        setExtendToDate(body.data.extended_end_date || '')
         setShowExtendDialog(true)
       }
     } catch (e) {
@@ -863,7 +865,7 @@ export default function ChildDetailPage() {
                         <Text className="block text-xs text-gray-500 ml-2">{item.startDate} ~ {item.endDate}</Text>
                       </View>
                     </View>
-                    <Text className="block text-sm text-orange-500 font-medium ml-2">重叠{item.overlapDays}天</Text>
+                    <Text className="block text-sm text-orange-500 font-medium ml-2">顺延{item.overlapDays}天</Text>
                   </View>
                 )
               })
