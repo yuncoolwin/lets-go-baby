@@ -262,6 +262,7 @@ export class TeacherService {
       gender: string;
       start_date: string | null;
       end_date: string | null;
+      extended_end_date: string | null;
     }>>();
 
     for (const e of enrollmentList) {
@@ -313,6 +314,7 @@ export class TeacherService {
         attendance_status: string;
         start_date: string | null;
         end_date: string | null;
+        extended_end_date: string | null;
       }>;
     }> = [];
 
@@ -339,6 +341,7 @@ export class TeacherService {
           attendance_status: attStatus,
           start_date: s.start_date,
           end_date: s.end_date,
+          extended_end_date: s.extended_end_date || s.end_date,
         };
       });
 
