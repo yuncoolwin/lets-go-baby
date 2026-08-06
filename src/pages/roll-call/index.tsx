@@ -143,7 +143,12 @@ export default function RollCallPage() {
           const s = map[c.id + '__' + c.course_type]
           return s === 'present' || s === 'absent' || s === 'leave' || s === 'full_day' || s === 'half_day'
         })
+        // 如果是管理员模式，始终不锁定（可编辑所有日期）
+      if (isAdminUser) {
+        setIsLocked(false)
+      } else {
         setIsLocked(hasRecords)
+      }
         setLoading(false)
         return
       }
@@ -260,7 +265,9 @@ export default function RollCallPage() {
       setIsLocked(true)
       setHasUnsaved(false)
       Taro.showToast({ title: '保存成功', icon: 'success' })
-      setTimeout(() => Taro.navigateBack(), 1500)
+      if (!isAdmin) {
+        setTimeout(() => Taro.navigateBack(), 1500)
+      }
     } catch (e) {
       Taro.showToast({ title: '保存失败', icon: 'none' })
     }
@@ -276,7 +283,7 @@ export default function RollCallPage() {
   const handleClear = async () => {
     Taro.showModal({
       title: '确认清除',
-      content: `确定要清除 ${className} 今日全部考勤记录吗？`,
+      content: `确定要清除 ${className} ${selectedDate} 全部考勤记录吗？`,
       confirmColor: '#ef4444',
       success: async (res) => {
         if (res.confirm) {
@@ -312,11 +319,11 @@ export default function RollCallPage() {
               <Text className="block text-xs text-gray-300 ml-1">▼</Text>
             </View>
           </View>
-          {selectedDate !== today && (
+          {selectedDate !== today && !isAdmin && (
             <Text className="block text-xs text-orange-500">（历史记录，只读）</Text>
           )}
         </View>
-        {selectedDate === today && (
+        {(selectedDate === today || isAdmin) && (
           <Text 
             className="block text-sm text-red-500"
             onClick={handleClear}
