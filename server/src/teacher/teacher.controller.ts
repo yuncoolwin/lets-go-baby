@@ -29,7 +29,13 @@ export class TeacherController {
     @Query('teacher_role_id') teacherRoleId?: string,
     @Query('teacher_id') teacherId?: string,
     @Query('date') date?: string,
+    @Query('class_id') classId?: string,
   ) {
+    // 管理员模式：直接按 class_id 查询
+    if (classId) {
+      const data = await this.teacherService.getGroupedOverviewByClass(classId, date);
+      return { code: 200, msg: 'success', data };
+    }
     const id = teacherRoleId || teacherId;
     const data = await this.teacherService.getGroupedOverview(id, date);
     return { code: 200, msg: 'success', data };

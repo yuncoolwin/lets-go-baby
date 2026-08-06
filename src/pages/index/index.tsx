@@ -697,6 +697,18 @@ export default function IndexPage() {
 
           <Card
             className="bg-white rounded-xl border-0 shadow-sm"
+            onClick={() => Taro.navigateTo({ url: '/pages/roll-call/index' })}
+          >
+            <CardContent className="p-4 flex flex-col items-center">
+              <View className="w-12 h-12 rounded-lg bg-teal-50 flex items-center justify-center mb-2">
+                <Calendar size={24} color="#14B8A6" />
+              </View>
+              <Text className="text-sm text-foreground">考勤管理</Text>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="bg-white rounded-xl border-0 shadow-sm"
             onClick={() => Taro.navigateTo({ url: '/pages/admin/class-manage/index' })}
           >
             <CardContent className="p-4 flex flex-col items-center">

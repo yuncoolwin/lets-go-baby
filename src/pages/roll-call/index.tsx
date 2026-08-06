@@ -59,16 +59,95 @@ export default function RollCallPage() {
   const [expandedGroup, setExpandedGroup] = useState<Set<string>>(new Set())
   const [expandedAttendStat, setExpandedAttendStat] = useState<string>('')
   const [calendarVisible, setCalendarVisible] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [classList, setClassList] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedClassId, setSelectedClassId] = useState('')
 
   const today = new Date().toISOString().split('T')[0]
 
   useEffect(() => {
     loadData()
-  }, [selectedDate])
+  }, [selectedDate, selectedClassId])
 
   const loadData = async () => {
     setLoading(true)
     try {
+      const isAdminUser = currentRole?.role_type === 'admin'
+      setIsAdmin(isAdminUser)
+
+      if (isAdminUser) {
+        // 管理员模式：加载所有班级列表
+        if (classList.length === 0) {
+          const classRes = await Network.request({ url: '/api/classes' })
+          const allClasses: Array<{ id: string; name: string }> = classRes.data?.data || []
+          setClassList(allClasses)
+          if (allClasses.length > 0 && !selectedClassId) {
+            setSelectedClassId(allClasses[0].id)
+            setClassName(allClasses[0].name)
+          }
+        }
+
+        const currentClassId = selectedClassId || classList[0]?.id
+        if (!currentClassId) {
+          setLoading(false)
+          return
+        }
+        setClassId(currentClassId)
+
+        // 加载日期列表
+        try {
+          const dateRes = await Network.request({
+            url: `/api/attendance/dates/${currentClassId}`,
+          })
+          const dates: string[] = dateRes.data?.data || []
+          const todayStr = new Date().toISOString().split('T')[0]
+          if (!dates.includes(todayStr)) dates.unshift(todayStr)
+          setDateList(dates)
+        } catch (e) {
+          console.error('[RollCall] load dates error:', e)
+        }
+
+        // 使用 grouped-overview + class_id 查询
+        const groupedRes = await Network.request({
+          url: '/api/teachers/grouped-overview',
+          data: { class_id: currentClassId, date: selectedDate },
+        })
+        const groups: any[] = groupedRes.data?.data || []
+
+        // 扁平化所有分组的幼儿数据
+        const allChildren: ChildItem[] = []
+        const map: Record<string, AttendanceItem['status']> = {}
+        groups.forEach(g => {
+          (g.students || []).forEach((s: any) => {
+            allChildren.push({
+              id: s.id,
+              name: s.name,
+              gender: s.gender,
+              course_type: g.course_type,
+              attendance_status: s.attendance_status || null,
+            })
+            const status = s.attendance_status
+            if (status === 'present' || status === 'absent' || status === 'leave' || status === 'full_day' || status === 'half_day') {
+              map[s.id + '__' + g.course_type] = status
+            } else {
+              map[s.id + '__' + g.course_type] = 'unknown'
+            }
+          })
+        })
+        setChildren(allChildren)
+        setAttendance(map)
+        setTempAttendance(map)
+
+        const hasRecords = allChildren.some(c => {
+          const s = map[c.id + '__' + c.course_type]
+          return s === 'present' || s === 'absent' || s === 'leave' || s === 'full_day' || s === 'half_day'
+        })
+        setIsLocked(hasRecords)
+        setLoading(false)
+        return
+      }
+
+      // 教师模式：原有逻辑
       const teacherId = Taro.getStorageSync('teacherId') || currentRole?.id
       if (!teacherId) {
         setLoading(false)
@@ -246,7 +325,34 @@ export default function RollCallPage() {
         )}
       </View>
 
-      <ScrollView scrollY className="h-[calc(100vh-220px)]">
+      {/* 管理员模式：班级选择器 */}
+      {isAdmin && classList.length > 0 && (
+        <View className="bg-white px-4 py-2 border-b border-gray-100">
+          <View style={{ display: 'flex', flexDirection: 'row', gap: '8px', overflowX: 'auto' }}>
+            {classList.map(cls => {
+              const isSelected = cls.id === (selectedClassId || classId)
+              return (
+                <View
+                  key={cls.id}
+                  className={`px-4 py-1 rounded-full text-sm whitespace-nowrap ${
+                    isSelected ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
+                  }`}
+                  onClick={() => {
+                    if (!isSelected) {
+                      setSelectedClassId(cls.id)
+                      setClassName(cls.name)
+                    }
+                  }}
+                >
+                  <Text className="block text-sm">{cls.name}</Text>
+                </View>
+              )
+            })}
+          </View>
+        </View>
+      )}
+
+      <ScrollView scrollY className="h-[calc(100vh-280px)]">
         {/* 班级信息 */}
         {className && (
           <View className="px-4 pt-4 pb-2">
