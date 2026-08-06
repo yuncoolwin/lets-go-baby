@@ -107,9 +107,9 @@ export default function RollCallPage() {
           console.error('[RollCall] load dates error:', e)
         }
 
-        // 使用 grouped-overview + class_id 查询
+        // 使用管理员专用接口查询考勤分组
         const groupedRes = await Network.request({
-          url: '/api/teachers/grouped-overview',
+          url: '/api/attendance/admin/overview',
           data: { class_id: currentClassId, date: selectedDate },
         })
         const groups: any[] = groupedRes.data?.data || []

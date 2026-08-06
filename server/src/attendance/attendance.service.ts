@@ -97,6 +97,146 @@ export class AttendanceService {
   }
 
   /**
+   * 管理员端：按班级获取考勤分组概览
+   */
+  async getAdminOverview(classId: string, date?: string) {
+    if (!classId) return [];
+
+    const queryDate = date || new Date().toISOString().split('T')[0];
+
+    // 查询班级信息
+    const { data: cls } = await this.client
+      .from('classes')
+      .select('id, name, room')
+      .eq('id', classId)
+      .single();
+    if (!cls) return [];
+
+    // 查询该班级的进行中报读
+    const { data: enrollments } = await this.client
+      .from('enrollments')
+      .select('id, child_id, course_type, course_id, status, start_date, end_date, extended_end_date')
+      .eq('class_id', classId)
+      .eq('status', '进行中');
+
+    const enrollmentList = enrollments || [];
+    const childIds = [...new Set(enrollmentList.map(e => e.child_id))];
+
+    // 查询幼儿信息
+    let childrenMap: Record<string, { name: string; gender: string; birth_date: string }> = {};
+    if (childIds.length > 0) {
+      const { data: childrenData } = await this.client
+        .from('children')
+        .select('id, name, gender, birth_date')
+        .in('id', childIds)
+        .eq('status', 'active');
+      childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date }; });
+    }
+
+    // 按课程类型分组
+    const groupMap = new Map<string, Array<{
+      child_id: string;
+      name: string;
+      gender: string;
+      birth_date: string;
+      start_date: string | null;
+      end_date: string | null;
+      extended_end_date: string | null;
+    }>>();
+
+    for (const e of enrollmentList) {
+      const ct = e.course_type;
+      if (queryDate && e.start_date && queryDate < e.start_date) continue;
+      if (queryDate && e.end_date && queryDate > e.end_date) continue;
+      if (!groupMap.has(ct)) groupMap.set(ct, []);
+      groupMap.get(ct)!.push({
+        child_id: e.child_id,
+        name: childrenMap[e.child_id]?.name || '',
+        gender: childrenMap[e.child_id]?.gender || '',
+        birth_date: childrenMap[e.child_id]?.birth_date || '',
+        start_date: e.start_date,
+        end_date: e.end_date,
+        extended_end_date: e.extended_end_date || e.end_date,
+      });
+    }
+
+    // 查询当天考勤数据
+    const { data: attendance } = await this.client
+      .from('attendance')
+      .select('child_id, course_type, status')
+      .eq('class_id', classId)
+      .eq('date', queryDate);
+
+    const attendanceMap = new Map<string, string>();
+    attendance?.forEach(a => {
+      const key = a.course_type ? `${a.child_id}__${a.course_type}` : a.child_id;
+      attendanceMap.set(key, a.status === 'present' ? 'present' : a.status === 'absent' ? 'absent' : a.status === 'leave' ? 'leave' : a.status === 'full_day' ? 'full_day' : a.status === 'half_day' ? 'half_day' : 'unknown');
+    });
+
+    const sortOrder = ['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日'];
+    const groups: Array<{
+      group_id: string;
+      class_id: string;
+      class_name: string;
+      room: string | null;
+      course_type: string;
+      student_count: number;
+      today_attendance: { present: number; absent: number; leave: number };
+      students: Array<{
+        id: string;
+        name: string;
+        gender: string;
+        course_type: string;
+        attendance_status: string;
+        start_date: string | null;
+        end_date: string | null;
+        extended_end_date: string | null;
+      }>;
+    }> = [];
+
+    const sortedTypes = [...groupMap.keys()].sort((a, b) => {
+      const ai = sortOrder.indexOf(a);
+      const bi = sortOrder.indexOf(b);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+
+    for (const ct of sortedTypes) {
+      const students = groupMap.get(ct)!;
+      let present = 0, absent = 0, leave = 0;
+      const studentList = students.map(s => {
+        const attKey = ct ? `${s.child_id}__${ct}` : s.child_id;
+        const attStatus = attendanceMap.get(attKey) || 'unknown';
+        if (attStatus === 'present' || attStatus === 'full_day' || attStatus === 'half_day') present++;
+        else if (attStatus === 'absent') absent++;
+        else if (attStatus === 'leave') leave++;
+        return {
+          id: s.child_id,
+          name: s.name,
+          gender: s.gender,
+          course_type: ct,
+          attendance_status: attStatus,
+          start_date: s.start_date,
+          end_date: s.end_date,
+          extended_end_date: s.extended_end_date || s.end_date,
+        };
+      });
+
+      groups.push({
+        group_id: `${classId}__${ct}`,
+        class_id: classId,
+        class_name: cls.name,
+        room: cls.room || null,
+        course_type: ct,
+        student_count: students.length,
+        today_attendance: { present, absent, leave },
+        students: studentList,
+      });
+    }
+
+    return groups;
+  }
+
+  /**
    * 获取某幼儿某天某课程类型的点名状态
    */
   async findByChildAndDate(childId: string, date: string, courseType?: string) {

@@ -5,6 +5,16 @@ import { AttendanceService } from './attendance.service';
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
 
+  @Get('admin/overview')
+  @HttpCode(200)
+  async getAdminOverview(
+    @Query('class_id') classId: string,
+    @Query('date') date?: string,
+  ) {
+    const data = await this.attendanceService.getAdminOverview(classId, date);
+    return { code: 200, msg: 'success', data };
+  }
+
   @Get()
   @HttpCode(200)
   async findByClass(
