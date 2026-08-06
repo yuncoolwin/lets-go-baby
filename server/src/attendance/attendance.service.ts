@@ -82,7 +82,7 @@ export class AttendanceService {
     const courseTypeOrder: Record<string, number> = {
       '全日托': 0, '半日托': 1, '周六托': 2, '晚间托': 3, '兴趣班': 4, '计日': 5,
     };
-    const statusOrder: Record<string, number> = { present: 0, absent: 1, leave: 2, null: 3 };
+    const statusOrder: Record<string, number> = { full_day: 0, present: 0, half_day: 0, absent: 1, leave: 2, null: 3 };
     return mergedList
       .filter((item): item is NonNullable<typeof item> => item !== null)
       .sort((a, b) => {

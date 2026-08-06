@@ -32,10 +32,12 @@ const COURSE_TYPE_COLORS: Record<string, string> = {
 
 interface AttendanceItem {
   child_id: string
-  status: 'present' | 'absent' | 'leave' | 'unknown'
+  status: 'full_day' | 'half_day' | 'present' | 'absent' | 'leave' | 'unknown'
 }
 
 const STATUS_CONFIG = {
+  full_day: { label: '全天', color: 'bg-green-500', text: 'text-white' },
+  half_day: { label: '半天', color: 'bg-blue-400', text: 'text-white' },
   present: { label: '到', color: 'bg-green-500', text: 'text-white' },
   absent: { label: '缺', color: 'bg-yellow-400', text: 'text-yellow-800' },
   leave: { label: '假', color: 'bg-red-500', text: 'text-white' },
@@ -55,6 +57,7 @@ export default function RollCallPage() {
   const [tempAttendance, setTempAttendance] = useState<Record<string, AttendanceItem['status']>>({})
   const [dateList, setDateList] = useState<string[]>([])
   const [expandedGroup, setExpandedGroup] = useState<Set<string>>(new Set())
+  const [expandedAttendStat, setExpandedAttendStat] = useState<string>('')
   const [calendarVisible, setCalendarVisible] = useState(false)
 
   const today = new Date().toISOString().split('T')[0]
@@ -121,7 +124,7 @@ export default function RollCallPage() {
             attendance_status: s.attendance_status || null,
           })
           const status = s.attendance_status
-          if (status === 'present' || status === 'absent' || status === 'leave') {
+          if (status === 'present' || status === 'absent' || status === 'leave' || status === 'full_day' || status === 'half_day') {
             map[s.id + '__' + g.course_type] = status
           } else {
             map[s.id + '__' + g.course_type] = 'unknown'
@@ -132,10 +135,10 @@ export default function RollCallPage() {
       setAttendance(map)
       setTempAttendance(map)
 
-      // 如果有考勤记录（出勤/缺勤/请假），自动锁定
+      // 如果有考勤记录，自动锁定
       const hasRecords = allChildren.some(c => {
         const s = map[c.id + '__' + c.course_type]
-        return s === 'present' || s === 'absent' || s === 'leave'
+        return s === 'present' || s === 'absent' || s === 'leave' || s === 'full_day' || s === 'half_day'
       })
       setIsLocked(hasRecords)
     } catch (e) {
@@ -306,8 +309,12 @@ export default function RollCallPage() {
                   const present = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'present').length
                   const absent = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'absent').length
                   const leave = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'leave').length
-                  const unrecorded = groupChildren.length - present - absent - leave
+                  const fullDay = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'full_day').length
+                  const halfDay = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'half_day').length
+                  const totalPresent = courseType === '全日托' ? fullDay + halfDay : present
+                  const unrecorded = groupChildren.length - totalPresent - absent - leave
                   const colorClass = COURSE_TYPE_COLORS[courseType] || 'bg-gray-100 text-gray-700'
+                  const statExpanded = expandedAttendStat === courseType
 
                   const isExpanded = expandedGroup.has(courseType)
                   return (
@@ -340,22 +347,51 @@ export default function RollCallPage() {
                           <>
                             {/* 分组统计 */}
                             <View className="flex gap-2 mt-4 mb-4">
-                              <View className="flex-1 bg-green-50 rounded-xl py-2 px-3 text-center">
-                                <Text className="block text-xl font-bold text-green-600">{present}</Text>
-                                <Text className="block text-xs text-green-500">出勤</Text>
-                              </View>
-                              <View className="flex-1 bg-yellow-50 rounded-xl py-2 px-3 text-center">
-                                <Text className="block text-xl font-bold text-yellow-600">{absent}</Text>
-                                <Text className="block text-xs text-yellow-500">缺勤</Text>
-                              </View>
-                              <View className="flex-1 bg-red-50 rounded-xl py-2 px-3 text-center">
-                                <Text className="block text-xl font-bold text-red-500">{leave}</Text>
-                                <Text className="block text-xs text-red-400">请假</Text>
-                              </View>
-                              <View className="flex-1 bg-gray-100 rounded-xl py-2 px-3 text-center">
-                                <Text className="block text-xl font-bold text-gray-400">{unrecorded}</Text>
-                                <Text className="block text-xs text-gray-400">未记录</Text>
-                              </View>
+                              {courseType === '全日托' ? (
+                                <>
+                                  <View className="flex-1 bg-green-50 rounded-xl py-2 px-3 text-center" onClick={() => setExpandedAttendStat(statExpanded ? '' : courseType)}>
+                                    <Text className="block text-xl font-bold text-green-600">{totalPresent}</Text>
+                                    <Text className="block text-xs text-green-500">出勤</Text>
+                                    {statExpanded && (
+                                      <View className="mt-2 pt-2 border-t border-green-200">
+                                        <Text className="block text-xs text-green-500">全天 {fullDay}人</Text>
+                                        <Text className="block text-xs text-green-500 mt-1">半天 {halfDay}人</Text>
+                                      </View>
+                                    )}
+                                  </View>
+                                  <View className="flex-1 bg-yellow-50 rounded-xl py-2 px-3 text-center">
+                                    <Text className="block text-xl font-bold text-yellow-600">{absent}</Text>
+                                    <Text className="block text-xs text-yellow-500">缺勤</Text>
+                                  </View>
+                                  <View className="flex-1 bg-red-50 rounded-xl py-2 px-3 text-center">
+                                    <Text className="block text-xl font-bold text-red-500">{leave}</Text>
+                                    <Text className="block text-xs text-red-400">请假</Text>
+                                  </View>
+                                  <View className="flex-1 bg-gray-100 rounded-xl py-2 px-3 text-center">
+                                    <Text className="block text-xl font-bold text-gray-400">{unrecorded}</Text>
+                                    <Text className="block text-xs text-gray-400">未记录</Text>
+                                  </View>
+                                </>
+                              ) : (
+                                <>
+                                  <View className="flex-1 bg-green-50 rounded-xl py-2 px-3 text-center">
+                                    <Text className="block text-xl font-bold text-green-600">{totalPresent}</Text>
+                                    <Text className="block text-xs text-green-500">出勤</Text>
+                                  </View>
+                                  <View className="flex-1 bg-yellow-50 rounded-xl py-2 px-3 text-center">
+                                    <Text className="block text-xl font-bold text-yellow-600">{absent}</Text>
+                                    <Text className="block text-xs text-yellow-500">缺勤</Text>
+                                  </View>
+                                  <View className="flex-1 bg-red-50 rounded-xl py-2 px-3 text-center">
+                                    <Text className="block text-xl font-bold text-red-500">{leave}</Text>
+                                    <Text className="block text-xs text-red-400">请假</Text>
+                                  </View>
+                                  <View className="flex-1 bg-gray-100 rounded-xl py-2 px-3 text-center">
+                                    <Text className="block text-xl font-bold text-gray-400">{unrecorded}</Text>
+                                    <Text className="block text-xs text-gray-400">未记录</Text>
+                                  </View>
+                                </>
+                              )}
                             </View>
 
                             {/* 分组幼儿列表 */}
@@ -376,7 +412,7 @@ export default function RollCallPage() {
                                     </View>
 
                                     <View className="flex gap-2">
-                                      {(['present', 'absent', 'leave'] as const).map(status => {
+                                      {(child.course_type === '全日托' ? ['full_day', 'half_day', 'absent', 'leave'] : ['present', 'absent', 'leave'] as const).map(status => {
                                         const isSelected = current === status
                                         const isClickable = !isLocked
                                         return (
@@ -399,7 +435,7 @@ export default function RollCallPage() {
                                                   : 'text-gray-300'
                                             }`}
                                             >
-                                              {status === 'present' ? '✓ 到' : status === 'absent' ? '✗ 缺' : '△ 假'}
+                                              {status === 'full_day' ? '✓ 全天' : status === 'half_day' ? '✓ 半天' : status === 'present' ? '✓ 到' : status === 'absent' ? '✗ 缺' : '△ 假'}
                                             </Text>
                                           </View>
                                         )
