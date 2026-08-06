@@ -17,6 +17,7 @@ interface Enrollment {
   duration_type: string | null
   start_date: string | null
   end_date: string | null
+  extended_end_date: string | null
   status: string
   class_name: string | null
   payment_amount: number | null
@@ -206,7 +207,7 @@ export default function ChildrenManagePage() {
                         )}
                         {enr.start_date && (
                           <Text className="text-xs opacity-70">
-                            {enr.start_date} ~ {enr.end_date || '至今'}
+                            {enr.start_date} ~ {(enr.extended_end_date || enr.end_date) || '至今'}
                           </Text>
                         )}
                       </View>
