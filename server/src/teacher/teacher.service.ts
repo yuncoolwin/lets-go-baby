@@ -333,7 +333,7 @@ export class TeacherService {
       const studentList = students.map(s => {
         const attKey = ct ? `${s.child_id}__${ct}` : s.child_id;
         const attStatus = attendanceMap.get(attKey) || 'unknown';
-        if (attStatus === 'present') present++;
+        if (attStatus === 'present' || attStatus === 'full_day' || attStatus === 'half_day') present++;
         else if (attStatus === 'absent') absent++;
         else if (attStatus === 'leave') leave++;
         return {

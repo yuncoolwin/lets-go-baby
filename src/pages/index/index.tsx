@@ -221,6 +221,8 @@ export default function IndexPage() {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'present': return '已入园'
+      case 'full_day': return '全天出勤'
+      case 'half_day': return '半天出勤'
       case 'absent': return '未入园'
       case 'leave': return '请假'
       default: return '未知'
@@ -230,6 +232,8 @@ export default function IndexPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'present': return 'bg-green-100 text-green-700'
+      case 'full_day': return 'bg-green-100 text-green-700'
+      case 'half_day': return 'bg-green-50 text-green-600'
       case 'absent': return 'bg-yellow-100 text-yellow-700'
       case 'leave': return 'bg-red-100 text-red-700'
       default: return 'bg-gray-100 text-gray-700'
@@ -557,6 +561,8 @@ export default function IndexPage() {
                             {group.students.map((child) => {
                               const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
                                 present: { label: '出勤', bg: 'bg-green-100', text: 'text-green-700' },
+                                full_day: { label: '全天出勤', bg: 'bg-green-100', text: 'text-green-700' },
+                                half_day: { label: '半天出勤', bg: 'bg-green-50', text: 'text-green-600' },
                                 absent: { label: '缺勤', bg: 'bg-yellow-100', text: 'text-yellow-700' },
                                 leave: { label: '请假', bg: 'bg-red-100', text: 'text-red-700' },
                               }
