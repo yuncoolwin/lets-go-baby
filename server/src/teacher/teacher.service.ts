@@ -294,7 +294,7 @@ export class TeacherService {
     const attendanceMap = new Map<string, string>();
     attendance?.forEach(a => {
       const key = a.course_type ? `${a.child_id}__${a.course_type}` : a.child_id;
-      attendanceMap.set(key, a.status === 'present' ? 'present' : a.status === 'absent' ? 'absent' : a.status === 'leave' ? 'leave' : 'unknown');
+      attendanceMap.set(key, a.status === 'present' ? 'present' : a.status === 'absent' ? 'absent' : a.status === 'leave' ? 'leave' : a.status === 'full_day' ? 'full_day' : a.status === 'half_day' ? 'half_day' : 'unknown');
     });
 
     // 排序优先级

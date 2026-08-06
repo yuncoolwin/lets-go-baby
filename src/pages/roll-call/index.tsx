@@ -37,7 +37,7 @@ interface AttendanceItem {
 
 const STATUS_CONFIG = {
   full_day: { label: '全天', color: 'bg-green-500', text: 'text-white' },
-  half_day: { label: '半天', color: 'bg-blue-400', text: 'text-white' },
+  half_day: { label: '半天', color: 'bg-green-100', text: 'text-green-700' },
   present: { label: '到', color: 'bg-green-500', text: 'text-white' },
   absent: { label: '缺', color: 'bg-yellow-400', text: 'text-yellow-800' },
   leave: { label: '假', color: 'bg-red-500', text: 'text-white' },
