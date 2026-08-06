@@ -113,13 +113,8 @@ function Calendar({
 
   const yearOptions = React.useMemo(() => {
     const baseYear = new Date().getFullYear()
-    const visibleYear = visibleMonth.getFullYear()
-    const min = fromYear ?? baseYear - 100
-    const max = toYear ?? baseYear + 20
-    const start = Math.min(min, visibleYear)
-    const end = Math.max(max, visibleYear)
-    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
-  }, [fromYear, toYear, visibleMonth])
+    return Array.from({ length: 11 }, (_, i) => baseYear - 5 + i)
+  }, [])
 
   const monthOptions = React.useMemo(() => {
     return Array.from({ length: 12 }, (_, i) => i + 1)
@@ -223,17 +218,29 @@ function Calendar({
                 <ChevronDown size={16} className="opacity-50" color="inherit" />
               </Button>
               {dropdownType === 'year' && (
-                <View className="absolute bottom-full left-0 mb-1 bg-white rounded-lg shadow-lg border border-gray-200" style={{ zIndex: 99999, maxHeight: '200px', width: '100px' }}>
-                  <ScrollView className="h-full" scrollY>
-                    {yearOptions.map((y) => (
-                      <View
-                        key={y}
-                        className={`px-3 py-2 text-sm text-center ${y === visibleMonth.getFullYear() ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
-                        onClick={() => { setYear(y); setDropdownType(null) }}
-                      >
-                        <Text className="block">{y}年</Text>
-                      </View>
-                    ))}
+                <View className="rounded-lg shadow-lg border border-gray-200" style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: '4px', zIndex: 99999, width: '100px', height: '200px', backgroundColor: '#ffffff' }}>
+                  <ScrollView
+                    className="w-full"
+                    scrollY
+                    scrollWithAnimation
+                    enhanced
+                    showScrollbar={false}
+                    style={{ height: '100%', overflowY: 'scroll' }}
+                    scrollIntoView={`year-${visibleMonth.getFullYear()}`}
+                  >
+                    <View className="flex flex-col">
+                      {yearOptions.map((y) => (
+                        <View
+                          id={`year-${y}`}
+                          key={y}
+                          className={`flex items-center justify-center ${y === visibleMonth.getFullYear() ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
+                          style={{ height: '40px', lineHeight: '40px', fontSize: '14px', cursor: 'pointer' }}
+                          onClick={() => { setYear(y); setDropdownType(null) }}
+                        >
+                          <Text className="block">{y}年</Text>
+                        </View>
+                      ))}
+                    </View>
                   </ScrollView>
                 </View>
               )}
@@ -241,23 +248,34 @@ function Calendar({
             <View className="relative">
               <Button variant="ghost" className="h-8 px-2" onClick={() => setDropdownType(dropdownType === 'month' ? null : 'month')}>
                 <Text className="text-sm font-medium">
-                  {String(visibleMonth.getMonth() + 1).padStart(2, "0")}
-                  月
+                  {visibleMonth.getMonth() + 1}
                 </Text>
                 <ChevronDown size={16} className="opacity-50" color="inherit" />
               </Button>
               {dropdownType === 'month' && (
-                <View className="absolute bottom-full left-0 mb-1 bg-white rounded-lg shadow-lg border border-gray-200" style={{ zIndex: 99999, maxHeight: '200px', width: '80px' }}>
-                  <ScrollView className="h-full" scrollY>
-                    {monthOptions.map((m) => (
-                      <View
-                        key={m}
-                        className={`px-3 py-2 text-sm text-center ${m === visibleMonth.getMonth() + 1 ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
-                        onClick={() => { setMonthOfYear(m); setDropdownType(null) }}
-                      >
-                        <Text className="block">{m}月</Text>
-                      </View>
-                    ))}
+                <View className="rounded-lg shadow-lg border border-gray-200" style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: '4px', zIndex: 99999, width: '80px', height: '200px', backgroundColor: '#ffffff' }}>
+                  <ScrollView
+                    className="w-full"
+                    scrollY
+                    scrollWithAnimation
+                    enhanced
+                    showScrollbar={false}
+                    style={{ height: '100%', overflowY: 'scroll' }}
+                    scrollIntoView={`month-${visibleMonth.getMonth() + 1}`}
+                  >
+                    <View className="flex flex-col">
+                      {monthOptions.map((m) => (
+                        <View
+                          id={`month-${m}`}
+                          key={m}
+                          className={`flex items-center justify-center ${m === visibleMonth.getMonth() + 1 ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
+                          style={{ height: '40px', lineHeight: '40px', fontSize: '14px', cursor: 'pointer' }}
+                          onClick={() => { setMonthOfYear(m); setDropdownType(null) }}
+                        >
+                          <Text className="block">{m}月</Text>
+                        </View>
+                      ))}
+                    </View>
                   </ScrollView>
                 </View>
               )}
