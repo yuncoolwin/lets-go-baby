@@ -850,8 +850,25 @@ export default function ChildDetailPage() {
         }}
       />
 
+      <style>{`
+        @keyframes extendIn {
+          from { transform: scale(0.3); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes extendOut {
+          from { transform: scale(1); opacity: 1; }
+          to { transform: scale(0.3); opacity: 0; }
+        }
+      `}</style>
       <Dialog open={showExtendDialog} onOpenChange={setShowExtendDialog}>
         <DialogContent>
+          <View
+            style={{
+              animation: showExtendDialog
+                ? 'extendIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both'
+                : 'extendOut 0.2s ease-in both'
+            }}
+          >
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">顺延原因</DialogTitle>
           </DialogHeader>
@@ -863,7 +880,7 @@ export default function ChildDetailPage() {
                 const typeLabel = item.type === 'all' ? '全园' : item.type === 'class' ? '班级' : '个人'
                 const typeColor = item.type === 'all' ? 'bg-blue-100 text-blue-700' : item.type === 'class' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
                 return (
-                  <View key={idx} className="flex flex-row items-start mb-3 pb-3" style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <View key={idx} className="flex flex-row items-center mb-3 pb-3" style={{ borderBottom: '1px solid #f0f0f0' }}>
                     <View className="flex-1">
                       <Text className="block text-sm font-medium">{item.name}</Text>
                       <View className="flex flex-row items-center mt-1">
@@ -879,8 +896,9 @@ export default function ChildDetailPage() {
           </View>
           <View className="pt-3" style={{ borderTop: '1px solid #e5e5e5' }}>
             <Text className="block text-sm text-gray-500 text-center">
-              共重叠 <Text className="font-bold text-orange-500">{extendTotalDays}</Text> 天，顺延至 <Text className="font-bold text-orange-500">{extendToDate}</Text>
+              共顺延 <Text className="font-bold text-orange-500">{extendTotalDays}</Text> 天，顺延至 <Text className="font-bold text-orange-500">{extendToDate}</Text>
             </Text>
+          </View>
           </View>
         </DialogContent>
       </Dialog>
