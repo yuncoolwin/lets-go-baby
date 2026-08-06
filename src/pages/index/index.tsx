@@ -38,6 +38,7 @@ interface GroupOverview {
     id: string
     name: string
     gender: string
+    birth_date: string
     attendance_status: string
     start_date: string | null
     end_date: string | null
@@ -577,7 +578,12 @@ export default function IndexPage() {
                                     </Text>
                                   </View>
                                   <View className="flex-1">
-                                    <Text className="block text-sm text-foreground">{child.name}</Text>
+                                    <Text className="block text-sm text-foreground">
+                                      {child.name}
+                                      <Text className="text-xs text-muted-foreground ml-1">
+                                        {child.gender === 'male' ? '男' : '女'} {formatAge(child.birth_date)}
+                                      </Text>
+                                    </Text>
                                     {dateRange && (
                                       <Text className="block text-xs text-muted-foreground">{dateRange}</Text>
                                     )}

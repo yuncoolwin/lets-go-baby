@@ -168,9 +168,9 @@ export class TeacherService {
     if (childIds.length > 0) {
       const { data: childrenData } = await this.client
         .from('children')
-        .select('id, name, gender')
+        .select('id, name, gender, birth_date')
         .in('id', childIds);
-      childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender }; });
+      childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date }; });
     }
 
     // 组装学生列表（每人只显示一条）
@@ -180,6 +180,7 @@ export class TeacherService {
         id: childId,
         name: childrenMap[childId]?.name || '',
         gender: childrenMap[childId]?.gender || '',
+        birth_date: childrenMap[childId]?.birth_date || '',
         course_type: e.course_type,
         status: e.status,
       };
@@ -246,10 +247,10 @@ export class TeacherService {
     if (childIds.length > 0) {
       const { data: childrenData } = await this.client
         .from('children')
-        .select('id, name, gender')
+        .select('id, name, gender, birth_date')
         .in('id', childIds)
         .eq('status', 'active');
-      childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender }; });
+      childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date }; });
     }
 
     // 考勤查询日期
@@ -275,6 +276,7 @@ export class TeacherService {
         child_id: e.child_id,
         name: childrenMap[e.child_id]?.name || '',
         gender: childrenMap[e.child_id]?.gender || '',
+        birth_date: childrenMap[e.child_id]?.birth_date || '',
         start_date: e.start_date,
         end_date: e.end_date,
         extended_end_date: e.extended_end_date || e.end_date,
@@ -364,7 +366,7 @@ export class TeacherService {
     // 查询该班级的在读幼儿
     const { data: children, error: childError } = await this.client
       .from('children')
-      .select('id, name, gender')
+      .select('id, name, gender, birth_date')
       .eq('class_id', classId)
       .eq('status', '在读');
 
