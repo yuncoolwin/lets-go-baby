@@ -599,14 +599,16 @@ export default function ChildDetailPage() {
                   <Text className="block text-xs text-gray-500 mt-1">
                     日期：{enr.start_date || '--'} ~ {enr.end_date || '--'}
                   </Text>
-                  <Text className="block text-xs mt-1" style={enr.extended_end_date ? { color: '#E8651A' } : {}}>
-                    顺延结束日期：{enr.extended_end_date || '无'}
+                  <View className="flex flex-row items-center mt-1">
+                    <Text className="text-xs" style={enr.extended_end_date ? { color: '#E8651A' } : {}}>
+                      顺延结束日期：{enr.extended_end_date || '无'}
+                    </Text>
                     {enr.extended_end_date && (
-                      <Text className="inline-block align-middle ml-1" onClick={() => loadExtendDetail(enr)}>
+                      <View className="ml-1" onClick={() => loadExtendDetail(enr)}>
                         <Info size={12} color="#999" />
-                      </Text>
+                      </View>
                     )}
-                  </Text>
+                  </View>
                   {(enr.payment_amount || enr.payment_channel) && (
                     <Text className="block text-xs text-gray-500 mt-1">
                       缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{enr.payment_channel ? `（${enr.payment_channel}）` : ''}
