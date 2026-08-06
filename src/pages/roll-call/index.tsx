@@ -77,9 +77,10 @@ export default function RollCallPage() {
 
       if (isAdminUser) {
         // 管理员模式：加载所有班级列表
-        if (classList.length === 0) {
+        let allClasses: Array<{ id: string; name: string }> = classList
+        if (allClasses.length === 0) {
           const classRes = await Network.request({ url: '/api/classes' })
-          const allClasses: Array<{ id: string; name: string }> = classRes.data?.data || []
+          allClasses = classRes.data?.data?.list || classRes.data?.data || []
           setClassList(allClasses)
           if (allClasses.length > 0 && !selectedClassId) {
             setSelectedClassId(allClasses[0].id)
@@ -87,7 +88,7 @@ export default function RollCallPage() {
           }
         }
 
-        const currentClassId = selectedClassId || classList[0]?.id
+        const currentClassId = selectedClassId || (allClasses.length > 0 ? allClasses[0].id : '')
         if (!currentClassId) {
           setLoading(false)
           return

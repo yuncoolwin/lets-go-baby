@@ -103,6 +103,7 @@ export class AttendanceService {
     if (!classId) return [];
 
     const queryDate = date || new Date().toISOString().split('T')[0];
+    console.log(`[AdminOverview] classId=${classId}, date=${queryDate}`);
 
     // 查询班级信息
     const { data: cls } = await this.client
@@ -110,7 +111,11 @@ export class AttendanceService {
       .select('id, name, room')
       .eq('id', classId)
       .single();
-    if (!cls) return [];
+    if (!cls) {
+      console.log(`[AdminOverview] Class not found: ${classId}`);
+      return [];
+    }
+    console.log(`[AdminOverview] Class found: ${cls.name}`);
 
     // 查询该班级的进行中报读
     const { data: enrollments } = await this.client
@@ -120,7 +125,9 @@ export class AttendanceService {
       .eq('status', '进行中');
 
     const enrollmentList = enrollments || [];
+    console.log(`[AdminOverview] Enrollments count: ${enrollmentList.length}`);
     const childIds = [...new Set(enrollmentList.map(e => e.child_id))];
+    console.log(`[AdminOverview] Unique child IDs: ${childIds.length}`);
 
     // 查询幼儿信息
     let childrenMap: Record<string, { name: string; gender: string; birth_date: string }> = {};
@@ -132,6 +139,7 @@ export class AttendanceService {
         .eq('status', 'active');
       childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date }; });
     }
+    console.log(`[AdminOverview] Children found: ${Object.keys(childrenMap).length}`);
 
     // 按课程类型分组
     const groupMap = new Map<string, Array<{
@@ -159,6 +167,7 @@ export class AttendanceService {
         extended_end_date: e.extended_end_date || e.end_date,
       });
     }
+    console.log(`[AdminOverview] Group map types: ${[...groupMap.keys()].join(', ')}`);
 
     // 查询当天考勤数据
     const { data: attendance } = await this.client
@@ -166,6 +175,7 @@ export class AttendanceService {
       .select('child_id, course_type, status')
       .eq('class_id', classId)
       .eq('date', queryDate);
+    console.log(`[AdminOverview] Attendance records: ${(attendance || []).length}`);
 
     const attendanceMap = new Map<string, string>();
     attendance?.forEach(a => {
