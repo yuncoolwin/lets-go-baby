@@ -164,7 +164,7 @@ export class TeacherService {
     const childIds = [...childEnrollmentMap.keys()];
 
     // 查询幼儿姓名
-    let childrenMap: Record<string, { name: string; gender: string }> = {};
+    let childrenMap: Record<string, { name: string; gender: string; birth_date: string }> = {};
     if (childIds.length > 0) {
       const { data: childrenData } = await this.client
         .from('children')
@@ -243,7 +243,7 @@ export class TeacherService {
     const childIds = [...new Set(enrollmentList.map(e => e.child_id))];
 
     // 查询幼儿信息（仅 active 状态）
-    let childrenMap: Record<string, { name: string; gender: string }> = {};
+    let childrenMap: Record<string, { name: string; gender: string; birth_date: string }> = {};
     if (childIds.length > 0) {
       const { data: childrenData } = await this.client
         .from('children')
@@ -261,6 +261,7 @@ export class TeacherService {
       child_id: string;
       name: string;
       gender: string;
+      birth_date: string;
       start_date: string | null;
       end_date: string | null;
       extended_end_date: string | null;
