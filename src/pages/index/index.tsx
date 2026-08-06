@@ -721,18 +721,6 @@ export default function IndexPage() {
 
           <Card
             className="bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => Taro.navigateTo({ url: '/pages/admin/children/index' })}
-          >
-            <CardContent className="p-4 flex flex-col items-center">
-              <View className="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center mb-2">
-                <Users size={24} color="#22C55E" />
-              </View>
-              <Text className="text-sm text-foreground">幼儿管理</Text>
-            </CardContent>
-          </Card>
-
-          <Card
-            className="bg-white rounded-xl border-0 shadow-sm"
             onClick={() => Taro.navigateTo({ url: '/pages/admin/teacher-manage/index' })}
           >
             <CardContent className="p-4 flex flex-col items-center">
@@ -740,6 +728,18 @@ export default function IndexPage() {
                 <Users size={24} color="#8B5CF6" />
               </View>
               <Text className="text-sm text-foreground">教师管理</Text>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="bg-white rounded-xl border-0 shadow-sm"
+            onClick={() => Taro.navigateTo({ url: '/pages/admin/children/index' })}
+          >
+            <CardContent className="p-4 flex flex-col items-center">
+              <View className="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center mb-2">
+                <Users size={24} color="#22C55E" />
+              </View>
+              <Text className="text-sm text-foreground">幼儿管理</Text>
             </CardContent>
           </Card>
 
