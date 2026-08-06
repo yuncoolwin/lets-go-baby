@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Picker, Text, View } from "@tarojs/components"
+import { Text, View, ScrollView } from "@tarojs/components"
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react-taro"
 import {
   addDays,
@@ -97,6 +97,7 @@ function Calendar({
   const [uncontrolledMonth, setUncontrolledMonth] = React.useState<Date>(
     initialMonth
   )
+  const [dropdownType, setDropdownType] = React.useState<'year' | 'month' | null>(null)
   const visibleMonth = month ?? uncontrolledMonth
 
   const setMonth = React.useCallback(
@@ -123,16 +124,6 @@ function Calendar({
   const monthOptions = React.useMemo(() => {
     return Array.from({ length: 12 }, (_, i) => i + 1)
   }, [])
-
-  const yearIndex = React.useMemo(() => {
-    const y = visibleMonth.getFullYear()
-    const idx = yearOptions.indexOf(y)
-    return idx >= 0 ? idx : 0
-  }, [visibleMonth, yearOptions])
-
-  const monthIndex = React.useMemo(() => {
-    return visibleMonth.getMonth()
-  }, [visibleMonth])
 
   const setYear = React.useCallback(
     (year: number) => {
@@ -224,35 +215,53 @@ function Calendar({
 
         {captionHasDropdown ? (
           <View className="flex items-center gap-2" style={{ position: 'relative', zIndex: 9999 }}>
-            <Picker
-              mode="selector"
-              range={yearOptions}
-              value={yearIndex}
-              onChange={(e) => setYear(yearOptions[Number(e.detail.value)]!)}
-            >
-              <Button variant="ghost" className="h-8 px-2">
+            <View className="relative">
+              <Button variant="ghost" className="h-8 px-2" onClick={() => setDropdownType(dropdownType === 'year' ? null : 'year')}>
                 <Text className="text-sm font-medium">
                   {visibleMonth.getFullYear()}
                 </Text>
                 <ChevronDown size={16} className="opacity-50" color="inherit" />
               </Button>
-            </Picker>
-            <Picker
-              mode="selector"
-              range={monthOptions}
-              value={monthIndex}
-              onChange={(e) =>
-                setMonthOfYear(monthOptions[Number(e.detail.value)]!)
-              }
-            >
-              <Button variant="ghost" className="h-8 px-2">
+              {dropdownType === 'year' && (
+                <View className="absolute bottom-full left-0 mb-1 bg-white rounded-lg shadow-lg border border-gray-200" style={{ zIndex: 99999, maxHeight: '200px', width: '100px' }}>
+                  <ScrollView className="h-full" scrollY>
+                    {yearOptions.map((y) => (
+                      <View
+                        key={y}
+                        className={`px-3 py-2 text-sm text-center ${y === visibleMonth.getFullYear() ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
+                        onClick={() => { setYear(y); setDropdownType(null) }}
+                      >
+                        <Text className="block">{y}年</Text>
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+            <View className="relative">
+              <Button variant="ghost" className="h-8 px-2" onClick={() => setDropdownType(dropdownType === 'month' ? null : 'month')}>
                 <Text className="text-sm font-medium">
                   {String(visibleMonth.getMonth() + 1).padStart(2, "0")}
                   月
                 </Text>
                 <ChevronDown size={16} className="opacity-50" color="inherit" />
               </Button>
-            </Picker>
+              {dropdownType === 'month' && (
+                <View className="absolute bottom-full left-0 mb-1 bg-white rounded-lg shadow-lg border border-gray-200" style={{ zIndex: 99999, maxHeight: '200px', width: '80px' }}>
+                  <ScrollView className="h-full" scrollY>
+                    {monthOptions.map((m) => (
+                      <View
+                        key={m}
+                        className={`px-3 py-2 text-sm text-center ${m === visibleMonth.getMonth() + 1 ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
+                        onClick={() => { setMonthOfYear(m); setDropdownType(null) }}
+                      >
+                        <Text className="block">{m}月</Text>
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
           </View>
         ) : (
           <Text className="text-sm font-medium">
