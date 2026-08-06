@@ -223,7 +223,7 @@ function Calendar({
         )}
 
         {captionHasDropdown ? (
-          <View className="flex items-center gap-2">
+          <View className="flex items-center gap-2" style={{ position: 'relative', zIndex: 9999 }}>
             <Picker
               mode="selector"
               range={yearOptions}
