@@ -41,6 +41,7 @@ interface GroupOverview {
     attendance_status: string
     start_date: string | null
     end_date: string | null
+    extended_end_date: string | null
   }>
 }
 
@@ -559,15 +560,15 @@ export default function IndexPage() {
                                 leave: { label: '请假', bg: 'bg-red-100', text: 'text-red-700' },
                               }
                               const config = statusConfig[child.attendance_status] || { label: '未考勤', bg: 'bg-gray-100', text: 'text-gray-500' }
-                              const dateRange = child.start_date || child.end_date
-                                ? `${child.start_date || '?'} ~ ${child.end_date || '?'}`
+                              const dateRange = child.start_date || child.extended_end_date
+                                ? `${child.start_date || '?'} ~ ${child.extended_end_date || child.end_date || '?'}`
                                 : null
                               return (
                                 <View
                                   key={child.id}
                                   className="flex items-center gap-2 px-3 py-2 rounded-lg"
                                   onClick={() => {
-                                    Taro.navigateTo({ url: `/pages/baby-profile/index?id=${child.id}` })
+                                    Taro.navigateTo({ url: `/pages/admin/child-detail/index?id=${child.id}&readonly=true` })
                                   }}
                                 >
                                   <View className={`w-8 h-8 rounded-full flex items-center justify-center ${child.gender === 'male' ? 'bg-blue-100' : 'bg-pink-100'}`}>

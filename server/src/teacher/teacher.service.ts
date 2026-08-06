@@ -138,7 +138,7 @@ export class TeacherService {
     // 查询该班级的进行中报读（通过 enrollments.class_id）
     const { data: enrollments } = await this.client
       .from('enrollments')
-      .select('id, child_id, course_type, status, start_date, end_date')
+      .select('id, child_id, course_type, status, start_date, end_date, extended_end_date')
       .eq('class_id', teacherClassId)
       .eq('status', '进行中');
 
@@ -232,7 +232,7 @@ export class TeacherService {
     // 查询该班级的进行中报读（通过 enrollments.class_id，关联 courses 获取课程名称）
     const { data: enrollments } = await this.client
       .from('enrollments')
-      .select('id, child_id, course_type, course_id, status, start_date, end_date')
+      .select('id, child_id, course_type, course_id, status, start_date, end_date, extended_end_date')
       .eq('class_id', teacherClassId)
       .eq('status', '进行中');
 
@@ -276,6 +276,7 @@ export class TeacherService {
         gender: childrenMap[e.child_id]?.gender || '',
         start_date: e.start_date,
         end_date: e.end_date,
+        extended_end_date: e.extended_end_date || e.end_date,
       });
     }
 

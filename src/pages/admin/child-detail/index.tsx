@@ -65,7 +65,8 @@ const getNextSaturday = (): string => {
 
 export default function ChildDetailPage() {
   const router = useRouter()
-  const { id } = router.params
+  const { id, readonly } = router.params
+  const isReadonly = readonly === 'true'
   const [child, setChild] = useState<ChildDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [enrollments, setEnrollments] = useState<any[]>([])
@@ -422,8 +423,8 @@ export default function ChildDetailPage() {
                 </Text>
               </View>
               <View className="flex items-center gap-3 flex-shrink-0 pt-1">
-                <Pencil size={18} color="#999" onClick={startEditing} />
-                <Trash2 size={18} color="#E8651A" onClick={handleDelete} />
+                {!isReadonly && <Pencil size={18} color="#999" onClick={startEditing} />}
+                {!isReadonly && <Trash2 size={18} color="#E8651A" onClick={handleDelete} />}
               </View>
             </View>
 
@@ -551,12 +552,14 @@ export default function ChildDetailPage() {
                 <BookOpen size={16} color="#666" />
                 <Text className="text-base font-semibold text-foreground">报读记录</Text>
               </View>
-              <Button className="h-8 px-3 bg-primary text-white rounded-lg" onClick={openAddEnrollment}>
-                <View className="flex items-center gap-1">
-                  <Plus size={14} color="#fff" />
-                  <Text className="text-xs text-white">新增报读</Text>
-                </View>
-              </Button>
+              {!isReadonly && (
+                <Button className="h-8 px-3 bg-primary text-white rounded-lg" onClick={openAddEnrollment}>
+                  <View className="flex items-center gap-1">
+                    <Plus size={14} color="#fff" />
+                    <Text className="text-xs text-white">新增报读</Text>
+                  </View>
+                </Button>
+              )}
             </View>
             {enrollments.length === 0 ? (
               <View className="py-8 flex items-center justify-center">
@@ -571,12 +574,16 @@ export default function ChildDetailPage() {
                   <View className="flex items-center justify-between mb-1">
                     <Text className="text-sm font-semibold text-foreground">{enr.course_type}</Text>
                     <View className="flex items-center gap-2">
-                      <View onClick={() => openEditEnrollment(enr)}>
-                        <Pencil size={14} color="#999" />
-                      </View>
-                      <View onClick={() => handleDeleteEnrollment(enr)}>
-                        <Trash2 size={14} color="#999" />
-                      </View>
+                      {!isReadonly && (
+                        <>
+                          <View onClick={() => openEditEnrollment(enr)}>
+                            <Pencil size={14} color="#999" />
+                          </View>
+                          <View onClick={() => handleDeleteEnrollment(enr)}>
+                            <Trash2 size={14} color="#999" />
+                          </View>
+                        </>
+                      )}
                       <Badge className={enr.status === '进行中' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
                         <Text className="text-xs">{enr.status}</Text>
                       </Badge>
