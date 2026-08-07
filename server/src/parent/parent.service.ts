@@ -287,6 +287,8 @@ export class ParentService {
         child_name: data.child_name,
         relationship: data.relationship,
         custom_relationship: data.custom_relationship || null,
+        nickname: data.nickname || null,
+        allergies: data.allergies || null,
         status: 'pending',
       })
       .select()

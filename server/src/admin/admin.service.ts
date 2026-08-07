@@ -166,7 +166,26 @@ export class AdminService {
       throw new Error(`绑定请求不存在: ${reqError?.message || '未找到'}`);
     }
 
-    // 2. 更新 binding_requests 状态为 approved
+    // 2. 同步家长提交的幼儿信息到 children 表
+    const updateChildData: Record<string, any> = {};
+    if (request.nickname) updateChildData.nickname = request.nickname;
+    if (request.allergies) updateChildData.allergies = request.allergies;
+
+    if (request.child_id && Object.keys(updateChildData).length > 0) {
+      const { error: childError } = await this.client
+        .from('children')
+        .update(updateChildData)
+        .eq('id', request.child_id);
+
+      if (childError) {
+        console.error(`[Admin] 同步幼儿信息失败: ${childError.message}`);
+        // 不阻断流程，继续执行
+      } else {
+        console.log(`[Admin] 同步幼儿信息成功: child_id=${request.child_id}`, updateChildData);
+      }
+    }
+
+    // 3. 更新 binding_requests 状态为 approved
     const { error } = await this.client
       .from('binding_requests')
       .update({
@@ -177,7 +196,7 @@ export class AdminService {
 
     if (error) throw new Error(`审核失败: ${error.message}`);
 
-    // 3. 从 user_roles 表获取 user_id
+    // 4. 从 user_roles 表获取 user_id
     let userId: string | null = null;
     if (request.parent_role_id) {
       const { data: role } = await this.client
