@@ -328,7 +328,9 @@ export default function IndexPage() {
                     mode="aspectFit"
                   />
                 </View>
-                <Text className="text-sm font-medium">{child.name}</Text>
+                <Text className="text-sm font-medium truncate max-w-24">
+                  {child.name}{child.nickname ? `（${child.nickname}）` : ''}
+                </Text>
               </View>
             ))}
             {/* 添加幼儿按钮 */}
@@ -356,9 +358,12 @@ export default function IndexPage() {
                 </View>
                 <View className="flex-1">
                   <View className="flex items-center gap-2">
-                    <Text className="block text-base font-semibold text-foreground">
-                      {currentChild?.name || babyStatus.child_name}
-                    </Text>
+                    <View className="flex items-baseline">
+                      <Text className="block text-base font-semibold text-foreground">
+                        {currentChild?.name || babyStatus.child_name}
+                      </Text>
+                      {currentChild?.nickname && <Text className="text-xs text-muted-foreground">（{currentChild.nickname}）</Text>}
+                    </View>
                     <Badge className={`${getStatusColor(babyStatus.attendance_status)} text-xs`}>
                       <Text className="text-xs">{getStatusText(babyStatus.attendance_status)}</Text>
                     </Badge>

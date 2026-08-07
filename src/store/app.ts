@@ -18,6 +18,7 @@ export interface ChildInfo {
   id: string
   child_id?: string
   name: string
+  nickname?: string
   gender: string
   birth_date: string | null
   avatar_url: string | null
