@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Label } from '@/components/ui/label'
-import { childrenApi, enrollmentApi, classApi, courseApi } from '@/utils/api'
+import { childrenApi, enrollmentApi, classApi, courseApi, adminApi } from '@/utils/api'
 import BackButton from '@/components/back-button'
 import { Pencil, Trash2, BookOpen, Plus, X, Info } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
@@ -91,6 +91,7 @@ export default function ChildDetailPage() {
   const [showExtendDialog, setShowExtendDialog] = useState(false)
   const [extendAnim, setExtendAnim] = useState<'open' | 'close' | 'idle'>('idle')
   const extendTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const [parents, setParents] = useState<Array<{ id: string; parent_name: string; relationship: string }>>([])
 
   useEffect(() => {
     if (showExtendDialog) {
@@ -315,6 +316,29 @@ export default function ChildDetailPage() {
     })
   }
 
+  const handleUnbindParent = (relationId: string) => {
+    Taro.showModal({
+      title: '确认解除绑定',
+      content: '确定要解除该家长与幼儿的绑定关系吗？',
+      confirmColor: '#E8651A',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            const result = await adminApi.removeParentBinding(id!, relationId)
+            if (result.code === 200) {
+              Taro.showToast({ title: '已解除绑定', icon: 'success' })
+              loadData()
+            } else {
+              Taro.showToast({ title: result.msg || '解除绑定失败', icon: 'none' })
+            }
+          } catch {
+            Taro.showToast({ title: '网络错误', icon: 'none' })
+          }
+        }
+      },
+    })
+  }
+
   const loadExtendDetail = async (enr: any) => {
     try {
       const res = await enrollmentApi.calcExtendedEndDate(enr.id)
@@ -341,11 +365,12 @@ export default function ChildDetailPage() {
     if (!id) return
     setLoading(true)
     try {
-      const [childRes, enrRes, clsRes, courseRes] = await Promise.all([
+      const [childRes, enrRes, clsRes, courseRes, parentRes] = await Promise.all([
         childrenApi.detail(id),
         enrollmentApi.list(id!),
         classApi.list({ page: 1, page_size: 100 }),
         courseApi.list(),
+        adminApi.getChildParents(id!),
       ])
       if (childRes.code === 200 && childRes.data) {
         setChild(childRes.data as unknown as ChildDetail)
@@ -362,6 +387,9 @@ export default function ChildDetailPage() {
       if (courseRes.code === 200) {
         const list = Array.isArray(courseRes.data) ? courseRes.data : courseRes.data?.list || []
         setCourses(list)
+      }
+      if (parentRes.code === 200 && Array.isArray(parentRes.data)) {
+        setParents(parentRes.data)
       }
     } catch {
       Taro.showToast({ title: '网络错误', icon: 'none' })
@@ -648,6 +676,37 @@ export default function ChildDetailPage() {
                     <Text className="block text-xs text-gray-500 mt-1">
                       缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{enr.payment_channel ? `（${enr.payment_channel}）` : ''}
                     </Text>
+                  )}
+                </View>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 已绑定家长卡片 */}
+        <Card className="bg-white rounded-xl border-0 shadow-sm">
+          <CardContent className="p-4">
+            <View className="flex items-center gap-2 mb-3">
+              <Text className="text-base font-semibold text-foreground">已绑定家长</Text>
+            </View>
+            {parents.length === 0 ? (
+              <View className="py-4 flex items-center justify-center">
+                <Text className="text-sm text-muted-foreground">暂无绑定家长</Text>
+              </View>
+            ) : (
+              parents.map((parent) => (
+                <View
+                  key={parent.id}
+                  className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2 mb-2"
+                >
+                  <Text className="text-sm text-foreground">{parent.relationship}</Text>
+                  {!isReadonly && (
+                    <View
+                      className="ml-2"
+                      onClick={() => handleUnbindParent(parent.id)}
+                    >
+                      <Text className="text-xs text-red-500">删除</Text>
+                    </View>
                   )}
                 </View>
               ))

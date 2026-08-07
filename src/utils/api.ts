@@ -224,6 +224,16 @@ export const enrollmentApi = {
 
 // ============ 课程管理 API ============
 
+export const adminApi = {
+  getChildParents: (childId: string) =>
+    request({ url: `/api/admin/children/${childId}/parents`, method: 'GET' }),
+
+  removeParentBinding: (childId: string, relationId: string) =>
+    request({ url: `/api/admin/children/${childId}/parents/${relationId}`, method: 'DELETE' }),
+};
+
+// ============ 课程管理 API ============
+
 export const courseApi = {
   list: (params?: ListParams) =>
     request({ url: '/api/courses', method: 'GET', data: params }),

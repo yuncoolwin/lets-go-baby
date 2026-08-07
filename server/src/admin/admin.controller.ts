@@ -1,9 +1,23 @@
-import { Controller, Get, Post, Body, Query, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, HttpCode } from '@nestjs/common';
 import { AdminService } from './admin.service';
 
 @Controller('admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
+
+  @Get('children/:id/parents')
+  @HttpCode(200)
+  async getChildParents(@Param('id') id: string) {
+    const data = await this.adminService.getChildParents(id);
+    return { code: 200, msg: 'success', data };
+  }
+
+  @Delete('children/:childId/parents/:relationId')
+  @HttpCode(200)
+  async removeParentBinding(@Param('childId') childId: string, @Param('relationId') relationId: string) {
+    const data = await this.adminService.removeParentBinding(childId, relationId);
+    return { code: 200, msg: 'success', data };
+  }
 
   @Get('pending-count')
   @HttpCode(200)

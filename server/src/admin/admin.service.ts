@@ -228,6 +228,81 @@ export class AdminService {
     return { success: true };
   }
 
+  async getChildParents(childId: string) {
+    // 查询该幼儿的所有已绑定家长
+    const { data: relations, error } = await this.client
+      .from('parent_child_relations')
+      .select('id, user_id, parent_role_id, relationship, custom_relationship')
+      .eq('child_id', childId)
+      .eq('status', 'approved');
+
+    if (error) throw new Error(`查询失败: ${error.message}`);
+
+    const results: Array<{
+      id: string;
+      parent_name: string;
+      relationship: string;
+    }> = [];
+
+    for (const rel of (relations || [])) {
+      let parentName = '未知家长';
+
+      // 通过 user_id 获取家长昵称
+      if (rel.user_id) {
+        const { data: user } = await this.client
+          .from('users')
+          .select('nickname')
+          .eq('id', rel.user_id)
+          .maybeSingle();
+        if (user?.nickname) parentName = user.nickname;
+      }
+
+      // 构建显示名称
+      const child = await this.client
+        .from('children')
+        .select('name')
+        .eq('id', childId)
+        .maybeSingle();
+      const childName = child.data?.name || '';
+
+      const relationshipLabel = this.getRelationshipLabel(rel.relationship, rel.custom_relationship);
+      const displayName = childName ? `${childName}${relationshipLabel}` : relationshipLabel;
+
+      results.push({
+        id: rel.id,
+        parent_name: parentName,
+        relationship: displayName,
+      });
+    }
+
+    return results;
+  }
+
+  async removeParentBinding(childId: string, relationId: string) {
+    const { error } = await this.client
+      .from('parent_child_relations')
+      .delete()
+      .eq('id', relationId)
+      .eq('child_id', childId);
+
+    if (error) throw new Error(`解除绑定失败: ${error.message}`);
+    return { success: true };
+  }
+
+  private getRelationshipLabel(relationship: string, customRelationship?: string | null): string {
+    if (relationship === 'custom' && customRelationship) {
+      return customRelationship;
+    }
+    const map: Record<string, string> = {
+      father: '爸爸',
+      mother: '妈妈',
+      grandfather: '爷爷',
+      grandmother: '奶奶',
+      other: '其他',
+    };
+    return map[relationship] || relationship;
+  }
+
   async rejectBindingRequest(requestId: string, reason?: string) {
     const updateData: any = {
       status: 'rejected',
