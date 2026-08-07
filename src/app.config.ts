@@ -28,6 +28,7 @@ export default typeof defineAppConfig === 'function'
       'pages/admin/course-manage/index',
       'pages/admin/holidays/index',
       'pages/admin/holiday-mgmt/index',
+      'pages/child-detail/index',
     ],
     tabBar: {
       color: '#999999',
