@@ -279,13 +279,39 @@ export class AdminService {
   }
 
   async removeParentBinding(childId: string, relationId: string) {
-    const { error } = await this.client
+    // 1. 先获取关联记录，找到 parent_role_id
+    const { data: relation, error: fetchError } = await this.client
+      .from('parent_child_relations')
+      .select('parent_role_id')
+      .eq('id', relationId)
+      .eq('child_id', childId)
+      .single();
+
+    if (fetchError || !relation) {
+      throw new Error(`关联记录不存在: ${fetchError?.message || '未找到'}`);
+    }
+
+    // 2. 删除关联记录
+    const { error: deleteError } = await this.client
       .from('parent_child_relations')
       .delete()
       .eq('id', relationId)
       .eq('child_id', childId);
 
-    if (error) throw new Error(`解除绑定失败: ${error.message}`);
+    if (deleteError) throw new Error(`解除绑定失败: ${deleteError.message}`);
+
+    // 3. 将 binding_requests 中对应的已审核记录标记为 unbound，允许家长重新申请
+    const { error: updateError } = await this.client
+      .from('binding_requests')
+      .update({ status: 'unbound', approved_at: null })
+      .eq('parent_role_id', relation.parent_role_id)
+      .eq('child_id', childId)
+      .eq('status', 'approved');
+
+    if (updateError) {
+      console.error(`[removeParentBinding] 更新绑定请求状态失败: ${updateError.message}`);
+    }
+
     return { success: true };
   }
 
