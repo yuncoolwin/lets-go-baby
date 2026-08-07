@@ -27,6 +27,7 @@ interface Enrollment {
 interface Child {
   id: string
   name: string
+  nickname?: string
   gender: string
   birth_date: string
   class_id: string | null
@@ -174,6 +175,7 @@ export default function ChildrenManagePage() {
                       </Text>
                     </View>
                     <Text className="text-base font-semibold text-foreground">{child.name}</Text>
+                    {child.nickname && <Text className="text-xs text-muted-foreground ml-1">（{child.nickname}）</Text>}
                     <Text className="text-sm text-muted-foreground">
                       {child.gender === 'male' ? '男' : '女'}
                     </Text>

@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 interface ChildDetail {
   id: string
   name: string
+  nickname?: string
   gender: string
   birth_date: string
   class_id: string | null
@@ -437,6 +438,7 @@ export default function ChildDetailPage() {
               <View className="flex-1">
                 <View className="flex items-center gap-2">
                   <Text className="text-xl font-bold text-foreground">{child.name}</Text>
+                  {child.nickname && <Text className="text-sm text-muted-foreground ml-1">（{child.nickname}）</Text>}
                   <Badge className={`${statusMap[child.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
                     <Text className="text-xs">{statusMap[child.status]?.label || child.status}</Text>
                   </Badge>
