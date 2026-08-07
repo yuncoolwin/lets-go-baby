@@ -16,7 +16,6 @@ import { CalendarOverlay } from '@/components/ui/calendar-overlay'
 interface ChildDetail {
   id: string
   child_name: string
-  nickname?: string
   gender: string
   birth_date: string | null
   status: string
@@ -55,7 +54,6 @@ export default function ChildSettingPage() {
 
   // 表单状态
   const [name, setName] = useState('')
-  const [nickname, setNickname] = useState('')
   const [gender, setGender] = useState('')
   const [birthDate, setBirthDate] = useState('')
   const [allergies, setAllergies] = useState('')
@@ -87,7 +85,6 @@ export default function ChildSettingPage() {
         const data = res.data.data
         setChild(data)
         setName(data.child_name || '')
-        setNickname(data.nickname || '')
         setGender(genderMap[data.gender] || '')
         setBirthDate(data.birth_date || '')
         setAllergies(data.allergies || '')
@@ -118,7 +115,6 @@ export default function ChildSettingPage() {
         data: {
           child_id: childId,
           name: name.trim(),
-          nickname: nickname.trim() || undefined,
           gender: genderValue,
           birth_date: birthDate,
           allergies: allergies.trim(),
@@ -146,7 +142,6 @@ export default function ChildSettingPage() {
     // 恢复原始数据
     if (child) {
       setName(child.child_name || '')
-      setNickname(child.nickname || '')
       setGender(genderMap[child.gender] || '')
       setBirthDate(child.birth_date || '')
       setAllergies(child.allergies || '')
@@ -204,10 +199,7 @@ export default function ChildSettingPage() {
               <Image src={rabbitLogo} className="w-16 h-16 rounded-full" mode="aspectFit" />
             </View>
             <View className="flex-1">
-              <View className="flex items-baseline">
-                <Text className="text-lg font-semibold text-foreground">{child.child_name}</Text>
-                {child.nickname && <Text className="text-sm text-muted-foreground">（{child.nickname}）</Text>}
-              </View>
+              <Text className="block text-lg font-semibold text-foreground">{child.child_name}</Text>
               <View className="flex items-center gap-2 mt-1">
                 <Badge className={`${statusMap[child.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
                   <Text className="text-xs">{statusMap[child.status]?.label || child.status}</Text>
@@ -270,19 +262,6 @@ export default function ChildSettingPage() {
                   placeholder="请输入幼儿姓名"
                   value={name}
                   onInput={(e) => setName(e.detail.value)}
-                />
-              </View>
-            </View>
-
-            {/* 昵称 */}
-            <View>
-              <Text className="block text-sm text-muted-foreground mb-2">幼儿昵称</Text>
-              <View className="bg-gray-50 rounded-lg px-3 py-2">
-                <Input
-                  className="w-full bg-transparent text-sm"
-                  placeholder="请输入幼儿昵称（选填）"
-                  value={nickname}
-                  onInput={(e) => setNickname(e.detail.value)}
                 />
               </View>
             </View>

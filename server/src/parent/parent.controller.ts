@@ -51,7 +51,6 @@ export class ParentController {
   @HttpCode(200)
   async updateChild(@Param('id') id: string, @Body() body: {
     name?: string;
-    nickname?: string;
     gender?: string;
     birth_date?: string;
     allergies?: string;

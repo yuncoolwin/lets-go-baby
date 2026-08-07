@@ -311,7 +311,7 @@ export class ParentService {
     // 查询 children 表获取幼儿信息
     const { data: child, error: childError } = await this.client
       .from('children')
-      .select('id, name, nickname, gender, birth_date, allergies, status, class_id')
+      .select('id, name, gender, birth_date, allergies, status, class_id')
       .eq('id', childId)
       .maybeSingle();
 
@@ -337,7 +337,6 @@ export class ParentService {
       id: relation.id,
       child_id: child.id,
       child_name: child.name,
-      nickname: child.nickname,
       relationship: relation.relationship,
       custom_relationship: relation.custom_relationship,
       status: child.status,
@@ -351,7 +350,6 @@ export class ParentService {
 
   async updateChild(childId: string, data: {
     name?: string;
-    nickname?: string;
     gender?: string;
     birth_date?: string;
     allergies?: string;
@@ -361,7 +359,6 @@ export class ParentService {
     // 更新 children 表
     const childUpdate: Record<string, string> = {};
     if (data.name !== undefined) childUpdate.name = data.name;
-    if (data.nickname !== undefined) childUpdate.nickname = data.nickname;
     if (data.gender !== undefined) childUpdate.gender = data.gender;
     if (data.birth_date !== undefined) childUpdate.birth_date = data.birth_date;
     if (data.allergies !== undefined) childUpdate.allergies = data.allergies;
