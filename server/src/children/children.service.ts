@@ -21,6 +21,7 @@ export class ChildrenService {
    */
   async create(dto: {
     name: string;
+    nickname?: string;
     gender: string;
     birth_date: string;
     class_id?: string | null;
@@ -51,6 +52,7 @@ export class ChildrenService {
       .from('children')
       .insert({
         name: dto.name,
+        nickname: dto.nickname || null,
         gender: dto.gender,
         birth_date: dto.birth_date,
         class_id: dto.class_id || null,

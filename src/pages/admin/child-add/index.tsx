@@ -26,6 +26,7 @@ export default function ChildAddPage() {
   const [showCalendar, setShowCalendar] = useState(false)
 
   const [name, setName] = useState('')
+  const [nickname, setNickname] = useState('')
   const [gender, setGender] = useState('male')
   const [birthDate, setBirthDate] = useState('')
   const [status, setStatus] = useState('active')
@@ -48,6 +49,7 @@ export default function ChildAddPage() {
     try {
       const res = await childrenApi.create({
         name: name.trim(),
+        nickname: nickname.trim() || undefined,
         gender,
         birth_date: birthDate,
         status,
@@ -92,6 +94,19 @@ export default function ChildAddPage() {
                   placeholder="请输入幼儿姓名"
                   value={name}
                   onInput={(e) => setName(e.detail.value)}
+                />
+              </View>
+            </View>
+
+            {/* 昵称 */}
+            <View>
+              <Label className="text-sm font-medium text-foreground">幼儿昵称</Label>
+              <View className="mt-1 bg-gray-50 rounded-lg px-3 py-2">
+                <Input
+                  className="w-full bg-transparent text-sm"
+                  placeholder="请输入幼儿昵称（选填）"
+                  value={nickname}
+                  onInput={(e) => setNickname(e.detail.value)}
                 />
               </View>
             </View>

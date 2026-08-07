@@ -4,6 +4,7 @@
  */
 export interface CreateChildDto {
   name: string;
+  nickname?: string;
   gender: 'male' | 'female';
   birth_date: string;
   class_id?: string;
@@ -21,6 +22,7 @@ export interface CreateChildDto {
 
 export interface UpdateChildDto {
   name?: string;
+  nickname?: string;
   gender?: 'male' | 'female';
   birth_date?: string;
   class_id?: string;

@@ -116,6 +116,7 @@ export default function ChildDetailPage() {
   // 幼儿基本信息编辑
   const [isEditingChild, setIsEditingChild] = useState(false)
   const [editName, setEditName] = useState('')
+  const [editNickname, setEditNickname] = useState('')
   const [editGender, setEditGender] = useState('male')
   const [editBirthDate, setEditBirthDate] = useState('')
   const [editStatus, setEditStatus] = useState('active')
@@ -139,6 +140,7 @@ export default function ChildDetailPage() {
   const startEditing = () => {
     if (!child) return
     setEditName(child.name || '')
+    setEditNickname(child.nickname || '')
     setEditGender(child.gender || 'male')
     setEditBirthDate(child.birth_date || '')
     setEditStatus(child.status || 'active')
@@ -166,6 +168,7 @@ export default function ChildDetailPage() {
     try {
       const payload: Record<string, any> = {
         name: editName.trim(),
+        nickname: editNickname.trim() || undefined,
         gender: editGender,
         birth_date: editBirthDate,
         status: editStatus,
@@ -437,8 +440,10 @@ export default function ChildDetailPage() {
               <Image src={rabbitLogo} className="w-16 h-16 rounded-full flex-shrink-0" mode="aspectFit" />
               <View className="flex-1">
                 <View className="flex items-center gap-2">
-                  <Text className="text-xl font-bold text-foreground">{child.name}</Text>
-                  {child.nickname && <Text className="text-sm text-muted-foreground ml-1">（{child.nickname}）</Text>}
+                  <View className="flex items-baseline">
+                    <Text className="text-xl font-bold text-foreground">{child.name}</Text>
+                    {child.nickname && <Text className="text-sm text-muted-foreground">（{child.nickname}）</Text>}
+                  </View>
                   <Badge className={`${statusMap[child.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
                     <Text className="text-xs">{statusMap[child.status]?.label || child.status}</Text>
                   </Badge>
@@ -461,6 +466,13 @@ export default function ChildDetailPage() {
                     <Label className="text-sm font-medium text-foreground">姓名 *</Label>
                     <View className="mt-1 bg-gray-50 rounded-lg px-3 py-2">
                       <Input className="w-full bg-transparent text-sm" placeholder="请输入幼儿姓名" value={editName} onInput={(e) => setEditName(e.detail.value)} />
+                    </View>
+                  </View>
+                  {/* 昵称 */}
+                  <View>
+                    <Label className="text-sm font-medium text-foreground">幼儿昵称</Label>
+                    <View className="mt-1 bg-gray-50 rounded-lg px-3 py-2">
+                      <Input className="w-full bg-transparent text-sm" placeholder="请输入幼儿昵称（选填）" value={editNickname} onInput={(e) => setEditNickname(e.detail.value)} />
                     </View>
                   </View>
                   {/* 性别 */}
