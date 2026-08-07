@@ -57,8 +57,9 @@ export default function BindingPage() {
 
       console.log('[Binding] search result:', res.data)
 
-      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-        setSearchResult(res.data)
+      const body = res.data
+      if (body && body.code === 200 && Array.isArray(body.data) && body.data.length > 0) {
+        setSearchResult(body.data)
       } else {
         setSearchResult([])
         Taro.showToast({ title: '未找到匹配的幼儿', icon: 'none' })
