@@ -31,6 +31,7 @@ export default function BindingPage() {
   const [step, setStep] = useState<'search' | 'form'>('search')
   const [searchName, setSearchName] = useState('')
   const [childName, setChildName] = useState('')
+  const [gender, setGender] = useState('male')
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null)
   const [relationship, setRelationship] = useState('father')
   const [customRelationship, setCustomRelationship] = useState('')
@@ -125,6 +126,7 @@ export default function BindingPage() {
           relationship: relationship === 'other' ? 'other' : relationship,
           custom_relationship: relationship === 'other' ? customRelationship.trim() : null,
           birth_date: birthDate,
+          gender: !selectedChildId ? gender : undefined,
           allergies: allergyType === 'none' ? '无' : customAllergy.trim(),
         },
       })
@@ -261,6 +263,24 @@ export default function BindingPage() {
                   />
                 </View>
               </View>
+
+              {!selectedChildId && (
+                <View>
+                  <Label className="text-sm text-foreground mb-2">
+                    <Text>性别</Text>
+                  </Label>
+                  <View className="mt-1">
+                    <RadioGroup className="flex flex-row gap-4" value={gender} onValueChange={(v) => setGender(v)}>
+                      <RadioGroupItem value="male">
+                        <Text className="text-sm">男</Text>
+                      </RadioGroupItem>
+                      <RadioGroupItem value="female">
+                        <Text className="text-sm">女</Text>
+                      </RadioGroupItem>
+                    </RadioGroup>
+                  </View>
+                </View>
+              )}
 
               <View>
                 <Label className="text-sm text-foreground mb-2">
