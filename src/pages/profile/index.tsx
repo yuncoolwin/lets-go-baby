@@ -145,7 +145,7 @@ export default function ProfilePage() {
                 <View key={child.id} className="flex items-center gap-3 p-2">
                   <View className="flex-1">
                     <Text className="block text-sm text-foreground">{child.name}</Text>
-                    <Text className="block text-xs text-muted-foreground">{getRelationshipLabel(child.relationship)}</Text>
+                    <Text className="block text-xs text-muted-foreground">{child.gender === 'male' ? '男' : child.gender === 'female' ? '女' : ''}</Text>
                   </View>
                 </View>
               ))}
