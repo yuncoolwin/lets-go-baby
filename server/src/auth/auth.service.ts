@@ -174,6 +174,7 @@ export class AuthService {
             return {
               ...c,
               relationship: rel?.relationship || 'other',
+              custom_relationship: rel?.custom_relationship || null,
             };
           });
         }
@@ -223,7 +224,7 @@ export class AuthService {
     if (parentRole) {
       const { data: relations } = await this.client
         .from('parent_child_relations')
-        .select('child_id, relationship')
+        .select('child_id, relationship, custom_relationship')
         .eq('parent_role_id', parentRole.id)
         .eq('status', 'approved');
 
