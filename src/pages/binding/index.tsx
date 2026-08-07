@@ -269,16 +269,16 @@ export default function BindingPage() {
                   <Label className="text-sm text-foreground mb-2">
                     <Text>性别</Text>
                   </Label>
-                  <View className="mt-1">
-                    <RadioGroup className="flex flex-row gap-4" value={gender} onValueChange={(v) => setGender(v)}>
-                      <RadioGroupItem value="male">
-                        <Text className="text-sm">男</Text>
-                      </RadioGroupItem>
-                      <RadioGroupItem value="female">
-                        <Text className="text-sm">女</Text>
-                      </RadioGroupItem>
-                    </RadioGroup>
-                  </View>
+                  <RadioGroup className="flex flex-wrap gap-3 mt-2" value={gender} onValueChange={setGender}>
+                    <View className="flex items-center gap-2">
+                      <RadioGroupItem value="male" />
+                      <Text className="text-sm text-foreground">男</Text>
+                    </View>
+                    <View className="flex items-center gap-2">
+                      <RadioGroupItem value="female" />
+                      <Text className="text-sm text-foreground">女</Text>
+                    </View>
+                  </RadioGroup>
                 </View>
               )}
 
