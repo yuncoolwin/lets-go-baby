@@ -224,6 +224,10 @@ export class ParentService {
     child_id?: string;
     relationship: string;
     custom_relationship?: string;
+    nickname?: string;
+    gender?: string;
+    birth_date?: string;
+    allergies?: string;
   }) {
     // 如果传了 child_id，直接使用；否则先在 children 表中查找或创建
     let childId = data.child_id;
@@ -244,7 +248,9 @@ export class ParentService {
           .from('children')
           .insert({
             name: data.child_name,
-            gender: 'unknown',
+            nickname: data.nickname || null,
+            gender: data.gender || 'unknown',
+            birth_date: data.birth_date || null,
           })
           .select('id')
           .single();

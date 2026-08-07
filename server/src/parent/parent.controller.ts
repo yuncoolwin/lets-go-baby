@@ -63,7 +63,7 @@ export class ParentController {
 
   @Post('binding-request')
   @HttpCode(200)
-  async submitBindingRequest(@Body() body: { user_id?: string; parent_role_id: string; child_name: string; child_id?: string; relationship: string; custom_relationship?: string }) {
+  async submitBindingRequest(@Body() body: { user_id?: string; parent_role_id: string; child_name: string; child_id?: string; relationship: string; custom_relationship?: string; nickname?: string; gender?: string; birth_date?: string; allergies?: string }) {
     const data = await this.parentService.submitBindingRequest(body);
     // 防重复检查返回的错误信息
     if (data?.error) {

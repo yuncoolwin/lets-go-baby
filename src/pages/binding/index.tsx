@@ -32,6 +32,7 @@ export default function BindingPage() {
   const [searchName, setSearchName] = useState('')
   const [childName, setChildName] = useState('')
   const [gender, setGender] = useState('male')
+  const [nickname, setNickname] = useState('')
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null)
   const [relationship, setRelationship] = useState('father')
   const [customRelationship, setCustomRelationship] = useState('')
@@ -123,6 +124,7 @@ export default function BindingPage() {
           parent_role_id: currentRole.id,
           child_id: selectedChildId,
           child_name: childName.trim(),
+          nickname: nickname.trim() || null,
           relationship: relationship === 'other' ? 'other' : relationship,
           custom_relationship: relationship === 'other' ? customRelationship.trim() : null,
           birth_date: birthDate,
@@ -263,6 +265,22 @@ export default function BindingPage() {
                   />
                 </View>
               </View>
+
+              {!selectedChildId && (
+                <View>
+                  <Label className="text-sm text-foreground mb-2">
+                    <Text>幼儿昵称</Text>
+                  </Label>
+                  <View className="bg-gray-50 rounded-xl px-4 py-3">
+                    <Input
+                      className="w-full bg-transparent"
+                      placeholder="请输入幼儿昵称（选填）"
+                      value={nickname}
+                      onInput={(e) => setNickname(e.detail.value)}
+                    />
+                  </View>
+                </View>
+              )}
 
               {!selectedChildId && (
                 <View>
