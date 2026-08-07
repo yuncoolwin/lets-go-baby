@@ -329,7 +329,7 @@ export default function IndexPage() {
                   />
                 </View>
                 <Text className="text-sm font-medium truncate max-w-24">
-                  {child.name}{child.nickname ? `（${child.nickname}）` : ''}
+                  {child.name}
                 </Text>
               </View>
             ))}
