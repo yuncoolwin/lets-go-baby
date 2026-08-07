@@ -40,7 +40,7 @@ export default function BindingPage() {
   const [allergyType, setAllergyType] = useState('none')
   const [customAllergy, setCustomAllergy] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [searchResult, setSearchResult] = useState<Array<{ id: string; name: string; gender: string; birth_date?: string }> | null>(null)
+  const [searchResult, setSearchResult] = useState<Array<{ id: string; name: string; gender: string; birth_date?: string; allergies?: string }> | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
 
   const handleSearch = async () => {
@@ -72,11 +72,18 @@ export default function BindingPage() {
     }
   }
 
-  const handleSelectChild = (child: { id: string; name: string; birth_date?: string }) => {
+  const handleSelectChild = (child: { id: string; name: string; birth_date?: string; allergies?: string }) => {
     setChildName(child.name)
     setSelectedChildId(child.id)
     if (child.birth_date) {
       setBirthDate(child.birth_date)
+    }
+    if (child.allergies && child.allergies !== '无') {
+      setAllergyType('custom')
+      setCustomAllergy(child.allergies)
+    } else {
+      setAllergyType('none')
+      setCustomAllergy('')
     }
     setStep('form')
   }

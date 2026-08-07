@@ -209,7 +209,7 @@ export class ParentService {
     // 从 children 表中模糊搜索幼儿姓名
     const { data, error } = await this.client
       .from('children')
-      .select('id, name, gender, birth_date')
+      .select('id, name, gender, birth_date, allergies')
       .ilike('name', `%${keyword.trim()}%`)
       .limit(20);
 
