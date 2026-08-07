@@ -379,7 +379,7 @@ export default function IndexPage() {
                     const childId = currentChild?.id || currentChild?.child_id || babyStatus?.child_id
                     console.log('[Index] 点击详情按钮, childId:', childId, 'currentChild:', currentChild)
                     if (childId && childId !== 'demo') {
-                      Taro.navigateTo({ url: `/pages/child-setting/index?childId=${childId}` })
+                      Taro.navigateTo({ url: `/pages/admin/child-detail/index?id=${childId}&readonly=true` })
                     } else {
                       Taro.showToast({ title: '幼儿信息不存在', icon: 'none' })
                     }
