@@ -14,7 +14,6 @@ import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge } from '@/utils/format'
 
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface ChildDetail {
   id: string
@@ -896,10 +895,20 @@ export default function ChildDetailPage() {
         }}
       />
 
-      <Dialog open={showExtendDialog} onOpenChange={(open) => { if (!open) handleCloseExtendDialog() }}>
-        <DialogContent>
+      {showExtendDialog && (
+        <View
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
+          onClick={handleCloseExtendDialog}
+        >
           <View
             style={{
+              backgroundColor: '#fff',
+              borderRadius: 16,
+              padding: '20px 20px 16px',
+              width: '88%',
+              maxWidth: 400,
+              maxHeight: '80vh',
+              overflowY: 'auto',
               transform: extendAnim === 'open' ? 'scale(1)' : 'scale(0.3)',
               opacity: extendAnim === 'idle' ? 0 : 1,
               transition: extendAnim === 'open'
@@ -908,40 +917,39 @@ export default function ChildDetailPage() {
                 ? 'transform 200ms ease-in, opacity 200ms ease-in'
                 : 'none',
             }}
+            onClick={(e) => e.stopPropagation()}
           >
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold">顺延原因</DialogTitle>
-          </DialogHeader>
-          <View className="py-2">
-            {extendDetails.length === 0 ? (
-              <Text className="block text-sm text-gray-500 text-center py-4">暂无顺延假期</Text>
-            ) : (
-              extendDetails.map((item, idx) => {
-                const typeLabel = item.type === 'all' ? '全园' : item.type === 'class' ? '班级' : '个人'
-                const typeColor = item.type === 'all' ? 'bg-blue-100 text-blue-700' : item.type === 'class' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
-                return (
-                  <View key={idx} className="flex flex-row items-center mb-3 pb-3" style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <View className="flex-1">
-                      <Text className="block text-sm font-medium">{item.name}</Text>
-                      <View className="flex flex-row items-center mt-1">
-                        <Text className={`inline-block text-xs px-2 py-1 rounded ${typeColor}`}>{typeLabel}</Text>
-                        <Text className="block text-xs text-gray-500 ml-2">{item.startDate} ~ {item.endDate}</Text>
+            <Text className="block text-lg font-bold text-center mb-3">顺延原因</Text>
+            <View className="py-2">
+              {extendDetails.length === 0 ? (
+                <Text className="block text-sm text-gray-500 text-center py-4">暂无顺延假期</Text>
+              ) : (
+                extendDetails.map((item, idx) => {
+                  const typeLabel = item.type === 'all' ? '全园' : item.type === 'class' ? '班级' : '个人'
+                  const typeColor = item.type === 'all' ? 'bg-blue-100 text-blue-700' : item.type === 'class' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                  return (
+                    <View key={idx} className="flex flex-row items-center mb-3 pb-3" style={{ borderBottom: '1px solid #f0f0f0' }}>
+                      <View className="flex-1">
+                        <Text className="block text-sm font-medium">{item.name}</Text>
+                        <View className="flex flex-row items-center mt-1">
+                          <Text className={`inline-block text-xs px-2 py-1 rounded ${typeColor}`}>{typeLabel}</Text>
+                          <Text className="block text-xs text-gray-500 ml-2">{item.startDate} ~ {item.endDate}</Text>
+                        </View>
                       </View>
+                      <Text className="block text-sm text-orange-500 font-medium ml-2">顺延{item.overlapDays}天</Text>
                     </View>
-                    <Text className="block text-sm text-orange-500 font-medium ml-2">顺延{item.overlapDays}天</Text>
-                  </View>
-                )
-              })
-            )}
+                  )
+                })
+              )}
+            </View>
+            <View className="pt-3" style={{ borderTop: '1px solid #e5e5e5' }}>
+              <Text className="block text-sm text-gray-500 text-center">
+                共顺延 <Text className="font-bold text-orange-500">{extendTotalDays}</Text> 天，顺延至 <Text className="font-bold text-orange-500">{extendToDate}</Text>
+              </Text>
+            </View>
           </View>
-          <View className="pt-3" style={{ borderTop: '1px solid #e5e5e5' }}>
-            <Text className="block text-sm text-gray-500 text-center">
-              共顺延 <Text className="font-bold text-orange-500">{extendTotalDays}</Text> 天，顺延至 <Text className="font-bold text-orange-500">{extendToDate}</Text>
-            </Text>
-          </View>
-          </View>
-        </DialogContent>
-      </Dialog>
+        </View>
+      )}
     </View>
   )
 }
