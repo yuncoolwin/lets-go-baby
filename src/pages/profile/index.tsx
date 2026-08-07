@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 
 import { Separator } from '@/components/ui/separator'
 import { useAppStore, type RoleType } from '@/store/app'
+import { getRelationshipLabel } from '@/utils/helpers'
 import { User, ChevronRight, LogOut, Users, Shield } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 
@@ -22,11 +23,7 @@ export default function ProfilePage() {
     switch (currentRole.role_type) {
       case 'parent':
         if (currentChild) {
-          const relMap: Record<string, string> = {
-            father: '爸爸', mother: '妈妈',
-            grandfather: '爷爷', grandmother: '奶奶',
-          }
-          const relText = relMap[currentChild.relationship] || '家长'
+          const relText = getRelationshipLabel(currentChild.relationship) || '家长'
           return `${currentChild.name}${relText}`
         }
         return nickname || '新用户'
@@ -148,7 +145,7 @@ export default function ProfilePage() {
                 <View key={child.id} className="flex items-center gap-3 p-2">
                   <View className="flex-1">
                     <Text className="block text-sm text-foreground">{child.name}</Text>
-                    <Text className="block text-xs text-muted-foreground">{child.relationship}</Text>
+                    <Text className="block text-xs text-muted-foreground">{getRelationshipLabel(child.relationship)}</Text>
                   </View>
                 </View>
               ))}

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Network } from '@/network'
 import { ShieldCheck } from 'lucide-react-taro'
+import { getRelationshipLabel } from '@/utils/helpers'
 
 interface BindingRequest {
   id: string
@@ -103,15 +104,9 @@ export default function ReviewPage() {
   }
 
   const getRelationLabel = (rel: string, customRel?: string) => {
-    switch (rel) {
-      case 'father': return '父亲'
-      case 'mother': return '母亲'
-      case 'grandfather': return '祖父'
-      case 'grandmother': return '祖母'
-      case 'other': return customRel || '其他'
-      case 'guardian': return '监护人'
-      default: return rel
-    }
+    if (rel === 'guardian') return '监护人'
+    if (rel === 'other' && customRel) return customRel
+    return getRelationshipLabel(rel) || '其他'
   }
 
   if (loading) {

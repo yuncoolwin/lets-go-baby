@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
 import { Bus, Users, Camera, GraduationCap, Plus, ChevronDown, ChevronUp, BookOpen, Calendar } from 'lucide-react-taro'
+import { getRelationshipLabel } from '@/utils/helpers'
 import { courseApi } from '@/utils/api'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge, formatTime } from '@/utils/format'
@@ -297,11 +298,9 @@ export default function IndexPage() {
         <View className="mb-4">
           <Text className="block text-xl font-bold text-foreground">
             你好，{currentChild ? `${currentChild.name}${
-              currentChild.relationship === 'father' ? '爸爸' :
-              currentChild.relationship === 'mother' ? '妈妈' :
-              currentChild.relationship === 'grandfather' ? '爷爷' :
-              currentChild.relationship === 'grandmother' ? '奶奶' :
-              currentChild.relationship === 'other' && currentChild.custom_relationship ? currentChild.custom_relationship : '家长'
+              currentChild.relationship === 'other' && currentChild.custom_relationship
+                ? currentChild.custom_relationship
+                : getRelationshipLabel(currentChild.relationship) || '家长'
             }` : '新用户'}
           </Text>
           <Text className="block text-sm text-muted-foreground mt-1">

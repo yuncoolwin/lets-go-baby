@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import BackButton from '@/components/back-button'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { Network } from '@/network'
+
 import { formatAge } from '@/utils/format'
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
 
@@ -33,7 +34,13 @@ const statusMap: Record<string, { label: string; className: string }> = {
   suspended: { label: '休学', className: 'bg-yellow-100 text-yellow-700' }
 }
 
-const relationshipOptions = ['爸爸', '妈妈', '爷爷', '奶奶', '其他']
+const relationshipOptions = [
+  { label: '爸爸', value: 'father' },
+  { label: '妈妈', value: 'mother' },
+  { label: '爷爷', value: 'grandfather' },
+  { label: '奶奶', value: 'grandmother' },
+  { label: '其他', value: 'other' },
+]
 
 const genderMap: Record<string, string> = { male: '男', female: '女' }
 const genderOptions = ['男', '女']
@@ -305,18 +312,18 @@ export default function ChildSettingPage() {
               <View className="flex gap-2 flex-wrap">
                 {relationshipOptions.map((opt) => (
                   <View
-                    key={opt}
-                    className={`px-4 py-2 rounded-lg text-sm ${relationship === opt ? 'bg-primary text-white' : 'bg-gray-100 text-foreground'}`}
-                    onClick={() => setRelationship(opt)}
+                    key={opt.value}
+                    className={`px-4 py-2 rounded-lg text-sm ${relationship === opt.value ? 'bg-primary text-white' : 'bg-gray-100 text-foreground'}`}
+                    onClick={() => setRelationship(opt.value)}
                   >
-                    <Text className="text-sm">{opt}</Text>
+                    <Text className="text-sm">{opt.label}</Text>
                   </View>
                 ))}
               </View>
             </View>
 
             {/* 自定义关系 */}
-            {relationship === '其他' && (
+            {relationship === 'other' && (
               <View>
                 <Text className="block text-sm text-muted-foreground mb-2">请填写关系</Text>
                 <View className="bg-gray-50 rounded-lg px-3 py-2">
