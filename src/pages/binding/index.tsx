@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Network } from '@/network'
 import { useAppStore } from '@/store/app'
 import { Search, UserPlus, ChevronDown } from 'lucide-react-taro'
-import rabbitLogo from '@/assets/rabbit-logo.png'
+import { getNameInitial } from '@/utils/helpers'
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
 
 
@@ -203,7 +203,11 @@ export default function BindingPage() {
                   >
                     <View className="flex items-center gap-3">
                       <View className="w-10 h-10 rounded-full bg-primary bg-opacity-10 flex items-center justify-center overflow-hidden">
-                        <Image src={rabbitLogo} className="w-10 h-10 rounded-full" mode="aspectFit" />
+                        <View className={`w-10 h-10 rounded-full flex items-center justify-center ${child.gender === 'male' ? 'bg-blue-100' : 'bg-pink-100'}`}>
+                          <Text className={`text-base font-bold ${child.gender === 'male' ? 'text-blue-600' : 'text-pink-600'}`}>
+                            {getNameInitial(child.name)}
+                          </Text>
+                        </View>
                       </View>
                       <View>
                         <Text className="block text-sm font-medium text-foreground">{child.name}</Text>
