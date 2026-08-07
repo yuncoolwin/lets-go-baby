@@ -38,7 +38,7 @@ export default function BindingPage() {
   const [allergyType, setAllergyType] = useState('none')
   const [customAllergy, setCustomAllergy] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [searchResult, setSearchResult] = useState<Array<{ id: string; name: string; gender: string }> | null>(null)
+  const [searchResult, setSearchResult] = useState<Array<{ id: string; name: string; gender: string; birth_date?: string }> | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
 
   const handleSearch = async () => {
@@ -70,9 +70,12 @@ export default function BindingPage() {
     }
   }
 
-  const handleSelectChild = (child: { id: string; name: string }) => {
+  const handleSelectChild = (child: { id: string; name: string; birth_date?: string }) => {
     setChildName(child.name)
     setSelectedChildId(child.id)
+    if (child.birth_date) {
+      setBirthDate(child.birth_date)
+    }
     setStep('form')
   }
 
@@ -95,8 +98,13 @@ export default function BindingPage() {
       Taro.showToast({ title: '请输入具体关系', icon: 'none' })
       return
     }
-    if (!birthDate) {
+    if (!selectedChildId && !birthDate) {
       Taro.showToast({ title: '请选择出生年月日', icon: 'none' })
+      return
+    }
+    // 已有幼儿且有出生日期时，跳过校验
+    if (selectedChildId && !birthDate) {
+      Taro.showToast({ title: '该幼儿缺少出生日期', icon: 'none' })
       return
     }
     if (allergyType === 'custom' && !customAllergy.trim()) {
@@ -260,12 +268,12 @@ export default function BindingPage() {
                 </Label>
                 <View
                   className="mt-2 bg-gray-50 rounded-xl px-4 py-3 flex items-center justify-between"
-                  onClick={() => setShowCalendar(true)}
+                  onClick={() => { if (!selectedChildId) setShowCalendar(true) }}
                 >
-                  <Text className="text-sm text-foreground">
+                  <Text className={`text-sm ${selectedChildId && birthDate ? 'text-gray-500' : 'text-foreground'}`}>
                     {birthDate || '请选择出生日期'}
                   </Text>
-                  <ChevronDown size={16} color="#999" />
+                  {selectedChildId && birthDate ? null : <ChevronDown size={16} color="#999" />}
                 </View>
               </View>
 
