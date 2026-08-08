@@ -279,32 +279,51 @@ export class AdminService {
   }
 
   async removeParentBinding(childId: string, relationId: string) {
-    // 1. 先获取关联记录，找到 parent_role_id
-    const { data: relation, error: fetchError } = await this.client
+    // 1. 先尝试获取关联记录，找到 parent_role_id
+    let parentRoleId: string | undefined;
+
+    const { data: relation } = await this.client
       .from('parent_child_relations')
       .select('parent_role_id')
       .eq('id', relationId)
       .eq('child_id', childId)
       .single();
 
-    if (fetchError || !relation) {
-      throw new Error(`关联记录不存在: ${fetchError?.message || '未找到'}`);
+    if (relation) {
+      parentRoleId = relation.parent_role_id;
+
+      // 2. 删除关联记录
+      const { error: deleteError } = await this.client
+        .from('parent_child_relations')
+        .delete()
+        .eq('id', relationId)
+        .eq('child_id', childId);
+
+      if (deleteError) throw new Error(`解除绑定失败: ${deleteError.message}`);
+    } else {
+      // 关联记录可能已被删除，尝试从 binding_requests 查找 parent_role_id
+      const { data: req } = await this.client
+        .from('binding_requests')
+        .select('parent_role_id')
+        .eq('child_id', childId)
+        .eq('status', 'approved')
+        .limit(1)
+        .single();
+
+      if (req) {
+        parentRoleId = req.parent_role_id;
+      }
     }
 
-    // 2. 删除关联记录
-    const { error: deleteError } = await this.client
-      .from('parent_child_relations')
-      .delete()
-      .eq('id', relationId)
-      .eq('child_id', childId);
-
-    if (deleteError) throw new Error(`解除绑定失败: ${deleteError.message}`);
+    if (!parentRoleId) {
+      throw new Error('未找到该幼儿的绑定记录');
+    }
 
     // 3. 将 binding_requests 中对应的已审核记录标记为 unbound，允许家长重新申请
     const { error: updateError } = await this.client
       .from('binding_requests')
       .update({ status: 'unbound', approved_at: null })
-      .eq('parent_role_id', relation.parent_role_id)
+      .eq('parent_role_id', parentRoleId)
       .eq('child_id', childId)
       .eq('status', 'approved');
 
