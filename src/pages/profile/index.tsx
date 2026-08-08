@@ -171,14 +171,6 @@ export default function ProfilePage() {
             <>
               <View
                 className="flex items-center justify-between p-4"
-                onClick={() => Taro.navigateTo({ url: '/pages/review/index' })}
-              >
-                <Text className="text-sm text-foreground">审核管理</Text>
-                <ChevronRight size={16} color="#999" />
-              </View>
-              <Separator />
-              <View
-                className="flex items-center justify-between p-4"
                 onClick={() => Taro.navigateTo({ url: '/pages/admin/holidays/index' })}
               >
                 <Text className="text-sm text-foreground">法定节假日</Text>
