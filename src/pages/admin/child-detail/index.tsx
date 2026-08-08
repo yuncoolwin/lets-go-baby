@@ -526,13 +526,19 @@ export default function ChildDetailPage() {
                   {/* 在读状态 */}
                   <View>
                     <Label className="text-sm font-medium text-foreground">在读状态 *</Label>
-                    <View className="mt-1 flex gap-2">
-                      {statusOptions.map((opt) => (
-                        <View key={opt.value} className={`px-4 py-2 rounded-lg text-sm ${editStatus === opt.value ? 'bg-primary text-white' : 'bg-gray-100 text-foreground'}`} onClick={() => setEditStatus(opt.value)}>
-                          <Text className="block text-sm">{opt.label}</Text>
-                        </View>
-                      ))}
-                    </View>
+                    {isReadonly ? (
+                      <View className="mt-1 px-3 py-2 bg-gray-100 rounded-lg">
+                        <Text className="block text-sm text-foreground">{statusMap[editStatus]?.label || editStatus}</Text>
+                      </View>
+                    ) : (
+                      <View className="mt-1 flex gap-2">
+                        {statusOptions.map((opt) => (
+                          <View key={opt.value} className={`px-4 py-2 rounded-lg text-sm ${editStatus === opt.value ? 'bg-primary text-white' : 'bg-gray-100 text-foreground'}`} onClick={() => setEditStatus(opt.value)}>
+                            <Text className="block text-sm">{opt.label}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
                   </View>
                   {/* 过敏情况 */}
                   <View>
