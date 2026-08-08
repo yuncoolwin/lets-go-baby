@@ -163,7 +163,7 @@ export default function ProfilePage() {
             className="flex items-center justify-between p-4"
             onClick={() => Taro.navigateTo({ url: '/pages/binding/index' })}
           >
-            <Text className="text-sm text-foreground">绑定幼儿并进入家长端</Text>
+            <Text className="text-sm text-foreground">绑定幼儿并创建家长端</Text>
             <ChevronRight size={16} color="#999" />
           </View>
           <Separator />
