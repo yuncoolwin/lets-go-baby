@@ -316,7 +316,7 @@ export class AdminService {
   }
 
   private getRelationshipLabel(relationship: string, customRelationship?: string | null): string {
-    if (relationship === 'custom' && customRelationship) {
+    if (relationship === 'other' && customRelationship) {
       return customRelationship;
     }
     const map: Record<string, string> = {

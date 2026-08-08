@@ -300,7 +300,7 @@ export default function IndexPage() {
             你好，{currentChild ? `${currentChild.name}${
               currentChild.relationship === 'other' && currentChild.custom_relationship
                 ? currentChild.custom_relationship
-                : getRelationshipLabel(currentChild.relationship) || '家长'
+                : (getRelationshipLabel(currentChild.relationship) === '其他' ? '家长' : getRelationshipLabel(currentChild.relationship) || '家长')
             }` : '新用户'}
           </Text>
           <Text className="block text-sm text-muted-foreground mt-1">

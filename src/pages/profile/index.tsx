@@ -23,7 +23,9 @@ export default function ProfilePage() {
     switch (currentRole.role_type) {
       case 'parent':
         if (currentChild) {
-          const relText = getRelationshipLabel(currentChild.relationship) || '家长'
+          const relText = currentChild.relationship === 'other' && currentChild.custom_relationship
+            ? currentChild.custom_relationship
+            : (getRelationshipLabel(currentChild.relationship) || '家长')
           return `${currentChild.name}${relText}`
         }
         return nickname || '新用户'
