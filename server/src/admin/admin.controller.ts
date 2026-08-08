@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, HttpCode } from '@nestjs/common';
 import { AdminService } from './admin.service';
 
 @Controller('admin')
@@ -56,8 +56,8 @@ export class AdminController {
 
   @Get('user/parent-status')
   @HttpCode(200)
-  async getParentStatus(@Body() body: { user_id: string }) {
-    const data = await this.adminService.getParentStatus(body.user_id);
+  async getParentStatus(@Query('userId') userId: string) {
+    const data = await this.adminService.getParentStatus(userId);
     return { code: 200, msg: 'success', data };
   }
 }

@@ -13,7 +13,7 @@ import { useState } from 'react'
 
 export default function ProfilePage() {
   const {
-    nickname, roles, currentRole, currentRoleIndex,
+    nickname, roles, currentRole, currentRoleIndex, userId,
     children, currentChildIndex, isLoggedIn, setCurrentRole, logout, fetchUserInfo,
   } = useAppStore()
 
@@ -64,8 +64,9 @@ export default function ProfilePage() {
   })
 
   const loadParentStatus = async () => {
+    if (!userId) return
     try {
-      const res = await Network.request({ url: '/api/admin/user/parent-status' })
+      const res = await Network.request({ url: '/api/admin/user/parent-status', data: { userId } })
       if (res.data?.data) {
         setParentStatus(res.data.data)
       }

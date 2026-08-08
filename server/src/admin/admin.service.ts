@@ -352,12 +352,14 @@ export class AdminService {
 
   async getParentStatus(userId: string): Promise<{ hasParentRole: boolean; childCount: number }> {
     // 1. 查找该用户的 parent 角色
-    const { data: parentRole } = await this.client
+    console.log('[getParentStatus] userId:', userId);
+    const { data: parentRole, error: parentRoleError } = await this.client
       .from('user_roles')
       .select('id')
       .eq('user_id', userId)
       .eq('role_type', 'parent')
       .maybeSingle();
+    console.log('[getParentStatus] parentRole:', parentRole, 'error:', parentRoleError);
 
     if (!parentRole) {
       return { hasParentRole: false, childCount: 0 };
