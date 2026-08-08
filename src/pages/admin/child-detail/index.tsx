@@ -711,7 +711,7 @@ export default function ChildDetailPage() {
                       className="ml-2"
                       onClick={() => handleUnbindParent(parent.id)}
                     >
-                      <Text className="text-xs text-red-500">删除</Text>
+                      <Text className="text-xs text-red-500">解除绑定</Text>
                     </View>
                   )}
                 </View>
