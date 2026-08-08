@@ -297,7 +297,7 @@ export default function IndexPage() {
         {/* 欢迎区域 */}
         <View className="mb-4">
           <Text className="block text-xl font-bold text-foreground">
-            你好，{currentChild ? `${currentChild.name}${
+            您好，{currentChild ? `${currentChild.name}${
               currentChild.relationship === 'other' && currentChild.custom_relationship
                 ? currentChild.custom_relationship
                 : (getRelationshipLabel(currentChild.relationship) === '其他' ? '家长' : getRelationshipLabel(currentChild.relationship) || '家长')
