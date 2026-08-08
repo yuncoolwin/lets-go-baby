@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text, Image, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -310,38 +310,40 @@ export default function IndexPage() {
 
         {/* 多孩切换 + 添加幼儿 */}
         {children.length > 0 && (
-          <View className="mb-4 flex gap-2 overflow-x-auto items-center">
-            {children.map((child, index) => (
-              <View
-                key={child.id}
-                className={`flex items-center gap-2 px-3 py-2 rounded-full ${
-                  index === currentChildIndex
-                    ? 'bg-primary text-white'
-                    : 'bg-white text-foreground'
-                }`}
-                onClick={() => setCurrentChild(index)}
-              >
-                <View className="w-6 h-6 rounded-full bg-white bg-opacity-30 flex items-center justify-center overflow-hidden">
-                  <Image
-                    src={rabbitLogo}
-                    className="w-6 h-6 rounded-full"
-                    mode="aspectFit"
-                  />
+          <ScrollView scrollX className="mb-4" showScrollbar={false}>
+            <View className="flex flex-row gap-2 items-center">
+              {children.map((child, index) => (
+                <View
+                  key={child.id}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-full whitespace-nowrap ${
+                    index === currentChildIndex
+                      ? 'bg-primary text-white'
+                      : 'bg-white text-foreground'
+                  }`}
+                  onClick={() => setCurrentChild(index)}
+                >
+                  <View className="w-6 h-6 rounded-full bg-white bg-opacity-30 flex items-center justify-center overflow-hidden">
+                    <Image
+                      src={rabbitLogo}
+                      className="w-6 h-6 rounded-full"
+                      mode="aspectFit"
+                    />
+                  </View>
+                  <Text className="text-sm font-medium truncate max-w-24">
+                    {child.name}
+                  </Text>
                 </View>
-                <Text className="text-sm font-medium truncate max-w-24">
-                  {child.name}
-                </Text>
+              ))}
+              {/* 添加幼儿按钮 */}
+              <View
+                className="flex items-center gap-1 px-3 py-2 rounded-full bg-white border border-dashed border-primary whitespace-nowrap"
+                onClick={() => Taro.navigateTo({ url: '/pages/binding/index' })}
+              >
+                <Plus size={16} color="#E8651A" />
+                <Text className="text-sm text-primary">添加幼儿</Text>
               </View>
-            ))}
-            {/* 添加幼儿按钮 */}
-            <View
-              className="flex items-center gap-1 px-3 py-2 rounded-full bg-white border border-dashed border-primary"
-              onClick={() => Taro.navigateTo({ url: '/pages/binding/index' })}
-            >
-              <Plus size={16} color="#E8651A" />
-              <Text className="text-sm text-primary">添加幼儿</Text>
             </View>
-          </View>
+          </ScrollView>
         )}
 
         {/* 宝宝状态卡片 - 仅在已绑定幼儿时显示 */}
