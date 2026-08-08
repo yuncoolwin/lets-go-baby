@@ -6,14 +6,18 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { useAppStore, type RoleType } from '@/store/app'
 import { getRelationshipLabel } from '@/utils/helpers'
+import { Network } from '@/network'
 import { User, ChevronRight, LogOut, Users, Shield } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
+import { useState } from 'react'
 
 export default function ProfilePage() {
   const {
     nickname, roles, currentRole, currentRoleIndex,
-    children, currentChildIndex, isLoggedIn, setCurrentRole, logout,
+    children, currentChildIndex, isLoggedIn, setCurrentRole, logout, fetchUserInfo,
   } = useAppStore()
+
+  const [parentStatus, setParentStatus] = useState<{ hasParentRole: boolean; childCount: number } | null>(null)
 
   const currentChild = children[currentChildIndex] || null
 
@@ -51,6 +55,22 @@ export default function ProfilePage() {
         return '管理员'
       default:
         return ''
+    }
+  }
+
+  Taro.useDidShow(() => {
+    fetchUserInfo()
+    loadParentStatus()
+  })
+
+  const loadParentStatus = async () => {
+    try {
+      const res = await Network.request({ url: '/api/admin/user/parent-status' })
+      if (res.data?.data) {
+        setParentStatus(res.data.data)
+      }
+    } catch {
+      // 非管理员/教师或接口不可用时忽略
     }
   }
 
@@ -104,19 +124,23 @@ export default function ProfilePage() {
       </View>
 
       {/* 角色切换 */}
-      {roles.length > 1 && (
-        <Card className="bg-white rounded-xl border-0 shadow-sm mb-4">
-          <CardContent className="p-4">
-            <Text className="block text-sm font-semibold text-foreground mb-3">切换角色</Text>
-            <View className="space-y-2">
-              {roles.map((role, index) => {
-                const iconInfo = getRoleIcon(role.role_type)
-                const isActive = index === currentRoleIndex
+      {(() => {
+        const showParent = parentStatus?.hasParentRole && (parentStatus?.childCount || 0) > 0
+        const filteredRoles = roles.filter((r) => r.role_type !== 'parent' || showParent)
+        return filteredRoles.length > 1 && (
+          <Card className="bg-white rounded-xl border-0 shadow-sm mb-4">
+            <CardContent className="p-4">
+              <Text className="block text-sm font-semibold text-foreground mb-3">切换角色</Text>
+              <View className="space-y-2">
+                {filteredRoles.map((role) => {
+                  const roleIndex = roles.findIndex((r) => r.id === role.id)
+                  const iconInfo = getRoleIcon(role.role_type)
+                  const isActive = roleIndex === currentRoleIndex
                 return (
                   <View
                     key={role.id}
                     className={`flex items-center gap-3 p-3 rounded-lg ${isActive ? 'bg-secondary' : ''}`}
-                    onClick={() => setCurrentRole(index)}
+                    onClick={() => setCurrentRole(roleIndex)}
                   >
                     {iconInfo.type === 'image' ? (
                       <Image src={iconInfo.src} className="w-5 h-5 rounded-full" mode="aspectFit" />
@@ -133,12 +157,13 @@ export default function ProfilePage() {
                 )
               })}
             </View>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        )
+      })()}
 
-      {/* 我的孩子（家长端） */}
-      {currentRole?.role_type === 'parent' && children.length > 0 && (
+    {/* 我的孩子（家长端） */}
+    {currentRole?.role_type === 'parent' && children.length > 0 && (
         <Card className="bg-white rounded-xl border-0 shadow-sm mb-4">
           <CardContent className="p-4">
             <Text className="block text-sm font-semibold text-foreground mb-3">我的孩子</Text>

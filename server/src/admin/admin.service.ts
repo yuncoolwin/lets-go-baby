@@ -207,13 +207,48 @@ export class AdminService {
       if (role) userId = role.user_id;
     }
 
-    // 4. 在 parent_child_relations 表中创建记录
+    // 5. 确保用户有 parent 角色（如没有则自动创建）
+    let parentRoleId = request.parent_role_id;
+    if (userId) {
+      const roleType = request.parent_role_id
+        ? (await this.client.from('user_roles').select('role_type').eq('id', request.parent_role_id).maybeSingle()).data
+            ?.role_type
+        : null;
+      // 如果当前角色不是 parent，查找或创建 parent 角色
+      if (roleType !== 'parent') {
+        const { data: existingParent } = await this.client
+          .from('user_roles')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('role_type', 'parent')
+          .maybeSingle();
+
+        if (existingParent) {
+          parentRoleId = existingParent.id;
+        } else {
+          const { data: newRole, error: createError } = await this.client
+            .from('user_roles')
+            .insert({
+              user_id: userId,
+              role_type: 'parent',
+              role: 'parent',
+              status: 'active',
+            })
+            .select('id')
+            .single();
+          if (createError) throw new Error(`创建家长角色失败: ${createError.message}`);
+          if (newRole) parentRoleId = newRole.id;
+        }
+      }
+    }
+
+    // 6. 在 parent_child_relations 表中创建记录
     if (userId && request.child_id) {
       const { error: relError } = await this.client
         .from('parent_child_relations')
         .insert({
           user_id: userId,
-          parent_role_id: request.parent_role_id,
+          parent_role_id: parentRoleId,
           child_id: request.child_id,
           relationship: request.relationship,
           custom_relationship: request.custom_relationship || null,
@@ -313,6 +348,28 @@ export class AdminService {
     }
 
     return { success: true };
+  }
+
+  async getParentStatus(userId: string): Promise<{ hasParentRole: boolean; childCount: number }> {
+    // 1. 查找该用户的 parent 角色
+    const { data: parentRole } = await this.client
+      .from('user_roles')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('role_type', 'parent')
+      .maybeSingle();
+
+    if (!parentRole) {
+      return { hasParentRole: false, childCount: 0 };
+    }
+
+    // 2. 统计该 parent 角色下的绑定幼儿数量
+    const { count } = await this.client
+      .from('parent_child_relations')
+      .select('*', { count: 'exact', head: true })
+      .eq('parent_role_id', parentRole.id);
+
+    return { hasParentRole: true, childCount: count || 0 };
   }
 
   private getRelationshipLabel(relationship: string, customRelationship?: string | null): string {

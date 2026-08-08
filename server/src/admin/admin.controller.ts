@@ -53,4 +53,11 @@ export class AdminController {
     const data = await this.adminService.rejectBindingRequest(body.request_id, body.reason);
     return { code: 200, msg: 'success', data };
   }
+
+  @Get('user/parent-status')
+  @HttpCode(200)
+  async getParentStatus(@Body() body: { user_id: string }) {
+    const data = await this.adminService.getParentStatus(body.user_id);
+    return { code: 200, msg: 'success', data };
+  }
 }
