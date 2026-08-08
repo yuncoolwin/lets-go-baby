@@ -218,6 +218,7 @@ export class AuthService {
       gender: string;
       avatar_url: string | null;
       relationship: string;
+      custom_relationship?: string | null;
     }> = [];
 
     const parentRole = (roles || []).find(r => r.role_type === 'parent');
@@ -241,6 +242,7 @@ export class AuthService {
             return {
               ...c,
               relationship: rel?.relationship || 'other',
+              custom_relationship: rel?.custom_relationship || null,
             };
           });
         }
