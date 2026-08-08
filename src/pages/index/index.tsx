@@ -310,7 +310,7 @@ export default function IndexPage() {
 
         {/* 多孩切换 + 添加幼儿 */}
         {children.length > 0 && (
-          <ScrollView scrollX className="mb-4" showScrollbar={false}>
+          <ScrollView scrollX className="mb-4 scrollbar-hide" showScrollbar={false}>
             <View className="flex flex-row gap-2 items-center">
               {children.map((child, index) => (
                 <View

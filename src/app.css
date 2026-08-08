@@ -65,6 +65,15 @@ root-portal {
   --tw-ring-offset-shadow: 0 0 #0000;
 }
 
+/* 隐藏滚动条 */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 .dark {
   --background: lab(2.75381% 0 0);
   --foreground: lab(98.26% 0 0);
