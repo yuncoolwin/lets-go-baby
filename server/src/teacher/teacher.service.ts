@@ -501,36 +501,32 @@ export class TeacherService {
   }
 
   async getClassStudents(classId: string, courseId?: string) {
-    // 查询该班级的在读幼儿
+    // 从报读记录中获取该班级的幼儿（enrollments.class_id 数据更完整）
+    let enrollmentQuery = this.client
+      .from('enrollments')
+      .select('child_id')
+      .eq('class_id', classId)
+      .eq('status', '进行中');
+
+    if (courseId) {
+      enrollmentQuery = enrollmentQuery.eq('course_id', courseId);
+    }
+
+    const { data: enrollments, error: enrollError } = await enrollmentQuery;
+    if (enrollError) throw new Error(`查询报读记录失败: ${enrollError.message}`);
+    if (!enrollments || enrollments.length === 0) return [];
+
+    const activeChildIds = [...new Set(enrollments.map(e => e.child_id))];
+
+    // 查询幼儿信息
     const { data: children, error: childError } = await this.client
       .from('children')
       .select('id, name, gender, birth_date')
-      .eq('class_id', classId)
+      .in('id', activeChildIds)
       .eq('status', 'active');
 
     if (childError) throw new Error(`查询幼儿失败: ${childError.message}`);
     if (!children || children.length === 0) return [];
-
-    // 过滤有进行中报读的幼儿，可选按课程过滤
-    const childIds = children.map(c => c.id);
-    let activeChildIds: string[] = [];
-    if (childIds.length > 0) {
-      let query = this.client
-        .from('enrollments')
-        .select('child_id')
-        .in('child_id', childIds)
-        .eq('status', '进行中');
-      
-      if (courseId) {
-        query = query.eq('course_id', courseId);
-      }
-      
-      const { data: enrollments } = await query;
-      activeChildIds = [...new Set(enrollments?.map(e => e.child_id) || [])];
-    }
-
-    // 筛选出有进行中报读的幼儿
-    const activeChildren = children.filter(c => activeChildIds.includes(c.id));
 
     // 查询当天考勤记录（使用日期字符串匹配）
     const todayStr = new Date().toISOString().split('T')[0];
@@ -548,7 +544,7 @@ export class TeacherService {
       });
     }
 
-    return activeChildren.map((c) => ({
+    return children.map((c) => ({
       id: c.id,
       child_name: c.name,
       gender: c.gender || 'unknown',
