@@ -117,15 +117,14 @@ export default function RecordsPage() {
 
   const loadStudents = async () => {
     try {
-      // 从存储获取教师ID
-      const userInfo = Taro.getStorageSync('userInfo')
-      const teacherId = userInfo?.teacher_id || ''
+      // 使用当前角色ID加载教师管理的班级
+      const teacherRoleId = currentRole?.id || ''
 
-      // 加载教师管理的班级
-      if (teacherId) {
+      if (teacherRoleId) {
         const classesRes = await Network.request({
           url: '/api/teachers/classes',
           method: 'GET',
+          data: { teacher_role_id: teacherRoleId }
         })
         console.log('[Records] teacher classes:', classesRes.data)
         const classList = classesRes.data?.data || []

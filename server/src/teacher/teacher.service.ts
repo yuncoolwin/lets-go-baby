@@ -551,13 +551,32 @@ export class TeacherService {
   }
 
   async getTeacherClasses(teacherId: string) {
-    const { data: teacher, error } = await this.client
+    // Try to find teacher by id directly (teachers.id)
+    let { data: teacher } = await this.client
       .from('teachers')
       .select('class_id')
       .eq('id', teacherId)
       .single();
 
-    if (error || !teacher?.class_id) {
+    // If not found, try via user_roles -> real_name
+    if (!teacher?.class_id) {
+      const { data: roleRecord } = await this.client
+        .from('user_roles')
+        .select('real_name')
+        .eq('id', teacherId)
+        .single();
+
+      if (roleRecord?.real_name) {
+        const { data: teacherByRole } = await this.client
+          .from('teachers')
+          .select('class_id')
+          .eq('real_name', roleRecord.real_name)
+          .single();
+        teacher = teacherByRole;
+      }
+    }
+
+    if (!teacher?.class_id) {
       return [];
     }
 
