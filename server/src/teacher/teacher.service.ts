@@ -239,8 +239,28 @@ export class TeacherService {
 
     const enrollmentList = enrollments || [];
 
+    // 按星期过滤课程（根据 date_calc_rule）
+    const today = new Date();
+    const weekday = today.getDay(); // 0=周日, 1=周一, ..., 6=周六
+    let weekdayRule = '';
+    if (weekday >= 1 && weekday <= 5) {
+      weekdayRule = '工作日';
+    } else if (weekday === 6) {
+      weekdayRule = '周六';
+    } else if (weekday === 0) {
+      weekdayRule = '周日';
+    }
+    // 查询当前星期有排课的课程 ID
+    const { data: weekdayCourses } = await this.client
+      .from('courses')
+      .select('id, name')
+      .eq('date_calc_rule', weekdayRule);
+    const weekdayCourseIds = new Set((weekdayCourses || []).map(c => c.id));
+    // 过滤：只保留 course_id 匹配当天排课的报读
+    const filteredEnrollments = enrollmentList.filter(e => e.course_id && weekdayCourseIds.has(e.course_id));
+
     // 收集所有 child_id
-    const childIds = [...new Set(enrollmentList.map(e => e.child_id))];
+    const childIds = [...new Set(filteredEnrollments.map(e => e.child_id))];
 
     // 查询幼儿信息（仅 active 状态）
     let childrenMap: Record<string, { name: string; gender: string; birth_date: string }> = {};
@@ -267,7 +287,7 @@ export class TeacherService {
       extended_end_date: string | null;
     }>>();
 
-    for (const e of enrollmentList) {
+    for (const e of filteredEnrollments) {
       const ct = e.course_type;
       // 过滤日期范围：queryDate 必须在 start_date ~ end_date 之间
       if (queryDate && e.start_date && queryDate < e.start_date) continue;
@@ -382,7 +402,26 @@ export class TeacherService {
       .eq('status', '进行中');
 
     const enrollmentList = enrollments || [];
-    const childIds = [...new Set(enrollmentList.map(e => e.child_id))];
+
+    // 按星期过滤课程（根据 date_calc_rule）
+    const today = new Date();
+    const weekday = today.getDay();
+    let weekdayRule = '';
+    if (weekday >= 1 && weekday <= 5) {
+      weekdayRule = '工作日';
+    } else if (weekday === 6) {
+      weekdayRule = '周六';
+    } else if (weekday === 0) {
+      weekdayRule = '周日';
+    }
+    const { data: weekdayCourses } = await this.client
+      .from('courses')
+      .select('id, name')
+      .eq('date_calc_rule', weekdayRule);
+    const weekdayCourseIds = new Set((weekdayCourses || []).map(c => c.id));
+    const filteredEnrollments = enrollmentList.filter(e => e.course_id && weekdayCourseIds.has(e.course_id));
+
+    const childIds = [...new Set(filteredEnrollments.map(e => e.child_id))];
 
     // 查询幼儿信息
     let childrenMap: Record<string, { name: string; gender: string; birth_date: string }> = {};
@@ -408,7 +447,7 @@ export class TeacherService {
       extended_end_date: string | null;
     }>>();
 
-    for (const e of enrollmentList) {
+    for (const e of filteredEnrollments) {
       const ct = e.course_type;
       if (queryDate && e.start_date && queryDate < e.start_date) continue;
       if (queryDate && e.end_date && queryDate > e.end_date) continue;
