@@ -591,11 +591,9 @@ export class TeacherService {
   }
 
   async getCourses() {
-    const today = new Date().getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
     const { data, error } = await this.client
       .from('courses')
       .select('id, name')
-      .contains('weekdays', [today])
       .order('name');
 
     if (error) {
