@@ -183,12 +183,15 @@ export default function RecordsPage() {
         // 加载课程列表
         await loadCourses()
 
-        // 默认选中第一个班级
-        if (classList.length > 0) {
-          setSelectedClassId(classList[0].id)
-          await loadStudentsByClass(classList[0].id)
+        // 如果当前已选班级仍在列表中则保留，否则默认选中第一个班级
+        const targetClassId = selectedClassId && classList.some(c => c.id === selectedClassId)
+          ? selectedClassId
+          : classList.length > 0 ? classList[0].id : ''
+        setSelectedClassId(targetClassId)
+        if (targetClassId) {
+          // 保留当前已选的课程筛选
+          await loadStudentsByClass(targetClassId, selectedCourseId || undefined)
         } else {
-          setSelectedClassId('')
           setStudents([])
           setRecordedStudentIds([])
         }
