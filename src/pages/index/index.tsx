@@ -169,7 +169,7 @@ export default function IndexPage() {
           method: 'GET',
           data: { teacher_role_id: teacherId },
         }),
-        courseApi.list(),
+        courseApi.list({ weekday: new Date().getDay() }),
       ])
       console.log('[Index] grouped overview:', groupRes.data)
       if (groupRes.data?.data) {

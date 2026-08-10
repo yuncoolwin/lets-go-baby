@@ -5,11 +5,27 @@ import { getSupabaseClient } from '@/storage/database/supabase-client';
 export class CoursesService {
   private supabase = getSupabaseClient();
 
-  async findAll() {
-    const { data, error } = await this.supabase
+  async findAll(weekday?: string) {
+    let query = this.supabase
       .from('courses')
       .select('*')
-      .order('created_at', { ascending: false });
+
+    // 根据星期过滤课程
+    if (weekday !== undefined && weekday !== '') {
+      const wd = parseInt(weekday, 10)
+      if (wd >= 1 && wd <= 5) {
+        // 周一至周五 → 只显示工作日课程
+        query = query.eq('date_calc_rule', '工作日')
+      } else if (wd === 6) {
+        // 周六 → 只显示周六课程
+        query = query.eq('date_calc_rule', '周六')
+      } else if (wd === 0) {
+        // 周日 → 只显示周日课程
+        query = query.eq('date_calc_rule', '周日')
+      }
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
     return data || [];
   }

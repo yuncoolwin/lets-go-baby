@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
 import { CoursesService } from './courses.service';
 
 @Controller('courses')
@@ -6,8 +6,8 @@ export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
 
   @Get()
-  async findAll() {
-    const result = await this.coursesService.findAll();
+  async findAll(@Query('weekday') weekday?: string) {
+    const result = await this.coursesService.findAll(weekday);
     return { code: 200, msg: 'success', data: result };
   }
 
