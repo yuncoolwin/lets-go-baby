@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react'
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text, Image, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Trash2 , BookOpen, Plus, X } from 'lucide-react-taro'
+import { Trash2 , BookOpen, Plus, X, ChevronDown } from 'lucide-react-taro'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
 import rabbitLogo from '@/assets/rabbit-logo.png'
+
+interface ClassItem {
+  id: string
+  name: string
+}
 
 interface FeedbackItem {
   id: string
@@ -45,6 +50,8 @@ export default function RecordsPage() {
   const [showStudentPicker, setShowStudentPicker] = useState(false)
   const [recordedStudentIds, setRecordedStudentIds] = useState<string[]>([])
   const [editingFeedbackId, setEditingFeedbackId] = useState<string | null>(null)
+  const [classes, setClasses] = useState<ClassItem[]>([])
+  const [selectedClassId, setSelectedClassId] = useState('')
 
   useEffect(() => {
     loadFeedbacks()
@@ -70,29 +77,14 @@ export default function RecordsPage() {
     setLoading(false)
   }
 
-  const loadStudents = async () => {
+  const loadStudentsByClass = async (classId: string) => {
+    if (!classId) {
+      setStudents([])
+      setRecordedStudentIds([])
+      return
+    }
+
     try {
-      // 从存储获取教师ID
-      const userInfo = Taro.getStorageSync('userInfo')
-      const teacherId = userInfo?.teacher_id || ''
-      let classId = ''
-
-      // 先获取教师信息获取班级ID
-      if (teacherId) {
-        const teacherRes = await Network.request({
-          url: `/api/teachers/${teacherId}`,
-          method: 'GET',
-        })
-        console.log('[Records] teacher info:', teacherRes.data)
-        classId = teacherRes.data?.data?.class_id || ''
-      }
-
-      if (!classId) {
-        console.warn('[Records] no class_id found')
-        setStudents([])
-        return
-      }
-
       const res = await Network.request({
         url: '/api/teachers/class-students',
         method: 'GET',
@@ -100,7 +92,6 @@ export default function RecordsPage() {
       })
       console.log('[Records] students:', res.data)
       if (res.data?.data) {
-        // 按考勤状态排序：出勤 > 其他
         const sorted = [...res.data.data].sort((a: any, b: any) => {
           if (a.attendance_status === 'present' && b.attendance_status !== 'present') return -1
           if (a.attendance_status !== 'present' && b.attendance_status === 'present') return 1
@@ -109,7 +100,6 @@ export default function RecordsPage() {
         setStudents(sorted)
       }
 
-      // 加载当天已记录幼儿
       const feedbackRes = await Network.request({
         url: '/api/teachers/feedbacks',
         method: 'GET',
@@ -119,6 +109,37 @@ export default function RecordsPage() {
       if (feedbackRes.data?.data) {
         const recordedIds = feedbackRes.data.data.map((f: any) => f.child_id)
         setRecordedStudentIds(recordedIds)
+      }
+    } catch (err) {
+      console.error('[Records] load students error:', err)
+    }
+  }
+
+  const loadStudents = async () => {
+    try {
+      // 从存储获取教师ID
+      const userInfo = Taro.getStorageSync('userInfo')
+      const teacherId = userInfo?.teacher_id || ''
+
+      // 加载教师管理的班级
+      if (teacherId) {
+        const classesRes = await Network.request({
+          url: '/api/teachers/classes',
+          method: 'GET',
+        })
+        console.log('[Records] teacher classes:', classesRes.data)
+        const classList = classesRes.data?.data || []
+        setClasses(classList)
+
+        // 默认选中第一个班级
+        if (classList.length > 0) {
+          setSelectedClassId(classList[0].id)
+          await loadStudentsByClass(classList[0].id)
+        } else {
+          setSelectedClassId('')
+          setStudents([])
+          setRecordedStudentIds([])
+        }
       }
     } catch (err) {
       console.error('[Records] load students error:', err)
@@ -315,9 +336,36 @@ export default function RecordsPage() {
                 </Button>
               </View>
 
+              {/* 选择班级 */}
+              <Text className="block text-sm font-medium mb-2">选择班级</Text>
+              <View className="relative bg-gray-50 rounded-xl px-4 py-3 mb-4">
+                <Picker
+                  mode="selector"
+                  range={classes}
+                  rangeKey="name"
+                  value={classes.findIndex(c => c.id === selectedClassId)}
+                  onChange={(e) => {
+                    const idx = parseInt(String(e.detail.value))
+                    if (idx >= 0 && idx < classes.length) {
+                      const cls = classes[idx]
+                      setSelectedClassId(cls.id)
+                      setSelectedChildId('')
+                      loadStudentsByClass(cls.id)
+                    }
+                  }}
+                >
+                  <View className="flex items-center" style={{ cursor: 'pointer' }}>
+                    <Text className="block flex-1" style={{ fontSize: 16, color: selectedClassId ? '#333' : '#999' }}>
+                      {selectedClassId ? classes.find(c => c.id === selectedClassId)?.name || '请选择班级' : '请选择班级'}
+                    </Text>
+                    <ChevronDown size={16} color="#999" />
+                  </View>
+                </Picker>
+              </View>
+
               {/* 选择幼儿 */}
               <Text className="block text-sm font-medium mb-2">选择幼儿</Text>
-              <View className="relative bg-gray-50 rounded-xl px-4 py-3 mb-4">
+              <View className={`relative bg-gray-50 rounded-xl px-4 py-3 mb-4 ${!selectedClassId ? 'opacity-50' : ''}`}>
                 <View
                   className="flex items-center"
                   onClick={() => setShowStudentPicker(!showStudentPicker)}

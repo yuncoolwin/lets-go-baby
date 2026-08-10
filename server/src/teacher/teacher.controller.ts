@@ -12,6 +12,13 @@ export class TeacherController {
     return { code: 200, msg: 'success', data };
   }
 
+  @Get('classes')
+  @HttpCode(200)
+  async getTeacherClasses(@Query('teacher_role_id') teacherRoleId: string) {
+    const data = await this.teacherService.getTeacherClasses(teacherRoleId);
+    return { code: 200, msg: 'success', data };
+  }
+
   @Get('class-overview')
   @HttpCode(200)
   async getClassOverview(

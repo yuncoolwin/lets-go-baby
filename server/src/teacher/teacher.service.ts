@@ -550,6 +550,25 @@ export class TeacherService {
     }));
   }
 
+  async getTeacherClasses(teacherId: string) {
+    const { data: teacher, error } = await this.client
+      .from('teachers')
+      .select('class_id')
+      .eq('id', teacherId)
+      .single();
+
+    if (error || !teacher?.class_id) {
+      return [];
+    }
+
+    const { data: classData } = await this.client
+      .from('classes')
+      .select('id, name')
+      .eq('id', teacher.class_id);
+
+    return classData || [];
+  }
+
   async getFeedbacks(teacherRoleId?: string) {
     // 从数据库查询真实记录
     const { data, error } = await this.client
