@@ -131,9 +131,12 @@ export default function RecordsPage() {
   // 加载课程列表
   const loadCourses = async () => {
     try {
+      const today = new Date()
+      const weekday = today.getDay() // 0=周日, 1=周一, ..., 6=周六
       const res = await Network.request({
         url: '/api/teachers/courses',
-        method: 'GET'
+        method: 'GET',
+        data: { weekday }
       })
       console.log('[Records] courses:', res.data)
       if (res.data?.data) {

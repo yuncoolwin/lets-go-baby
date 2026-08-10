@@ -590,11 +590,30 @@ export class TeacherService {
     return classData || [];
   }
 
-  async getCourses() {
-    const { data, error } = await this.client
+  async getCourses(weekday?: string) {
+    // 根据星期几过滤课程：
+    //   weekday 0=周日, 1=周一, ..., 6=周六
+    //   date_calc_rule: '工作日'=周一至周五, '周六'=周六, '周日'=周日
+    let query = this.client
       .from('courses')
       .select('id, name')
       .order('name');
+
+    if (weekday !== undefined && weekday !== '') {
+      const wd = parseInt(weekday, 10);
+      if (wd >= 1 && wd <= 5) {
+        // 周一至周五 → 只显示 '工作日'
+        query = query.eq('date_calc_rule', '工作日');
+      } else if (wd === 6) {
+        // 周六
+        query = query.eq('date_calc_rule', '周六');
+      } else if (wd === 0) {
+        // 周日
+        query = query.eq('date_calc_rule', '周日');
+      }
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('[getCourses] Error:', error);

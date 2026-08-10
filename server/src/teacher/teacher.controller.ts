@@ -50,8 +50,8 @@ export class TeacherController {
 
   @Get('courses')
   @HttpCode(200)
-  async getCourses() {
-    const data = await this.teacherService.getCourses();
+  async getCourses(@Query('weekday') weekday?: string) {
+    const data = await this.teacherService.getCourses(weekday);
     return { code: 200, msg: 'success', data };
   }
 
