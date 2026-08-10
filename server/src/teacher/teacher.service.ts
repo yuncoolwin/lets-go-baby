@@ -500,7 +500,7 @@ export class TeacherService {
     return groups;
   }
 
-  async getClassStudents(classId: string) {
+  async getClassStudents(classId: string, courseId?: string) {
     // 查询该班级的在读幼儿
     const { data: children, error: childError } = await this.client
       .from('children')
@@ -511,15 +511,21 @@ export class TeacherService {
     if (childError) throw new Error(`查询幼儿失败: ${childError.message}`);
     if (!children || children.length === 0) return [];
 
-    // 过滤有进行中报读的幼儿
+    // 过滤有进行中报读的幼儿，可选按课程过滤
     const childIds = children.map(c => c.id);
     let activeChildIds: string[] = [];
     if (childIds.length > 0) {
-      const { data: enrollments } = await this.client
+      let query = this.client
         .from('enrollments')
         .select('child_id')
         .in('child_id', childIds)
         .eq('status', '进行中');
+      
+      if (courseId) {
+        query = query.eq('course_id', courseId);
+      }
+      
+      const { data: enrollments } = await query;
       activeChildIds = [...new Set(enrollments?.map(e => e.child_id) || [])];
     }
 
@@ -586,6 +592,19 @@ export class TeacherService {
       .eq('id', teacher.class_id);
 
     return classData || [];
+  }
+
+  async getCourses() {
+    const { data, error } = await this.client
+      .from('courses')
+      .select('id, name')
+      .order('name');
+
+    if (error) {
+      console.error('[getCourses] Error:', error);
+      return [];
+    }
+    return data || [];
   }
 
   async getFeedbacks(teacherRoleId?: string) {

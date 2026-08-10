@@ -3,7 +3,7 @@ import { View, Text, Image, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Trash2 , BookOpen, Plus, X, ChevronDown } from 'lucide-react-taro'
+import { Trash2, BookOpen, Plus, X, ChevronDown } from 'lucide-react-taro'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
@@ -11,6 +11,11 @@ import { Network } from '@/network'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 
 interface ClassItem {
+  id: string
+  name: string
+}
+
+interface CourseItem {
   id: string
   name: string
 }
@@ -52,6 +57,8 @@ export default function RecordsPage() {
   const [editingFeedbackId, setEditingFeedbackId] = useState<string | null>(null)
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [selectedClassId, setSelectedClassId] = useState('')
+  const [courses, setCourses] = useState<CourseItem[]>([])
+  const [selectedCourseId, setSelectedCourseId] = useState('')
 
   useEffect(() => {
     loadFeedbacks()
@@ -77,7 +84,7 @@ export default function RecordsPage() {
     setLoading(false)
   }
 
-  const loadStudentsByClass = async (classId: string) => {
+  const loadStudentsByClass = async (classId: string, courseId?: string) => {
     if (!classId) {
       setStudents([])
       setRecordedStudentIds([])
@@ -85,10 +92,12 @@ export default function RecordsPage() {
     }
 
     try {
+      const params: any = { class_id: classId }
+      if (courseId) params.course_id = courseId
       const res = await Network.request({
         url: '/api/teachers/class-students',
         method: 'GET',
-        data: { class_id: classId }
+        data: params
       })
       console.log('[Records] students:', res.data)
       if (res.data?.data) {
@@ -115,6 +124,47 @@ export default function RecordsPage() {
     }
   }
 
+  // 加载课程列表
+  const loadCourses = async () => {
+    try {
+      const res = await Network.request({
+        url: '/api/teachers/courses',
+        method: 'GET'
+      })
+      console.log('[Records] courses:', res.data)
+      if (res.data?.data) {
+        setCourses(res.data.data)
+      }
+    } catch (err) {
+      console.error('[Records] load courses error:', err)
+    }
+  }
+
+  // 选择班级
+  const handleClassChange = (classId: string) => {
+    setSelectedClassId(classId)
+    setSelectedCourseId('')
+    setSelectedChildId('')
+    setStudents([])
+    setRecordedStudentIds([])
+    if (classId) {
+      loadStudentsByClass(classId)
+    }
+  }
+
+  // 选择课程
+  const handleCourseChange = (courseId: string) => {
+    setSelectedCourseId(courseId)
+    setSelectedChildId('')
+    setStudents([])
+    setRecordedStudentIds([])
+    if (courseId && selectedClassId) {
+      loadStudentsByClass(selectedClassId, courseId)
+    } else if (selectedClassId) {
+      loadStudentsByClass(selectedClassId)
+    }
+  }
+
   const loadStudents = async () => {
     try {
       // 使用当前角色ID加载教师管理的班级
@@ -129,6 +179,9 @@ export default function RecordsPage() {
         console.log('[Records] teacher classes:', classesRes.data)
         const classList = classesRes.data?.data || []
         setClasses(classList)
+
+        // 加载课程列表
+        await loadCourses()
 
         // 默认选中第一个班级
         if (classList.length > 0) {
@@ -346,10 +399,7 @@ export default function RecordsPage() {
                   onChange={(e) => {
                     const idx = parseInt(String(e.detail.value))
                     if (idx >= 0 && idx < classes.length) {
-                      const cls = classes[idx]
-                      setSelectedClassId(cls.id)
-                      setSelectedChildId('')
-                      loadStudentsByClass(cls.id)
+                      handleClassChange(classes[idx].id)
                     }
                   }}
                 >
@@ -362,13 +412,37 @@ export default function RecordsPage() {
                 </Picker>
               </View>
 
+              {/* 选择课程 */}
+              <Text className="block text-sm font-medium mb-2">选择课程</Text>
+              <View className={`relative bg-gray-50 rounded-xl px-4 py-3 mb-4 ${!selectedClassId ? 'opacity-50' : ''}`}>
+                <Picker
+                  mode="selector"
+                  range={courses}
+                  rangeKey="name"
+                  value={courses.findIndex(c => c.id === selectedCourseId)}
+                  onChange={(e) => {
+                    const idx = parseInt(String(e.detail.value))
+                    if (idx >= 0 && idx < courses.length) {
+                      handleCourseChange(courses[idx].id)
+                    }
+                  }}
+                >
+                  <View className="flex items-center" style={{ cursor: 'pointer' }}>
+                    <Text className="block flex-1" style={{ fontSize: 16, color: selectedCourseId ? '#333' : '#999' }}>
+                      {selectedCourseId ? courses.find(c => c.id === selectedCourseId)?.name || '请选择课程' : '请选择课程'}
+                    </Text>
+                    <ChevronDown size={16} color="#999" />
+                  </View>
+                </Picker>
+              </View>
+
               {/* 选择幼儿 */}
               <Text className="block text-sm font-medium mb-2">选择幼儿</Text>
-              <View className={`relative bg-gray-50 rounded-xl px-4 py-3 mb-4 ${!selectedClassId ? 'opacity-50' : ''}`}>
+              <View className={`relative bg-gray-50 rounded-xl px-4 py-3 mb-4 ${!selectedCourseId ? 'opacity-50' : ''}`}>
                 <View
                   className="flex items-center"
-                  onClick={() => setShowStudentPicker(!showStudentPicker)}
-                  style={{ cursor: 'pointer' }}
+                  onClick={() => { if (selectedCourseId) setShowStudentPicker(!showStudentPicker) }}
+                  style={{ cursor: selectedCourseId ? 'pointer' : 'default' }}
                 >
                   <Text className="block flex-1" style={{ fontSize: 16, color: selectedChildId ? '#333' : '#999' }}>
                     {selectedChildId

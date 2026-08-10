@@ -48,10 +48,20 @@ export class TeacherController {
     return { code: 200, msg: 'success', data };
   }
 
+  @Get('courses')
+  @HttpCode(200)
+  async getCourses() {
+    const data = await this.teacherService.getCourses();
+    return { code: 200, msg: 'success', data };
+  }
+
   @Get('class-students')
   @HttpCode(200)
-  async getClassStudents(@Query('class_id') classId: string) {
-    const data = await this.teacherService.getClassStudents(classId);
+  async getClassStudents(
+    @Query('class_id') classId: string,
+    @Query('course_id') courseId?: string,
+  ) {
+    const data = await this.teacherService.getClassStudents(classId, courseId);
     return { code: 200, msg: 'success', data };
   }
 
