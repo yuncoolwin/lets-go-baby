@@ -65,7 +65,7 @@ export class TeacherService {
         .from('children')
         .select('id')
         .eq('class_id', classId)
-        .eq('status', '在读');
+        .eq('status', 'active');
       studentCount = children?.length || 0;
       
       // 如果有 enrollment 系统，进一步过滤有进行中报读的幼儿
@@ -506,7 +506,7 @@ export class TeacherService {
       .from('children')
       .select('id, name, gender, birth_date')
       .eq('class_id', classId)
-      .eq('status', '在读');
+      .eq('status', 'active');
 
     if (childError) throw new Error(`查询幼儿失败: ${childError.message}`);
     if (!children || children.length === 0) return [];
