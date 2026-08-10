@@ -60,6 +60,8 @@ export default function RecordsPage() {
   const [courses, setCourses] = useState<CourseItem[]>([])
   const [selectedCourseId, setSelectedCourseId] = useState('')
 
+  const ATTENDED_STATUSES = ['present', 'full_day', 'half_day']
+
   useEffect(() => {
     loadFeedbacks()
     if (currentRole?.role_type === 'teacher') {
@@ -102,8 +104,10 @@ export default function RecordsPage() {
       console.log('[Records] students:', res.data)
       if (res.data?.data) {
         const sorted = [...res.data.data].sort((a: any, b: any) => {
-          if (a.attendance_status === 'present' && b.attendance_status !== 'present') return -1
-          if (a.attendance_status !== 'present' && b.attendance_status === 'present') return 1
+          const aAttended = ATTENDED_STATUSES.includes(a.attendance_status || '')
+          const bAttended = ATTENDED_STATUSES.includes(b.attendance_status || '')
+          if (aAttended && !bAttended) return -1
+          if (!aAttended && bAttended) return 1
           return 0
         })
         setStudents(sorted)
@@ -451,7 +455,7 @@ export default function RecordsPage() {
                     {selectedChildId
                       ? (() => {
                           const stu = students.find(item => item.id === selectedChildId)
-                          return stu ? `${stu.child_name}${stu.attendance_status === 'present' ? '' : '（不可选）'}` : '请选择幼儿'
+                          return stu ? `${stu.child_name}${ATTENDED_STATUSES.includes(stu.attendance_status || '') ? '' : '（不可选）'}` : '请选择幼儿'
                         })()
                       : '请选择幼儿'}
                   </Text>
@@ -471,7 +475,7 @@ export default function RecordsPage() {
                       <Text className="block text-sm text-center text-gray-400 py-3">暂无幼儿</Text>
                     ) : (
                       students.map((stu) => {
-                        const isPresent = stu.attendance_status === 'present'
+                        const isPresent = ATTENDED_STATUSES.includes(stu.attendance_status || '')
                         const isRecorded = recordedStudentIds.includes(stu.id)
                         const isSelected = stu.id === selectedChildId
                         const canSelect = isPresent && !isRecorded
