@@ -45,7 +45,7 @@ export default function RoleSelectPage() {
     if (selectedRole === 'parent') {
       Taro.switchTab({ url: '/pages/index/index' })
     } else if (selectedRole === 'teacher') {
-      Taro.switchTab({ url: '/pages/records/index' })
+      Taro.switchTab({ url: '/pages/index/index' })
     } else if (selectedRole === 'admin') {
       Taro.switchTab({ url: '/pages/index/index' })
     }

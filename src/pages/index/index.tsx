@@ -473,7 +473,7 @@ export default function IndexPage() {
 
           <Card
             className="bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => Taro.switchTab({ url: '/pages/records/index' })}
+            onClick={() => Taro.navigateTo({ url: '/pages/records/index' })}
           >
             <CardContent className="p-4 flex flex-col items-center">
               <View className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center mb-2">
@@ -645,7 +645,7 @@ export default function IndexPage() {
 
           <Card
             className="bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => Taro.switchTab({ url: '/pages/records/index' })}
+            onClick={() => Taro.navigateTo({ url: '/pages/records/index' })}
           >
             <CardContent className="p-4 flex flex-col items-center">
               <View className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center mb-2">

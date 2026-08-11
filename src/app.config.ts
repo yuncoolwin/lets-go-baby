@@ -42,10 +42,10 @@ export default typeof defineAppConfig === 'function'
           selectedIconPath: './assets/tabbar/house-active.png',
         },
         {
-          pagePath: 'pages/records/index',
-          text: '记录',
-          iconPath: './assets/tabbar/clipboard-list.png',
-          selectedIconPath: './assets/tabbar/clipboard-list-active.png',
+          pagePath: 'pages/roll-call/index',
+          text: '考勤',
+          iconPath: './assets/tabbar/calendar-check.png',
+          selectedIconPath: './assets/tabbar/calendar-check-active.png',
         },
         {
           pagePath: 'pages/messages/index',
@@ -110,10 +110,10 @@ export default typeof defineAppConfig === 'function'
           selectedIconPath: './assets/tabbar/house-active.png',
         },
         {
-          pagePath: 'pages/records/index',
-          text: '记录',
-          iconPath: './assets/tabbar/clipboard-list.png',
-          selectedIconPath: './assets/tabbar/clipboard-list-active.png',
+          pagePath: 'pages/roll-call/index',
+          text: '考勤',
+          iconPath: './assets/tabbar/calendar-check.png',
+          selectedIconPath: './assets/tabbar/calendar-check-active.png',
         },
         {
           pagePath: 'pages/messages/index',
