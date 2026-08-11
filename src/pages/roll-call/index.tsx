@@ -308,6 +308,35 @@ export default function RollCallPage() {
     })
   }
 
+  /** 检查某个分组是否全部已标记为出勤 */
+  const isGroupAllPresent = (courseType: string, groupChildren: ChildItem[]) => {
+    const expectedStatus = courseType === '全日托' ? 'full_day' : 'present'
+    const display = isLocked ? attendance : tempAttendance
+    return groupChildren.length > 0 && groupChildren.every(child => {
+      const key = child.id + '__' + child.course_type
+      return (display[key] || 'unknown') === expectedStatus
+    })
+  }
+
+  /** 切换全勤状态 */
+  const handleToggleAllPresent = (courseType: string, groupChildren: ChildItem[]) => {
+    if (isLocked) return
+    const expectedStatus = courseType === '全日托' ? 'full_day' : 'present'
+    const isActive = isGroupAllPresent(courseType, groupChildren)
+
+    const newTemp = { ...tempAttendance }
+    groupChildren.forEach(child => {
+      const key = child.id + '__' + child.course_type
+      if (isActive) {
+        newTemp[key] = 'unknown'
+      } else {
+        newTemp[key] = expectedStatus
+      }
+    })
+    setTempAttendance(newTemp)
+    setHasUnsaved(true)
+  }
+
   const currentDisplay = isLocked ? attendance : tempAttendance
 
   return (
@@ -451,6 +480,24 @@ export default function RollCallPage() {
                         >
                           <Badge className={colorClass}>{courseType}</Badge>
                           <Text className="block text-sm text-gray-500 flex-1">{groupChildren.length} 名幼儿</Text>
+                          {/* 全勤按钮 */}
+                          <View
+                            onClick={(e) => {
+                              e.stopPropagation?.()
+                              handleToggleAllPresent(courseType, groupChildren)
+                            }}
+                            className={`px-2 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              isGroupAllPresent(courseType, groupChildren)
+                                ? 'bg-green-500 text-white border-green-500'
+                                : isLocked
+                                  ? 'bg-gray-100 text-gray-300 border-gray-200'
+                                  : 'bg-white text-gray-500 border-gray-300 active:bg-green-50'
+                            }`}
+                          >
+                            <Text className="block text-xs font-medium">
+                              {isGroupAllPresent(courseType, groupChildren) ? '✓ 全勤' : '全勤'}
+                            </Text>
+                          </View>
                           {isExpanded ? (
                             <ChevronUp size={20} color="#999" />
                           ) : (
