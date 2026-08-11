@@ -449,7 +449,7 @@ export default function RollCallPage() {
             })
 
             return (
-              <View className="px-4 pb-16 space-y-4">
+              <View className="px-4 pb-32 space-y-4">
                 {sortedGroups.map(([courseType, groupChildren]) => {
                   const present = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'present').length
                   const absent = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'absent').length
@@ -639,7 +639,7 @@ export default function RollCallPage() {
       {/* 底部操作栏 */}
       <View
         style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0,
+          position: 'fixed', bottom: 50, left: 0, right: 0,
           display: 'flex', flexDirection: 'row', gap: '12px',
           padding: '12px 16px', backgroundColor: '#fff',
           borderTop: '1px solid #f3f4f6', zIndex: 100,
@@ -647,8 +647,9 @@ export default function RollCallPage() {
       >
         {isAdmin ? (
           <>
-            <View 
-              className={`flex-1 py-3 rounded-xl text-center font-medium ${
+            <View
+              style={{ flex: 1 }}
+              className={`py-3 rounded-xl text-center font-medium ${
                 hasUnsaved 
                   ? 'bg-blue-500 text-white' 
                   : 'bg-gray-100 text-gray-400'
@@ -661,20 +662,22 @@ export default function RollCallPage() {
             </View>
           </>
         ) : selectedDate !== today ? (
-          <View className="flex-1 py-3 rounded-xl text-center font-medium bg-gray-100">
+          <View style={{ flex: 1 }} className="py-3 rounded-xl text-center font-medium bg-gray-100">
             <Text className="block text-base font-medium text-gray-400">历史记录，只读查看</Text>
           </View>
         ) : isLocked ? (
-          <View 
-            className="flex-1 py-3 rounded-xl text-center font-medium bg-blue-500 text-white"
+          <View
+            style={{ flex: 1 }}
+            className="py-3 rounded-xl text-center font-medium bg-blue-500 text-white"
             onClick={handleUnlock}
           >
             <Text className="block text-base font-medium text-white">修改</Text>
           </View>
         ) : (
           <>
-            <View 
-              className={`flex-1 py-3 rounded-xl text-center font-medium ${
+            <View
+              style={{ flex: 1 }}
+              className={`py-3 rounded-xl text-center font-medium ${
                 hasUnsaved 
                   ? 'bg-blue-500 text-white' 
                   : 'bg-gray-100 text-gray-400'
