@@ -709,7 +709,7 @@ export default function IndexPage() {
             <View
               style={{
                 position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 201,
-                backgroundColor: '#fff', borderRadius: '16px 16px 0 0', maxHeight: '80vh',
+                backgroundColor: '#fff', borderRadius: '16px 16px 0 0', maxHeight: '90vh',
                 overflowY: 'auto'
               }}
             >
@@ -719,7 +719,7 @@ export default function IndexPage() {
                 </Text>
               </View>
 
-              <View style={{ padding: '16px 20px 24px' }}>
+              <View style={{ padding: '16px 20px 120px' }}>
                 {/* 餐食 */}
                 <View className="mb-4">
                   <Text className="block text-sm font-medium text-foreground mb-2">餐食</Text>
