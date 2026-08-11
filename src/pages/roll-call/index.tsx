@@ -340,7 +340,7 @@ export default function RollCallPage() {
   const currentDisplay = isLocked ? attendance : tempAttendance
 
   return (
-    <View className="min-h-screen bg-gray-50 pb-safe">
+    <View className="min-h-screen bg-gray-50" style={{ display: 'flex', flexDirection: 'column' }}>
       {/* 头部信息 */}
       <View className="bg-white px-4 py-3 flex items-center justify-between border-b border-gray-100">
         <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
@@ -391,7 +391,7 @@ export default function RollCallPage() {
         </View>
       )}
 
-      <ScrollView scrollY className="h-[calc(100vh-280px)]">
+      <ScrollView scrollY style={{ flex: 1, height: 0 }}>
         {/* 班级信息 */}
         {className && (
           <View className="px-4 pt-4 pb-2">
@@ -449,7 +449,7 @@ export default function RollCallPage() {
             })
 
             return (
-              <View className="px-4 pb-6 space-y-4">
+              <View className="px-4 pb-16 space-y-4">
                 {sortedGroups.map(([courseType, groupChildren]) => {
                   const present = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'present').length
                   const absent = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'absent').length
@@ -637,7 +637,14 @@ export default function RollCallPage() {
       />
 
       {/* 底部操作栏 */}
-      <View className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 flex gap-3">
+      <View
+        style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0,
+          display: 'flex', flexDirection: 'row', gap: '12px',
+          padding: '12px 16px', backgroundColor: '#fff',
+          borderTop: '1px solid #f3f4f6', zIndex: 100,
+        }}
+      >
         {isAdmin ? (
           <>
             <View 
