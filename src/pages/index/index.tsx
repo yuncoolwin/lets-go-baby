@@ -630,19 +630,7 @@ export default function IndexPage() {
         )}
 
         {/* 快捷入口 */}
-        <View className="grid grid-cols-3 gap-3">
-          <Card
-            className="bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => Taro.navigateTo({ url: '/pages/roll-call/index' })}
-          >
-            <CardContent className="p-4 flex flex-col items-center">
-              <View className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center mb-2">
-                <Text className="text-orange-500 text-xl leading-none">📋</Text>
-              </View>
-              <Text className="text-xs text-foreground">考勤</Text>
-            </CardContent>
-          </Card>
-
+        <View className="grid grid-cols-2 gap-3">
           <Card
             className="bg-white rounded-xl border-0 shadow-sm"
             onClick={() => Taro.navigateTo({ url: '/pages/records/index' })}
