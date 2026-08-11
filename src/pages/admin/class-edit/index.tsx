@@ -195,7 +195,7 @@ export default function ClassEditPage() {
       </Card>
 
       {/* 提交按钮 */}
-      <View className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100" style={{ position: 'fixed' }}>
+      <View style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, padding: '16px', backgroundColor: '#fff', borderTop: '1px solid #e5e7eb' }}>
         <Button
           className="w-full bg-primary text-white rounded-xl py-3"
           disabled={submitting}

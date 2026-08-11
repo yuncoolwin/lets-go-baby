@@ -361,7 +361,7 @@ export default function TeacherEditPage() {
       </View>
 
       {/* 底部保存按钮 */}
-      <View className="fixed bottom-0 left-0 right-0 bg-white border-t border-border p-4">
+      <View style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, padding: '16px', backgroundColor: '#fff', borderTop: '1px solid #e5e7eb' }}>
         <Button
           className="w-full bg-primary text-white"
           onClick={handleSave}

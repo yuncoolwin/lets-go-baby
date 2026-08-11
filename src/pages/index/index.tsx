@@ -635,6 +635,9 @@ export default function IndexPage() {
                                     className={`px-2 py-1 rounded ${config.bg}`}
                                     onClick={(e) => {
                                       e.stopPropagation()
+                                      // 仅出勤类状态（全天出勤/半天出勤/出勤）才弹出日常记录
+                                      const attdTypes = ['present', 'full_day', 'half_day']
+                                      if (!attdTypes.includes(child.attendance_status)) return
                                       setFeedbackChild({ id: child.id, name: child.name, course_type: group.course?.name || '' })
                                       setFeedbackMealStatus(childFeedback?.meal_status || '')
                                       setFeedbackSleepStatus(childFeedback?.sleep_status || '')
@@ -707,7 +710,7 @@ export default function IndexPage() {
               style={{
                 position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 201,
                 backgroundColor: '#fff', borderRadius: '16px 16px 0 0', maxHeight: '80vh',
-                display: 'flex', flexDirection: 'column'
+                overflowY: 'auto'
               }}
             >
               <View style={{ padding: '16px', borderBottom: '1px solid #f0f0f0' }}>
@@ -716,7 +719,7 @@ export default function IndexPage() {
                 </Text>
               </View>
 
-              <View style={{ padding: '16px 20px', flex: 1, overflowY: 'auto' }}>
+              <View style={{ padding: '16px 20px 80px' }}>
                 {/* 餐食 */}
                 <View className="mb-4">
                   <Text className="block text-sm font-medium text-foreground mb-2">餐食</Text>
@@ -774,48 +777,54 @@ export default function IndexPage() {
                   </View>
                 </View>
               </View>
+            </View>
 
-              <View style={{ padding: '12px 16px', borderTop: '1px solid #f0f0f0' }}>
-                <View
-                  className={`w-full py-3 rounded-xl text-center ${feedbackSubmitting ? 'bg-gray-300' : 'bg-primary'}`}
-                  onClick={async () => {
-                    if (feedbackSubmitting) return
-                    setFeedbackSubmitting(true)
-                    try {
-                      const res = await Network.request({
-                        url: '/api/teachers/feedback',
-                        method: 'POST',
-                        data: {
-                          child_id: feedbackChild.id,
-                          meal_status: feedbackMealStatus,
-                          sleep_status: feedbackSleepStatus,
-                          mood_status: feedbackMoodStatus,
-                          record_date: new Date().toISOString().slice(0, 10),
+            {/* 保存按钮 - 独立 fixed 定位，确保 H5 端显示完整 */}
+            <View
+              style={{
+                position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 202,
+                padding: '12px 16px', backgroundColor: '#fff', borderTop: '1px solid #f0f0f0'
+              }}
+            >
+              <View
+                className={`w-full py-3 rounded-xl text-center ${feedbackSubmitting ? 'bg-gray-300' : 'bg-primary'}`}
+                onClick={async () => {
+                  if (feedbackSubmitting) return
+                  setFeedbackSubmitting(true)
+                  try {
+                    const res = await Network.request({
+                      url: '/api/teachers/feedback',
+                      method: 'POST',
+                      data: {
+                        child_id: feedbackChild.id,
+                        meal_status: feedbackMealStatus,
+                        sleep_status: feedbackSleepStatus,
+                        mood_status: feedbackMoodStatus,
+                        record_date: new Date().toISOString().slice(0, 10),
+                      },
+                    })
+                    console.log('[Index] save feedback:', res.data)
+                    if (res.data?.code === 200 || res.data?.data) {
+                      setChildFeedbacks((prev) => ({
+                        ...prev,
+                        [feedbackChild.id]: {
+                          meal_status: feedbackMealStatus || null,
+                          sleep_status: feedbackSleepStatus || null,
+                          mood_status: feedbackMoodStatus || null,
                         },
-                      })
-                      console.log('[Index] save feedback:', res.data)
-                      if (res.data?.code === 200 || res.data?.data) {
-                        setChildFeedbacks((prev) => ({
-                          ...prev,
-                          [feedbackChild.id]: {
-                            meal_status: feedbackMealStatus || null,
-                            sleep_status: feedbackSleepStatus || null,
-                            mood_status: feedbackMoodStatus || null,
-                          },
-                        }))
-                        setFeedbackChild(null)
-                      }
-                    } catch (e) {
-                      console.error('[Index] save feedback error:', e)
-                    } finally {
-                      setFeedbackSubmitting(false)
+                      }))
+                      setFeedbackChild(null)
                     }
-                  }}
-                >
-                  <Text className={`block text-base font-medium text-center ${feedbackSubmitting ? 'text-gray-500' : 'text-primary-foreground'}`}>
-                    {feedbackSubmitting ? '保存中...' : '保存记录'}
-                  </Text>
-                </View>
+                  } catch (e) {
+                    console.error('[Index] save feedback error:', e)
+                  } finally {
+                    setFeedbackSubmitting(false)
+                  }
+                }}
+              >
+                <Text className={`block text-base font-medium text-center ${feedbackSubmitting ? 'text-gray-500' : 'text-primary-foreground'}`}>
+                  {feedbackSubmitting ? '保存中...' : '保存记录'}
+                </Text>
               </View>
             </View>
           </View>
