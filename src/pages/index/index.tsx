@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { Bus, Users, Camera, GraduationCap, Plus, ChevronDown, ChevronUp, BookOpen, Calendar } from 'lucide-react-taro'
+import { Bus, Users, Camera, GraduationCap, Plus, ChevronDown, ChevronUp, BookOpen, Calendar, X } from 'lucide-react-taro'
 import { getRelationshipLabel } from '@/utils/helpers'
 import { courseApi } from '@/utils/api'
 import rabbitLogo from '@/assets/rabbit-logo.png'
@@ -65,6 +65,13 @@ export default function IndexPage() {
   const [storeReady, setStoreReady] = useState(false)
   const [expandedGroupId, setExpandedGroupId] = useState<Set<string>>(new Set())
   const [courseColors, setCourseColors] = useState<Record<string, string>>(courseTypeColors)
+  // 日常记录反馈相关
+  const [childFeedbacks, setChildFeedbacks] = useState<Record<string, { meal_status: string | null; sleep_status: string | null; mood_status: string | null }>>({})
+  const [feedbackChild, setFeedbackChild] = useState<{ id: string; name: string; course_type: string } | null>(null)
+  const [feedbackMealStatus, setFeedbackMealStatus] = useState('')
+  const [feedbackSleepStatus, setFeedbackSleepStatus] = useState('')
+  const [feedbackMoodStatus, setFeedbackMoodStatus] = useState('')
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
   const currentChild = children[currentChildIndex] || null
 
   // 等待 store 从持久化中恢复
@@ -184,6 +191,23 @@ export default function IndexPage() {
           colorMap[c.name] = colors[i % colors.length]
         })
         setCourseColors(colorMap)
+      }
+      // 加载今日日常记录
+      try {
+        const feedbackRes = await Network.request({ url: '/api/teachers/feedbacks', method: 'GET' })
+        console.log('[Index] today feedbacks:', feedbackRes.data)
+        if (feedbackRes.data?.data) {
+          const list = Array.isArray(feedbackRes.data.data) ? feedbackRes.data.data : []
+          const map: Record<string, { meal_status: string | null; sleep_status: string | null; mood_status: string | null }> = {}
+          list.forEach((f: any) => {
+            if (f.child_id) {
+              map[f.child_id] = { meal_status: f.meal_status, sleep_status: f.sleep_status, mood_status: f.mood_status }
+            }
+          })
+          setChildFeedbacks(map)
+        }
+      } catch (e) {
+        console.log('[Index] load feedbacks failed:', e)
       }
     }
   }
@@ -576,6 +600,10 @@ export default function IndexPage() {
                               const dateRange = child.start_date || child.extended_end_date
                                 ? `${child.start_date || '?'} ~ ${child.extended_end_date || child.end_date || '?'}`
                                 : null
+                              const childFeedback = childFeedbacks[child.id]
+                              const feedbackSummary = childFeedback?.meal_status || childFeedback?.sleep_status || childFeedback?.mood_status
+                                ? `餐食${childFeedback.meal_status || '无'}·午睡${childFeedback.sleep_status || '无'}·情绪${childFeedback.mood_status || '无'}`
+                                : null
                               return (
                                 <View
                                   key={child.id}
@@ -596,11 +624,23 @@ export default function IndexPage() {
                                         {child.gender === 'male' ? '男' : '女'} {formatAge(child.birth_date)}
                                       </Text>
                                     </Text>
-                                    {dateRange && (
+                                    {feedbackSummary && (
+                                      <Text className="block text-xs text-green-600 mt-1">{feedbackSummary}</Text>
+                                    )}
+                                    {dateRange && !feedbackSummary && (
                                       <Text className="block text-xs text-muted-foreground">{dateRange}</Text>
                                     )}
                                   </View>
-                                  <View className={`px-2 py-1 rounded ${config.bg}`}>
+                                  <View
+                                    className={`px-2 py-1 rounded ${config.bg}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setFeedbackChild({ id: child.id, name: child.name, course_type: group.course?.name || '' })
+                                      setFeedbackMealStatus(childFeedback?.meal_status || '')
+                                      setFeedbackSleepStatus(childFeedback?.sleep_status || '')
+                                      setFeedbackMoodStatus(childFeedback?.mood_status || '')
+                                    }}
+                                  >
                                     <Text className={`text-xs font-medium ${config.text}`}>{config.label}</Text>
                                   </View>
                                 </View>
@@ -654,7 +694,132 @@ export default function IndexPage() {
               <Text className="text-xs text-foreground">发布通知</Text>
             </CardContent>
           </Card>
-        </View>
+        </View>  {/* end of p-4 content wrapper */}
+
+        {/* 日常记录底部抽屉 */}
+        {feedbackChild && (
+          <View>
+            <View
+              style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 200, backgroundColor: 'rgba(0,0,0,0.4)' }}
+              onClick={() => setFeedbackChild(null)}
+            />
+            <View
+              style={{
+                position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 201,
+                backgroundColor: '#fff', borderRadius: '16px 16px 0 0', maxHeight: '80vh',
+                display: 'flex', flexDirection: 'column'
+              }}
+            >
+              <View style={{ padding: '16px', borderBottom: '1px solid #f0f0f0' }}>
+                <Text className="block text-base font-semibold text-foreground text-center">
+                  {feedbackChild.name} - 日常记录
+                </Text>
+              </View>
+
+              <View style={{ padding: '16px 20px', flex: 1, overflowY: 'auto' }}>
+                {/* 餐食 */}
+                <View className="mb-4">
+                  <Text className="block text-sm font-medium text-foreground mb-2">餐食</Text>
+                  <View className="flex flex-row gap-3">
+                    {['好', '一般', '差'].map((opt) => {
+                      const selected = feedbackMealStatus === opt
+                      return (
+                        <View
+                          key={opt}
+                          className={`px-4 py-2 rounded-lg border ${selected ? 'bg-green-50 border-green-500' : 'bg-gray-50 border-gray-200'}`}
+                          onClick={() => setFeedbackMealStatus(selected ? '' : opt)}
+                        >
+                          <Text className={`text-sm ${selected ? 'text-green-700 font-medium' : 'text-gray-600'}`}>{opt}</Text>
+                        </View>
+                      )
+                    })}
+                  </View>
+                </View>
+
+                {/* 午睡 */}
+                <View className="mb-4">
+                  <Text className="block text-sm font-medium text-foreground mb-2">午睡</Text>
+                  <View className="flex flex-row gap-3">
+                    {['好', '一般', '差'].map((opt) => {
+                      const selected = feedbackSleepStatus === opt
+                      return (
+                        <View
+                          key={opt}
+                          className={`px-4 py-2 rounded-lg border ${selected ? 'bg-green-50 border-green-500' : 'bg-gray-50 border-gray-200'}`}
+                          onClick={() => setFeedbackSleepStatus(selected ? '' : opt)}
+                        >
+                          <Text className={`text-sm ${selected ? 'text-green-700 font-medium' : 'text-gray-600'}`}>{opt}</Text>
+                        </View>
+                      )
+                    })}
+                  </View>
+                </View>
+
+                {/* 情绪 */}
+                <View className="mb-4">
+                  <Text className="block text-sm font-medium text-foreground mb-2">情绪</Text>
+                  <View className="flex flex-row gap-3">
+                    {['开心', '一般', '不开心'].map((opt) => {
+                      const selected = feedbackMoodStatus === opt
+                      return (
+                        <View
+                          key={opt}
+                          className={`px-4 py-2 rounded-lg border ${selected ? 'bg-green-50 border-green-500' : 'bg-gray-50 border-gray-200'}`}
+                          onClick={() => setFeedbackMoodStatus(selected ? '' : opt)}
+                        >
+                          <Text className={`text-sm ${selected ? 'text-green-700 font-medium' : 'text-gray-600'}`}>{opt}</Text>
+                        </View>
+                      )
+                    })}
+                  </View>
+                </View>
+              </View>
+
+              <View style={{ padding: '12px 16px', borderTop: '1px solid #f0f0f0' }}>
+                <View
+                  className={`w-full py-3 rounded-xl text-center ${feedbackSubmitting ? 'bg-gray-300' : 'bg-primary'}`}
+                  onClick={async () => {
+                    if (feedbackSubmitting) return
+                    setFeedbackSubmitting(true)
+                    try {
+                      const res = await Network.request({
+                        url: '/api/teachers/feedback',
+                        method: 'POST',
+                        data: {
+                          child_id: feedbackChild.id,
+                          meal_status: feedbackMealStatus,
+                          sleep_status: feedbackSleepStatus,
+                          mood_status: feedbackMoodStatus,
+                          record_date: new Date().toISOString().slice(0, 10),
+                        },
+                      })
+                      console.log('[Index] save feedback:', res.data)
+                      if (res.data?.code === 200 || res.data?.data) {
+                        setChildFeedbacks((prev) => ({
+                          ...prev,
+                          [feedbackChild.id]: {
+                            meal_status: feedbackMealStatus || null,
+                            sleep_status: feedbackSleepStatus || null,
+                            mood_status: feedbackMoodStatus || null,
+                          },
+                        }))
+                        setFeedbackChild(null)
+                      }
+                    } catch (e) {
+                      console.error('[Index] save feedback error:', e)
+                    } finally {
+                      setFeedbackSubmitting(false)
+                    }
+                  }}
+                >
+                  <Text className={`block text-base font-medium text-center ${feedbackSubmitting ? 'text-gray-500' : 'text-primary-foreground'}`}>
+                    {feedbackSubmitting ? '保存中...' : '保存记录'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
       </View>
     )
   }
