@@ -805,6 +805,7 @@ export default function IndexPage() {
                           method: 'POST',
                           data: {
                             child_id: feedbackChild.id,
+                            teacher_role_id: Taro.getStorageSync('teacherId') || currentRole?.id,
                             meal_status: feedbackMealStatus,
                             sleep_status: feedbackSleepStatus,
                             mood_status: feedbackMoodStatus,
@@ -825,6 +826,7 @@ export default function IndexPage() {
                         }
                       } catch (e) {
                         console.error('[Index] save feedback error:', e)
+                        Taro.showToast({ title: '保存失败，请重试', icon: 'none' })
                       } finally {
                         setFeedbackSubmitting(false)
                       }
