@@ -90,6 +90,7 @@ export class TeacherController {
   async submitFeedback(@Body() body: {
     child_id: string;
     teacher_role_id?: string;
+    group_id?: string;
     meal_status: string | number;
     sleep_status: string | number;
     mood_status: string | number;

@@ -67,7 +67,7 @@ export default function IndexPage() {
   const [courseColors, setCourseColors] = useState<Record<string, string>>(courseTypeColors)
   // 日常记录反馈相关
   const [childFeedbacks, setChildFeedbacks] = useState<Record<string, { meal_status: string | null; sleep_status: string | null; mood_status: string | null }>>({})
-  const [feedbackChild, setFeedbackChild] = useState<{ id: string; name: string; course_type: string } | null>(null)
+  const [feedbackChild, setFeedbackChild] = useState<{ id: string; name: string; course_type: string; group_id: string } | null>(null)
   const [feedbackMealStatus, setFeedbackMealStatus] = useState('')
   const [feedbackSleepStatus, setFeedbackSleepStatus] = useState('')
   const [feedbackMoodStatus, setFeedbackMoodStatus] = useState('')
@@ -179,7 +179,7 @@ export default function IndexPage() {
         const map: Record<string, { meal_status: string | null; sleep_status: string | null; mood_status: string | null }> = {}
         list.forEach((f: any) => {
           if (f.child_id) {
-            map[f.child_id] = { meal_status: f.meal_status, sleep_status: f.sleep_status, mood_status: f.mood_status }
+            map[f.child_id + '_' + (f.group_id || '')] = { meal_status: f.meal_status, sleep_status: f.sleep_status, mood_status: f.mood_status }
           }
         })
         setChildFeedbacks(map)
@@ -607,7 +607,7 @@ export default function IndexPage() {
                               const dateRange = child.start_date || child.extended_end_date
                                 ? `${child.start_date || '?'} ~ ${child.extended_end_date || child.end_date || '?'}`
                                 : null
-                              const childFeedback = childFeedbacks[child.id]
+                              const childFeedback = childFeedbacks[child.id + '_' + group.group_id]
                               const renderStars = (v: string | null | undefined) => {
                                 const n = parseInt(v || '0', 10)
                                 return n > 0 ? '★'.repeat(n) + '☆'.repeat(5 - n) : ''
@@ -651,7 +651,7 @@ export default function IndexPage() {
                                       // 仅出勤类状态（全天出勤/半天出勤/出勤）才弹出日常记录
                                       const attdTypes = ['present', 'full_day', 'half_day']
                                       if (!attdTypes.includes(child.attendance_status)) return
-                                      setFeedbackChild({ id: child.id, name: child.name, course_type: group.course_type || '' })
+                                      setFeedbackChild({ id: child.id, name: child.name, course_type: group.course_type || '', group_id: group.group_id })
                                       setFeedbackMealStatus(childFeedback?.meal_status || '')
                                       setFeedbackSleepStatus(childFeedback?.sleep_status || '')
                                       setFeedbackMoodStatus(childFeedback?.mood_status || '')
@@ -819,6 +819,7 @@ export default function IndexPage() {
                           data: {
                             child_id: feedbackChild.id,
                             teacher_role_id: currentRole?.id,
+                            group_id: feedbackChild.group_id,
                             meal_status: feedbackMealStatus,
                             sleep_status: feedbackSleepStatus,
                             mood_status: feedbackMoodStatus,

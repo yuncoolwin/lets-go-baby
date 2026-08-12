@@ -674,6 +674,7 @@ export class TeacherService {
         mood_status,
         activities,
         notes,
+        group_id,
         teacher_id
       `)
       .order('feedback_date', { ascending: false })
@@ -712,6 +713,7 @@ export class TeacherService {
       mood_status: f.mood_status,
       activities: f.activities,
       notes: f.notes,
+      group_id: f.group_id,
       teacher_name: f.teacher_id ? (teacherMap.get(f.teacher_id) || '老师') : '老师',
     }));
   }
@@ -743,6 +745,7 @@ export class TeacherService {
   async submitFeedback(data: {
     child_id: string;
     teacher_role_id?: string;
+    group_id?: string;
     meal_status: string | number;
     sleep_status: string | number;
     mood_status: string | number;
@@ -750,12 +753,14 @@ export class TeacherService {
     notes?: string;
   }) {
     const today = new Date().toISOString().split('T')[0];
+    const groupId = data.group_id || '';
     
     const { error } = await this.client
       .from('daily_feedbacks')
       .upsert({
         child_id: data.child_id,
         teacher_id: data.teacher_role_id || null,
+        group_id: groupId,
         feedback_date: today,
         meal_status: String(data.meal_status || ''),
         sleep_status: String(data.sleep_status || ''),
@@ -763,7 +768,7 @@ export class TeacherService {
         activities: data.activities || null,
         notes: data.notes || null,
       }, {
-        onConflict: 'child_id, feedback_date',
+        onConflict: 'child_id, feedback_date, group_id',
         ignoreDuplicates: false,
       });
 
