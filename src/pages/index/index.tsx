@@ -820,6 +820,7 @@ export default function IndexPage() {
                             child_id: feedbackChild.id,
                             teacher_role_id: currentRole?.id,
                             group_id: feedbackChild.group_id,
+                            course_type: feedbackChild.course_type,
                             meal_status: feedbackMealStatus,
                             sleep_status: feedbackSleepStatus,
                             mood_status: feedbackMoodStatus,

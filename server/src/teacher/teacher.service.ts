@@ -675,6 +675,7 @@ export class TeacherService {
         activities,
         notes,
         group_id,
+        course_type,
         teacher_id
       `)
       .order('feedback_date', { ascending: false })
@@ -746,6 +747,7 @@ export class TeacherService {
     child_id: string;
     teacher_role_id?: string;
     group_id?: string;
+    course_type?: string;
     meal_status: string | number;
     sleep_status: string | number;
     mood_status: string | number;
@@ -761,6 +763,7 @@ export class TeacherService {
         child_id: data.child_id,
         teacher_id: data.teacher_role_id || null,
         group_id: groupId,
+        course_type: data.course_type || '',
         feedback_date: today,
         meal_status: String(data.meal_status || ''),
         sleep_status: String(data.sleep_status || ''),
