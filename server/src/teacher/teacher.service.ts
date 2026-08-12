@@ -743,9 +743,9 @@ export class TeacherService {
   async submitFeedback(data: {
     child_id: string;
     teacher_role_id?: string;
-    meal_status: string;
-    sleep_status: string;
-    mood_status: string;
+    meal_status: string | number;
+    sleep_status: string | number;
+    mood_status: string | number;
     activities?: string;
     notes?: string;
   }) {
@@ -757,9 +757,9 @@ export class TeacherService {
         child_id: data.child_id,
         teacher_id: data.teacher_role_id || null,
         feedback_date: today,
-        meal_status: data.meal_status,
-        sleep_status: data.sleep_status,
-        mood_status: data.mood_status,
+        meal_status: String(data.meal_status || ''),
+        sleep_status: String(data.sleep_status || ''),
+        mood_status: String(data.mood_status || ''),
         activities: data.activities || null,
         notes: data.notes || null,
       }, {
@@ -774,18 +774,18 @@ export class TeacherService {
 
   async updateFeedback(data: {
     id: string;
-    meal_status: string;
-    sleep_status: string;
-    mood_status: string;
+    meal_status: string | number;
+    sleep_status: string | number;
+    mood_status: string | number;
     activities?: string;
     notes?: string;
   }) {
     const { error } = await this.client
       .from('daily_feedbacks')
       .update({
-        meal_status: data.meal_status,
-        sleep_status: data.sleep_status,
-        mood_status: data.mood_status,
+        meal_status: String(data.meal_status || ''),
+        sleep_status: String(data.sleep_status || ''),
+        mood_status: String(data.mood_status || ''),
         activities: data.activities || null,
         notes: data.notes || null,
       })

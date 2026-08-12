@@ -269,24 +269,17 @@ export default function RecordsPage() {
     }
   }
 
-  const getStatusLabel = (status: string | null) => {
-    switch (status) {
-      case 'good': case 'happy': return '好'
-      case 'normal': return '一般'
-      case 'poor': case 'upset': return '差'
-      case 'none': return '无'
-      default: return '—'
-    }
+  const getStatusLabel = (status: string | null | undefined) => {
+    const n = parseInt(status || '0', 10)
+    return n > 0 ? '★'.repeat(n) + '☆'.repeat(5 - n) : '—'
   }
 
-  const getStatusBadge = (status: string | null) => {
-    switch (status) {
-      case 'good': case 'happy': return 'bg-green-100 text-green-700'
-      case 'normal': return 'bg-yellow-100 text-yellow-700'
-      case 'poor': case 'upset': return 'bg-red-100 text-red-700'
-      case 'none': return 'bg-gray-100 text-gray-500'
-      default: return 'bg-gray-100 text-gray-400'
-    }
+  const getStatusBadge = (status: string | null | undefined) => {
+    const n = parseInt(status || '0', 10)
+    if (n >= 4) return 'bg-green-100 text-green-700'
+    if (n >= 2) return 'bg-yellow-100 text-yellow-700'
+    if (n >= 1) return 'bg-red-100 text-red-700'
+    return 'bg-gray-100 text-gray-500'
   }
 
   if (loading) {
@@ -527,53 +520,35 @@ export default function RecordsPage() {
                 )}
               </View>
 
-              {/* 餐食 */}
-              <Text className="block text-sm font-medium mb-2">餐食</Text>
-              <View className="flex gap-2 mb-4">
-                {[['good', '好'], ['normal', '一般'], ['poor', '差'], ['none', '无']].map(([val, label]) => (
-                  <Button
-                    key={val}
-                    variant={mealStatus === val ? 'default' : 'outline'}
-                    size="sm"
-                    className={`flex-1 rounded-lg ${mealStatus === val ? 'bg-primary' : ''}`}
-                    onClick={() => setMealStatus(mealStatus === val ? '' : val)}
-                  >
-                    <Text>{label}</Text>
-                  </Button>
-                ))}
-              </View>
-
-              {/* 午睡 */}
-              <Text className="block text-sm font-medium mb-2">午睡</Text>
-              <View className="flex gap-2 mb-4">
-                {[['good', '好'], ['normal', '一般'], ['poor', '差'], ['none', '无']].map(([val, label]) => (
-                  <Button
-                    key={val}
-                    variant={sleepStatus === val ? 'default' : 'outline'}
-                    size="sm"
-                    className={`flex-1 rounded-lg ${sleepStatus === val ? 'bg-primary' : ''}`}
-                    onClick={() => setSleepStatus(sleepStatus === val ? '' : val)}
-                  >
-                    <Text>{label}</Text>
-                  </Button>
-                ))}
-              </View>
-
-              {/* 情绪 */}
-              <Text className="block text-sm font-medium mb-2">情绪</Text>
-              <View className="flex gap-2 mb-4">
-                {[['happy', '开心'], ['normal', '一般'], ['upset', '低落'], ['none', '无']].map(([val, label]) => (
-                  <Button
-                    key={val}
-                    variant={moodStatus === val ? 'default' : 'outline'}
-                    size="sm"
-                    className={`flex-1 rounded-lg ${moodStatus === val ? 'bg-primary' : ''}`}
-                    onClick={() => setMoodStatus(moodStatus === val ? '' : val)}
-                  >
-                    <Text>{label}</Text>
-                  </Button>
-                ))}
-              </View>
+              {[
+                { label: '餐食', value: mealStatus, setter: setMealStatus },
+                { label: '午睡', value: sleepStatus, setter: setSleepStatus },
+                { label: '情绪', value: moodStatus, setter: setMoodStatus },
+              ].map(({ label, value, setter }) => (
+                <View className="mb-4" key={label}>
+                  <Text className="block text-sm font-medium mb-2">{label}</Text>
+                  <View style={{ display: 'flex', flexDirection: 'row', gap: '8px' }}>
+                    {[1, 2, 3, 4, 5].map((star) => {
+                      const filled = (parseInt(value || '0', 10) || 0) >= star
+                      return (
+                        <View
+                          key={star}
+                          style={{
+                            width: 44, height: 44, borderRadius: 8,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            backgroundColor: filled ? '#E8651A' : '#f5f0eb',
+                          }}
+                          onClick={() => setter(parseInt(value || '0', 10) === star && star === 1 ? '' : String(star))}
+                        >
+                          <Text style={{ fontSize: 20, color: filled ? '#fff' : '#ccc' }}>
+                            {filled ? '★' : '☆'}
+                          </Text>
+                        </View>
+                      )
+                    })}
+                  </View>
+                </View>
+              ))}
 
               {/* 提交 */}
               <Button

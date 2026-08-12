@@ -605,10 +605,12 @@ export default function IndexPage() {
                                 ? `${child.start_date || '?'} ~ ${child.extended_end_date || child.end_date || '?'}`
                                 : null
                               const childFeedback = childFeedbacks[child.id]
-                              const mealLabel: Record<string, string> = { good: '好', normal: '一般', poor: '差', none: '无' }
-                              const moodLabel: Record<string, string> = { happy: '开心', normal: '一般', upset: '低落', none: '无' }
+                              const renderStars = (v: string | null | undefined) => {
+                                const n = parseInt(v || '0', 10)
+                                return n > 0 ? '★'.repeat(n) + '☆'.repeat(5 - n) : '—'
+                              }
                               const feedbackSummary = childFeedback?.meal_status || childFeedback?.sleep_status || childFeedback?.mood_status
-                                ? `餐食${mealLabel[childFeedback.meal_status || ''] || '无'}·午睡${mealLabel[childFeedback.sleep_status || ''] || '无'}·情绪${moodLabel[childFeedback.mood_status || ''] || '无'}`
+                                ? `餐食${renderStars(childFeedback.meal_status)}·午睡${renderStars(childFeedback.sleep_status)}·情绪${renderStars(childFeedback.mood_status)}`
                                 : null
                               return (
                                 <View
@@ -726,68 +728,35 @@ export default function IndexPage() {
               </View>
 
               <View style={{ padding: '16px 20px 120px' }}>
-                {/* 餐食 */}
-                <View className="mb-4">
-                  <Text className="block text-sm font-medium text-foreground mb-2">餐食</Text>
-                  <View className="flex gap-2">
-                    {[['good', '好'], ['normal', '一般'], ['poor', '差'], ['none', '无']].map(([val, label]) => {
-                      const selected = feedbackMealStatus === val
-                      return (
-                        <Button
-                          key={val}
-                          variant={selected ? 'default' : 'outline'}
-                          size="sm"
-                          className={`flex-1 rounded-lg ${selected ? 'bg-primary' : ''}`}
-                          onClick={() => setFeedbackMealStatus(selected ? '' : val)}
-                        >
-                          <Text>{label}</Text>
-                        </Button>
-                      )
-                    })}
+                {[
+                  { label: '餐食', value: feedbackMealStatus, setter: setFeedbackMealStatus },
+                  { label: '午睡', value: feedbackSleepStatus, setter: setFeedbackSleepStatus },
+                  { label: '情绪', value: feedbackMoodStatus, setter: setFeedbackMoodStatus },
+                ].map(({ label, value, setter }) => (
+                  <View className="mb-4" key={label}>
+                    <Text className="block text-sm font-medium text-foreground mb-2">{label}</Text>
+                    <View style={{ display: 'flex', flexDirection: 'row', gap: '8px' }}>
+                      {[1, 2, 3, 4, 5].map((star) => {
+                        const filled = (parseInt(value || '0', 10) || 0) >= star
+                        return (
+                          <View
+                            key={star}
+                            style={{
+                              width: 44, height: 44, borderRadius: 8,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              backgroundColor: filled ? '#E8651A' : '#f5f0eb',
+                            }}
+                            onClick={() => setter(parseInt(value || '0', 10) === star && star === 1 ? '' : String(star))}
+                          >
+                            <Text style={{ fontSize: 20, color: filled ? '#fff' : '#ccc' }}>
+                              {filled ? '★' : '☆'}
+                            </Text>
+                          </View>
+                        )
+                      })}
+                    </View>
                   </View>
-                </View>
-
-                {/* 午睡 */}
-                <View className="mb-4">
-                  <Text className="block text-sm font-medium text-foreground mb-2">午睡</Text>
-                  <View className="flex gap-2">
-                    {[['good', '好'], ['normal', '一般'], ['poor', '差'], ['none', '无']].map(([val, label]) => {
-                      const selected = feedbackSleepStatus === val
-                      return (
-                        <Button
-                          key={val}
-                          variant={selected ? 'default' : 'outline'}
-                          size="sm"
-                          className={`flex-1 rounded-lg ${selected ? 'bg-primary' : ''}`}
-                          onClick={() => setFeedbackSleepStatus(selected ? '' : val)}
-                        >
-                          <Text>{label}</Text>
-                        </Button>
-                      )
-                    })}
-                  </View>
-                </View>
-
-                {/* 情绪 */}
-                <View className="mb-4">
-                  <Text className="block text-sm font-medium text-foreground mb-2">情绪</Text>
-                  <View className="flex gap-2">
-                    {[['happy', '开心'], ['normal', '一般'], ['upset', '低落'], ['none', '无']].map(([val, label]) => {
-                      const selected = feedbackMoodStatus === val
-                      return (
-                        <Button
-                          key={val}
-                          variant={selected ? 'default' : 'outline'}
-                          size="sm"
-                          className={`flex-1 rounded-lg ${selected ? 'bg-primary' : ''}`}
-                          onClick={() => setFeedbackMoodStatus(selected ? '' : val)}
-                        >
-                          <Text>{label}</Text>
-                        </Button>
-                      )
-                    })}
-                  </View>
-                </View>
+                ))}
 
                 {/* 保存按钮 - 流式布局 */}
                 <View

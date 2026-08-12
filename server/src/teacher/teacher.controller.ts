@@ -90,9 +90,9 @@ export class TeacherController {
   async submitFeedback(@Body() body: {
     child_id: string;
     teacher_role_id?: string;
-    meal_status: string;
-    sleep_status: string;
-    mood_status: string;
+    meal_status: string | number;
+    sleep_status: string | number;
+    mood_status: string | number;
     activities?: string;
     notes?: string;
   }) {
@@ -105,9 +105,9 @@ export class TeacherController {
   async updateFeedback(
     @Param('id') id: string,
     @Body() body: {
-      meal_status: string;
-      sleep_status: string;
-      mood_status: string;
+      meal_status: string | number;
+      sleep_status: string | number;
+      mood_status: string | number;
       activities?: string;
       notes?: string;
     }) {
