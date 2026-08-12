@@ -601,8 +601,10 @@ export default function IndexPage() {
                                 ? `${child.start_date || '?'} ~ ${child.extended_end_date || child.end_date || '?'}`
                                 : null
                               const childFeedback = childFeedbacks[child.id]
+                              const mealLabel: Record<string, string> = { good: '好', normal: '一般', poor: '差', none: '无' }
+                              const moodLabel: Record<string, string> = { happy: '开心', normal: '一般', upset: '低落', none: '无' }
                               const feedbackSummary = childFeedback?.meal_status || childFeedback?.sleep_status || childFeedback?.mood_status
-                                ? `餐食${childFeedback.meal_status || '无'}·午睡${childFeedback.sleep_status || '无'}·情绪${childFeedback.mood_status || '无'}`
+                                ? `餐食${mealLabel[childFeedback.meal_status || ''] || '无'}·午睡${mealLabel[childFeedback.sleep_status || ''] || '无'}·情绪${moodLabel[childFeedback.mood_status || ''] || '无'}`
                                 : null
                               return (
                                 <View
@@ -723,17 +725,19 @@ export default function IndexPage() {
                 {/* 餐食 */}
                 <View className="mb-4">
                   <Text className="block text-sm font-medium text-foreground mb-2">餐食</Text>
-                  <View className="flex flex-row gap-3">
-                    {['好', '一般', '差'].map((opt) => {
-                      const selected = feedbackMealStatus === opt
+                  <View className="flex gap-2">
+                    {[['good', '好'], ['normal', '一般'], ['poor', '差'], ['none', '无']].map(([val, label]) => {
+                      const selected = feedbackMealStatus === val
                       return (
-                        <View
-                          key={opt}
-                          className={`px-4 py-2 rounded-lg border ${selected ? 'bg-green-50 border-green-500' : 'bg-gray-50 border-gray-200'}`}
-                          onClick={() => setFeedbackMealStatus(selected ? '' : opt)}
+                        <Button
+                          key={val}
+                          variant={selected ? 'default' : 'outline'}
+                          size="sm"
+                          className={`flex-1 rounded-lg ${selected ? 'bg-primary' : ''}`}
+                          onClick={() => setFeedbackMealStatus(selected ? '' : val)}
                         >
-                          <Text className={`text-sm ${selected ? 'text-green-700 font-medium' : 'text-gray-600'}`}>{opt}</Text>
-                        </View>
+                          <Text>{label}</Text>
+                        </Button>
                       )
                     })}
                   </View>
@@ -742,17 +746,19 @@ export default function IndexPage() {
                 {/* 午睡 */}
                 <View className="mb-4">
                   <Text className="block text-sm font-medium text-foreground mb-2">午睡</Text>
-                  <View className="flex flex-row gap-3">
-                    {['好', '一般', '差'].map((opt) => {
-                      const selected = feedbackSleepStatus === opt
+                  <View className="flex gap-2">
+                    {[['good', '好'], ['normal', '一般'], ['poor', '差'], ['none', '无']].map(([val, label]) => {
+                      const selected = feedbackSleepStatus === val
                       return (
-                        <View
-                          key={opt}
-                          className={`px-4 py-2 rounded-lg border ${selected ? 'bg-green-50 border-green-500' : 'bg-gray-50 border-gray-200'}`}
-                          onClick={() => setFeedbackSleepStatus(selected ? '' : opt)}
+                        <Button
+                          key={val}
+                          variant={selected ? 'default' : 'outline'}
+                          size="sm"
+                          className={`flex-1 rounded-lg ${selected ? 'bg-primary' : ''}`}
+                          onClick={() => setFeedbackSleepStatus(selected ? '' : val)}
                         >
-                          <Text className={`text-sm ${selected ? 'text-green-700 font-medium' : 'text-gray-600'}`}>{opt}</Text>
-                        </View>
+                          <Text>{label}</Text>
+                        </Button>
                       )
                     })}
                   </View>
@@ -761,17 +767,19 @@ export default function IndexPage() {
                 {/* 情绪 */}
                 <View className="mb-4">
                   <Text className="block text-sm font-medium text-foreground mb-2">情绪</Text>
-                  <View className="flex flex-row gap-3">
-                    {['开心', '一般', '不开心'].map((opt) => {
-                      const selected = feedbackMoodStatus === opt
+                  <View className="flex gap-2">
+                    {[['happy', '开心'], ['normal', '一般'], ['upset', '低落'], ['none', '无']].map(([val, label]) => {
+                      const selected = feedbackMoodStatus === val
                       return (
-                        <View
-                          key={opt}
-                          className={`px-4 py-2 rounded-lg border ${selected ? 'bg-green-50 border-green-500' : 'bg-gray-50 border-gray-200'}`}
-                          onClick={() => setFeedbackMoodStatus(selected ? '' : opt)}
+                        <Button
+                          key={val}
+                          variant={selected ? 'default' : 'outline'}
+                          size="sm"
+                          className={`flex-1 rounded-lg ${selected ? 'bg-primary' : ''}`}
+                          onClick={() => setFeedbackMoodStatus(selected ? '' : val)}
                         >
-                          <Text className={`text-sm ${selected ? 'text-green-700 font-medium' : 'text-gray-600'}`}>{opt}</Text>
-                        </View>
+                          <Text>{label}</Text>
+                        </Button>
                       )
                     })}
                   </View>
