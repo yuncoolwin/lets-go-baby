@@ -742,13 +742,13 @@ export default function IndexPage() {
                           <View
                             key={star}
                             style={{
-                              width: 44, height: 44, borderRadius: 8,
+                              width: 48, height: 48, borderRadius: 8,
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              backgroundColor: filled ? '#E8651A' : '#f5f0eb',
+                              backgroundColor: 'transparent',
                             }}
                             onClick={() => setter(parseInt(value || '0', 10) === star && star === 1 ? '' : String(star))}
                           >
-                            <Text style={{ fontSize: 20, color: filled ? '#fff' : '#ccc' }}>
+                            <Text style={{ fontSize: 28, color: filled ? '#E8651A' : '#d1d5db' }}>
                               {filled ? '★' : '☆'}
                             </Text>
                           </View>
