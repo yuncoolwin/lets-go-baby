@@ -30,7 +30,6 @@ interface FeedbackItem {
   activities: string | null
   notes: string | null
   teacher_name: string
-  course_type?: string
 }
 
 interface Student {
@@ -346,9 +345,6 @@ export default function RecordsPage() {
                       </View>
                     </View>
                   </View>
-                  {item.course_type ? (
-                    <Text className="block text-xs text-gray-400 mb-2">{item.course_type}</Text>
-                  ) : null}
                   <View className="flex flex-wrap gap-2 mb-3">
                     {item.meal_status && parseInt(item.meal_status, 10) > 0 && (
                       <Badge className={`rounded-full text-xs ${getStatusBadge(item.meal_status)}`}>
@@ -754,9 +750,6 @@ export default function RecordsPage() {
                     {item.feedback_date}
                   </Text>
                 </View>
-                {item.course_type ? (
-                  <Text className="block text-xs text-gray-400 mb-2">{item.course_type}</Text>
-                ) : null}
                 <View className="flex flex-wrap gap-2 mb-3">
                   {item.meal_status && parseInt(item.meal_status, 10) > 0 && (
                     <Badge className={`rounded-full text-xs ${getStatusBadge(item.meal_status)}`}>
