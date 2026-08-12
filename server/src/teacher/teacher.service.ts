@@ -715,7 +715,7 @@ export class TeacherService {
       id: f.id,
       child_id: f.child_id,
       course_id: f.course_id,
-      course_name: courseMap.get(f.course_id) || '默认课程',
+      course_name: courseMap.get(f.course_id) || f.course_id || '默认课程',
       child_name: childMap.get(f.child_id) || '未知',
       feedback_date: f.feedback_date,
       meal_status: f.meal_status,
