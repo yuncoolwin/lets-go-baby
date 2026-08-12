@@ -346,15 +346,21 @@ export default function RecordsPage() {
                     </View>
                   </View>
                   <View className="flex flex-wrap gap-2 mb-3">
-                    <Badge className={`rounded-full text-xs ${getStatusBadge(item.meal_status)}`}>
-                      餐食: {getStatusLabel(item.meal_status)}
-                    </Badge>
-                    <Badge className={`rounded-full text-xs ${getStatusBadge(item.sleep_status)}`}>
-                      午睡: {getStatusLabel(item.sleep_status)}
-                    </Badge>
-                    <Badge className={`rounded-full text-xs ${getStatusBadge(item.mood_status)}`}>
-                      情绪: {getStatusLabel(item.mood_status)}
-                    </Badge>
+                    {item.meal_status && parseInt(item.meal_status, 10) > 0 && (
+                      <Badge className={`rounded-full text-xs ${getStatusBadge(item.meal_status)}`}>
+                        餐食: {getStatusLabel(item.meal_status)}
+                      </Badge>
+                    )}
+                    {item.sleep_status && parseInt(item.sleep_status, 10) > 0 && (
+                      <Badge className={`rounded-full text-xs ${getStatusBadge(item.sleep_status)}`}>
+                        午睡: {getStatusLabel(item.sleep_status)}
+                      </Badge>
+                    )}
+                    {item.mood_status && parseInt(item.mood_status, 10) > 0 && (
+                      <Badge className={`rounded-full text-xs ${getStatusBadge(item.mood_status)}`}>
+                        情绪: {getStatusLabel(item.mood_status)}
+                      </Badge>
+                    )}
                   </View>
                   {item.activities && (
                     <Text className="block text-sm text-foreground mb-1">
@@ -745,15 +751,21 @@ export default function RecordsPage() {
                   </Text>
                 </View>
                 <View className="flex flex-wrap gap-2 mb-3">
-                  <Badge className={`rounded-full text-xs ${getStatusBadge(item.meal_status)}`}>
-                    餐食: {getStatusLabel(item.meal_status)}
-                  </Badge>
-                  <Badge className={`rounded-full text-xs ${getStatusBadge(item.sleep_status)}`}>
-                    午睡: {getStatusLabel(item.sleep_status)}
-                  </Badge>
-                  <Badge className={`rounded-full text-xs ${getStatusBadge(item.mood_status)}`}>
-                    情绪: {getStatusLabel(item.mood_status)}
-                  </Badge>
+                  {item.meal_status && parseInt(item.meal_status, 10) > 0 && (
+                    <Badge className={`rounded-full text-xs ${getStatusBadge(item.meal_status)}`}>
+                      餐食: {getStatusLabel(item.meal_status)}
+                    </Badge>
+                  )}
+                  {item.sleep_status && parseInt(item.sleep_status, 10) > 0 && (
+                    <Badge className={`rounded-full text-xs ${getStatusBadge(item.sleep_status)}`}>
+                      午睡: {getStatusLabel(item.sleep_status)}
+                    </Badge>
+                  )}
+                  {item.mood_status && parseInt(item.mood_status, 10) > 0 && (
+                    <Badge className={`rounded-full text-xs ${getStatusBadge(item.mood_status)}`}>
+                      情绪: {getStatusLabel(item.mood_status)}
+                    </Badge>
+                  )}
                 </View>
                 {item.activities && (
                   <Text className="block text-sm text-foreground mb-1">

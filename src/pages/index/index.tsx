@@ -610,11 +610,13 @@ export default function IndexPage() {
                               const childFeedback = childFeedbacks[child.id]
                               const renderStars = (v: string | null | undefined) => {
                                 const n = parseInt(v || '0', 10)
-                                return n > 0 ? '★'.repeat(n) + '☆'.repeat(5 - n) : '—'
+                                return n > 0 ? '★'.repeat(n) + '☆'.repeat(5 - n) : ''
                               }
-                              const feedbackSummary = childFeedback?.meal_status || childFeedback?.sleep_status || childFeedback?.mood_status
-                                ? `餐食${renderStars(childFeedback.meal_status)}·午睡${renderStars(childFeedback.sleep_status)}·情绪${renderStars(childFeedback.mood_status)}`
-                                : null
+                              const parts: string[] = []
+                              if (childFeedback?.meal_status && parseInt(childFeedback.meal_status, 10) > 0) parts.push(`餐食${renderStars(childFeedback.meal_status)}`)
+                              if (childFeedback?.sleep_status && parseInt(childFeedback.sleep_status, 10) > 0) parts.push(`午睡${renderStars(childFeedback.sleep_status)}`)
+                              if (childFeedback?.mood_status && parseInt(childFeedback.mood_status, 10) > 0) parts.push(`情绪${renderStars(childFeedback.mood_status)}`)
+                              const feedbackSummary = parts.length > 0 ? parts.join('·') : null
                               return (
                                 <View
                                   key={child.id}
