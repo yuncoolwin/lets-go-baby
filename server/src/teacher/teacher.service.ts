@@ -253,7 +253,7 @@ export class TeacherService {
     // 查询当前星期有排课的课程 ID
     const { data: weekdayCourses } = await this.client
       .from('courses')
-      .select('id, name')
+      .select('id, name, course_type')
       .eq('date_calc_rule', weekdayRule);
     const weekdayCourseIds = new Set((weekdayCourses || []).map(c => c.id));
     // 过滤：只保留 course_id 匹配当天排课的报读
@@ -416,7 +416,7 @@ export class TeacherService {
     }
     const { data: weekdayCourses } = await this.client
       .from('courses')
-      .select('id, name')
+      .select('id, name, course_type')
       .eq('date_calc_rule', weekdayRule);
     const weekdayCourseIds = new Set((weekdayCourses || []).map(c => c.id));
     const filteredEnrollments = enrollmentList.filter(e => e.course_id && weekdayCourseIds.has(e.course_id));
@@ -691,9 +691,9 @@ export class TeacherService {
     const childIds = [...new Set(data.map(f => f.child_id))];
     const { data: children } = await this.client
       .from('children')
-      .select('id, name')
+      .select('id, name, course_type')
       .in('id', childIds);
-    const childMap = new Map(children?.map(c => [c.id, c.name]) || []);
+    const childMap = new Map(children?.map(c => [c.id, c]) || []);
 
     // 获取教师名称
     const teacherIds = [...new Set(data.map(f => f.teacher_id).filter(Boolean))];
@@ -715,8 +715,8 @@ export class TeacherService {
       id: f.id,
       child_id: f.child_id,
       course_id: f.course_id,
-      course_name: courseMap.get(f.course_id) || f.course_id || '默认课程',
-      child_name: childMap.get(f.child_id) || '未知',
+      course_name: courseMap.get(f.course_id) || f.course_id || childMap.get(f.child_id)?.course_type || null,
+      child_name: childMap.get(f.child_id)?.name || '未知',
       feedback_date: f.feedback_date,
       meal_status: f.meal_status,
       sleep_status: f.sleep_status,

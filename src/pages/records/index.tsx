@@ -229,6 +229,7 @@ export default function RecordsPage() {
           mood_status: moodStatus,
           activities: activities || null,
           notes: notes || null,
+          course_id: selectedCourseId,
         }
       })
       console.log('[Records] submit feedback:', res.data)
