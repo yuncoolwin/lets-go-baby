@@ -681,11 +681,11 @@ export default function RecordsPage() {
                   </View>
                 </View>
                 {[
-                  { star: '⭐⭐⭐⭐⭐', desc: '全天心情愉悦，自主参与活动、社交' },
-                  { star: '⭐⭐⭐⭐', desc: '状态平稳，轻微分心走神，简单引导即可' },
-                  { star: '⭐⭐⭐', desc: '情绪小幅起伏，陪伴安抚1-2分钟就能平复' },
-                  { star: '⭐⭐', desc: '低落烦躁易怒，抗拒活动、争抢玩具，需长时间安抚' },
-                  { star: '⭐', desc: '情绪崩溃失控，抗拒吃饭，安抚半小时仍无法平复' },
+                  { star: '★★★★★', desc: '情绪饱满，乐于助人，主动带动同伴' },
+                  { star: '★★★★☆', desc: '愉快积极，主动参与，与同伴友好相处' },
+                  { star: '★★★☆☆', desc: '情绪平稳，能参与活动，偶有波动' },
+                  { star: '★★☆☆☆', desc: '情绪低落，不愿互动，需老师全程引导' },
+                  { star: '★☆☆☆☆', desc: '持续哭闹，拒绝参与活动' },
                 ].map((item) => (
                   <View key={item.star} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
                     <Text style={{ fontSize: 16, color: '#E8651A', marginRight: 12, width: 80, flexShrink: 0 }}>{item.star}</Text>
