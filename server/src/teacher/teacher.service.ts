@@ -253,7 +253,7 @@ export class TeacherService {
     // 查询当前星期有排课的课程 ID
     const { data: weekdayCourses } = await this.client
       .from('courses')
-      .select('id, name, course_type')
+      .select('id, name')
       .eq('date_calc_rule', weekdayRule);
     const weekdayCourseIds = new Set((weekdayCourses || []).map(c => c.id));
     // 过滤：只保留 course_id 匹配当天排课的报读
@@ -416,7 +416,7 @@ export class TeacherService {
     }
     const { data: weekdayCourses } = await this.client
       .from('courses')
-      .select('id, name, course_type')
+      .select('id, name')
       .eq('date_calc_rule', weekdayRule);
     const weekdayCourseIds = new Set((weekdayCourses || []).map(c => c.id));
     const filteredEnrollments = enrollmentList.filter(e => e.course_id && weekdayCourseIds.has(e.course_id));
@@ -668,7 +668,6 @@ export class TeacherService {
       .select(`
         id,
         child_id,
-        course_id,
         feedback_date,
         meal_status,
         sleep_status,
@@ -691,9 +690,9 @@ export class TeacherService {
     const childIds = [...new Set(data.map(f => f.child_id))];
     const { data: children } = await this.client
       .from('children')
-      .select('id, name, course_type')
+      .select('id, name')
       .in('id', childIds);
-    const childMap = new Map(children?.map(c => [c.id, c]) || []);
+    const childMap = new Map(children?.map(c => [c.id, c.name]) || []);
 
     // 获取教师名称
     const teacherIds = [...new Set(data.map(f => f.teacher_id).filter(Boolean))];
@@ -703,20 +702,10 @@ export class TeacherService {
       .in('id', teacherIds);
     const teacherMap = new Map(teachers?.map(t => [t.id, t.real_name]) || []);
 
-    // 获取课程名称
-    const courseIds = [...new Set(data.map(f => f.course_id).filter(Boolean))];
-    const { data: courses } = await this.client
-      .from('courses')
-      .select('id, name')
-      .in('id', courseIds);
-    const courseMap = new Map(courses?.map(c => [c.id, c.name]) || []);
-
     return data.map(f => ({
       id: f.id,
       child_id: f.child_id,
-      course_id: f.course_id,
-      course_name: courseMap.get(f.course_id) || f.course_id || childMap.get(f.child_id)?.course_type || null,
-      child_name: childMap.get(f.child_id)?.name || '未知',
+      child_name: childMap.get(f.child_id) || '未知',
       feedback_date: f.feedback_date,
       meal_status: f.meal_status,
       sleep_status: f.sleep_status,
@@ -753,7 +742,6 @@ export class TeacherService {
 
   async submitFeedback(data: {
     child_id: string;
-    course_id: string;
     teacher_role_id?: string;
     meal_status: string | number;
     sleep_status: string | number;
@@ -767,7 +755,6 @@ export class TeacherService {
       .from('daily_feedbacks')
       .upsert({
         child_id: data.child_id,
-        course_id: data.course_id || null,
         teacher_id: data.teacher_role_id || null,
         feedback_date: today,
         meal_status: String(data.meal_status || ''),
@@ -776,7 +763,7 @@ export class TeacherService {
         activities: data.activities || null,
         notes: data.notes || null,
       }, {
-        onConflict: 'child_id, course_id, feedback_date',
+        onConflict: 'child_id, feedback_date',
         ignoreDuplicates: false,
       });
 

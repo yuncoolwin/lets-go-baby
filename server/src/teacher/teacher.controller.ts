@@ -89,7 +89,6 @@ export class TeacherController {
   @HttpCode(200)
   async submitFeedback(@Body() body: {
     child_id: string;
-    course_id: string;
     teacher_role_id?: string;
     meal_status: string | number;
     sleep_status: string | number;
