@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { Bus, Users, Camera, GraduationCap, Plus, ChevronDown, ChevronUp, BookOpen, Calendar, X } from 'lucide-react-taro'
+import { Bus, Users, Camera, GraduationCap, Plus, ChevronDown, ChevronUp, BookOpen, Calendar, X, Info } from 'lucide-react-taro'
 import { getRelationshipLabel } from '@/utils/helpers'
 import { courseApi } from '@/utils/api'
 import rabbitLogo from '@/assets/rabbit-logo.png'
@@ -72,6 +72,7 @@ export default function IndexPage() {
   const [feedbackSleepStatus, setFeedbackSleepStatus] = useState('')
   const [feedbackMoodStatus, setFeedbackMoodStatus] = useState('')
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
+  const [mealInfoOpen, setMealInfoOpen] = useState(false)
   const currentChild = children[currentChildIndex] || null
 
   // 等待 store 从持久化中恢复
@@ -646,7 +647,7 @@ export default function IndexPage() {
                                       // 仅出勤类状态（全天出勤/半天出勤/出勤）才弹出日常记录
                                       const attdTypes = ['present', 'full_day', 'half_day']
                                       if (!attdTypes.includes(child.attendance_status)) return
-                                      setFeedbackChild({ id: child.id, name: child.name, course_type: group.course?.name || '' })
+                                      setFeedbackChild({ id: child.id, name: child.name, course_type: group.course_type || '' })
                                       setFeedbackMealStatus(childFeedback?.meal_status || '')
                                       setFeedbackSleepStatus(childFeedback?.sleep_status || '')
                                       setFeedbackMoodStatus(childFeedback?.mood_status || '')
@@ -734,7 +735,20 @@ export default function IndexPage() {
                   { label: '情绪', value: feedbackMoodStatus, setter: setFeedbackMoodStatus },
                 ].map(({ label, value, setter }) => (
                   <View className="mb-4" key={label}>
-                    <Text className="block text-sm font-medium text-foreground mb-2">{label}</Text>
+                    <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                      <Text className="text-sm font-medium text-foreground">{label}</Text>
+                      {label === '餐食' && (
+                        <View
+                          style={{
+                            width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 6,
+                          }}
+                          onClick={(e) => { e.stopPropagation(); setMealInfoOpen(true) }}
+                        >
+                          <Info size={12} color="#9ca3af" />
+                        </View>
+                      )}
+                    </View>
                     <View style={{ display: 'flex', flexDirection: 'row', gap: '8px' }}>
                       {[1, 2, 3, 4, 5].map((star) => {
                         const filled = (parseInt(value || '0', 10) || 0) >= star
@@ -805,8 +819,39 @@ export default function IndexPage() {
               </View>
             </View>
 
+            {/* 餐食评分说明弹窗 */}
+            {mealInfoOpen && (
+              <View
+                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)' }}
+                onClick={() => setMealInfoOpen(false)}
+              >
+                <View
+                  style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderRadius: '16px 16px 0 0', padding: 24, maxHeight: '70vh', overflowY: 'auto' }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <Text className="block text-lg font-bold text-foreground">餐食评分说明</Text>
+                    <View onClick={() => setMealInfoOpen(false)} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <X size={16} color="#6b7280" />
+                    </View>
+                  </View>
+                  {[
+                    { star: '★★★★★', desc: '自主光盘，主动添饭，不挑食' },
+                    { star: '★★★★☆', desc: '少量剩菜，无需喂食' },
+                    { star: '★★★☆☆', desc: '一半饭菜，需要简单提醒' },
+                    { star: '★★☆☆☆', desc: '进食很少，全程老师喂饭' },
+                    { star: '★☆☆☆☆', desc: '拒食、哭闹，进食不足 1/3' },
+                  ].map((item) => (
+                    <View key={item.star} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                      <Text style={{ fontSize: 16, color: '#E8651A', marginRight: 12, width: 80, flexShrink: 0 }}>{item.star}</Text>
+                      <Text className="block text-sm text-gray-600 flex-1">{item.desc}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
             </View>
-        )}
+          )}
       </View>
     )
   }

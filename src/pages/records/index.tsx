@@ -3,7 +3,7 @@ import { View, Text, Image, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Trash2, BookOpen, Plus, X, ChevronDown } from 'lucide-react-taro'
+import { Trash2, BookOpen, Plus, X, ChevronDown, Info } from 'lucide-react-taro'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
@@ -53,6 +53,7 @@ export default function RecordsPage() {
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [showStudentPicker, setShowStudentPicker] = useState(false)
+  const [mealInfoOpen, setMealInfoOpen] = useState(false)
   const [recordedStudentIds, setRecordedStudentIds] = useState<string[]>([])
   const [editingFeedbackId, setEditingFeedbackId] = useState<string | null>(null)
   const [classes, setClasses] = useState<ClassItem[]>([])
@@ -526,8 +527,21 @@ export default function RecordsPage() {
                 { label: '情绪', value: moodStatus, setter: setMoodStatus },
               ].map(({ label, value, setter }) => (
                 <View className="mb-4" key={label}>
-                  <Text className="block text-sm font-medium mb-2">{label}</Text>
-                  <View style={{ display: 'flex', flexDirection: 'row', gap: '8px' }}>
+                  <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                      <Text className="text-sm font-medium">{label}</Text>
+                      {label === '餐食' && (
+                        <View
+                          style={{
+                            width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 6,
+                          }}
+                          onClick={(e) => { e.stopPropagation(); setMealInfoOpen(true) }}
+                        >
+                          <Info size={12} color="#9ca3af" />
+                        </View>
+                      )}
+                    </View>
+                    <View style={{ display: 'flex', flexDirection: 'row', gap: '8px' }}>
                     {[1, 2, 3, 4, 5].map((star) => {
                       const filled = (parseInt(value || '0', 10) || 0) >= star
                       return (
@@ -563,6 +577,38 @@ export default function RecordsPage() {
               </View>
           </View>
         )}
+
+          {/* 餐食评分说明弹窗 */}
+          {showAddModal && mealInfoOpen && (
+            <View
+              style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)' }}
+              onClick={() => setMealInfoOpen(false)}
+            >
+              <View
+                style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderRadius: '16px 16px 0 0', padding: 24, maxHeight: '70vh', overflowY: 'auto' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <Text className="block text-lg font-bold text-foreground">餐食评分说明</Text>
+                  <View onClick={() => setMealInfoOpen(false)} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <X size={16} color="#6b7280" />
+                  </View>
+                </View>
+                {[
+                  { star: '★★★★★', desc: '自主光盘，主动添饭，不挑食' },
+                  { star: '★★★★☆', desc: '少量剩菜，无需喂食' },
+                  { star: '★★★☆☆', desc: '一半饭菜，需要简单提醒' },
+                  { star: '★★☆☆☆', desc: '进食很少，全程老师喂饭' },
+                  { star: '★☆☆☆☆', desc: '拒食、哭闹，进食不足 1/3' },
+                ].map((item) => (
+                  <View key={item.star} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                    <Text style={{ fontSize: 16, color: '#E8651A', marginRight: 12, width: 80, flexShrink: 0 }}>{item.star}</Text>
+                    <Text className="block text-sm text-gray-600 flex-1">{item.desc}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
       </View>
     )
   }
