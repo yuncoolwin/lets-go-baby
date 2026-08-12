@@ -668,6 +668,7 @@ export class TeacherService {
       .select(`
         id,
         child_id,
+        course_id,
         feedback_date,
         meal_status,
         sleep_status,
@@ -702,9 +703,19 @@ export class TeacherService {
       .in('id', teacherIds);
     const teacherMap = new Map(teachers?.map(t => [t.id, t.real_name]) || []);
 
+    // 获取课程名称
+    const courseIds = [...new Set(data.map(f => f.course_id).filter(Boolean))];
+    const { data: courses } = await this.client
+      .from('courses')
+      .select('id, name')
+      .in('id', courseIds);
+    const courseMap = new Map(courses?.map(c => [c.id, c.name]) || []);
+
     return data.map(f => ({
       id: f.id,
       child_id: f.child_id,
+      course_id: f.course_id,
+      course_name: courseMap.get(f.course_id) || '默认课程',
       child_name: childMap.get(f.child_id) || '未知',
       feedback_date: f.feedback_date,
       meal_status: f.meal_status,
@@ -742,6 +753,7 @@ export class TeacherService {
 
   async submitFeedback(data: {
     child_id: string;
+    course_id: string;
     teacher_role_id?: string;
     meal_status: string | number;
     sleep_status: string | number;
@@ -755,6 +767,7 @@ export class TeacherService {
       .from('daily_feedbacks')
       .upsert({
         child_id: data.child_id,
+        course_id: data.course_id || null,
         teacher_id: data.teacher_role_id || null,
         feedback_date: today,
         meal_status: String(data.meal_status || ''),
@@ -763,7 +776,7 @@ export class TeacherService {
         activities: data.activities || null,
         notes: data.notes || null,
       }, {
-        onConflict: 'child_id, feedback_date',
+        onConflict: 'child_id, course_id, feedback_date',
         ignoreDuplicates: false,
       });
 

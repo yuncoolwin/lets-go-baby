@@ -30,6 +30,8 @@ interface FeedbackItem {
   activities: string | null
   notes: string | null
   teacher_name: string
+  course_id: string | null
+  course_name: string | null
 }
 
 interface Student {
@@ -332,6 +334,11 @@ export default function RecordsPage() {
                     <Text className="block text-base font-semibold text-foreground">
                       {item.child_name}
                     </Text>
+                    {item.course_name && (
+                      <Text className="block text-xs text-primary font-medium ml-2">
+                        {item.course_name}
+                      </Text>
+                    )}
                     <View className="flex items-center gap-2">
                       <Text className="block text-xs text-muted-foreground">
                         {item.feedback_date}
