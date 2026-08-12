@@ -167,6 +167,25 @@ export default function IndexPage() {
     }
   }
 
+  const loadChildFeedbacks = async () => {
+    try {
+      const feedbackRes = await Network.request({ url: '/api/teachers/feedbacks', method: 'GET' })
+      console.log('[Index] today feedbacks:', feedbackRes.data)
+      if (feedbackRes.data?.data) {
+        const list = Array.isArray(feedbackRes.data.data) ? feedbackRes.data.data : []
+        const map: Record<string, { meal_status: string | null; sleep_status: string | null; mood_status: string | null }> = {}
+        list.forEach((f: any) => {
+          if (f.child_id) {
+            map[f.child_id] = { meal_status: f.meal_status, sleep_status: f.sleep_status, mood_status: f.mood_status }
+          }
+        })
+        setChildFeedbacks(map)
+      }
+    } catch (e) {
+      console.log('[Index] load feedbacks failed:', e)
+    }
+  }
+
   const loadTeacherData = async () => {
     const teacherId = Taro.getStorageSync('teacherId') || currentRole?.id
     if (teacherId) {
@@ -193,22 +212,7 @@ export default function IndexPage() {
         setCourseColors(colorMap)
       }
       // 加载今日日常记录
-      try {
-        const feedbackRes = await Network.request({ url: '/api/teachers/feedbacks', method: 'GET' })
-        console.log('[Index] today feedbacks:', feedbackRes.data)
-        if (feedbackRes.data?.data) {
-          const list = Array.isArray(feedbackRes.data.data) ? feedbackRes.data.data : []
-          const map: Record<string, { meal_status: string | null; sleep_status: string | null; mood_status: string | null }> = {}
-          list.forEach((f: any) => {
-            if (f.child_id) {
-              map[f.child_id] = { meal_status: f.meal_status, sleep_status: f.sleep_status, mood_status: f.mood_status }
-            }
-          })
-          setChildFeedbacks(map)
-        }
-      } catch (e) {
-        console.log('[Index] load feedbacks failed:', e)
-      }
+      await loadChildFeedbacks()
     }
   }
 
@@ -805,23 +809,15 @@ export default function IndexPage() {
                           method: 'POST',
                           data: {
                             child_id: feedbackChild.id,
-                            teacher_role_id: Taro.getStorageSync('teacherId') || currentRole?.id,
+                            teacher_role_id: currentRole?.id,
                             meal_status: feedbackMealStatus,
                             sleep_status: feedbackSleepStatus,
                             mood_status: feedbackMoodStatus,
-                            record_date: new Date().toISOString().slice(0, 10),
                           },
                         })
                         console.log('[Index] save feedback:', res.data)
-                        if (res.data?.code === 200 || res.data?.data) {
-                          setChildFeedbacks((prev) => ({
-                            ...prev,
-                            [feedbackChild.id]: {
-                              meal_status: feedbackMealStatus || null,
-                              sleep_status: feedbackSleepStatus || null,
-                              mood_status: feedbackMoodStatus || null,
-                            },
-                          }))
+                        if (res.data?.code === 200) {
+                          await loadChildFeedbacks()
                           setFeedbackChild(null)
                         }
                       } catch (e) {
