@@ -669,8 +669,6 @@ export class TeacherService {
         id,
         child_id,
         feedback_date,
-        class_id,
-        course_type,
         meal_status,
         sleep_status,
         mood_status,
@@ -688,26 +686,13 @@ export class TeacherService {
 
     if (!data || data.length === 0) return [];
 
-    // 获取幼儿信息（含班级和课程类型）
+    // 获取幼儿名称
     const childIds = [...new Set(data.map(f => f.child_id))];
     const { data: children } = await this.client
       .from('children')
-      .select('id, name, class_id, course_type')
+      .select('id, name')
       .in('id', childIds);
     const childMap = new Map(children?.map(c => [c.id, c.name]) || []);
-    const childClassIds = [...new Set(children?.map(c => c.class_id).filter(Boolean) || [])];
-
-    // 获取班级名称
-    const classMap = new Map<string, string>();
-    if (childClassIds.length > 0) {
-      const { data: classes } = await this.client
-        .from('classes')
-        .select('id, name')
-        .in('id', childClassIds);
-      if (classes) {
-        classes.forEach(c => classMap.set(c.id, c.name));
-      }
-    }
 
     // 获取教师名称
     const teacherIds = [...new Set(data.map(f => f.teacher_id).filter(Boolean))];
@@ -717,25 +702,18 @@ export class TeacherService {
       .in('id', teacherIds);
     const teacherMap = new Map(teachers?.map(t => [t.id, t.real_name]) || []);
 
-    return data.map(f => {
-      const child = children?.find(c => c.id === f.child_id);
-      const classId = f.class_id || child?.class_id || '';
-      const courseType = f.course_type || child?.course_type || '';
-      return {
-        id: f.id,
-        child_id: f.child_id,
-        child_name: childMap.get(f.child_id) || '未知',
-        child_class_name: classId ? (classMap.get(classId) || '') : '',
-        child_course_type: courseType,
-        feedback_date: f.feedback_date,
-        meal_status: f.meal_status,
-        sleep_status: f.sleep_status,
-        mood_status: f.mood_status,
-        activities: f.activities,
-        notes: f.notes,
-        teacher_name: f.teacher_id ? (teacherMap.get(f.teacher_id) || '老师') : '老师',
-      };
-    });
+    return data.map(f => ({
+      id: f.id,
+      child_id: f.child_id,
+      child_name: childMap.get(f.child_id) || '未知',
+      feedback_date: f.feedback_date,
+      meal_status: f.meal_status,
+      sleep_status: f.sleep_status,
+      mood_status: f.mood_status,
+      activities: f.activities,
+      notes: f.notes,
+      teacher_name: f.teacher_id ? (teacherMap.get(f.teacher_id) || '老师') : '老师',
+    }));
   }
 
   async submitAttendance(data: {
@@ -772,13 +750,6 @@ export class TeacherService {
     notes?: string;
   }) {
     const today = new Date().toISOString().split('T')[0];
-
-    // 查询幼儿所在班级和课程类型
-    const { data: child } = await this.client
-      .from('children')
-      .select('class_id, course_type')
-      .eq('id', data.child_id)
-      .maybeSingle();
     
     const { error } = await this.client
       .from('daily_feedbacks')
@@ -786,8 +757,6 @@ export class TeacherService {
         child_id: data.child_id,
         teacher_id: data.teacher_role_id || null,
         feedback_date: today,
-        class_id: child?.class_id || null,
-        course_type: child?.course_type || null,
         meal_status: data.meal_status,
         sleep_status: data.sleep_status,
         mood_status: data.mood_status,

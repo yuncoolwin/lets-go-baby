@@ -23,8 +23,6 @@ interface CourseItem {
 interface FeedbackItem {
   id: string
   child_name: string
-  child_class_name: string
-  child_course_type: string
   feedback_date: string
   meal_status: string | null
   sleep_status: string | null
@@ -334,7 +332,7 @@ export default function RecordsPage() {
             {feedbacks.map((item) => (
               <Card key={item.id} className="bg-white rounded-xl border-0 shadow-sm" onClick={() => handleEditFeedback(item)}>
                 <CardContent className="p-4">
-                  <View className="flex items-center justify-between mb-1">
+                  <View className="flex items-center justify-between mb-3">
                     <Text className="block text-base font-semibold text-foreground">
                       {item.child_name}
                     </Text>
@@ -351,11 +349,6 @@ export default function RecordsPage() {
                       </View>
                     </View>
                   </View>
-                  {item.child_class_name && (
-                    <Text className="block text-xs text-muted-foreground mb-3">
-                      {item.child_class_name}{item.child_course_type ? ` · ${item.child_course_type}` : ''}
-                    </Text>
-                  )}
                   <View className="flex flex-wrap gap-2 mb-3">
                     <Badge className={`rounded-full text-xs ${getStatusBadge(item.meal_status)}`}>
                       餐食: {getStatusLabel(item.meal_status)}
@@ -636,7 +629,7 @@ export default function RecordsPage() {
           {feedbacks.map((item) => (
             <Card key={item.id} className="bg-white rounded-xl border-0 shadow-sm">
               <CardContent className="p-4">
-                <View className="flex items-center justify-between mb-1">
+                <View className="flex items-center justify-between mb-3">
                   <Text className="block text-base font-semibold text-foreground">
                     {item.child_name}
                   </Text>
@@ -644,11 +637,6 @@ export default function RecordsPage() {
                     {item.feedback_date}
                   </Text>
                 </View>
-                {item.child_class_name && (
-                  <Text className="block text-xs text-muted-foreground mb-3">
-                    {item.child_class_name}{item.child_course_type ? ` · ${item.child_course_type}` : ''}
-                  </Text>
-                )}
                 <View className="flex flex-wrap gap-2 mb-3">
                   <Badge className={`rounded-full text-xs ${getStatusBadge(item.meal_status)}`}>
                     餐食: {getStatusLabel(item.meal_status)}
