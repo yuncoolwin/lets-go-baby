@@ -686,26 +686,13 @@ export class TeacherService {
 
     if (!data || data.length === 0) return [];
 
-    // 获取幼儿名称、班级、课程信息
+    // 获取幼儿名称
     const childIds = [...new Set(data.map(f => f.child_id))];
     const { data: children } = await this.client
       .from('children')
-      .select('id, name, class_id, course_type')
+      .select('id, name')
       .in('id', childIds);
     const childMap = new Map(children?.map(c => [c.id, c.name]) || []);
-    const childClassMap = new Map(children?.map(c => [c.id, c.class_id]) || []);
-    const childCourseMap = new Map(children?.map(c => [c.id, c.course_type]) || []);
-
-    // 获取班级名称
-    const classIds = [...new Set(children?.map(c => c.class_id).filter(Boolean) || [])];
-    let classMap = new Map<string, string>();
-    if (classIds.length > 0) {
-      const { data: classes } = await this.client
-        .from('classes')
-        .select('id, name')
-        .in('id', classIds);
-      classMap = new Map(classes?.map(c => [c.id, c.name]) || []);
-    }
 
     // 获取教师名称
     const teacherIds = [...new Set(data.map(f => f.teacher_id).filter(Boolean))];
@@ -719,8 +706,6 @@ export class TeacherService {
       id: f.id,
       child_id: f.child_id,
       child_name: childMap.get(f.child_id) || '未知',
-      class_name: childClassMap.get(f.child_id) ? (classMap.get(childClassMap.get(f.child_id)!) || '') : '',
-      course_type: childCourseMap.get(f.child_id) || '',
       feedback_date: f.feedback_date,
       meal_status: f.meal_status,
       sleep_status: f.sleep_status,
