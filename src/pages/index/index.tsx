@@ -742,7 +742,7 @@ export default function IndexPage() {
                       {label === '餐食' && (
                         <View
                           style={{
-                            width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db',
+                            width: 20, height: 20, borderRadius: 10,
                             display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 6,
                           }}
                           onClick={(e) => { e.stopPropagation(); setMealInfoOpen(true) }}
@@ -753,7 +753,7 @@ export default function IndexPage() {
                       {label === '午睡' && (
                         <View
                           style={{
-                            width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db',
+                            width: 20, height: 20, borderRadius: 10,
                             display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 6,
                           }}
                           onClick={(e) => { e.stopPropagation(); setNapInfoOpen(true) }}
@@ -764,7 +764,7 @@ export default function IndexPage() {
                       {label === '情绪' && (
                         <View
                           style={{
-                            width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db',
+                            width: 20, height: 20, borderRadius: 10,
                             display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 6,
                           }}
                           onClick={(e) => { e.stopPropagation(); setMoodInfoOpen(true) }}
