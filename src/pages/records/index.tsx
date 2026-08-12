@@ -55,6 +55,7 @@ export default function RecordsPage() {
   const [showStudentPicker, setShowStudentPicker] = useState(false)
   const [mealInfoOpen, setMealInfoOpen] = useState(false)
   const [napInfoOpen, setNapInfoOpen] = useState(false)
+  const [moodInfoOpen, setMoodInfoOpen] = useState(false)
   const [recordedStudentIds, setRecordedStudentIds] = useState<string[]>([])
   const [editingFeedbackId, setEditingFeedbackId] = useState<string | null>(null)
   const [classes, setClasses] = useState<ClassItem[]>([])
@@ -552,6 +553,17 @@ export default function RecordsPage() {
                           <Info size={12} color="#9ca3af" />
                         </View>
                       )}
+                      {label === '情绪' && (
+                        <View
+                          style={{
+                            width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 6,
+                          }}
+                          onClick={(e) => { e.stopPropagation(); setMoodInfoOpen(true) }}
+                        >
+                          <Info size={12} color="#9ca3af" />
+                        </View>
+                      )}
                     </View>
                     <View style={{ display: 'flex', flexDirection: 'row', gap: '8px' }}>
                     {[1, 2, 3, 4, 5].map((star) => {
@@ -643,6 +655,37 @@ export default function RecordsPage() {
                   { star: '★★★☆☆', desc: '需要简单安抚，入睡较慢' },
                   { star: '★★☆☆☆', desc: '入睡困难，需老师长时间陪伴' },
                   { star: '★☆☆☆☆', desc: '哭闹不睡，全程需老师安抚' },
+                ].map((item) => (
+                  <View key={item.star} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                    <Text style={{ fontSize: 16, color: '#E8651A', marginRight: 12, width: 80, flexShrink: 0 }}>{item.star}</Text>
+                    <Text className="block text-sm text-gray-600 flex-1">{item.desc}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+          {/* 情绪评分说明弹窗 */}
+          {showAddModal && moodInfoOpen && (
+            <View
+              style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)' }}
+              onClick={() => setMoodInfoOpen(false)}
+            >
+              <View
+                style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderRadius: '16px 16px 0 0', padding: 24, maxHeight: '70vh', overflowY: 'auto' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <Text className="block text-lg font-bold text-foreground">情绪评分说明</Text>
+                  <View onClick={() => setMoodInfoOpen(false)} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <X size={16} color="#6b7280" />
+                  </View>
+                </View>
+                {[
+                  { star: '★★★★★', desc: '情绪饱满，乐于助人，主动带动同伴' },
+                  { star: '★★★★☆', desc: '愉快积极，主动参与，与同伴友好相处' },
+                  { star: '★★★☆☆', desc: '情绪平稳，能参与活动，偶有波动' },
+                  { star: '★★☆☆☆', desc: '情绪低落，不愿互动，需老师全程引导' },
+                  { star: '★☆☆☆☆', desc: '持续哭闹，拒绝参与活动' },
                 ].map((item) => (
                   <View key={item.star} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
                     <Text style={{ fontSize: 16, color: '#E8651A', marginRight: 12, width: 80, flexShrink: 0 }}>{item.star}</Text>
