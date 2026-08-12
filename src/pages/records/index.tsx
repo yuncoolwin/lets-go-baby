@@ -333,9 +333,16 @@ export default function RecordsPage() {
               <Card key={item.id} className="bg-white rounded-xl border-0 shadow-sm" onClick={() => handleEditFeedback(item)}>
                 <CardContent className="p-4">
                   <View className="flex items-center justify-between mb-3">
-                    <Text className="block text-base font-semibold text-foreground">
-                      {item.child_name}
-                    </Text>
+                    <View>
+                      <Text className="block text-base font-semibold text-foreground">
+                        {item.child_name}
+                      </Text>
+                      {(item.class_name || item.course_type) && (
+                        <Text className="block text-xs text-muted-foreground mt-1">
+                          {[item.class_name, item.course_type].filter(Boolean).join(' · ')}
+                        </Text>
+                      )}
+                    </View>
                     <View className="flex items-center gap-2">
                       <Text className="block text-xs text-muted-foreground">
                         {item.feedback_date}
