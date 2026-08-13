@@ -23,6 +23,8 @@ interface CourseItem {
 interface FeedbackItem {
   id: string
   child_name: string
+  class_name?: string
+  course_type?: string
   feedback_date: string
   meal_status: string | null
   sleep_status: string | null
@@ -345,6 +347,11 @@ export default function RecordsPage() {
                       </View>
                     </View>
                   </View>
+                  {(item.class_name || item.course_type) && (
+                    <Text className="block text-xs text-muted-foreground mb-2">
+                      {[item.class_name, item.course_type].filter(Boolean).join(' · ')}
+                    </Text>
+                  )}
                   <View className="flex flex-wrap gap-2 mb-3">
                     {item.meal_status && parseInt(item.meal_status, 10) > 0 && (
                       <Badge className={`rounded-full text-xs ${getStatusBadge(item.meal_status)}`}>
@@ -750,6 +757,11 @@ export default function RecordsPage() {
                     {item.feedback_date}
                   </Text>
                 </View>
+                {(item.class_name || item.course_type) && (
+                  <Text className="block text-xs text-muted-foreground mb-2">
+                    {[item.class_name, item.course_type].filter(Boolean).join(' · ')}
+                  </Text>
+                )}
                 <View className="flex flex-wrap gap-2 mb-3">
                   {item.meal_status && parseInt(item.meal_status, 10) > 0 && (
                     <Badge className={`rounded-full text-xs ${getStatusBadge(item.meal_status)}`}>
