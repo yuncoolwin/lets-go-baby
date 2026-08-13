@@ -466,7 +466,7 @@ export default function IndexPage() {
                           <Text className="block text-xs text-muted-foreground mb-1">
                             {record.class_name || ''}{record.class_name && record.course_name ? ' · ' : ''}{record.course_name || ''}
                           </Text>
-                          <View style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '12px' }}>
+                          <View style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '16px' }}>
                             {record.meal_status && parseInt(record.meal_status, 10) > 0 && (
                               <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                                 <Text className="text-xs text-gray-500">餐食</Text>

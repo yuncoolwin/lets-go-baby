@@ -159,7 +159,7 @@ export class ParentService {
 
     const { data, error } = await this.client
       .from('daily_feedbacks')
-      .select('id, feedback_date, meal_status, sleep_status, mood_status, class_id, course_id, course_name')
+      .select('id, feedback_date, meal_status, sleep_status, mood_status, class_id, course_id, course_name, group_id')
       .eq('child_id', childId)
       .eq('feedback_date', feedbackDate);
 
@@ -169,30 +169,46 @@ export class ParentService {
     }
     if (!data || data.length === 0) return [];
 
-    // 查询 class_name（通过 class_id 去重批量查询）
-    const classIds = [...new Set(data.map(f => f.class_id).filter(Boolean))];
+    // 补齐 class_id：如果 class_id 为空，尝试从 group_id 提取（格式: {class_id}__{course_type}）
+    const allClassIds = new Set<string>();
+    for (const f of data) {
+      let cid = f.class_id;
+      if (!cid && f.group_id) {
+        const parts = f.group_id.split('__');
+        if (parts.length >= 2) cid = parts[0];
+      }
+      if (cid) allClassIds.add(cid);
+    }
+
     const classMap: Record<string, string> = {};
-    if (classIds.length > 0) {
+    if (allClassIds.size > 0) {
       const { data: classes } = await this.client
         .from('classes')
         .select('id, name')
-        .in('id', classIds);
+        .in('id', [...allClassIds]);
       if (classes) {
         classes.forEach(c => { classMap[c.id] = c.name; });
       }
     }
 
-    return data.map(f => ({
-      id: f.id,
-      feedback_date: f.feedback_date,
-      meal_status: f.meal_status,
-      sleep_status: f.sleep_status,
-      mood_status: f.mood_status,
-      class_id: f.class_id,
-      course_id: f.course_id,
-      course_name: f.course_name,
-      class_name: f.class_id ? (classMap[f.class_id] || null) : null,
-    }));
+    return data.map(f => {
+      let cid = f.class_id;
+      if (!cid && f.group_id) {
+        const parts = f.group_id.split('__');
+        if (parts.length >= 2) cid = parts[0];
+      }
+      return {
+        id: f.id,
+        feedback_date: f.feedback_date,
+        meal_status: f.meal_status,
+        sleep_status: f.sleep_status,
+        mood_status: f.mood_status,
+        class_id: f.class_id,
+        course_id: f.course_id,
+        course_name: f.course_name,
+        class_name: cid ? (classMap[cid] || null) : null,
+      };
+    });
   }
 
   async getAttendance(parentRoleId?: string) {
