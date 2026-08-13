@@ -231,7 +231,6 @@ export class AdminService {
             .insert({
               user_id: userId,
               role_type: 'parent',
-              role: 'parent',
               status: 'active',
             })
             .select('id')
