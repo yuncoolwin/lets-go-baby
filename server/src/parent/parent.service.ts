@@ -154,6 +154,47 @@ export class ParentService {
     }));
   }
 
+  async getDailyFeedbacks(childId: string, feedbackDate: string) {
+    if (!childId || !feedbackDate) return [];
+
+    const { data, error } = await this.client
+      .from('daily_feedbacks')
+      .select('id, feedback_date, meal_status, sleep_status, mood_status, class_id, course_id, course_name')
+      .eq('child_id', childId)
+      .eq('feedback_date', feedbackDate);
+
+    if (error) {
+      console.error('[ParentService] getDailyFeedbacks error:', error);
+      return [];
+    }
+    if (!data || data.length === 0) return [];
+
+    // 查询 class_name（通过 class_id 去重批量查询）
+    const classIds = [...new Set(data.map(f => f.class_id).filter(Boolean))];
+    const classMap: Record<string, string> = {};
+    if (classIds.length > 0) {
+      const { data: classes } = await this.client
+        .from('classes')
+        .select('id, name')
+        .in('id', classIds);
+      if (classes) {
+        classes.forEach(c => { classMap[c.id] = c.name; });
+      }
+    }
+
+    return data.map(f => ({
+      id: f.id,
+      feedback_date: f.feedback_date,
+      meal_status: f.meal_status,
+      sleep_status: f.sleep_status,
+      mood_status: f.mood_status,
+      class_id: f.class_id,
+      course_id: f.course_id,
+      course_name: f.course_name,
+      class_name: f.class_id ? (classMap[f.class_id] || null) : null,
+    }));
+  }
+
   async getAttendance(parentRoleId?: string) {
     // Demo data
     const records: Array<{

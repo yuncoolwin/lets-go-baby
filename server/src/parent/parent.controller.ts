@@ -61,6 +61,13 @@ export class ParentController {
     return { code: 200, msg: 'success', data };
   }
 
+  @Get('daily-feedbacks')
+  @HttpCode(200)
+  async getDailyFeedbacks(@Query('child_id') childId: string, @Query('feedback_date') feedbackDate: string) {
+    const data = await this.parentService.getDailyFeedbacks(childId, feedbackDate);
+    return { code: 200, msg: 'success', data };
+  }
+
   @Post('binding-request')
   @HttpCode(200)
   async submitBindingRequest(@Body() body: { user_id?: string; parent_role_id: string; child_name: string; child_id?: string; relationship: string; custom_relationship?: string; nickname?: string; gender?: string; birth_date?: string; allergies?: string }) {

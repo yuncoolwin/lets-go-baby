@@ -27,6 +27,18 @@ interface BabyStatus {
   } | null
 }
 
+interface DailyFeedbackRecord {
+  id: string
+  feedback_date: string
+  meal_status: string | null
+  sleep_status: string | null
+  mood_status: string | null
+  class_id: string | null
+  course_id: string | null
+  course_name: string | null
+  class_name?: string | null
+}
+
 interface GroupOverview {
   group_id: string
   class_id: string
@@ -76,6 +88,11 @@ export default function IndexPage() {
   const [napInfoOpen, setNapInfoOpen] = useState(false)
   const [moodInfoOpen, setMoodInfoOpen] = useState(false)
   const [courseList, setCourseList] = useState<{ id: string; name: string; class_id: string }[]>([])
+  // 家长端今日记录
+  const [todayFeedbacks, setTodayFeedbacks] = useState<DailyFeedbackRecord[]>([])
+  const [parentMealInfoOpen, setParentMealInfoOpen] = useState(false)
+  const [parentNapInfoOpen, setParentNapInfoOpen] = useState(false)
+  const [parentMoodInfoOpen, setParentMoodInfoOpen] = useState(false)
   const currentChild = children[currentChildIndex] || null
 
   // 等待 store 从持久化中恢复
@@ -168,6 +185,20 @@ export default function IndexPage() {
     console.log('[Index] baby status:', res.data)
     if (res.data?.data) {
       setBabyStatus(res.data.data)
+    }
+
+    // 加载今日日常记录
+    if (currentChildId) {
+      const today = new Date().toISOString().split('T')[0]
+      const fbRes = await Network.request({
+        url: '/api/parent/daily-feedbacks',
+        method: 'GET',
+        data: { child_id: currentChildId, feedback_date: today },
+      })
+      console.log('[Index] today feedbacks:', fbRes.data)
+      if (fbRes.data?.code === 200 && Array.isArray(fbRes.data.data)) {
+        setTodayFeedbacks(fbRes.data.data)
+      }
     }
   }
 
@@ -271,15 +302,6 @@ export default function IndexPage() {
       case 'absent': return 'bg-yellow-100 text-yellow-700'
       case 'leave': return 'bg-red-100 text-red-700'
       default: return 'bg-gray-100 text-gray-700'
-    }
-  }
-
-  const getEmoji = (status: string | null) => {
-    switch (status) {
-      case 'good': case 'happy': return '😊'
-      case 'normal': return '😐'
-      case 'poor': case 'upset': return '😢'
-      default: return '—'
     }
   }
 
@@ -429,23 +451,67 @@ export default function IndexPage() {
                 </Button>
               </View>
 
-              {/* 今日反馈摘要 - 移到过敏情况下方 */}
-              {babyStatus.latest_feedback && (
-                <View className="flex gap-4 pt-3 border-t border-border">
-                  <View className="flex items-center gap-1">
-                    <Text className="text-sm">{getEmoji(babyStatus.latest_feedback.meal_status)}</Text>
-                    <Text className="text-xs text-muted-foreground">饮食</Text>
+              {/* 今日记录 - 按课程分行 */}
+              <View className="pt-3 border-t border-border">
+                <Text className="block text-sm font-medium text-foreground mb-2">今日记录</Text>
+                {todayFeedbacks.length > 0 ? (
+                  <View className="space-y-2">
+                    {todayFeedbacks.map((record, idx) => {
+                      const renderStars = (v: string | null | undefined) => {
+                        const n = parseInt(v || '0', 10)
+                        return n > 0 ? '★'.repeat(n) + '☆'.repeat(5 - n) : ''
+                      }
+                      return (
+                        <View key={record.id || idx} className="py-1">
+                          <Text className="block text-xs text-muted-foreground mb-1">
+                            {record.class_name || ''}{record.class_name && record.course_name ? ' · ' : ''}{record.course_name || ''}
+                          </Text>
+                          <View style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '12px' }}>
+                            {record.meal_status && parseInt(record.meal_status, 10) > 0 && (
+                              <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                                <Text className="text-xs text-gray-500">餐食</Text>
+                                <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.meal_status)}</Text>
+                                <View
+                                  onClick={(e) => { e.stopPropagation(); setParentMealInfoOpen(true) }}
+                                  style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                  <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>i</Text>
+                                </View>
+                              </View>
+                            )}
+                            {record.sleep_status && parseInt(record.sleep_status, 10) > 0 && (
+                              <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                                <Text className="text-xs text-gray-500">午睡</Text>
+                                <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.sleep_status)}</Text>
+                                <View
+                                  onClick={(e) => { e.stopPropagation(); setParentNapInfoOpen(true) }}
+                                  style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                  <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>i</Text>
+                                </View>
+                              </View>
+                            )}
+                            {record.mood_status && parseInt(record.mood_status, 10) > 0 && (
+                              <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                                <Text className="text-xs text-gray-500">情绪</Text>
+                                <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.mood_status)}</Text>
+                                <View
+                                  onClick={(e) => { e.stopPropagation(); setParentMoodInfoOpen(true) }}
+                                  style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                  <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>i</Text>
+                                </View>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      )
+                    })}
                   </View>
-                  <View className="flex items-center gap-1">
-                    <Text className="text-sm">{getEmoji(babyStatus.latest_feedback.sleep_status)}</Text>
-                    <Text className="text-xs text-muted-foreground">睡眠</Text>
-                  </View>
-                  <View className="flex items-center gap-1">
-                    <Text className="text-sm">{getEmoji(babyStatus.latest_feedback.mood_status)}</Text>
-                    <Text className="text-xs text-muted-foreground">情绪</Text>
-                  </View>
-                </View>
-              )}
+                ) : (
+                  <Text className="block text-xs text-gray-400">今日暂无记录</Text>
+                )}
+              </View>
 
               {/* 接送时间 */}
               {(babyStatus.check_in_time || babyStatus.check_out_time) && (
@@ -470,6 +536,98 @@ export default function IndexPage() {
               )}
             </CardContent>
           </Card>
+        )}
+
+        {/* 家长端评分说明弹窗 */}
+        {parentMealInfoOpen && (
+          <View
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)' }}
+            onClick={() => setParentMealInfoOpen(false)}
+          >
+            <View
+              style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderRadius: '16px 16px 0 0', padding: 24, maxHeight: '70vh', overflowY: 'auto' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Text className="block text-lg font-bold text-foreground">餐食评分说明</Text>
+                <View onClick={() => setParentMealInfoOpen(false)} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <X size={16} color="#6b7280" />
+                </View>
+              </View>
+              {[
+                { star: '★★★★★', desc: '自主光盘，主动添饭，不挑食' },
+                { star: '★★★★☆', desc: '少量剩菜，无需喂食' },
+                { star: '★★★☆☆', desc: '一半饭菜，需要简单提醒' },
+                { star: '★★☆☆☆', desc: '进食很少，全程老师喂饭' },
+                { star: '★☆☆☆☆', desc: '拒食、哭闹，进食不足 1/3' },
+              ].map((item) => (
+                <View key={item.star} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                  <Text style={{ fontSize: 16, color: '#E8651A', marginRight: 12, width: 80, flexShrink: 0 }}>{item.star}</Text>
+                  <Text className="block text-sm text-gray-600 flex-1">{item.desc}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+        {parentNapInfoOpen && (
+          <View
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)' }}
+            onClick={() => setParentNapInfoOpen(false)}
+          >
+            <View
+              style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderRadius: '16px 16px 0 0', padding: 24, maxHeight: '70vh', overflowY: 'auto' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Text className="block text-lg font-bold text-foreground">午睡评分说明</Text>
+                <View onClick={() => setParentNapInfoOpen(false)} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <X size={16} color="#6b7280" />
+                </View>
+              </View>
+              {[
+                { star: '★★★★★', desc: '自主快速入睡，睡眠质量高，按时起床' },
+                { star: '★★★★☆', desc: '自主入睡较快，睡眠安稳' },
+                { star: '★★★☆☆', desc: '需要简单安抚，入睡较慢' },
+                { star: '★★☆☆☆', desc: '入睡困难，需老师长时间陪伴' },
+                { star: '★☆☆☆☆', desc: '哭闹不睡，全程需老师安抚' },
+              ].map((item) => (
+                <View key={item.star} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                  <Text style={{ fontSize: 16, color: '#E8651A', marginRight: 12, width: 80, flexShrink: 0 }}>{item.star}</Text>
+                  <Text className="block text-sm text-gray-600 flex-1">{item.desc}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+        {parentMoodInfoOpen && (
+          <View
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)' }}
+            onClick={() => setParentMoodInfoOpen(false)}
+          >
+            <View
+              style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderRadius: '16px 16px 0 0', padding: 24, maxHeight: '70vh', overflowY: 'auto' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Text className="block text-lg font-bold text-foreground">情绪评分说明</Text>
+                <View onClick={() => setParentMoodInfoOpen(false)} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <X size={16} color="#6b7280" />
+                </View>
+              </View>
+              {[
+                { star: '★★★★★', desc: '全天心情愉悦，自主参与活动、社交' },
+                { star: '★★★★☆', desc: '状态平稳，轻微分心走神，简单引导即可' },
+                { star: '★★★☆☆', desc: '情绪小幅起伏，陪伴安抚1-2分钟就能平复' },
+                { star: '★★☆☆☆', desc: '低落烦躁易怒，抗拒活动、争抢玩具，需长时间安抚' },
+                { star: '★☆☆☆☆', desc: '情绪崩溃失控，抗拒吃饭，安抚半小时仍无法平复' },
+              ].map((item) => (
+                <View key={item.star} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                  <Text style={{ fontSize: 16, color: '#E8651A', marginRight: 12, width: 80, flexShrink: 0 }}>{item.star}</Text>
+                  <Text className="block text-sm text-gray-600 flex-1">{item.desc}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
         )}
 
         {/* 未绑定孩子提示 */}
