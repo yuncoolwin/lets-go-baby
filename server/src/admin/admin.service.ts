@@ -276,7 +276,7 @@ export class AdminService {
       .from('parent_child_relations')
       .select('id, user_id, parent_role_id, relationship, custom_relationship')
       .eq('child_id', childId)
-      .eq('status', 'approved');
+      .eq('status', 'active');
 
     if (error) throw new Error(`查询失败: ${error.message}`);
 
