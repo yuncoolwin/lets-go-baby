@@ -185,18 +185,7 @@ export class AdminService {
       }
     }
 
-    // 3. 更新 binding_requests 状态为 approved
-    const { error } = await this.client
-      .from('binding_requests')
-      .update({
-        status: 'approved',
-        approved_at: new Date().toISOString(),
-      })
-      .eq('id', requestId);
-
-    if (error) throw new Error(`审核失败: ${error.message}`);
-
-    // 4. 从 user_roles 表获取 user_id
+    // 3. 从 user_roles 表获取 user_id
     let userId: string | null = null;
     if (request.parent_role_id) {
       const { data: role } = await this.client
@@ -207,7 +196,7 @@ export class AdminService {
       if (role) userId = role.user_id;
     }
 
-    // 5. 确保用户有 parent 角色（如没有则自动创建）
+    // 4. 确保用户有 parent 角色（如没有则自动创建）
     let parentRoleId = request.parent_role_id;
     if (userId) {
       const roleType = request.parent_role_id
@@ -241,8 +230,16 @@ export class AdminService {
       }
     }
 
-    // 6. 在 parent_child_relations 表中创建记录
+    // 5. 先删除旧绑定关系（避免唯一约束冲突），再插入新记录
     if (userId && request.child_id) {
+      // 先删除可能存在的旧绑定记录
+      await this.client
+        .from('parent_child_relations')
+        .delete()
+        .eq('parent_role_id', parentRoleId)
+        .eq('child_id', request.child_id);
+
+      // 插入新绑定记录
       const { error: relError } = await this.client
         .from('parent_child_relations')
         .insert({
@@ -258,6 +255,17 @@ export class AdminService {
 
       if (relError) throw new Error(`创建绑定关系失败: ${relError.message}`);
     }
+
+    // 6. 所有步骤成功后，最后更新 binding_requests 状态为 approved
+    const { error } = await this.client
+      .from('binding_requests')
+      .update({
+        status: 'approved',
+        approved_at: new Date().toISOString(),
+      })
+      .eq('id', requestId);
+
+    if (error) throw new Error(`审核失败: ${error.message}`);
 
     return { success: true };
   }
