@@ -264,6 +264,14 @@ export default function RecordsPage() {
   }
 
   const handleDeleteFeedback = async (id: string) => {
+    const { confirm } = await Taro.showModal({
+      title: '确认删除',
+      content: '删除后无法恢复，确定要删除这条记录吗？',
+      cancelText: '取消',
+      confirmText: '确认',
+      confirmColor: '#ef4444',
+    })
+    if (!confirm) return
     try {
       const res = await Network.request({ url: `/api/teachers/feedback/${id}`, method: 'DELETE' })
       if (res.data?.code === 200) {
