@@ -17,7 +17,7 @@ export class ParentService {
         .from('parent_child_relations')
         .select('child_id')
         .eq('parent_role_id', parentRoleId)
-        .eq('status', 'approved')
+        .eq('status', 'active')
         .maybeSingle();
 
       if (relation) {
@@ -304,7 +304,7 @@ export class ParentService {
       .from('parent_child_relations')
       .select('id, child_id, relationship, custom_relationship, status')
       .eq('child_id', childId)
-      .eq('status', 'approved')
+      .eq('status', 'active')
       .maybeSingle();
 
     if (relError) throw new Error(`查询关联信息失败: ${relError.message}`);

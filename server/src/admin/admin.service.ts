@@ -249,7 +249,7 @@ export class AdminService {
           relationship: request.relationship,
           custom_relationship: request.custom_relationship || null,
           is_primary: true,
-          status: 'approved',
+          status: 'active',
           approved_at: new Date().toISOString(),
         });
 

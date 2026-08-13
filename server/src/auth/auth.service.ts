@@ -159,7 +159,7 @@ export class AuthService {
         .from('parent_child_relations')
         .select('child_id, relationship, custom_relationship, status')
         .eq('parent_role_id', parentRole.id)
-        .eq('status', 'approved');
+        .eq('status', 'active');
 
       if (relations && relations.length > 0) {
         const childIds = relations.map(r => r.child_id);
@@ -227,7 +227,7 @@ export class AuthService {
         .from('parent_child_relations')
         .select('child_id, relationship, custom_relationship')
         .eq('parent_role_id', parentRole.id)
-        .eq('status', 'approved');
+        .eq('status', 'active');
 
       if (relations && relations.length > 0) {
         const childIds = relations.map(r => r.child_id);
