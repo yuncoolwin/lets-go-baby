@@ -24,7 +24,7 @@ interface FeedbackItem {
   id: string
   child_name: string
   class_name?: string
-  course_type?: string
+  course_name?: string
   feedback_date: string
   meal_status: string | null
   sleep_status: string | null
@@ -229,6 +229,9 @@ export default function RecordsPage() {
           mood_status: moodStatus,
           activities: activities || null,
           notes: notes || null,
+          class_id: selectedClassId || null,
+          course_id: selectedCourseId || null,
+          course_name: selectedCourseId ? (courses.find((c: any) => c.id === selectedCourseId)?.name || null) : null,
         }
       })
       console.log('[Records] submit feedback:', res.data)
@@ -347,9 +350,9 @@ export default function RecordsPage() {
                       </View>
                     </View>
                   </View>
-                  {(item.class_name || item.course_type) && (
+                  {(item.class_name || item.course_name) && (
                     <Text className="block text-xs text-muted-foreground mb-2">
-                      {[item.class_name, item.course_type].filter(Boolean).join(' · ')}
+                      {[item.class_name, item.course_name].filter(Boolean).join(' · ')}
                     </Text>
                   )}
                   <View className="flex flex-wrap gap-2 mb-3">
@@ -757,9 +760,9 @@ export default function RecordsPage() {
                     {item.feedback_date}
                   </Text>
                 </View>
-                {(item.class_name || item.course_type) && (
+                {(item.class_name || item.course_name) && (
                   <Text className="block text-xs text-muted-foreground mb-2">
-                    {[item.class_name, item.course_type].filter(Boolean).join(' · ')}
+                    {[item.class_name, item.course_name].filter(Boolean).join(' · ')}
                   </Text>
                 )}
                 <View className="flex flex-wrap gap-2 mb-3">

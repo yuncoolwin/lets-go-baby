@@ -675,7 +675,10 @@ export class TeacherService {
         activities,
         notes,
         group_id,
-        teacher_id
+        teacher_id,
+        class_id,
+        course_id,
+        course_name
       `)
       .order('feedback_date', { ascending: false })
       .limit(50);
@@ -717,8 +720,8 @@ export class TeacherService {
         id: f.id,
         child_id: f.child_id,
         child_name: child?.name || '未知',
-        class_name: child?.class_id ? (classMap.get(child.class_id) || '') : '',
-        course_type: child?.course_type || '',
+        class_name: f.class_id ? (classMap.get(f.class_id) || '') : '',
+        course_name: f.course_name || '',
         feedback_date: f.feedback_date,
         meal_status: f.meal_status,
         sleep_status: f.sleep_status,
@@ -726,6 +729,8 @@ export class TeacherService {
         activities: f.activities,
         notes: f.notes,
         group_id: f.group_id,
+        class_id: f.class_id,
+        course_id: f.course_id,
         teacher_name: f.teacher_id ? (teacherMap.get(f.teacher_id) || '老师') : '老师',
       };
     });
@@ -759,6 +764,9 @@ export class TeacherService {
     child_id: string;
     teacher_role_id?: string;
     group_id?: string;
+    class_id?: string;
+    course_id?: string;
+    course_name?: string;
     meal_status: string | number;
     sleep_status: string | number;
     mood_status: string | number;
@@ -774,6 +782,9 @@ export class TeacherService {
         child_id: data.child_id,
         teacher_id: data.teacher_role_id || null,
         group_id: groupId,
+        class_id: data.class_id || null,
+        course_id: data.course_id || null,
+        course_name: data.course_name || null,
         feedback_date: today,
         meal_status: String(data.meal_status || ''),
         sleep_status: String(data.sleep_status || ''),

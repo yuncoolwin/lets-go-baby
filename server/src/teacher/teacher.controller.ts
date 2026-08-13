@@ -91,6 +91,9 @@ export class TeacherController {
     child_id: string;
     teacher_role_id?: string;
     group_id?: string;
+    class_id?: string;
+    course_id?: string;
+    course_name?: string;
     meal_status: string | number;
     sleep_status: string | number;
     mood_status: string | number;

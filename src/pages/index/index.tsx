@@ -67,7 +67,7 @@ export default function IndexPage() {
   const [courseColors, setCourseColors] = useState<Record<string, string>>(courseTypeColors)
   // 日常记录反馈相关
   const [childFeedbacks, setChildFeedbacks] = useState<Record<string, { meal_status: string | null; sleep_status: string | null; mood_status: string | null }>>({})
-  const [feedbackChild, setFeedbackChild] = useState<{ id: string; name: string; course_type: string; group_id: string } | null>(null)
+  const [feedbackChild, setFeedbackChild] = useState<{ id: string; name: string; course_type: string; group_id: string; class_id: string; course_id: string; course_name: string } | null>(null)
   const [feedbackMealStatus, setFeedbackMealStatus] = useState('')
   const [feedbackSleepStatus, setFeedbackSleepStatus] = useState('')
   const [feedbackMoodStatus, setFeedbackMoodStatus] = useState('')
@@ -75,6 +75,7 @@ export default function IndexPage() {
   const [mealInfoOpen, setMealInfoOpen] = useState(false)
   const [napInfoOpen, setNapInfoOpen] = useState(false)
   const [moodInfoOpen, setMoodInfoOpen] = useState(false)
+  const [courseList, setCourseList] = useState<{ id: string; name: string; class_id: string }[]>([])
   const currentChild = children[currentChildIndex] || null
 
   // 等待 store 从持久化中恢复
@@ -206,6 +207,7 @@ export default function IndexPage() {
       }
       if (courseRes.code === 200) {
         const list = Array.isArray(courseRes.data) ? courseRes.data : courseRes.data?.list || []
+        setCourseList(list)
         // 从 courses 表构建颜色映射
         const colors = ['bg-orange-50 text-orange-700 border-orange-200','bg-sky-50 text-sky-700 border-sky-200','bg-indigo-50 text-indigo-700 border-indigo-200','bg-purple-50 text-purple-700 border-purple-200','bg-pink-50 text-pink-700 border-pink-200','bg-teal-50 text-teal-700 border-teal-200','bg-green-50 text-green-700 border-green-200','bg-rose-50 text-rose-700 border-rose-200']
         const colorMap: Record<string, string> = {}
@@ -651,7 +653,16 @@ export default function IndexPage() {
                                       // 仅出勤类状态（全天出勤/半天出勤/出勤）才弹出日常记录
                                       const attdTypes = ['present', 'full_day', 'half_day']
                                       if (!attdTypes.includes(child.attendance_status)) return
-                                      setFeedbackChild({ id: child.id, name: child.name, course_type: group.course_type || '', group_id: group.group_id })
+                                      const course = courseList.find(c => c.name === group.course_type)
+                                      setFeedbackChild({
+                                        id: child.id,
+                                        name: child.name,
+                                        course_type: group.course_type || '',
+                                        group_id: group.group_id,
+                                        class_id: (child as any).class_id || '',
+                                        course_id: course?.id || '',
+                                        course_name: course?.name || group.course_type || '',
+                                      })
                                       setFeedbackMealStatus(childFeedback?.meal_status || '')
                                       setFeedbackSleepStatus(childFeedback?.sleep_status || '')
                                       setFeedbackMoodStatus(childFeedback?.mood_status || '')
@@ -820,6 +831,9 @@ export default function IndexPage() {
                             child_id: feedbackChild.id,
                             teacher_role_id: currentRole?.id,
                             group_id: feedbackChild.group_id,
+                            class_id: feedbackChild.class_id || '',
+                            course_id: feedbackChild.course_id || '',
+                            course_name: feedbackChild.course_name || '',
                             meal_status: feedbackMealStatus,
                             sleep_status: feedbackSleepStatus,
                             mood_status: feedbackMoodStatus,
