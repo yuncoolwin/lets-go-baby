@@ -14,8 +14,11 @@ export class ParentController {
 
   @Get('feedbacks')
   @HttpCode(200)
-  async getFeedbacks(@Query('parent_role_id') parentRoleId?: string) {
-    const data = await this.parentService.getFeedbacks(parentRoleId);
+  async getFeedbacks(
+    @Query('parent_role_id') parentRoleId?: string,
+    @Query('feedback_date') feedbackDate?: string,
+  ) {
+    const data = await this.parentService.getFeedbacks(parentRoleId, feedbackDate);
     return { code: 200, msg: 'success', data };
   }
 

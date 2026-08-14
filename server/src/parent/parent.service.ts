@@ -81,41 +81,38 @@ export class ParentService {
     };
   }
 
-  async getFeedbacks(parentRoleId?: string) {
-    // 获取家长关联的幼儿
-    let childId: string | null = null;
+  async getFeedbacks(parentRoleId?: string, feedbackDate?: string) {
+    // 默认查询今天的记录
+    const today = new Date().toISOString().split('T')[0];
+    const date = feedbackDate || today;
+
+    // 获取家长关联的所有幼儿
+    let childIds: string[] = [];
     if (parentRoleId) {
-      const { data: relation } = await this.client
-        .from('child_parent_relations')
+      const { data: relations } = await this.client
+        .from('parent_child_relations')
         .select('child_id')
-        .eq('parent_id', parentRoleId)
-        .maybeSingle();
-      if (relation) {
-        childId = relation.child_id;
+        .eq('parent_role_id', parentRoleId)
+        .eq('status', 'active');
+      if (relations && relations.length > 0) {
+        childIds = relations.map(r => r.child_id);
       }
     }
 
-    if (!childId) {
-      // 没有关联幼儿，返回空
+    if (childIds.length === 0) {
       return [];
     }
 
-    // 从数据库查询该幼儿的反馈记录
+    // 从数据库查询反馈记录
     const { data, error } = await this.client
       .from('daily_feedbacks')
       .select(`
-        id,
-        feedback_date,
-        meal_status,
-        sleep_status,
-        mood_status,
-        activities,
-        notes,
-        teacher_id
+        id, child_id, feedback_date, meal_status, sleep_status, mood_status,
+        activities, notes, class_id, course_id, course_name, group_id, teacher_id
       `)
-      .eq('child_id', childId)
-      .order('feedback_date', { ascending: false })
-      .limit(30);
+      .in('child_id', childIds)
+      .eq('feedback_date', date)
+      .order('feedback_date', { ascending: false });
 
     if (error) {
       console.error('[ParentService] getFeedbacks error:', error);
@@ -124,34 +121,60 @@ export class ParentService {
 
     if (!data || data.length === 0) return [];
 
+    // 获取幼儿名称
+    const { data: children } = await this.client
+      .from('children')
+      .select('id, name')
+      .in('id', childIds);
+    const childNameMap = new Map(children?.map(c => [c.id, c.name]) || []);
+
+    // 获取班级名称
+    const allClassIds = new Set<string>();
+    data.forEach(f => {
+      if (f.class_id) {
+        allClassIds.add(f.class_id);
+      } else if (f.group_id && f.group_id.includes('__')) {
+        allClassIds.add(f.group_id.split('__')[0]);
+      }
+    });
+    const { data: classes } = await this.client
+      .from('classes')
+      .select('id, name')
+      .in('id', [...allClassIds]);
+    const classMap = new Map(classes?.map(c => [c.id, c.name]) || []);
+
     // 获取教师名称
     const teacherIds = [...new Set(data.map(f => f.teacher_id).filter(Boolean))];
+    let teacherMap = new Map<string, string>();
     if (teacherIds.length > 0) {
       const { data: teachers } = await this.client
         .from('user_roles')
         .select('id, real_name')
         .in('id', teacherIds);
-      var teacherMap = new Map(teachers?.map(t => [t.id, t.real_name]) || []);
+      teacherMap = new Map(teachers?.map(t => [t.id, t.real_name]) || []);
     }
 
-    // 获取幼儿名称
-    const { data: child } = await this.client
-      .from('children')
-      .select('name')
-      .eq('id', childId)
-      .maybeSingle();
-
-    return data.map(f => ({
-      id: f.id,
-      child_name: child?.name || '幼儿',
-      feedback_date: f.feedback_date,
-      meal_status: f.meal_status,
-      sleep_status: f.sleep_status,
-      mood_status: f.mood_status,
-      activities: f.activities,
-      notes: f.notes,
-      teacher_name: f.teacher_id ? (teacherMap?.get(f.teacher_id) || '老师') : '老师',
-    }));
+    return data.map(f => {
+      // 如果 class_id 为空，尝试从 group_id 提取
+      let resolvedClassId = f.class_id;
+      if (!resolvedClassId && f.group_id && f.group_id.includes('__')) {
+        resolvedClassId = f.group_id.split('__')[0];
+      }
+      return {
+        id: f.id,
+        child_id: f.child_id,
+        child_name: childNameMap.get(f.child_id) || '幼儿',
+        class_name: resolvedClassId ? (classMap.get(resolvedClassId) || '') : '',
+        course_name: f.course_name || '',
+        feedback_date: f.feedback_date,
+        meal_status: f.meal_status,
+        sleep_status: f.sleep_status,
+        mood_status: f.mood_status,
+        activities: f.activities,
+        notes: f.notes,
+        teacher_name: f.teacher_id ? (teacherMap.get(f.teacher_id) || '老师') : '老师',
+      };
+    });
   }
 
   async getDailyFeedbacks(childId: string, feedbackDate: string) {
