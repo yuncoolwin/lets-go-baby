@@ -344,53 +344,56 @@ export default function RecordsPage() {
         {/* 日期切换器与新增按钮 */}
         <View className="flex items-center justify-between mb-4">
           <View className="flex-1" />
-          <View className="flex items-center justify-center">
+          <View className="flex items-center justify-center flex-1">
+          <View
+            className="flex items-center justify-center p-2"
+            onClick={goPrevDay}
+            style={{ cursor: 'pointer' }}
+          >
+            <ChevronLeft size={20} color="#666" />
+          </View>
+          <View
+            className="flex items-center justify-center px-4 py-2"
+            onClick={() => setCalendarVisible(true)}
+            style={{ cursor: 'pointer', minWidth: 120 }}
+          >
+            <Text className="block text-sm font-semibold text-foreground">{feedbackDate}</Text>
+          </View>
+          <View
+            className="flex items-center justify-center p-2"
+            onClick={goNextDay}
+            style={{ cursor: isToday ? 'default' : 'pointer' }}
+          >
+            <ChevronRight size={20} color={isToday ? '#d1d5db' : '#666'} />
+          </View>
+          {!isToday && (
             <View
-              className="flex items-center justify-center p-2"
-              onClick={goPrevDay}
+              className="ml-4"
+              onClick={() => setFeedbackDate(todayStr)}
               style={{ cursor: 'pointer' }}
             >
-              <ChevronLeft size={20} color="#666" />
+              <Text className="block text-xs text-primary font-medium">今天</Text>
             </View>
-            <View
-              className="flex items-center justify-center px-4 py-2"
-              onClick={() => setCalendarVisible(true)}
-              style={{ cursor: 'pointer', minWidth: 120 }}
-            >
-              <Text className="block text-sm font-semibold text-foreground">{feedbackDate}</Text>
-            </View>
-            <View
-              className="flex items-center justify-center p-2"
-              onClick={goNextDay}
-              style={{ cursor: isToday ? 'default' : 'pointer' }}
-            >
-              <ChevronRight size={20} color={isToday ? '#d1d5db' : '#666'} />
-            </View>
-          </View>
-          <View className="flex-1 flex items-center justify-end gap-2">
-            {!isToday && (
-              <View
-                onClick={() => setFeedbackDate(todayStr)}
-                style={{ cursor: 'pointer' }}
-              >
-                <Text className="block text-xs text-primary font-medium">今天</Text>
-              </View>
-            )}
-            <Button
-              size="sm"
-              className="bg-primary text-primary-foreground rounded-lg"
-              onClick={() => {
-                setShowAddModal(true);
-                if (currentRole?.role_type === 'teacher') {
-                  loadStudents();
-                }
-              }}
-            >
-              <Plus size={14} className="mr-1" color="#fff" />
-              <Text className="text-xs text-primary-foreground">新增</Text>
-            </Button>
-          </View>
+          )}
         </View>
+        {/* 新增按钮 */}
+        <View className="flex-1 flex justify-end">
+          <Button
+            size="sm"
+            className="bg-primary text-primary-foreground rounded-lg"
+            onClick={() => {
+              setShowAddModal(true);
+              // 每次打开弹窗时重新加载幼儿列表，同步最新考勤状态
+              if (currentRole?.role_type === 'teacher') {
+                loadStudents();
+              }
+            }}
+          >
+            <Plus size={14} className="mr-1" color="#fff" />
+            <Text className="text-xs text-primary-foreground">新增</Text>
+          </Button>
+        </View>
+      </View>
 
         {feedbacks.length === 0 ? (
           <View className="flex flex-col items-center py-16">
