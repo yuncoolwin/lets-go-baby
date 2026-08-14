@@ -451,54 +451,58 @@ export default function IndexPage() {
                 </Button>
               </View>
 
-              {/* 今日记录 - 表格布局 */}
+              {/* 今日记录 - 按课程分行 */}
               <View className="pt-3 border-t border-border">
                 <Text className="block text-sm font-medium text-foreground mb-2">今日记录</Text>
                 {todayFeedbacks.length > 0 ? (
-                  <View style={{ gap: 12 }}>
+                  <View className="space-y-2">
                     {todayFeedbacks.map((record, idx) => {
                       const renderStars = (v: string | null | undefined) => {
                         const n = parseInt(v || '0', 10)
-                        return n > 0 ? '★'.repeat(n) + '☆'.repeat(5 - n) : '☆☆☆☆☆'
+                        return n > 0 ? '★'.repeat(n) + '☆'.repeat(5 - n) : ''
                       }
-                      const hasMeal = parseInt(record.meal_status || '0', 10) > 0
-                      const hasSleep = parseInt(record.sleep_status || '0', 10) > 0
-                      const hasMood = parseInt(record.mood_status || '0', 10) > 0
                       return (
-                        <View key={record.id || idx} style={{ backgroundColor: '#FFF8F0', borderRadius: 12, overflow: 'hidden' }}>
-                          {/* 课程名称标题 */}
-                          <View style={{ padding: '10px 12px', borderBottom: '1px solid #E8E8E8' }}>
-                            <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#E8651A' }}>{record.course_name}</Text>
-                          </View>
-                          {/* 餐食 */}
-                          <View style={{ padding: '8px 12px', borderBottom: '1px solid #E8E8E8', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                              <Text style={{ fontSize: 13, color: '#555' }}>餐食</Text>
-                              <View onClick={(e) => { e.stopPropagation(); setParentMealInfoOpen(true) }} style={{ marginLeft: 4, width: 14, height: 14, borderRadius: 7, border: '1px solid #9ca3af', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Text style={{ fontSize: 9, color: '#9ca3af', lineHeight: 13 }}>i</Text>
+                        <View key={record.id || idx} className="py-1">
+                          <Text className="block text-xs text-muted-foreground mb-1">
+                            {record.class_name || ''}{record.class_name && record.course_name ? ' · ' : ''}{record.course_name || ''}
+                          </Text>
+                          <View style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '16px' }}>
+                            {record.meal_status && parseInt(record.meal_status, 10) > 0 && (
+                              <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                                <Text className="text-xs text-gray-500">餐食</Text>
+                                <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.meal_status)}</Text>
+                                <View
+                                  onClick={(e) => { e.stopPropagation(); setParentMealInfoOpen(true) }}
+                                  style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                  <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>i</Text>
+                                </View>
                               </View>
-                            </View>
-                            <Text style={{ fontSize: 14, color: hasMeal ? '#E8651A' : '#ccc', letterSpacing: 1 }}>{renderStars(record.meal_status)}</Text>
-                          </View>
-                          {/* 午睡 */}
-                          <View style={{ padding: '8px 12px', borderBottom: '1px solid #E8E8E8', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                              <Text style={{ fontSize: 13, color: '#555' }}>午睡</Text>
-                              <View onClick={(e) => { e.stopPropagation(); setParentNapInfoOpen(true) }} style={{ marginLeft: 4, width: 14, height: 14, borderRadius: 7, border: '1px solid #9ca3af', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Text style={{ fontSize: 9, color: '#9ca3af', lineHeight: 13 }}>i</Text>
+                            )}
+                            {record.sleep_status && parseInt(record.sleep_status, 10) > 0 && (
+                              <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                                <Text className="text-xs text-gray-500">午睡</Text>
+                                <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.sleep_status)}</Text>
+                                <View
+                                  onClick={(e) => { e.stopPropagation(); setParentNapInfoOpen(true) }}
+                                  style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                  <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>i</Text>
+                                </View>
                               </View>
-                            </View>
-                            <Text style={{ fontSize: 14, color: hasSleep ? '#E8651A' : '#ccc', letterSpacing: 1 }}>{renderStars(record.sleep_status)}</Text>
-                          </View>
-                          {/* 情绪 */}
-                          <View style={{ padding: '8px 12px', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                              <Text style={{ fontSize: 13, color: '#555' }}>情绪</Text>
-                              <View onClick={(e) => { e.stopPropagation(); setParentMoodInfoOpen(true) }} style={{ marginLeft: 4, width: 14, height: 14, borderRadius: 7, border: '1px solid #9ca3af', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Text style={{ fontSize: 9, color: '#9ca3af', lineHeight: 13 }}>i</Text>
+                            )}
+                            {record.mood_status && parseInt(record.mood_status, 10) > 0 && (
+                              <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                                <Text className="text-xs text-gray-500">情绪</Text>
+                                <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.mood_status)}</Text>
+                                <View
+                                  onClick={(e) => { e.stopPropagation(); setParentMoodInfoOpen(true) }}
+                                  style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                  <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>i</Text>
+                                </View>
                               </View>
-                            </View>
-                            <Text style={{ fontSize: 14, color: hasMood ? '#E8651A' : '#ccc', letterSpacing: 1 }}>{renderStars(record.mood_status)}</Text>
+                            )}
                           </View>
                         </View>
                       )
