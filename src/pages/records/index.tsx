@@ -3,7 +3,7 @@ import { View, Text, Image, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Trash2, BookOpen, Plus, X, ChevronDown, Info } from 'lucide-react-taro'
+import { Trash2, BookOpen, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Info } from 'lucide-react-taro'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
@@ -65,6 +65,32 @@ export default function RecordsPage() {
   const [courses, setCourses] = useState<CourseItem[]>([])
   const [selectedCourseId, setSelectedCourseId] = useState('')
 
+  // 日期切换
+  const formatDate = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+  const todayStr = formatDate(new Date())
+  const [feedbackDate, setFeedbackDate] = useState(todayStr)
+
+  const goPrevDay = () => {
+    const d = new Date(feedbackDate)
+    d.setDate(d.getDate() - 1)
+    setFeedbackDate(formatDate(d))
+  }
+
+  const goNextDay = () => {
+    const d = new Date(feedbackDate)
+    d.setDate(d.getDate() + 1)
+    const next = formatDate(d)
+    if (next > todayStr) return // 不能超过今天
+    setFeedbackDate(next)
+  }
+
+  const isToday = feedbackDate === todayStr
+
   const ATTENDED_STATUSES = ['present', 'full_day', 'half_day']
 
   useEffect(() => {
@@ -72,7 +98,7 @@ export default function RecordsPage() {
     if (currentRole?.role_type === 'teacher') {
       loadStudents()
     }
-  }, [currentRole])
+  }, [currentRole, feedbackDate])
 
   const loadFeedbacks = async () => {
     setLoading(true)
@@ -80,7 +106,7 @@ export default function RecordsPage() {
       const url = currentRole?.role_type === 'teacher'
         ? '/api/teachers/feedbacks'
         : '/api/parent/feedbacks'
-      const res = await Network.request({ url, method: 'GET' })
+      const res = await Network.request({ url, method: 'GET', data: { feedback_date: feedbackDate } })
       console.log('[Records] feedbacks:', res.data)
       if (res.data?.data) {
         setFeedbacks(res.data.data)
@@ -121,7 +147,7 @@ export default function RecordsPage() {
       const feedbackRes = await Network.request({
         url: '/api/teachers/feedbacks',
         method: 'GET',
-        data: { class_id: classId }
+        data: { class_id: classId, feedback_date: feedbackDate }
       })
       console.log('[Records] existing feedbacks:', feedbackRes.data)
       if (feedbackRes.data?.data) {
@@ -313,7 +339,7 @@ export default function RecordsPage() {
   if (currentRole?.role_type === 'teacher') {
     return (
       <View className="min-h-screen bg-background p-4 pb-20">
-        <View className="flex items-center justify-between mb-4">
+        <View className="flex items-center justify-between mb-2">
           <Text className="block text-lg font-bold text-foreground">日常记录</Text>
           <Button
             size="sm"
@@ -329,6 +355,50 @@ export default function RecordsPage() {
             <Plus size={14} className="mr-1" color="#fff" />
             <Text className="text-xs text-primary-foreground">新增</Text>
           </Button>
+        </View>
+
+        {/* 日期切换器 */}
+        <View className="flex items-center justify-center mb-4">
+          <View
+            className="flex items-center justify-center p-2"
+            onClick={goPrevDay}
+            style={{ cursor: 'pointer' }}
+          >
+            <ChevronLeft size={20} color="#666" />
+          </View>
+          <Picker
+            mode="date"
+            value={feedbackDate}
+            onChange={(e) => {
+              const val = String(e.detail.value)
+              if (val <= todayStr) {
+                setFeedbackDate(val)
+              }
+            }}
+          >
+            <View
+              className="flex items-center justify-center px-4 py-2"
+              style={{ cursor: 'pointer', minWidth: 120 }}
+            >
+              <Text className="block text-sm font-semibold text-foreground">{feedbackDate}</Text>
+            </View>
+          </Picker>
+          <View
+            className="flex items-center justify-center p-2"
+            onClick={goNextDay}
+            style={{ cursor: isToday ? 'default' : 'pointer' }}
+          >
+            <ChevronRight size={20} color={isToday ? '#d1d5db' : '#666'} />
+          </View>
+          {!isToday && (
+            <View
+              className="ml-4"
+              onClick={() => setFeedbackDate(todayStr)}
+              style={{ cursor: 'pointer' }}
+            >
+              <Text className="block text-xs text-primary font-medium">今天</Text>
+            </View>
+          )}
         </View>
 
         {feedbacks.length === 0 ? (

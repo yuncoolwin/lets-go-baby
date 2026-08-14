@@ -67,8 +67,11 @@ export class TeacherController {
 
   @Get('feedbacks')
   @HttpCode(200)
-  async getFeedbacks(@Query('teacher_role_id') teacherRoleId?: string) {
-    const data = await this.teacherService.getFeedbacks(teacherRoleId);
+  async getFeedbacks(
+    @Query('teacher_role_id') teacherRoleId?: string,
+    @Query('feedback_date') feedbackDate?: string,
+  ) {
+    const data = await this.teacherService.getFeedbacks(teacherRoleId, feedbackDate);
     return { code: 200, msg: 'success', data };
   }
 

@@ -777,6 +777,8 @@ export default function IndexPage() {
                               if (childFeedback?.sleep_status && parseInt(childFeedback.sleep_status, 10) > 0) parts.push(`午睡${renderStars(childFeedback.sleep_status)}`)
                               if (childFeedback?.mood_status && parseInt(childFeedback.mood_status, 10) > 0) parts.push(`情绪${renderStars(childFeedback.mood_status)}`)
                               const feedbackSummary = parts.length > 0 ? parts.join('·') : null
+                              // 无记录时显示空星（灰色）
+                              const hasNoFeedback = !childFeedback || (!childFeedback.meal_status && !childFeedback.sleep_status && !childFeedback.mood_status)
                               return (
                                 <View
                                   key={child.id}
@@ -800,7 +802,10 @@ export default function IndexPage() {
                                     {feedbackSummary && (
                                       <Text className="block text-xs text-green-600 mt-1">{feedbackSummary}</Text>
                                     )}
-                                    {dateRange && !feedbackSummary && (
+                                    {hasNoFeedback && (
+                                      <Text className="block text-xs text-gray-400 mt-1">餐食☆☆☆☆☆·午睡☆☆☆☆☆·情绪☆☆☆☆☆</Text>
+                                    )}
+                                    {dateRange && !hasNoFeedback && !feedbackSummary && (
                                       <Text className="block text-xs text-muted-foreground">{dateRange}</Text>
                                     )}
                                   </View>

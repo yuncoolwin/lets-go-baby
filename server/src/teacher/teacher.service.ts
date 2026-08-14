@@ -661,9 +661,13 @@ export class TeacherService {
     return data || [];
   }
 
-  async getFeedbacks(teacherRoleId?: string) {
+  async getFeedbacks(teacherRoleId?: string, feedbackDate?: string) {
+    // 默认查询今天的记录
+    const today = new Date().toISOString().split('T')[0];
+    const date = feedbackDate || today;
+
     // 从数据库查询真实记录
-    const { data, error } = await this.client
+    let query = this.client
       .from('daily_feedbacks')
       .select(`
         id,
@@ -680,8 +684,11 @@ export class TeacherService {
         course_id,
         course_name
       `)
+      .eq('feedback_date', date)
       .order('feedback_date', { ascending: false })
       .limit(50);
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('[TeacherService] getFeedbacks error:', error);
