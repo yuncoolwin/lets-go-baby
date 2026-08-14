@@ -764,9 +764,6 @@ export default function IndexPage() {
                                 leave: { label: '请假', bg: 'bg-red-100', text: 'text-red-700' },
                               }
                               const config = statusConfig[child.attendance_status] || { label: '未考勤', bg: 'bg-gray-100', text: 'text-gray-500' }
-                              const dateRange = child.start_date || child.extended_end_date
-                                ? `${child.start_date || '?'} ~ ${child.extended_end_date || child.end_date || '?'}`
-                                : null
                               const childFeedback = childFeedbacks[child.id + '_' + group.group_id]
                               const renderStars = (v: string | null | undefined) => {
                                 const n = parseInt(v || '0', 10)
@@ -777,8 +774,9 @@ export default function IndexPage() {
                               if (childFeedback?.sleep_status && parseInt(childFeedback.sleep_status, 10) > 0) parts.push(`午睡${renderStars(childFeedback.sleep_status)}`)
                               if (childFeedback?.mood_status && parseInt(childFeedback.mood_status, 10) > 0) parts.push(`情绪${renderStars(childFeedback.mood_status)}`)
                               const feedbackSummary = parts.length > 0 ? parts.join('·') : null
-                              // 无记录时显示空星（灰色）
+                              // 无记录时跳过，不显示该幼儿
                               const hasNoFeedback = !childFeedback || (!childFeedback.meal_status && !childFeedback.sleep_status && !childFeedback.mood_status)
+                              if (hasNoFeedback) return null
                               return (
                                 <View
                                   key={child.id}
@@ -801,12 +799,6 @@ export default function IndexPage() {
                                     </Text>
                                     {feedbackSummary && (
                                       <Text className="block text-xs text-green-600 mt-1">{feedbackSummary}</Text>
-                                    )}
-                                    {hasNoFeedback && (
-                                      <Text className="block text-xs text-gray-400 mt-1">餐食☆☆☆☆☆·午睡☆☆☆☆☆·情绪☆☆☆☆☆</Text>
-                                    )}
-                                    {dateRange && !hasNoFeedback && !feedbackSummary && (
-                                      <Text className="block text-xs text-muted-foreground">{dateRange}</Text>
                                     )}
                                   </View>
                                   <View
