@@ -339,26 +339,10 @@ export default function RecordsPage() {
   if (currentRole?.role_type === 'teacher') {
     return (
       <View className="min-h-screen bg-background p-4 pb-20">
-        <View className="flex items-center justify-between mb-2">
-          <Text className="block text-lg font-bold text-foreground">日常记录</Text>
-          <Button
-            size="sm"
-            className="bg-primary text-primary-foreground rounded-lg"
-            onClick={() => {
-              setShowAddModal(true);
-              // 每次打开弹窗时重新加载幼儿列表，同步最新考勤状态
-              if (currentRole?.role_type === 'teacher') {
-                loadStudents();
-              }
-            }}
-          >
-            <Plus size={14} className="mr-1" color="#fff" />
-            <Text className="text-xs text-primary-foreground">新增</Text>
-          </Button>
-        </View>
-
-        {/* 日期切换器 */}
-        <View className="flex items-center justify-center mb-4">
+        {/* 日期切换器与新增按钮 */}
+        <View className="flex items-center justify-between mb-4">
+          <View className="flex-1" />
+          <View className="flex items-center justify-center flex-1">
           <View
             className="flex items-center justify-center p-2"
             onClick={goPrevDay}
@@ -400,6 +384,24 @@ export default function RecordsPage() {
             </View>
           )}
         </View>
+        {/* 新增按钮 */}
+        <View className="flex-1 flex justify-end">
+          <Button
+            size="sm"
+            className="bg-primary text-primary-foreground rounded-lg"
+            onClick={() => {
+              setShowAddModal(true);
+              // 每次打开弹窗时重新加载幼儿列表，同步最新考勤状态
+              if (currentRole?.role_type === 'teacher') {
+                loadStudents();
+              }
+            }}
+          >
+            <Plus size={14} className="mr-1" color="#fff" />
+            <Text className="text-xs text-primary-foreground">新增</Text>
+          </Button>
+        </View>
+      </View>
 
         {feedbacks.length === 0 ? (
           <View className="flex flex-col items-center py-16">
