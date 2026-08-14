@@ -825,7 +825,14 @@ export default function RecordsPage() {
         </View>
       ) : (
         <View className="space-y-3">
-          {feedbacks.map((item) => (
+          {feedbacks
+            .filter((item) => {
+              const hasFeedback = parseInt(item.meal_status || '0', 10) > 0
+                || parseInt(item.sleep_status || '0', 10) > 0
+                || parseInt(item.mood_status || '0', 10) > 0
+              return hasFeedback
+            })
+            .map((item) => (
             <Card key={item.id} className="bg-white rounded-xl border-0 shadow-sm">
               <CardContent className="p-4">
                 <View className="flex items-center justify-between mb-3">
