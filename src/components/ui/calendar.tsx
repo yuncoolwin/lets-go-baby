@@ -352,6 +352,25 @@ function Calendar({
           </View>
         ))}
       </View>
+
+      {/* 今天按钮 */}
+      <View className="flex justify-center pt-1">
+        <Button
+          variant="ghost"
+          className="h-8 px-4"
+          onClick={() => {
+            const today = new Date()
+            if (disabled && isDateDisabled(today, disabled)) return
+            if (props.mode !== "range") {
+              props.onSelect?.(today)
+            } else {
+              props.onSelect?.({ from: today, to: today })
+            }
+          }}
+        >
+          <Text className="block text-sm font-medium text-primary">今天</Text>
+        </Button>
+      </View>
     </View>
   )
 }

@@ -366,16 +366,7 @@ export default function RecordsPage() {
           >
             <ChevronRight size={20} color={isToday ? '#d1d5db' : '#666'} />
           </View>
-          {!isToday && (
-            <View
-              className="ml-4"
-              onClick={() => setFeedbackDate(todayStr)}
-              style={{ cursor: 'pointer' }}
-            >
-              <Text className="block text-xs text-primary font-medium">今天</Text>
-            </View>
-          )}
-        </View>
+          </View>
         {/* 新增按钮 */}
         <View className="flex-1 flex justify-end">
           <Button
