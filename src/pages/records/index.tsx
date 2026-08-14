@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { View, Text, Image, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
+import { CalendarOverlay } from '@/components/ui/calendar-overlay'
 import { Button } from '@/components/ui/button'
 import { Trash2, BookOpen, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Info } from 'lucide-react-taro'
 import { Badge } from '@/components/ui/badge'
@@ -64,6 +65,7 @@ export default function RecordsPage() {
   const [selectedClassId, setSelectedClassId] = useState('')
   const [courses, setCourses] = useState<CourseItem[]>([])
   const [selectedCourseId, setSelectedCourseId] = useState('')
+  const [calendarVisible, setCalendarVisible] = useState(false)
 
   // 日期切换
   const formatDate = (d: Date) => {
@@ -350,23 +352,13 @@ export default function RecordsPage() {
           >
             <ChevronLeft size={20} color="#666" />
           </View>
-          <Picker
-            mode="date"
-            value={feedbackDate}
-            onChange={(e) => {
-              const val = String(e.detail.value)
-              if (val <= todayStr) {
-                setFeedbackDate(val)
-              }
-            }}
+          <View
+            className="flex items-center justify-center px-4 py-2"
+            onClick={() => setCalendarVisible(true)}
+            style={{ cursor: 'pointer', minWidth: 120 }}
           >
-            <View
-              className="flex items-center justify-center px-4 py-2"
-              style={{ cursor: 'pointer', minWidth: 120 }}
-            >
-              <Text className="block text-sm font-semibold text-foreground">{feedbackDate}</Text>
-            </View>
-          </Picker>
+            <Text className="block text-sm font-semibold text-foreground">{feedbackDate}</Text>
+          </View>
           <View
             className="flex items-center justify-center p-2"
             onClick={goNextDay}
@@ -791,6 +783,19 @@ export default function RecordsPage() {
               </View>
             </View>
           )}
+
+          {/* 日历选择弹窗 */}
+          <CalendarOverlay
+            visible={calendarVisible}
+            onClose={() => setCalendarVisible(false)}
+            value={feedbackDate}
+            onChange={(dateStr) => {
+              if (dateStr <= todayStr) {
+                setFeedbackDate(dateStr)
+              }
+            }}
+            disabled={(date) => date > new Date()}
+          />
       </View>
     )
   }
