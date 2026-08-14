@@ -395,6 +395,7 @@ export default function RecordsPage() {
           <View className="space-y-3">
             {feedbacks.map((item) => (
               <Card key={item.id} className="bg-white rounded-xl border-0 shadow-sm" onClick={() => handleEditFeedback(item)}>
+                {console.log('[Records] card record:', JSON.stringify(item))}
                 <CardContent className="p-4">
                   <View className="flex items-center justify-between mb-3">
                     <Text className="block text-base font-semibold text-foreground">
