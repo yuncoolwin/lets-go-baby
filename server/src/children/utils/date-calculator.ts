@@ -122,13 +122,29 @@ export function createDateCalculator(
   ): string {
     if (!startDate || !enrollmentDuration) return ''
     const isSaturdayType = courseType === '周六托' || courseType === '兴趣班'
+    // 报读结束日期：只排除周六日，法定节假日算入工作日（不减假期）
+    function addWorkingDaysWithoutHolidays(start: string, count: number): string {
+      let cur = start
+      let added = 0
+      while (added < count) {
+        const [y, m, d] = cur.split('-').map(Number)
+        const dow = new Date(Date.UTC(y, m - 1, d)).getDay()
+        if (dow !== 0 && dow !== 6) added++
+        const nd = new Date(Date.UTC(y, m - 1, d + 1))
+        cur = nd.getUTCFullYear() + '-' + String(nd.getUTCMonth() + 1).padStart(2, '0') + '-' + String(nd.getUTCDate()).padStart(2, '0')
+      }
+      const [ly, lm, ld] = cur.split('-').map(Number)
+      const prev = new Date(Date.UTC(ly, lm - 1, ld - 1))
+      return prev.getUTCFullYear() + '-' + String(prev.getUTCMonth() + 1).padStart(2, '0') + '-' + String(prev.getUTCDate()).padStart(2, '0')
+    }
     // 如果传入了 dateCalcRule，优先使用它来判断日期计算规则
     const useSaturday = dateCalcRule ? dateCalcRule.includes('周六') : isSaturdayType
     const days = getDurationDays(enrollmentDuration, customDays)
     if (days <= 0) return ''
     if (useSaturday) return addSaturdays(startDate, days)
     if (isCalendarMonthDuration(enrollmentDuration)) return addCalendarMonths(startDate, days)
-    return addWorkingDays(startDate, days)
+    // 报读结束日期：法定节假日算入工作日（不减假期），内部逻辑不传 holidays
+    return addWorkingDaysWithoutHolidays(startDate, days)
   }
 
   return { isWorkingDay, isNonHolidaySaturday, addWorkingDays, addCalendarMonths, addSaturdays, calculateEndDate }

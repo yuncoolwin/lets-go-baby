@@ -340,11 +340,21 @@ export class ChildrenService {
       const year = new Date(dto.start_date).getFullYear();
       const { holidays: holidaySet, workWeekends: workWeekendSet } = await this.holidaysService.getDateSets(year);
       const calc = createDateCalculator(holidaySet, workWeekendSet);
-      updateData.end_date = calc.calculateEndDate(
+      // end_date：报名时计算，只排除周六日，法定节假日算入工作日
+      updateData.end_date = calc.calculateEndDateWithoutHolidays(
         dto.start_date as string,
         dto.course_type as string || '',
         dto.enrollment_duration as string,
-        (dto as any).custom_days || ''
+        (dto as any).custom_days || '',
+        (dto as any).date_calc_rule || '',
+      );
+      // extended_end_date：顺延结束日期，额外排除假期管理页的节假日
+      updateData.extended_end_date = calc.calculateEndDate(
+        dto.start_date as string,
+        dto.course_type as string || '',
+        dto.enrollment_duration as string,
+        (dto as any).custom_days || '',
+        (dto as any).date_calc_rule || '',
       );
     }
 
