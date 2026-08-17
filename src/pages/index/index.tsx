@@ -782,7 +782,7 @@ export default function IndexPage() {
                                   expiryTag = { text: '本月到期', className: 'bg-[#FFE4E1] text-[#D44A5C] text-[10px] rounded-full px-1 ml-1' }
                                 }
                               }
-                              const childFeedback = childFeedbacks[child.id]
+                              const childFeedback = childFeedbacks[child.id + '_' + (group.group_id || '')]
                               const hasMeal = childFeedback?.meal_status && parseInt(childFeedback.meal_status, 10) > 0
                               const hasSleep = childFeedback?.sleep_status && parseInt(childFeedback.sleep_status, 10) > 0
                               const hasMood = childFeedback?.mood_status && parseInt(childFeedback.mood_status, 10) > 0
