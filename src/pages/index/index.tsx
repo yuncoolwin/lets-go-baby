@@ -50,6 +50,7 @@ interface GroupOverview {
   students: Array<{
     id: string
     name: string
+    nickname?: string
     gender: string
     birth_date: string
     attendance_status: string
@@ -385,7 +386,7 @@ export default function IndexPage() {
                     />
                   </View>
                   <Text className="text-sm font-medium truncate max-w-24">
-                    {child.name}
+                    {child.name}{child.nickname ? `（${child.nickname}）` : ""}
                   </Text>
                 </View>
               ))}
@@ -807,7 +808,7 @@ export default function IndexPage() {
                                   </View>
                                   <View className="flex-1">
                                     <Text className="block text-sm text-foreground">
-                                      {child.name}
+                                      {child.name}{child.nickname ? `（${child.nickname}）` : ""}
                                       <Text className="text-xs text-muted-foreground ml-1">
                                         {child.gender === 'male' ? '男' : '女'} {formatAge(child.birth_date)}
                                       </Text>
