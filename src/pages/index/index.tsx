@@ -805,7 +805,7 @@ export default function IndexPage() {
                                     {hasNoFeedback && (
                                       <Text className="block text-xs text-gray-400 mt-1">餐食☆☆☆☆☆·午睡☆☆☆☆☆·情绪☆☆☆☆☆</Text>
                                     )}
-                                    {dateRange && (
+                                    {dateRange && !hasNoFeedback && (
                                       <Text className="block text-xs text-muted-foreground mt-1">{dateRange}</Text>
                                     )}
                                   </View>
