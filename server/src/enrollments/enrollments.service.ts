@@ -57,6 +57,7 @@ export interface UpdateEnrollmentDto {
   duration_days?: number;
   start_date?: string;
   end_date?: string;
+  extended_end_date?: string | null;
   payment_amount?: string;
   payment_channel?: string;
   status?: string;
@@ -426,6 +427,7 @@ export class EnrollmentsService {
     if (rest.duration_days !== undefined) updateData.duration_days = rest.duration_days;
     if (rest.start_date !== undefined) updateData.start_date = rest.start_date;
     if (rest.end_date !== undefined) updateData.end_date = rest.end_date;
+    if (rest.extended_end_date !== undefined) updateData.extended_end_date = rest.extended_end_date;
     if (rest.payment_amount !== undefined) updateData.payment_amount = rest.payment_amount;
     if (rest.payment_channel !== undefined) updateData.payment_channel = rest.payment_channel;
     if (rest.status !== undefined) updateData.status = rest.status;

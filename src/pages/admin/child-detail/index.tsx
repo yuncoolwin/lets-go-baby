@@ -90,6 +90,8 @@ export default function ChildDetailPage() {
   const [extendToDate, setExtendToDate] = useState('')
   const [showExtendDialog, setShowExtendDialog] = useState(false)
   const [extendAnim, setExtendAnim] = useState<'open' | 'close' | 'idle'>('idle')
+  const [currentExtendingEnrollmentId, setCurrentExtendingEnrollmentId] = useState<string>('')
+  const [extendSaving, setExtendSaving] = useState(false)
   const extendTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const [parents, setParents] = useState<Array<{ id: string; parent_name: string; relationship: string }>>([])
 
@@ -110,6 +112,10 @@ export default function ChildDetailPage() {
     extendTimerRef.current = setTimeout(() => {
       setShowExtendDialog(false)
       setExtendAnim('idle')
+      setCurrentExtendingEnrollmentId('')
+      setExtendDetails([])
+      setExtendTotalDays(0)
+      setExtendToDate('')
     }, 200)
   }
 
@@ -341,6 +347,7 @@ export default function ChildDetailPage() {
 
   const loadExtendDetail = async (enr: any) => {
     try {
+      setCurrentExtendingEnrollmentId(enr.id)
       const res = await enrollmentApi.calcExtendedEndDate(enr.id)
       console.log('calcExtendedEndDate res:', res)
       // res 是 Taro.request 返回的 { data, statusCode, header }
@@ -358,6 +365,29 @@ export default function ChildDetailPage() {
       }
     } catch (e) {
       console.error('加载顺延详情失败', e)
+    }
+  }
+
+  const handleSaveExtend = async () => {
+    if (!currentExtendingEnrollmentId || !extendToDate) return
+    setExtendSaving(true)
+    try {
+      const res = await enrollmentApi.update(currentExtendingEnrollmentId, { extended_end_date: extendToDate })
+      if (res.code === 200) {
+        Taro.showToast({ title: '顺延日期已保存', icon: 'success' })
+        // 重新加载报读记录
+        const enrRes = await enrollmentApi.list(id!)
+        if (enrRes.code === 200 && Array.isArray(enrRes.data)) {
+          setEnrollments(enrRes.data as any[])
+        }
+        handleCloseExtendDialog()
+      } else {
+        Taro.showToast({ title: res.msg || '保存失败', icon: 'none' })
+      }
+    } catch {
+      Taro.showToast({ title: '网络错误', icon: 'none' })
+    } finally {
+      setExtendSaving(false)
     }
   }
 
@@ -1009,9 +1039,30 @@ export default function ChildDetailPage() {
               )}
             </View>
             <View className="pt-3" style={{ borderTop: '1px solid #e5e5e5' }}>
-              <Text className="block text-sm text-gray-500 text-center">
+              <Text className="block text-sm text-gray-500 text-center mb-3">
                 共顺延 <Text className="font-bold text-orange-500">{extendTotalDays}</Text> 天，顺延至 <Text className="font-bold text-orange-500">{extendToDate}</Text>
               </Text>
+              <View className="flex flex-row gap-3">
+                <View className="flex-1">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleCloseExtendDialog}
+                    disabled={extendSaving}
+                  >
+                    取消
+                  </Button>
+                </View>
+                <View className="flex-1">
+                  <Button
+                    className="w-full"
+                    onClick={handleSaveExtend}
+                    disabled={extendSaving || !extendToDate}
+                  >
+                    {extendSaving ? '保存中...' : '保存顺延'}
+                  </Button>
+                </View>
+              </View>
             </View>
           </View>
         </View>
