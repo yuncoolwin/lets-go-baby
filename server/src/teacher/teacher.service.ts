@@ -164,7 +164,7 @@ export class TeacherService {
     const childIds = [...childEnrollmentMap.keys()];
 
     // 查询幼儿姓名
-    let childrenMap: Record<string, { name: string; gender: string; birth_date: string }> = {};
+    let childrenMap: Record<string, { name: string; nickname: string; gender: string; birth_date: string }> = {};
     if (childIds.length > 0) {
       const { data: childrenData } = await this.client
         .from('children')
@@ -263,14 +263,14 @@ export class TeacherService {
     const childIds = [...new Set(filteredEnrollments.map(e => e.child_id))];
 
     // 查询幼儿信息（仅 active 状态）
-    let childrenMap: Record<string, { name: string; gender: string; birth_date: string }> = {};
+    let childrenMap: Record<string, { name: string; gender: string; birth_date: string; nickname: string }> = {};
     if (childIds.length > 0) {
       const { data: childrenData } = await this.client
         .from('children')
-        .select('id, name, gender, birth_date')
+        .select('id, name, gender, birth_date, nickname')
         .in('id', childIds)
         .eq('status', 'active');
-      childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date }; });
+      childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date, nickname: c.nickname || "" }; });
     }
 
     // 考勤查询日期
@@ -284,6 +284,7 @@ export class TeacherService {
       birth_date: string;
       start_date: string | null;
       end_date: string | null;
+      nickname: string;
       extended_end_date: string | null;
     }>>();
 
@@ -296,10 +297,10 @@ export class TeacherService {
       groupMap.get(ct)!.push({
         child_id: e.child_id,
         name: childrenMap[e.child_id]?.name || '',
-        nickname: childrenMap[e.child_id]?.nickname || '',
         gender: childrenMap[e.child_id]?.gender || '',
         birth_date: childrenMap[e.child_id]?.birth_date || '',
         start_date: e.start_date,
+        nickname: childrenMap[e.child_id]?.nickname || '' ,
         end_date: e.end_date,
         extended_end_date: e.extended_end_date || e.end_date,
       });
@@ -338,7 +339,8 @@ export class TeacherService {
         attendance_status: string;
         start_date: string | null;
         end_date: string | null;
-        extended_end_date: string | null;
+        nickname: string;
+      extended_end_date: string | null;
       }>;
     }> = [];
 
@@ -365,6 +367,7 @@ export class TeacherService {
           attendance_status: attStatus,
           start_date: s.start_date,
           end_date: s.end_date,
+          nickname: s.nickname || "",
           extended_end_date: s.extended_end_date || s.end_date,
         };
       });
@@ -425,14 +428,14 @@ export class TeacherService {
     const childIds = [...new Set(filteredEnrollments.map(e => e.child_id))];
 
     // 查询幼儿信息
-    let childrenMap: Record<string, { name: string; gender: string; birth_date: string }> = {};
+    let childrenMap: Record<string, { name: string; gender: string; birth_date: string; nickname: string }> = {};
     if (childIds.length > 0) {
       const { data: childrenData } = await this.client
         .from('children')
-        .select('id, name, gender, birth_date')
+        .select('id, name, gender, birth_date, nickname')
         .in('id', childIds)
         .eq('status', 'active');
-      childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date }; });
+      childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date, nickname: c.nickname || "" }; });
     }
 
     const queryDate = date || new Date().toISOString().split('T')[0];
@@ -445,6 +448,7 @@ export class TeacherService {
       birth_date: string;
       start_date: string | null;
       end_date: string | null;
+      nickname: string;
       extended_end_date: string | null;
     }>>();
 
@@ -459,6 +463,7 @@ export class TeacherService {
         gender: childrenMap[e.child_id]?.gender || '',
         birth_date: childrenMap[e.child_id]?.birth_date || '',
         start_date: e.start_date,
+        nickname: childrenMap[e.child_id]?.nickname || '' ,
         end_date: e.end_date,
         extended_end_date: e.extended_end_date || e.end_date,
       });
@@ -494,7 +499,8 @@ export class TeacherService {
         attendance_status: string;
         start_date: string | null;
         end_date: string | null;
-        extended_end_date: string | null;
+        nickname: string;
+      extended_end_date: string | null;
       }>;
     }> = [];
 
@@ -521,6 +527,7 @@ export class TeacherService {
           attendance_status: attStatus,
           start_date: s.start_date,
           end_date: s.end_date,
+          nickname: s.nickname || "",
           extended_end_date: s.extended_end_date || s.end_date,
         };
       });
@@ -561,7 +568,7 @@ export class TeacherService {
     // 查询幼儿信息
     const { data: children, error: childError } = await this.client
       .from('children')
-      .select('id, name, gender, birth_date')
+      .select('id, name, gender, birth_date, nickname')
       .in('id', activeChildIds)
       .eq('status', 'active');
 
