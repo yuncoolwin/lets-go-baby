@@ -203,33 +203,8 @@ export class EnrollmentsService {
   }
 
   /**
-   * 根据时长类型计算总课时数（工作日）
-   * duration_type: 一周体验 | 1个月 | 3个月 | 6个月 | 12个月 | 计日
-   * duration_days: 当 duration_type 为计日时的天数
-   */
-  private getTotalDaysByDuration(durationType: string, durationDays: number): number {
-    switch (durationType) {
-      case '计日':
-        return durationDays || 0;
-      case '一周体验':
-        return 5;
-      case '1个月':
-        return 22;
-      case '3个月':
-        return 66;
-      case '6个月':
-        return 132;
-      case '12个月':
-        return 264;
-      default:
-        // 未识别时长类型，fallback 为 0
-        return 0;
-    }
-  }
-
-  /**
    * 计算某条报读记录的课时统计
-   * total_days: 根据 duration_type / duration_days 计算的工作日数量
+   * total_days: 日期范围内的工作日（周一至周五）数量
    * attended_days: 出勤/半天出勤 记录数
    * leave_days: 请假 记录数
    */
@@ -238,20 +213,25 @@ export class EnrollmentsService {
     attended_days: number;
     leave_days: number;
   }> {
-    // 1. 根据时长类型计算总课时
-    const totalDays = this.getTotalDaysByDuration(enr.duration_type, enr.duration_days);
-
-    if (totalDays === 0) {
+    if (!enr.start_date || !enr.end_date) {
       return { total_days: 0, attended_days: 0, leave_days: 0 };
     }
 
-    // 2. 确定查询范围（endDate 用于统计考勤记录）
     const endDate = enr.extended_end_date || enr.end_date;
-    if (!endDate) {
-      return { total_days: totalDays, attended_days: 0, leave_days: 0 };
+
+    // 1. 计算 total_days（工作日数量，排除周六周日）
+    let totalDays = 0;
+    let current = enr.start_date;
+    while (current <= endDate) {
+      const [y, m, d] = current.split('-').map(Number);
+      const dayOfWeek = new Date(y, m - 1, d).getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        totalDays++;
+      }
+      current = this.addDays(current, 1);
     }
 
-    // 3. 从 attendance 表统计出勤和请假记录
+    // 2. 从 attendance 表统计出勤和请假记录
     const { data: attendanceRecords } = await this.client
       .from('attendance')
       .select('status')
