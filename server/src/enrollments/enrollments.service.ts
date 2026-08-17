@@ -183,7 +183,9 @@ export class EnrollmentsService {
     while (remainingDays > 0) {
       extendedDate = this.addDays(extendedDate, 1);
       const [y, m, d] = extendedDate.split('-').map(Number);
-      const dayOfWeek = new Date(y, m - 1, d).getDay();
+      // 用 Date.UTC 解析，与 holidayDates 保持一致
+      const dateUtc = Date.UTC(y, m - 1, d);
+      const dayOfWeek = new Date(dateUtc).getDay();
       // 跳过周末
       if (dayOfWeek === 0 || dayOfWeek === 6) continue;
       // 跳过法定节假日
@@ -258,7 +260,10 @@ export class EnrollmentsService {
     let current = enr.start_date;
     while (current <= enr.end_date) {
       const [y, m, d] = current.split('-').map(Number);
-      const dayOfWeek = new Date(y, m - 1, d).getDay();
+      // 用 Date.UTC 解析，避免本地时区偏移导致周几计算错误
+      // DB 存的日期是 UTC midnight，JS local midnight = UTC 前一天16:00
+      const dateUtc = Date.UTC(y, m - 1, d);
+      const dayOfWeek = new Date(dateUtc).getDay(); // 0=Sun, 6=Sat (UTC)
       const dateStr = this.toDateStr(current);
       const isHoliday = holidayDates.has(dateStr);
       const isTransferWorkday = transferWorkdays.has(dateStr);
@@ -284,8 +289,11 @@ export class EnrollmentsService {
       .lte('date', attEndDate);
 
     // 按 course_id 精确匹配（enrollment.course_id 对应 attendance.course_id）
+    // 需同时包含 course_id IS NULL（老数据）的记录fallback到course_type
     if (enr.course_id) {
-      attendanceQuery = attendanceQuery.eq('course_id', enr.course_id);
+      attendanceQuery = attendanceQuery.or(
+        `course_id.eq.${enr.course_id},and(course_id.is.null,course_type.eq.${enr.course_type})`
+      );
     } else {
       // fallback: 按 course_type 匹配
       attendanceQuery = attendanceQuery.eq('course_type', enr.course_type);
