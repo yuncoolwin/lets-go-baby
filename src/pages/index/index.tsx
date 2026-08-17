@@ -52,7 +52,6 @@ interface GroupOverview {
     name: string
     gender: string
     birth_date: string
-    nickname: string | null
     attendance_status: string
     start_date: string | null
     end_date: string | null
@@ -386,7 +385,7 @@ export default function IndexPage() {
                     />
                   </View>
                   <Text className="text-sm font-medium truncate max-w-24">
-                    {child.name}{child.nickname ? `（${child.nickname}）` : ''}
+                    {child.name}
                   </Text>
                 </View>
               ))}
