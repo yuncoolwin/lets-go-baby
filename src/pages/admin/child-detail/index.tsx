@@ -679,6 +679,11 @@ export default function ChildDetailPage() {
                       缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{enr.payment_channel ? `（${enr.payment_channel}）` : ''}
                     </Text>
                   )}
+                  {enr.attendance_stats && (
+                    <Text className="block text-xs text-gray-500 mt-1">
+                      课时记录：{enr.attendance_stats.attended_days}/{enr.attendance_stats.total_days}，请假{enr.attendance_stats.leave_days}天
+                    </Text>
+                  )}
                 </View>
               ))
             )}

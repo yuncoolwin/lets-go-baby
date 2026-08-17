@@ -26,6 +26,11 @@ export interface Enrollment {
   date_calc_rule?: string;
   created_at: string;
   updated_at: string;
+  attendance_stats?: {
+    total_days: number;
+    attended_days: number;
+    leave_days: number;
+  };
 }
 
 export interface CreateEnrollmentDto {
@@ -184,7 +189,72 @@ export class EnrollmentsService {
       .order('created_at', { ascending: false });
 
     if (error) throw new Error(`查询报读记录失败: ${error.message}`);
-    return data || [];
+    const enrollments = data || [];
+
+    // 批量计算每条报读记录的课时统计
+    const enriched = await Promise.all(
+      enrollments.map(async (enr) => {
+        const attendanceStats = await this.calculateAttendanceStats(enr);
+        return { ...enr, attendance_stats: attendanceStats };
+      })
+    );
+
+    return enriched;
+  }
+
+  /**
+   * 计算某条报读记录的课时统计
+   * total_days: 日期范围内的工作日（周一至周五）数量
+   * attended_days: 出勤/半天出勤 记录数
+   * leave_days: 请假 记录数
+   */
+  private async calculateAttendanceStats(enr: Enrollment): Promise<{
+    total_days: number;
+    attended_days: number;
+    leave_days: number;
+  }> {
+    if (!enr.start_date || !enr.end_date) {
+      return { total_days: 0, attended_days: 0, leave_days: 0 };
+    }
+
+    const endDate = enr.extended_end_date || enr.end_date;
+
+    // 1. 计算 total_days（工作日数量，排除周六周日）
+    let totalDays = 0;
+    let current = enr.start_date;
+    while (current <= endDate) {
+      const [y, m, d] = current.split('-').map(Number);
+      const dayOfWeek = new Date(y, m - 1, d).getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        totalDays++;
+      }
+      current = this.addDays(current, 1);
+    }
+
+    // 2. 从 attendance 表统计出勤和请假记录
+    const { data: attendanceRecords } = await this.client
+      .from('attendance')
+      .select('status')
+      .eq('child_id', enr.child_id)
+      .gte('date', enr.start_date)
+      .lte('date', endDate);
+
+    let attendedDays = 0;
+    let leaveDays = 0;
+    (attendanceRecords || []).forEach((r: any) => {
+      const s = r.status;
+      if (s === 'present' || s === 'full_day' || s === 'half_day') {
+        attendedDays++;
+      } else if (s === 'leave') {
+        leaveDays++;
+      }
+    });
+
+    return {
+      total_days: totalDays,
+      attended_days: attendedDays,
+      leave_days: leaveDays,
+    };
   }
 
   async findActiveByChild(childId: string): Promise<Enrollment[]> {
