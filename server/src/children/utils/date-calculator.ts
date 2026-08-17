@@ -147,9 +147,14 @@ export function createDateCalculator(
     return addWorkingDaysWithoutHolidays(startDate, days)
   }
 
-  return { isWorkingDay, isNonHolidaySaturday, addWorkingDays, addCalendarMonths, addSaturdays, calculateEndDate }
+  return { isWorkingDay, isNonHolidaySaturday, addWorkingDays, addCalendarMonths, addSaturdays, calculateEndDate, calculateEndDateWithoutHolidays: calculateEndDate }
 }
 
 /** 默认计算器（使用硬编码节假日数据） */
 const defaultCalculator = createDateCalculator(DEFAULT_HOLIDAYS, DEFAULT_WORK_WEEKENDS)
 export const calculateEndDate = defaultCalculator.calculateEndDate
+
+/** 不含法定节假日的计算器（报名结束日期用） */
+const noHolidayCalculator = createDateCalculator(new Set(), new Set())
+export const calculateEndDateWithoutHolidays =
+  noHolidayCalculator.calculateEndDate
