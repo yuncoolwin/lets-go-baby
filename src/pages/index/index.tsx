@@ -782,16 +782,15 @@ export default function IndexPage() {
                                   expiryTag = { text: '本月到期', className: 'bg-[#FFE4E1] text-[#D44A5C] text-[10px] rounded-full px-1 ml-1' }
                                 }
                               }
-                              const childFeedback = childFeedbacks[child.id + '_' + group.group_id]
+                              const childFeedback = childFeedbacks[child.id]
+                              const hasMeal = childFeedback?.meal_status && parseInt(childFeedback.meal_status, 10) > 0
+                              const hasSleep = childFeedback?.sleep_status && parseInt(childFeedback.sleep_status, 10) > 0
+                              const hasMood = childFeedback?.mood_status && parseInt(childFeedback.mood_status, 10) > 0
+                              const hasAnyStars = hasMeal || hasSleep || hasMood
                               const renderStars = (v: string | null | undefined) => {
                                 const n = parseInt(v || '0', 10)
                                 return n > 0 ? '★'.repeat(n) + '☆'.repeat(5 - n) : ''
                               }
-                              const parts: string[] = []
-                              if (childFeedback?.meal_status && parseInt(childFeedback.meal_status, 10) > 0) parts.push(`餐食${renderStars(childFeedback.meal_status)}`)
-                              if (childFeedback?.sleep_status && parseInt(childFeedback.sleep_status, 10) > 0) parts.push(`午睡${renderStars(childFeedback.sleep_status)}`)
-                              if (childFeedback?.mood_status && parseInt(childFeedback.mood_status, 10) > 0) parts.push(`情绪${renderStars(childFeedback.mood_status)}`)
-                              const feedbackSummary = parts.length > 0 ? parts.join('·') : null
                               // 无记录时只显示课程日期，不显示空星
                               return (
                                 <View
@@ -813,8 +812,14 @@ export default function IndexPage() {
                                         {child.gender === 'male' ? '男' : '女'} {formatAge(child.birth_date)}
                                       </Text>
                                     </Text>
-                                    {feedbackSummary && (
-                                      <Text className="block text-xs text-green-600 mt-1">{feedbackSummary}</Text>
+                                    {hasAnyStars && (
+                                      <View className="mt-1">
+                                        <View className="flex flex-row items-center gap-3">
+                                          {hasMeal && <Text className="text-xs text-[#E8651A]">餐食{renderStars(childFeedback.meal_status)}</Text>}
+                                          {hasSleep && <Text className="text-xs text-[#E8651A]">午睡{renderStars(childFeedback.sleep_status)}</Text>}
+                                        </View>
+                                        {hasMood && <Text className="block text-xs text-[#E8651A] mt-1">情绪{renderStars(childFeedback.mood_status)}</Text>}
+                                      </View>
                                     )}
                                     {dateRange && (
                                       <Text className="block text-xs text-muted-foreground mt-1">
@@ -824,7 +829,7 @@ export default function IndexPage() {
                                     )}
                                   </View>
                                   <View
-                                    className={`px-2 py-1 rounded ${config.bg}`}
+                                    className={`px-2 py-1 rounded flex items-center justify-center ${config.bg}`}
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       // 仅出勤类状态（全天出勤/半天出勤/出勤）才弹出日常记录
@@ -845,7 +850,7 @@ export default function IndexPage() {
                                       setFeedbackMoodStatus(childFeedback?.mood_status || '')
                                     }}
                                   >
-                                    <Text className={`text-xs font-medium ${config.text}`}>{config.label}</Text>
+                                    <Text className={`block text-xs font-medium text-center leading-normal ${config.text}`}>{config.label}</Text>
                                   </View>
                                 </View>
                               )
