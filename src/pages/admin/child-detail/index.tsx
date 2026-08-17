@@ -658,6 +658,11 @@ export default function ChildDetailPage() {
                   <Text className="block text-xs text-gray-500">
                     时长：{enr.duration_type === '计日' ? `${enr.duration_days}天` : enr.duration_type}
                   </Text>
+                  {enr.attendance_stats && (
+                    <Text className="block text-xs text-gray-500 mt-1">
+                      课时记录：{enr.attendance_stats.attended_days}/{enr.attendance_stats.total_days}，请假{enr.attendance_stats.leave_days}天，缺席{enr.attendance_stats.absent_days}天
+                    </Text>
+                  )}
                   <Text className="block text-xs text-gray-500 mt-1">
                     班级：{enr.class_id ? (() => { const cls = classes.find((c: any) => c.id === enr.class_id); return cls ? `${cls.name}${cls.room ? `（${cls.room}）` : ''}` : '' })() : ''}
                   </Text>
@@ -677,11 +682,6 @@ export default function ChildDetailPage() {
                   {(enr.payment_amount || enr.payment_channel) && (
                     <Text className="block text-xs text-gray-500 mt-1">
                       缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{enr.payment_channel ? `（${enr.payment_channel}）` : ''}
-                    </Text>
-                  )}
-                  {enr.attendance_stats && (
-                    <Text className="block text-xs text-gray-500 mt-1">
-                      课时记录：{enr.attendance_stats.attended_days}/{enr.attendance_stats.total_days}，请假{enr.attendance_stats.leave_days}天，缺席{enr.attendance_stats.absent_days}天
                     </Text>
                   )}
                 </View>
