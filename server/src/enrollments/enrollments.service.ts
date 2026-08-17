@@ -219,7 +219,7 @@ export class EnrollmentsService {
 
   /**
    * 计算某条报读记录的课时统计
-   * total_days: 从 start_date 到 end_date 的工作日数（周六托只计周六），不去除节假日
+   * total_days: 从 start_date 到 end_date 的工作日数（周六托只计周六），排除法定节假日放假日期，计算调休日
    * attended_days: 从 start_date 到 extended_end_date，该课程的出勤/半天出勤记录数
    * leave_days: 同上区间，请假记录数
    * absent_days: 同上区间，缺席记录数
@@ -236,16 +236,38 @@ export class EnrollmentsService {
 
     const isSaturdayOnly = enr.course_type === '周六托';
 
-    // 1. 计算 total_days（从 start_date 到 end_date，不去除节假日）
+    // 1. 计算 total_days（从 start_date 到 end_date）
+    //    排除法定节假日（type='all' 全园假期、type='class' 班级假期）的放假日期
+    //    调休日（周六日有考勤记录）算工作日
+    const holidayDates = await this.getHolidayDatesInRange(enr.start_date, enr.end_date);
+
+    // 收集调休日：周六日有考勤记录的日期
+    const { data: attRecords } = await this.client
+      .from('attendance')
+      .select('date')
+      .eq('child_id', enr.child_id)
+      .gte('date', enr.start_date)
+      .lte('date', enr.end_date)
+      .in('status', ['present', 'full_day', 'half_day']);
+    const transferWorkdays = new Set<string>();
+    (attRecords || []).forEach((r: any) => {
+      transferWorkdays.add(this.toDateStr(r.date));
+    });
+
     let totalDays = 0;
     let current = enr.start_date;
     while (current <= enr.end_date) {
       const [y, m, d] = current.split('-').map(Number);
       const dayOfWeek = new Date(y, m - 1, d).getDay();
+      const dateStr = this.toDateStr(current);
+      const isHoliday = holidayDates.has(dateStr);
+      const isTransferWorkday = transferWorkdays.has(dateStr);
       if (isSaturdayOnly) {
-        if (dayOfWeek === 6) totalDays++;
+        // 周六托：只计周六，排除节假日，算调休日
+        if (dayOfWeek === 6 && !isHoliday) totalDays++;
       } else {
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) totalDays++;
+        // 全日托/晚间托：计工作日，排除节假日，算调休日
+        if ((dayOfWeek !== 0 && dayOfWeek !== 6 || isTransferWorkday) && !isHoliday) totalDays++;
       }
       current = this.addDays(current, 1);
     }
