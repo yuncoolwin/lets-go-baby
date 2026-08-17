@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { StatutoryHolidaysService } from '@/statutory-holidays/statutory-holidays.service';
 
 export interface HolidayDetail {
   name: string;
@@ -65,6 +66,8 @@ export interface UpdateEnrollmentDto {
 
 @Injectable()
 export class EnrollmentsService {
+  private readonly statutoryHolidaysService = new StatutoryHolidaysService();
+
   private get client() {
     return getSupabaseClient();
   }
@@ -104,6 +107,18 @@ export class EnrollmentsService {
     if (!match) return dateStr;
     const [, y, m, d] = match;
     return `${y}-${m}-${d}`;
+  }
+
+  // 使用 Date.UTC 避免本地时区偏移，适合 DB 日期字符串
+  private addDaysUTC(dateStr: string, days: number): string {
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) return dateStr;
+    const [, y, m, d] = match;
+    const date = new Date(Date.UTC(parseInt(y), parseInt(m) - 1, parseInt(d) + days));
+    const ny = date.getUTCFullYear();
+    const nm = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const nd = String(date.getUTCDate()).padStart(2, '0');
+    return `${ny}-${nm}-${nd}`;
   }
 
   /**
@@ -160,7 +175,7 @@ export class EnrollmentsService {
       while (current <= maxDate) {
         holidayDates.add(current);
         overlapCount++;
-        current = this.addDays(current, 1);
+        current = this.addDaysUTC(current, 1);
       }
       if (overlapCount > 0) {
         result.details.push({
@@ -239,15 +254,21 @@ export class EnrollmentsService {
     const isSaturdayOnly = enr.course_type === '周六托';
 
     // 1. 计算 total_days（从 start_date 到 end_date）
-    //    排除法定节假日（type='all' 全园假期、type='class' 班级假期）的放假日期
+    //    排除法定节假日（holidays_old 表）的放假日期
     //    调休日（周六日有考勤记录）算工作日
-    const holidayDates = await this.getHolidayDatesInRange(enr.start_date, enr.end_date);
+    const year = parseInt(enr.start_date.substring(0, 4));
+    const { holidays: statutoryHolidays, workWeekends: statutoryWorkWeekends } =
+      await this.statutoryHolidaysService.getDateSets(year);
+    // holidays_old 中的 work_weekend 本就是周末调班日，会自动计入 total_days（因为是周日）
+    // 但 transferWorkdays（考勤表中的调休日）需要额外加上
 
     // 收集调休日：周六日有考勤记录的日期
+    // 按 course_type 匹配
     const { data: attRecords } = await this.client
       .from('attendance')
       .select('date')
       .eq('child_id', enr.child_id)
+      .eq('course_type', enr.course_type)
       .gte('date', enr.start_date)
       .lte('date', enr.end_date)
       .in('status', ['present', 'full_day', 'half_day']);
@@ -265,7 +286,7 @@ export class EnrollmentsService {
       const dateUtc = Date.UTC(y, m - 1, d);
       const dayOfWeek = new Date(dateUtc).getDay(); // 0=Sun, 6=Sat (UTC)
       const dateStr = this.toDateStr(current);
-      const isHoliday = holidayDates.has(dateStr);
+      const isHoliday = statutoryHolidays.has(dateStr);
       const isTransferWorkday = transferWorkdays.has(dateStr);
       if (isSaturdayOnly) {
         // 周六托：只计周六，排除节假日，算调休日
@@ -274,7 +295,7 @@ export class EnrollmentsService {
         // 全日托/晚间托：计工作日，排除节假日，算调休日
         if ((dayOfWeek !== 0 && dayOfWeek !== 6 || isTransferWorkday) && !isHoliday) totalDays++;
       }
-      current = this.addDays(current, 1);
+      current = this.addDaysUTC(current, 1);
     }
 
     // 2. 计算 attended_days/leave_days/absent_days（从 start_date 到 extended_end_date）
@@ -288,16 +309,8 @@ export class EnrollmentsService {
       .gte('date', enr.start_date)
       .lte('date', attEndDate);
 
-    // 按 course_id 精确匹配（enrollment.course_id 对应 attendance.course_id）
-    // 需同时包含 course_id IS NULL（老数据）的记录fallback到course_type
-    if (enr.course_id) {
-      attendanceQuery = attendanceQuery.or(
-        `course_id.eq.${enr.course_id},and(course_id.is.null,course_type.eq.${enr.course_type})`
-      );
-    } else {
-      // fallback: 按 course_type 匹配
-      attendanceQuery = attendanceQuery.eq('course_type', enr.course_type);
-    }
+    // 按 course_type 匹配（attendance.course_type 对应 enrollment.course_type）
+    attendanceQuery = attendanceQuery.eq('course_type', enr.course_type);
 
     const { data: attendanceRecords } = await attendanceQuery;
 
@@ -327,32 +340,6 @@ export class EnrollmentsService {
    * 获取区间内的节假日日期集合（全园节假日，排除调休日）
    * 调休日（即本该放假但因补课变成工作日的日期）不算节假日
    */
-  private async getHolidayDatesInRange(startDate: string, endDate: string): Promise<Set<string>> {
-    const holidayDates = new Set<string>();
-
-    // 查询全园节假日（type = 'all'）和班级节假日（type = 'class'）
-    const { data: holidays } = await this.client
-      .from('holidays')
-      .select('start_date, end_date, type')
-      .in('type', ['all', 'class'])
-      .lte('start_date', endDate)
-      .gte('end_date', startDate);
-
-    if (!holidays || holidays.length === 0) return holidayDates;
-
-    // 收集所有假期内的日期，统一转为 YYYY-MM-DD
-    for (const h of holidays) {
-      let current = this.toDateStr(h.start_date > startDate ? h.start_date : startDate);
-      const maxDate = this.toDateStr(h.end_date < endDate ? h.end_date : endDate);
-      while (current <= maxDate) {
-        holidayDates.add(current);
-        current = this.addDays(current, 1);
-      }
-    }
-
-    return holidayDates;
-  }
-
   async findActiveByChild(childId: string): Promise<Enrollment[]> {
     await this.syncExpiredStatus();
     const { data, error } = await this.client
