@@ -419,6 +419,11 @@ export default function RecordsPage() {
                     </Text>
                   )}
                   <View className="flex flex-wrap gap-2 mb-3">
+                    {item.mood_status && parseInt(item.mood_status, 10) > 0 && (
+                      <Badge className={`rounded-full text-xs ${getStatusBadge(item.mood_status)}`}>
+                        情绪: {getStatusLabel(item.mood_status)}
+                      </Badge>
+                    )}
                     {item.meal_status && parseInt(item.meal_status, 10) > 0 && (
                       <Badge className={`rounded-full text-xs ${getStatusBadge(item.meal_status)}`}>
                         餐食: {getStatusLabel(item.meal_status)}
@@ -427,11 +432,6 @@ export default function RecordsPage() {
                     {item.sleep_status && parseInt(item.sleep_status, 10) > 0 && (
                       <Badge className={`rounded-full text-xs ${getStatusBadge(item.sleep_status)}`}>
                         午睡: {getStatusLabel(item.sleep_status)}
-                      </Badge>
-                    )}
-                    {item.mood_status && parseInt(item.mood_status, 10) > 0 && (
-                      <Badge className={`rounded-full text-xs ${getStatusBadge(item.mood_status)}`}>
-                        情绪: {getStatusLabel(item.mood_status)}
                       </Badge>
                     )}
                   </View>
@@ -603,9 +603,9 @@ export default function RecordsPage() {
               </View>
 
               {[
+                { label: '情绪', value: moodStatus, setter: setMoodStatus },
                 { label: '餐食', value: mealStatus, setter: setMealStatus },
                 { label: '午睡', value: sleepStatus, setter: setSleepStatus },
-                { label: '情绪', value: moodStatus, setter: setMoodStatus },
               ].map(({ label, value, setter }) => (
                 <View className="mb-4" key={label}>
                   <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
@@ -842,6 +842,11 @@ export default function RecordsPage() {
                   </Text>
                 )}
                 <View className="flex flex-wrap gap-2 mb-3">
+                  {item.mood_status && parseInt(item.mood_status, 10) > 0 && (
+                    <Badge className={`rounded-full text-xs ${getStatusBadge(item.mood_status)}`}>
+                      情绪: {getStatusLabel(item.mood_status)}
+                    </Badge>
+                  )}
                   {item.meal_status && parseInt(item.meal_status, 10) > 0 && (
                     <Badge className={`rounded-full text-xs ${getStatusBadge(item.meal_status)}`}>
                       餐食: {getStatusLabel(item.meal_status)}
@@ -850,11 +855,6 @@ export default function RecordsPage() {
                   {item.sleep_status && parseInt(item.sleep_status, 10) > 0 && (
                     <Badge className={`rounded-full text-xs ${getStatusBadge(item.sleep_status)}`}>
                       午睡: {getStatusLabel(item.sleep_status)}
-                    </Badge>
-                  )}
-                  {item.mood_status && parseInt(item.mood_status, 10) > 0 && (
-                    <Badge className={`rounded-full text-xs ${getStatusBadge(item.mood_status)}`}>
-                      情绪: {getStatusLabel(item.mood_status)}
                     </Badge>
                   )}
                 </View>

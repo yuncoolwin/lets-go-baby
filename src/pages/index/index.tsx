@@ -469,6 +469,18 @@ export default function IndexPage() {
                             {record.class_name || ''}{record.class_name && record.course_name ? ' · ' : ''}{record.course_name || ''}
                           </Text>
                           <View style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '16px' }}>
+                            {record.mood_status && parseInt(record.mood_status, 10) > 0 && (
+                              <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                                <Text className="text-xs text-gray-500">情绪</Text>
+                                <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.mood_status)}</Text>
+                                <View
+                                  onClick={(e) => { e.stopPropagation(); setParentMoodInfoOpen(true) }}
+                                  style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                  <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>i</Text>
+                                </View>
+                              </View>
+                            )}
                             {record.meal_status && parseInt(record.meal_status, 10) > 0 && (
                               <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                                 <Text className="text-xs text-gray-500">餐食</Text>
@@ -487,18 +499,6 @@ export default function IndexPage() {
                                 <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.sleep_status)}</Text>
                                 <View
                                   onClick={(e) => { e.stopPropagation(); setParentNapInfoOpen(true) }}
-                                  style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                >
-                                  <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>i</Text>
-                                </View>
-                              </View>
-                            )}
-                            {record.mood_status && parseInt(record.mood_status, 10) > 0 && (
-                              <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                                <Text className="text-xs text-gray-500">情绪</Text>
-                                <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.mood_status)}</Text>
-                                <View
-                                  onClick={(e) => { e.stopPropagation(); setParentMoodInfoOpen(true) }}
                                   style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                 >
                                   <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>i</Text>
@@ -818,10 +818,10 @@ export default function IndexPage() {
                                     {hasAnyStars && (
                                       <View className="mt-1">
                                         <View className="flex flex-row items-center gap-3">
+                                          {hasMood && <Text className="text-xs text-[#E8651A]">情绪{renderStars(childFeedback.mood_status)}</Text>}
                                           {hasMeal && <Text className="text-xs text-[#E8651A]">餐食{renderStars(childFeedback.meal_status)}</Text>}
-                                          {hasSleep && <Text className="text-xs text-[#E8651A]">午睡{renderStars(childFeedback.sleep_status)}</Text>}
                                         </View>
-                                        {hasMood && <Text className="block text-xs text-[#E8651A] mt-1">情绪{renderStars(childFeedback.mood_status)}</Text>}
+                                        {hasSleep && <Text className="block text-xs text-[#E8651A] mt-1">午睡{renderStars(childFeedback.sleep_status)}</Text>}
                                       </View>
                                     )}
                                     {dateRange && (
@@ -930,9 +930,9 @@ export default function IndexPage() {
 
               <View style={{ padding: '16px 20px 120px' }}>
                 {[
+                  { label: '情绪', value: feedbackMoodStatus, setter: setFeedbackMoodStatus },
                   { label: '餐食', value: feedbackMealStatus, setter: setFeedbackMealStatus },
                   { label: '午睡', value: feedbackSleepStatus, setter: setFeedbackSleepStatus },
-                  { label: '情绪', value: feedbackMoodStatus, setter: setFeedbackMoodStatus },
                 ].map(({ label, value, setter }) => (
                   <View className="mb-4" key={label}>
                     <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
