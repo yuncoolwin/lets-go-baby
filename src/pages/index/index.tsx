@@ -138,7 +138,7 @@ export default function IndexPage() {
       
       // 如果有展开的分组，重新加载分组数据
       if (expandedGroupId.size > 0) {
-        const tid = Taro.getStorageSync('teacherId') || currentState.currentRole?.id
+        const tid = currentState.currentRole?.id
         if (tid) {
           Network.request({
             url: '/api/teachers/grouped-overview',
@@ -223,7 +223,7 @@ export default function IndexPage() {
   }
 
   const loadTeacherData = async () => {
-    const teacherId = Taro.getStorageSync('teacherId') || currentRole?.id
+    const teacherId = currentRole?.id
     if (teacherId) {
       const [groupRes, courseRes] = await Promise.all([
         Network.request({
