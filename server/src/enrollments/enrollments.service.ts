@@ -82,14 +82,28 @@ export class EnrollmentsService {
 
   /**
    * 日期字符串加减天数（纯字符串操作，避免 timezone 问题）
+   * 输入/输出格式均为 YYYY-MM-DD
    */
   private addDays(dateStr: string, days: number): string {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    const date = new Date(y, m - 1, d + days);
+    // 支持 YYYY-MM-DD 和完整日期时间字符串
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) return dateStr;
+    const [, y, m, d] = match;
+    const date = new Date(parseInt(y), parseInt(m) - 1, parseInt(d) + days);
     const yy = date.getFullYear();
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const dd = String(date.getDate()).padStart(2, '0');
     return `${yy}-${mm}-${dd}`;
+  }
+
+  /**
+   * 统一将日期转为 YYYY-MM-DD 字符串（取 UTC+8 本地日期）
+   */
+  private toDateStr(dateStr: string): string {
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) return dateStr;
+    const [, y, m, d] = match;
+    return `${y}-${m}-${d}`;
   }
 
   /**
@@ -140,8 +154,8 @@ export class EnrollmentsService {
     // 收集报读期间内所有重叠的假期日期，同时生成明细
     const holidayDates = new Set<string>();
     for (const h of matchingHolidays) {
-      let current = h.start_date > startDate ? h.start_date : startDate;
-      const maxDate = h.end_date < endDate ? h.end_date : endDate;
+      let current = this.toDateStr(h.start_date > startDate ? h.start_date : startDate);
+      const maxDate = this.toDateStr(h.end_date < endDate ? h.end_date : endDate);
       let overlapCount = 0;
       while (current <= maxDate) {
         holidayDates.add(current);
@@ -206,7 +220,7 @@ export class EnrollmentsService {
   /**
    * 计算某条报读记录的课时统计
    * total_days: 从 start_date 到 end_date 的工作日数（周六托只计周六），排除节假日
-   * attended_days: 从 start_date 到 extended_end_date，出勤/半天出勤记录数
+   * attended_days: 从 start_date 到 extended_end_date，该课程的出勤/半天出勤记录数
    * leave_days: 同上区间，请假记录数
    * absent_days: 同上区间，缺席记录数
    */
@@ -222,7 +236,7 @@ export class EnrollmentsService {
 
     const isSaturdayOnly = enr.course_type === '周六托';
 
-    // 1. 计算 total_days（从 start_date 到 end_date，排除节假日）
+    // 1. 计算 total_days（从 start_date 到 end_date，排除节假日，不含顺延）
     const holidayDates = await this.getHolidayDatesInRange(enr.start_date, enr.end_date);
 
     let totalDays = 0;
@@ -230,7 +244,6 @@ export class EnrollmentsService {
     while (current <= enr.end_date) {
       const [y, m, d] = current.split('-').map(Number);
       const dayOfWeek = new Date(y, m - 1, d).getDay();
-      // 跳过节假日
       if (holidayDates.has(current)) {
         current = this.addDays(current, 1);
         continue;
@@ -244,14 +257,25 @@ export class EnrollmentsService {
     }
 
     // 2. 计算 attended_days/leave_days/absent_days（从 start_date 到 extended_end_date）
+    //    考勤必须按课程区分：优先匹配 course_id，fallback 到 course_type
     const attEndDate = enr.extended_end_date || enr.end_date;
 
-    const { data: attendanceRecords } = await this.client
+    let attendanceQuery = this.client
       .from('attendance')
       .select('status')
       .eq('child_id', enr.child_id)
       .gte('date', enr.start_date)
       .lte('date', attEndDate);
+
+    // 按 course_id 精确匹配（enrollment.course_id 对应 attendance.course_id）
+    if (enr.course_id) {
+      attendanceQuery = attendanceQuery.eq('course_id', enr.course_id);
+    } else {
+      // fallback: 按 course_type 匹配
+      attendanceQuery = attendanceQuery.eq('course_type', enr.course_type);
+    }
+
+    const { data: attendanceRecords } = await attendanceQuery;
 
     let attendedDays = 0;
     let leaveDays = 0;
@@ -292,10 +316,10 @@ export class EnrollmentsService {
 
     if (!holidays || holidays.length === 0) return holidayDates;
 
-    // 收集所有假期内的日期
+    // 收集所有假期内的日期，统一转为 YYYY-MM-DD
     for (const h of holidays) {
-      let current = h.start_date > startDate ? h.start_date : startDate;
-      const maxDate = h.end_date < endDate ? h.end_date : endDate;
+      let current = this.toDateStr(h.start_date > startDate ? h.start_date : startDate);
+      const maxDate = this.toDateStr(h.end_date < endDate ? h.end_date : endDate);
       while (current <= maxDate) {
         holidayDates.add(current);
         current = this.addDays(current, 1);
