@@ -168,9 +168,9 @@ export class TeacherService {
     if (childIds.length > 0) {
       const { data: childrenData } = await this.client
         .from('children')
-        .select('id, name, gender, birth_date')
+        .select('id, name, nickname, gender, birth_date')
         .in('id', childIds);
-      childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date }; });
+      childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, nickname: c.nickname, gender: c.gender, birth_date: c.birth_date }; });
     }
 
     // 组装学生列表（每人只显示一条）
@@ -179,6 +179,7 @@ export class TeacherService {
       return {
         id: childId,
         name: childrenMap[childId]?.name || '',
+        nickname: childrenMap[childId]?.nickname || '',
         gender: childrenMap[childId]?.gender || '',
         birth_date: childrenMap[childId]?.birth_date || '',
         course_type: e.course_type,
@@ -267,10 +268,10 @@ export class TeacherService {
     if (childIds.length > 0) {
       const { data: childrenData } = await this.client
         .from('children')
-        .select('id, name, gender, birth_date')
+        .select('id, name, nickname, gender, birth_date')
         .in('id', childIds)
         .eq('status', 'active');
-      childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date }; });
+      childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, nickname: c.nickname, gender: c.gender, birth_date: c.birth_date }; });
     }
 
     // 考勤查询日期
@@ -296,6 +297,7 @@ export class TeacherService {
       groupMap.get(ct)!.push({
         child_id: e.child_id,
         name: childrenMap[e.child_id]?.name || '',
+        nickname: childrenMap[e.child_id]?.nickname || '',
         gender: childrenMap[e.child_id]?.gender || '',
         birth_date: childrenMap[e.child_id]?.birth_date || '',
         start_date: e.start_date,
@@ -359,6 +361,7 @@ export class TeacherService {
         return {
           id: s.child_id,
           name: s.name,
+          nickname: s.nickname || '',
           gender: s.gender,
           course_type: ct,
           attendance_status: attStatus,
@@ -428,10 +431,10 @@ export class TeacherService {
     if (childIds.length > 0) {
       const { data: childrenData } = await this.client
         .from('children')
-        .select('id, name, gender, birth_date')
+        .select('id, name, nickname, gender, birth_date')
         .in('id', childIds)
         .eq('status', 'active');
-      childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date }; });
+      childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, nickname: c.nickname, gender: c.gender, birth_date: c.birth_date }; });
     }
 
     const queryDate = date || new Date().toISOString().split('T')[0];
@@ -560,7 +563,7 @@ export class TeacherService {
     // 查询幼儿信息
     const { data: children, error: childError } = await this.client
       .from('children')
-      .select('id, name, gender, birth_date')
+      .select('id, name, nickname, gender, birth_date')
       .in('id', activeChildIds)
       .eq('status', 'active');
 
