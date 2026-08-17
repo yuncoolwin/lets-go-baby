@@ -57,6 +57,20 @@ export function getAge(birthDate: string | null | undefined): number {
 }
 
 /**
+ * 格式化日期为 MM月DD日
+ * @param dateStr 日期字符串
+ * @returns 格式化后的日期字符串，如 "8月1日"
+ */
+export function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  if (Number.isNaN(d.getTime())) return ''
+  const month = d.getMonth() + 1
+  const day = d.getDate()
+  return `${month}月${day}日`
+}
+
+/**
  * 安全地格式化时间为 HH:mm，无效日期返回空字符串
  */
 export function formatTime(dateStr: string | number | null | undefined): string {

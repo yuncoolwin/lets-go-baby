@@ -11,7 +11,7 @@ import { Bus, Users, Camera, GraduationCap, Plus, ChevronDown, ChevronUp, BookOp
 import { getRelationshipLabel } from '@/utils/helpers'
 import { courseApi } from '@/utils/api'
 import rabbitLogo from '@/assets/rabbit-logo.png'
-import { formatAge, formatTime } from '@/utils/format'
+import { formatAge, formatDate, formatTime } from '@/utils/format'
 
 interface BabyStatus {
   child_id: string
@@ -764,8 +764,8 @@ export default function IndexPage() {
                                 leave: { label: '请假', bg: 'bg-red-100', text: 'text-red-700' },
                               }
                               const config = statusConfig[child.attendance_status] || { label: '未考勤', bg: 'bg-gray-100', text: 'text-gray-500' }
-                              const dateRange = child.start_date || child.extended_end_date
-                                ? `${child.start_date || '?'} ~ ${child.extended_end_date || child.end_date || '?'}`
+                              const dateRange = child.start_date
+                                ? `${formatDate(child.start_date)} ~ ${formatDate(child.extended_end_date || child.end_date)}`
                                 : null
                               const childFeedback = childFeedbacks[child.id + '_' + group.group_id]
                               const renderStars = (v: string | null | undefined) => {
@@ -805,8 +805,8 @@ export default function IndexPage() {
                                     {hasNoFeedback && (
                                       <Text className="block text-xs text-gray-400 mt-1">餐食☆☆☆☆☆·午睡☆☆☆☆☆·情绪☆☆☆☆☆</Text>
                                     )}
-                                    {dateRange && !hasNoFeedback && !feedbackSummary && (
-                                      <Text className="block text-xs text-muted-foreground">{dateRange}</Text>
+                                    {dateRange && (
+                                      <Text className="block text-xs text-muted-foreground mt-1">{dateRange}</Text>
                                     )}
                                   </View>
                                   <View
