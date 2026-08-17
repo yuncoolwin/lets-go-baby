@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Label } from '@/components/ui/label'
 import { childrenApi, enrollmentApi, classApi, courseApi, adminApi } from '@/utils/api'
-import BackButton from '@/components/back-button'
+
 import { Pencil, Trash2, BookOpen, Plus, X, Info } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge } from '@/utils/format'
@@ -453,11 +453,7 @@ export default function ChildDetailPage() {
 
   return (
     <View className="min-h-screen bg-background pb-20">
-      {/* 顶部导航 */}
-      <View className="flex items-center gap-3 p-4 bg-white border-b border-border">
-        <BackButton />
-        <Text className="text-lg font-semibold text-foreground">幼儿详情</Text>
-      </View>
+      
 
       <View className="p-4 space-y-4">
         {/* 基本信息卡片 */}
