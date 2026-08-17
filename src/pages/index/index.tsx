@@ -386,7 +386,8 @@ export default function IndexPage() {
                     />
                   </View>
                   <Text className="text-sm font-medium truncate max-w-24">
-                    {child.name}{child.nickname ? `（${child.nickname}）` : ""}
+                    {child.name}
+                    {child.nickname ? <Text className="text-xs text-[#999]">（{child.nickname}）</Text> : null}
                   </Text>
                 </View>
               ))}
@@ -808,7 +809,8 @@ export default function IndexPage() {
                                   </View>
                                   <View className="flex-1">
                                     <Text className="block text-sm text-foreground">
-                                      {child.name}{child.nickname ? `（${child.nickname}）` : ""}
+                                      {child.name}
+                                      {child.nickname ? <Text className="text-xs text-[#999]">（{child.nickname}）</Text> : null}
                                       <Text className="text-xs text-muted-foreground ml-1">
                                         {child.gender === 'male' ? '男' : '女'} {formatAge(child.birth_date)}
                                       </Text>
