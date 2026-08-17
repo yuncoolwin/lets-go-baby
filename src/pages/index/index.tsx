@@ -767,6 +767,21 @@ export default function IndexPage() {
                               const dateRange = child.start_date
                                 ? `${formatDate(child.start_date)} ~ ${formatDate(child.extended_end_date || child.end_date)}`
                                 : null
+                              // 到期标签
+                              const endDateStr = child.extended_end_date || child.end_date
+                              let expiryTag: { text: string; className: string } | null = null
+                              if (endDateStr) {
+                                const endDate = new Date(endDateStr)
+                                const today = new Date()
+                                today.setHours(0, 0, 0, 0)
+                                endDate.setHours(0, 0, 0, 0)
+                                const diffDays = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+                                if (diffDays >= 0 && diffDays <= 10) {
+                                  expiryTag = { text: '即将到期', className: 'bg-[#E8651A] text-white text-[10px] rounded-full px-1 ml-1' }
+                                } else if (endDate.getMonth() === today.getMonth() && endDate.getFullYear() === today.getFullYear()) {
+                                  expiryTag = { text: '本月到期', className: 'bg-[#FFE4E1] text-[#D44A5C] text-[10px] rounded-full px-1 ml-1' }
+                                }
+                              }
                               const childFeedback = childFeedbacks[child.id + '_' + group.group_id]
                               const renderStars = (v: string | null | undefined) => {
                                 const n = parseInt(v || '0', 10)
@@ -802,7 +817,10 @@ export default function IndexPage() {
                                       <Text className="block text-xs text-green-600 mt-1">{feedbackSummary}</Text>
                                     )}
                                     {dateRange && (
-                                      <Text className="block text-xs text-muted-foreground mt-1">{dateRange}</Text>
+                                      <Text className="block text-xs text-muted-foreground mt-1">
+                                        {dateRange}
+                                        {expiryTag && <Text className={expiryTag.className}>{expiryTag.text}</Text>}
+                                      </Text>
                                     )}
                                   </View>
                                   <View
