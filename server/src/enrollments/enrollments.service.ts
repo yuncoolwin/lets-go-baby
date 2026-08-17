@@ -30,6 +30,7 @@ export interface Enrollment {
     total_days: number;
     attended_days: number;
     leave_days: number;
+    absent_days: number;
   };
 }
 
@@ -204,49 +205,65 @@ export class EnrollmentsService {
 
   /**
    * 计算某条报读记录的课时统计
-   * total_days: 日期范围内的工作日（周一至周五）数量
-   * attended_days: 出勤/半天出勤 记录数
-   * leave_days: 请假 记录数
+   * total_days: 从 start_date 到 end_date 的工作日数（周六托只计周六），排除节假日
+   * attended_days: 从 start_date 到 extended_end_date，出勤/半天出勤记录数
+   * leave_days: 同上区间，请假记录数
+   * absent_days: 同上区间，缺席记录数
    */
   private async calculateAttendanceStats(enr: Enrollment): Promise<{
     total_days: number;
     attended_days: number;
     leave_days: number;
+    absent_days: number;
   }> {
     if (!enr.start_date || !enr.end_date) {
-      return { total_days: 0, attended_days: 0, leave_days: 0 };
+      return { total_days: 0, attended_days: 0, leave_days: 0, absent_days: 0 };
     }
 
-    const endDate = enr.extended_end_date || enr.end_date;
+    const isSaturdayOnly = enr.course_type === '周六托';
 
-    // 1. 计算 total_days（工作日数量，排除周六周日）
+    // 1. 计算 total_days（从 start_date 到 end_date，排除节假日）
+    const holidayDates = await this.getHolidayDatesInRange(enr.start_date, enr.end_date);
+
     let totalDays = 0;
     let current = enr.start_date;
-    while (current <= endDate) {
+    while (current <= enr.end_date) {
       const [y, m, d] = current.split('-').map(Number);
       const dayOfWeek = new Date(y, m - 1, d).getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        totalDays++;
+      // 跳过节假日
+      if (holidayDates.has(current)) {
+        current = this.addDays(current, 1);
+        continue;
+      }
+      if (isSaturdayOnly) {
+        if (dayOfWeek === 6) totalDays++;
+      } else {
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) totalDays++;
       }
       current = this.addDays(current, 1);
     }
 
-    // 2. 从 attendance 表统计出勤和请假记录
+    // 2. 计算 attended_days/leave_days/absent_days（从 start_date 到 extended_end_date）
+    const attEndDate = enr.extended_end_date || enr.end_date;
+
     const { data: attendanceRecords } = await this.client
       .from('attendance')
       .select('status')
       .eq('child_id', enr.child_id)
       .gte('date', enr.start_date)
-      .lte('date', endDate);
+      .lte('date', attEndDate);
 
     let attendedDays = 0;
     let leaveDays = 0;
+    let absentDays = 0;
     (attendanceRecords || []).forEach((r: any) => {
       const s = r.status;
       if (s === 'present' || s === 'full_day' || s === 'half_day') {
         attendedDays++;
       } else if (s === 'leave') {
         leaveDays++;
+      } else if (s === 'absent') {
+        absentDays++;
       }
     });
 
@@ -254,7 +271,38 @@ export class EnrollmentsService {
       total_days: totalDays,
       attended_days: attendedDays,
       leave_days: leaveDays,
+      absent_days: absentDays,
     };
+  }
+
+  /**
+   * 获取区间内的节假日日期集合（全园节假日，排除调休日）
+   * 调休日（即本该放假但因补课变成工作日的日期）不算节假日
+   */
+  private async getHolidayDatesInRange(startDate: string, endDate: string): Promise<Set<string>> {
+    const holidayDates = new Set<string>();
+
+    // 查询全园节假日（type = 'all'）和班级节假日（type = 'class'）
+    const { data: holidays } = await this.client
+      .from('holidays')
+      .select('start_date, end_date, type')
+      .in('type', ['all', 'class'])
+      .lte('start_date', endDate)
+      .gte('end_date', startDate);
+
+    if (!holidays || holidays.length === 0) return holidayDates;
+
+    // 收集所有假期内的日期
+    for (const h of holidays) {
+      let current = h.start_date > startDate ? h.start_date : startDate;
+      const maxDate = h.end_date < endDate ? h.end_date : endDate;
+      while (current <= maxDate) {
+        holidayDates.add(current);
+        current = this.addDays(current, 1);
+      }
+    }
+
+    return holidayDates;
   }
 
   async findActiveByChild(childId: string): Promise<Enrollment[]> {
