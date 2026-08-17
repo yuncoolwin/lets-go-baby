@@ -219,7 +219,7 @@ export class EnrollmentsService {
 
   /**
    * 计算某条报读记录的课时统计
-   * total_days: 从 start_date 到 end_date 的工作日数（周六托只计周六），排除节假日
+   * total_days: 从 start_date 到 end_date 的工作日数（周六托只计周六），不去除节假日
    * attended_days: 从 start_date 到 extended_end_date，该课程的出勤/半天出勤记录数
    * leave_days: 同上区间，请假记录数
    * absent_days: 同上区间，缺席记录数
@@ -236,18 +236,12 @@ export class EnrollmentsService {
 
     const isSaturdayOnly = enr.course_type === '周六托';
 
-    // 1. 计算 total_days（从 start_date 到 end_date，排除节假日，不含顺延）
-    const holidayDates = await this.getHolidayDatesInRange(enr.start_date, enr.end_date);
-
+    // 1. 计算 total_days（从 start_date 到 end_date，不去除节假日）
     let totalDays = 0;
     let current = enr.start_date;
     while (current <= enr.end_date) {
       const [y, m, d] = current.split('-').map(Number);
       const dayOfWeek = new Date(y, m - 1, d).getDay();
-      if (holidayDates.has(current)) {
-        current = this.addDays(current, 1);
-        continue;
-      }
       if (isSaturdayOnly) {
         if (dayOfWeek === 6) totalDays++;
       } else {
