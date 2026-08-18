@@ -1147,8 +1147,8 @@ export default function ChildDetailPage() {
                       const record = records[0]
                       // 映射字段：API 返回 mood_status/sleep_status，前端展示 emotion/nap_rating
                       setAttendanceDayFeedback({
-                        emotion: record.mood_status || '',
-                        meal_status: record.meal_status || '',
+                        emotion: record.mood_status ? Number(record.mood_status) : 0,
+                        meal_status: record.meal_status ? Number(record.meal_status) : 0,
                         nap_rating: record.sleep_status ? Number(record.sleep_status) : 0,
                         notes: record.notes || '',
                       })
@@ -1326,18 +1326,26 @@ export default function ChildDetailPage() {
             <View className="p-4">
               {attendanceDayFeedback ? (
                 <View className="space-y-3">
-                  {attendanceDayFeedback.emotion && (
+                  {attendanceDayFeedback.emotion ? (
                     <View className="flex items-center gap-2">
                       <Text className="text-xs text-gray-500 w-12">情绪</Text>
-                      <Text className="text-sm text-gray-800">{attendanceDayFeedback.emotion}</Text>
+                      <View className="flex gap-0.5">
+                        {[1,2,3,4,5].map(i => (
+                          <Text key={i} className={`text-sm ${i <= (attendanceDayFeedback.emotion || 0) ? 'text-yellow-400' : 'text-gray-300'}`}>★</Text>
+                        ))}
+                      </View>
                     </View>
-                  )}
-                  {attendanceDayFeedback.meal_status && (
+                  ) : null}
+                  {attendanceDayFeedback.meal_status ? (
                     <View className="flex items-center gap-2">
                       <Text className="text-xs text-gray-500 w-12">餐食</Text>
-                      <Text className="text-sm text-gray-800">{attendanceDayFeedback.meal_status}</Text>
+                      <View className="flex gap-0.5">
+                        {[1,2,3,4,5].map(i => (
+                          <Text key={i} className={`text-sm ${i <= (attendanceDayFeedback.meal_status || 0) ? 'text-yellow-400' : 'text-gray-300'}`}>★</Text>
+                        ))}
+                      </View>
                     </View>
-                  )}
+                  ) : null}
                   {attendanceDayFeedback.nap_rating && (
                     <View className="flex items-center gap-2">
                       <Text className="text-xs text-gray-500 w-12">午睡</Text>
