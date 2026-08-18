@@ -1116,8 +1116,13 @@ export default function ChildDetailPage() {
                 const daysInMonth = lastDay.getDate()
 
                 const attendanceMap: Record<string, string> = {}
+                const holidayMap: Record<string, string> = {}
                 ;(attendanceData || []).forEach((item: any) => {
-                  attendanceMap[item.date] = item.status
+                  if (item.status === 'holiday') {
+                    holidayMap[item.date] = item.name
+                  } else {
+                    attendanceMap[item.date] = item.status
+                  }
                 })
 
                 const getDayClass = (ds: string) => {
@@ -1266,7 +1271,14 @@ export default function ChildDetailPage() {
                             <View className={getTextWrapperClass(ds)}>
                               <Text className={`text-xs ${getDayClass(ds)}`}>{d}</Text>
                             </View>
-                            {status && inRange && renderStatusBadge(status)}
+                            {status && inRange && !holidayMap[ds] && renderStatusBadge(status)}
+                            {holidayMap[ds] && inRange && (
+                              <View className="self-center">
+                                <Text className="text-[9px] px-1 rounded-full" style={{ color: '#8B5CF6', border: '1px solid #8B5CF6', backgroundColor: '#F5F3FF', lineHeight: '14px' }}>
+                                  假期
+                                </Text>
+                              </View>
+                            )}
                           </View>
                         )
                       })}
@@ -1289,6 +1301,10 @@ export default function ChildDetailPage() {
                       <View className="flex items-center gap-1">
                         <Text className="text-[8px] px-1 rounded-sm" style={{ color: '#D4A017', border: '1px solid #D4A017', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>缺勤</Text>
                         <Text className="text-[10px] text-gray-500">缺勤</Text>
+                      </View>
+                      <View className="flex items-center gap-1">
+                        <Text className="text-[9px] px-1 rounded-full" style={{ color: '#8B5CF6', border: '1px solid #8B5CF6', backgroundColor: '#F5F3FF', lineHeight: '14px' }}>假期</Text>
+                        <Text className="text-[10px] text-gray-500">假期</Text>
                       </View>
                     </View>
 

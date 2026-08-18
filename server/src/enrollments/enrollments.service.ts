@@ -446,7 +446,7 @@ export class EnrollmentsService {
    * 返回 start_date 到 extended_end_date（或 end_date）区间内有考勤记录的日期+状态列表
    */
   async getAttendanceCalendar(enrollmentId: string): Promise<
-    Array<{ date: string; status: 'full' | 'half' | 'leave' | 'absent' }>
+    Array<{ date: string; status: 'full' | 'half' | 'leave' | 'absent' | 'holiday'; name?: string }>
   > {
     const { data: enr, error: enrError } = await this.client
       .from('enrollments')
@@ -461,6 +461,7 @@ export class EnrollmentsService {
     const endDate = enr.extended_end_date || enr.end_date;
     if (!endDate) return [];
 
+    // 查询出勤记录
     const records = await this.client
       .from('attendance')
       .select('date, status')
@@ -470,16 +471,66 @@ export class EnrollmentsService {
       .lte('date', endDate)
       .order('date', { ascending: true });
 
-    return (records.data || []).map((r: any) => {
-      let status: 'full' | 'half' | 'leave' | 'absent';
-      if (r.status === 'present' || r.status === 'full_day') {
-        status = r.is_half_day ? 'half' : 'full';
-      } else if (r.status === 'leave') {
-        status = 'leave';
-      } else {
-        status = 'absent';
-      }
-      return { date: this.toDateStr(r.date), status };
+    const result: Array<{ date: string; status: 'full' | 'half' | 'leave' | 'absent' | 'holiday'; name?: string }> =
+      (records.data || []).map((r: any) => {
+        let status: 'full' | 'half' | 'leave' | 'absent';
+        if (r.status === 'present' || r.status === 'full_day') {
+          status = r.is_half_day ? 'half' : 'full';
+        } else if (r.status === 'leave') {
+          status = 'leave';
+        } else {
+          status = 'absent';
+        }
+        return { date: this.toDateStr(r.date), status };
+      });
+
+    // 查询该幼儿的班级
+    const { data: child } = await this.client
+      .from('children')
+      .select('class_id')
+      .eq('id', enr.child_id)
+      .single();
+
+    const classId = child?.class_id || '';
+
+    // 查询假期（与报读日期范围重叠）
+    const { data: holidays } = await this.client
+      .from('holidays')
+      .select('*')
+      .in('type', ['all', 'class', 'personal'])
+      .lte('start_date', endDate)
+      .gte('end_date', enr.start_date);
+
+    // 筛选与幼儿相关的假期
+    const matchingHolidays = (holidays || []).filter((h: any) => {
+      if (h.type === 'all') return true;
+      if (h.type === 'class') return h.target_id === classId;
+      if (h.type === 'personal') return h.target_id === enr.child_id;
+      return false;
     });
+
+    // 展开假期日期范围并追加到结果
+    const holidaySet = new Set<string>();
+    for (const h of matchingHolidays) {
+      let current = h.start_date > enr.start_date ? h.start_date : enr.start_date;
+      const maxDate = h.end_date < endDate ? h.end_date : endDate;
+      while (current <= maxDate) {
+        const dateStr = this.toDateStr(current);
+        if (!holidaySet.has(dateStr)) {
+          holidaySet.add(dateStr);
+          result.push({ date: dateStr, status: 'holiday', name: h.name || '假期' });
+        }
+        current = this.addDaysUTC(current, 1);
+      }
+    }
+
+    // 按日期排序：同一日期假期优先于考勤，所以把假期条目移到前面
+    const dateOrder: Record<string, number> = { holiday: 0, full: 1, half: 1, leave: 1, absent: 1 };
+    result.sort((a, b) => {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      return (dateOrder[a.status] ?? 1) - (dateOrder[b.status] ?? 1);
+    });
+
+    return result;
   }
 }
