@@ -680,21 +680,11 @@ export default function ChildDetailPage() {
               enrollments.map((enr) => (
                 <View
                   key={enr.id}
-                  className="bg-gray-50 rounded-xl p-3 mb-2"
+                  className="bg-gray-50 rounded-xl p-3 mb-2 relative"
                 >
                   <View className="flex items-center justify-between mb-1">
                     <Text className="text-sm font-semibold text-foreground">{enr.course_type}</Text>
                     <View className="flex items-center gap-2">
-                      {!isReadonly && (
-                        <>
-                          <View onClick={() => openEditEnrollment(enr)}>
-                            <Pencil size={14} color="#999" />
-                          </View>
-                          <View onClick={() => handleDeleteEnrollment(enr)}>
-                            <Trash2 size={14} color="#999" />
-                          </View>
-                        </>
-                      )}
                       <Badge className={enr.status === '进行中' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
                         <Text className="text-xs">{enr.status}</Text>
                       </Badge>
@@ -707,6 +697,16 @@ export default function ChildDetailPage() {
                       </View>
                     </View>
                   </View>
+                  {!isReadonly && (
+                    <View className="absolute bottom-3 right-3 flex items-center gap-1">
+                      <View onClick={() => openEditEnrollment(enr)}>
+                        <Pencil size={14} color="#999" />
+                      </View>
+                      <View onClick={() => handleDeleteEnrollment(enr)}>
+                        <Trash2 size={14} color="#999" />
+                      </View>
+                    </View>
+                  )}
                   <Text className="block text-xs text-gray-500">
                     时长：{enr.duration_type === '计日' ? `${enr.duration_days}天` : enr.duration_type}
                   </Text>
