@@ -1071,8 +1071,8 @@ export default function ChildDetailPage() {
 
       {/* ========== 考勤详情日历弹窗 ========== */}
       {showAttendanceCalendar && (
-        <View className="fixed inset-0 z-[200] flex items-center justify-center bg-black bg-opacity-40">
-          <View className="bg-white rounded-3xl w-[95%] max-w-md max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+        <View className="fixed inset-0 z-[200] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <View className="bg-white rounded-3xl w-[95%] max-w-md max-h-[85vh] flex flex-col overflow-hidden shadow-2xl" style={{ zIndex: 1 }}>
             {/* 标题栏 */}
             <View className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <Text className="text-base font-semibold text-gray-800">
@@ -1289,8 +1289,8 @@ export default function ChildDetailPage() {
 
       {/* ========== 日常记录详情弹窗 ========== */}
       {showAttendanceCalendar && currentAttendanceCalendar?.selectedDate && (
-        <View className="fixed inset-0 z-[210] flex items-center justify-center bg-black bg-opacity-40">
-          <View className="bg-white rounded-2xl w-[90%] max-w-sm flex flex-col overflow-hidden shadow-2xl">
+        <View className="fixed inset-0 z-[210] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <View className="bg-white rounded-2xl w-[90%] max-w-sm flex flex-col overflow-hidden shadow-2xl" style={{ zIndex: 1 }}>
             <View className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <Text className="text-sm font-medium text-gray-700">
                 {currentAttendanceCalendar?.selectedDate?.replace(/^\d{4}-(\d{2})-(\d{2})$/, '$1月$2日')}日常记录
