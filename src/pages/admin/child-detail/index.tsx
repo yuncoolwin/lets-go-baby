@@ -698,14 +698,14 @@ export default function ChildDetailPage() {
                       <Badge className={enr.status === '进行中' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
                         <Text className="text-xs">{enr.status}</Text>
                       </Badge>
+                      <View
+                        onClick={() => handleOpenAttendanceCalendar(enr)}
+                        className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold"
+                        style={{ backgroundColor: '#EBF5FF', borderColor: '#BFDBFE', color: '#3B82F6' }}
+                      >
+                        <Text className="text-xs" style={{ color: '#3B82F6' }}>考勤详情</Text>
+                      </View>
                     </View>
-                  </View>
-                  <View
-                    onClick={() => handleOpenAttendanceCalendar(enr)}
-                    className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold self-start mt-1"
-                    style={{ backgroundColor: '#EBF5FF', borderColor: '#BFDBFE', color: '#3B82F6' }}
-                  >
-                    <Text className="text-xs" style={{ color: '#3B82F6' }}>考勤详情</Text>
                   </View>
                   <Text className="block text-xs text-gray-500">
                     时长：{enr.duration_type === '计日' ? `${enr.duration_days}天` : enr.duration_type}
@@ -721,6 +721,11 @@ export default function ChildDetailPage() {
                   <Text className="block text-xs text-gray-500 mt-1">
                     日期：{enr.start_date || '--'} ~ {enr.end_date || '--'}
                   </Text>
+                  {(enr.payment_amount || enr.payment_channel) && (
+                    <Text className="block text-xs text-gray-500 mt-1">
+                      缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{enr.payment_channel ? `（${enr.payment_channel}）` : ''}
+                    </Text>
+                  )}
                   <View className="flex flex-row items-center mt-1">
                     <Text className="text-xs" style={enr.extended_end_date ? { color: '#E8651A' } : {}}>
                       顺延结束日期：{enr.extended_end_date || '无'}
@@ -731,11 +736,6 @@ export default function ChildDetailPage() {
                       </View>
                     )}
                   </View>
-                  {(enr.payment_amount || enr.payment_channel) && (
-                    <Text className="block text-xs text-gray-500 mt-1">
-                      缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{enr.payment_channel ? `（${enr.payment_channel}）` : ''}
-                    </Text>
-                  )}
                 </View>
               ))
             )}
