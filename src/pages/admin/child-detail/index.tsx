@@ -680,32 +680,30 @@ export default function ChildDetailPage() {
               enrollments.map((enr) => (
                 <View
                   key={enr.id}
-                  className="bg-gray-50 rounded-xl p-3 mb-2"
+                  className="relative bg-gray-50 rounded-xl p-3 mb-2"
                 >
-                  <View className="flex items-center justify-between mb-1">
-                    <Text className="text-sm font-semibold text-foreground">{enr.course_type}</Text>
-                    <View className="flex items-center gap-2">
-                      {!isReadonly && (
-                        <>
-                          <View onClick={() => openEditEnrollment(enr)}>
-                            <Pencil size={14} color="#999" />
-                          </View>
-                          <View onClick={() => handleDeleteEnrollment(enr)}>
-                            <Trash2 size={14} color="#999" />
-                          </View>
-                        </>
-                      )}
-                      <View className="flex flex-col items-end gap-1">
-                        <Badge className={enr.status === '进行中' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
-                          <Text className="text-xs">{enr.status}</Text>
-                        </Badge>
-                        <View
-                          onClick={() => handleOpenAttendanceCalendar(enr)}
-                          className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold"
-                          style={{ backgroundColor: '#EBF5FF', borderColor: '#BFDBFE' }}
-                        >
-                          <Text style={{ color: '#3B82F6', fontSize: 12 }}>考勤详情</Text>
-                        </View>
+                  {!isReadonly && (
+                    <View className="absolute bottom-3 right-3 flex items-center gap-2">
+                      <View onClick={() => openEditEnrollment(enr)}>
+                        <Pencil size={14} color="#999" />
+                      </View>
+                      <View onClick={() => handleDeleteEnrollment(enr)}>
+                        <Trash2 size={14} color="#999" />
+                      </View>
+                    </View>
+                  )}
+                  <View className="flex items-start justify-between mb-2 pr-12">
+                    <Text className="text-sm font-semibold text-foreground leading-snug">{enr.course_type}</Text>
+                    <View className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <Badge className={enr.status === '进行中' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
+                        <Text className="text-xs">{enr.status}</Text>
+                      </Badge>
+                      <View
+                        onClick={() => handleOpenAttendanceCalendar(enr)}
+                        className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold"
+                        style={{ backgroundColor: '#EBF5FF', borderColor: '#BFDBFE' }}
+                      >
+                        <Text style={{ color: '#3B82F6', fontSize: 12 }}>考勤详情</Text>
                       </View>
                     </View>
                   </View>
