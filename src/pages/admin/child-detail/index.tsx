@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Label } from '@/components/ui/label'
-import { childrenApi, enrollmentApi, classApi, courseApi, adminApi } from '@/utils/api'
+import { childrenApi, enrollmentApi, classApi, courseApi, adminApi, dailyApi } from '@/utils/api'
 import { format } from 'date-fns'
 
 import { Pencil, Trash2, BookOpen, Plus, X, Info } from 'lucide-react-taro'
@@ -115,12 +115,6 @@ export default function ChildDetailPage() {
       setExtendTotalDays(0)
       setExtendToDate('')
     }, 200)
-  }
-
-  // 考勤日历
-  const setCalDisplay = (year: number, month: number | null) => {
-    setCalDisplayYear(year)
-    setCalDisplayMonth(month)
   }
 
   // 幼儿基本信息编辑
@@ -1128,7 +1122,7 @@ export default function ChildDetailPage() {
                   if (ds < startDate || ds > endDate) return
                   setCurrentAttendanceCalendar(prev => prev ? { ...prev, selectedDate: ds } : null)
                   try {
-                    const res: any = await dailyFeedback.getByChildAndDate(child.id, ds)
+                    const res: any = await dailyApi.getDailyFeedback(child.id, ds)
                     console.log('[AttendanceCalendar] daily_feedback response:', res.data)
                     setAttendanceDayFeedback(res.data?.data || null)
                   } catch (e) {
@@ -1182,22 +1176,30 @@ export default function ChildDetailPage() {
                     {/* 月份切换 */}
                     <View className="flex items-center justify-between mb-3 px-1">
                       <View
-                        onClick={() => setAttendanceCalendarDisplay(prev => ({
-                          year: prev.month <= 1 ? prev.year - 1 : prev.year,
-                          month: prev.month <= 1 ? 12 : prev.month - 1
-                        }))}
+                        onClick={() => {
+                          if (calDisplayMonth !== null && calDisplayMonth <= 1) {
+                            setCalDisplayYear(calDisplayYear - 1)
+                            setCalDisplayMonth(12)
+                          } else if (calDisplayMonth !== null) {
+                            setCalDisplayMonth(calDisplayMonth - 1)
+                          }
+                        }}
                         className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100"
                       >
                         <Text className="text-gray-600 text-sm">‹</Text>
                       </View>
                       <Text className="text-sm font-medium text-gray-700">
-                        {displayYear}年{displayMonth}月
+                        {calDisplayYear}年{calDisplayMonth !== null ? `${calDisplayMonth + 1}月` : ''}
                       </Text>
                       <View
-                        onClick={() => setCalDisplay(prev => ({
-                          year: prev.month >= 12 ? prev.year + 1 : prev.year,
-                          month: prev.month >= 12 ? 1 : prev.month + 1
-                        }))}
+                        onClick={() => {
+                          if (calDisplayMonth !== null && calDisplayMonth >= 11) {
+                            setCalDisplayYear(calDisplayYear + 1)
+                            setCalDisplayMonth(0)
+                          } else if (calDisplayMonth !== null) {
+                            setCalDisplayMonth(calDisplayMonth + 1)
+                          }
+                        }}
                         className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100"
                       >
                         <Text className="text-gray-600 text-sm">›</Text>

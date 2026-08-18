@@ -223,19 +223,9 @@ export const enrollmentApi = {
 
   getAttendanceCalendar: (enrollmentId: string) =>
     request({ url: `/api/enrollments/${enrollmentId}/attendance-calendar`, method: 'GET' }),
+}
 
-  getDailyFeedback: (childId: string, date: string) =>
-    request({ url: `/api/daily-feedbacks/child/${childId}/date/${date}`, method: 'GET' }),
-};
-
-// ============ 日常记录 API ============
-
-export const dailyFeedbackApi = {
-  getByChildAndDate: (childId: string, date: string) =>
-    request({ url: `/api/daily-feedbacks?child_id=${childId}&date=${date}`, method: 'GET' }),
-};
-
-// ============ 课程管理 API ============
+// ============ 管理员 API ============
 
 export const adminApi = {
   getChildParents: (childId: string) =>
@@ -244,6 +234,16 @@ export const adminApi = {
   removeParentBinding: (childId: string, relationId: string) =>
     request({ url: `/api/admin/children/${childId}/parents/${relationId}`, method: 'DELETE' }),
 };
+
+// ============ 日常记录 API ============
+
+export const dailyApi = {
+  getDailyFeedback: (childId: string, date: string) =>
+    request({ url: `/api/daily-feedbacks/child/${childId}/date/${date}`, method: 'GET' }),
+
+  getByChildAndDate: (childId: string, date: string) =>
+    request({ url: `/api/daily-feedbacks/child/${childId}/date/${date}`, method: 'GET' }),
+}
 
 // ============ 课程管理 API ============
 
@@ -259,4 +259,4 @@ export const courseApi = {
 
   remove: (id: string) =>
     request({ url: `/api/courses/${id}`, method: 'DELETE' }),
-};
+}
