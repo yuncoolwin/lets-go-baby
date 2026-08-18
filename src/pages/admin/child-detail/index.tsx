@@ -1274,7 +1274,7 @@ export default function ChildDetailPage() {
                             {status && inRange && !holidayMap[ds] && renderStatusBadge(status)}
                             {holidayMap[ds] && inRange && (
                               <View className="self-center">
-                                <Text className="text-sm px-1 rounded-full" style={{ color: '#8B5CF6', border: '1px solid #8B5CF6', backgroundColor: '#F5F3FF', lineHeight: '18px' }}>
+                                <Text className="text-sm px-1 rounded-full" style={{ color: '#E8651A', border: '1px solid #E8651A', backgroundColor: '#FFF8F0', lineHeight: '18px' }}>
                                   假期
                                 </Text>
                               </View>
