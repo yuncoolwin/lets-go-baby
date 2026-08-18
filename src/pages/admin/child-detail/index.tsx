@@ -1141,7 +1141,7 @@ export default function ChildDetailPage() {
                   try {
                     const res: any = await dailyApi.getDailyFeedback(child.id, ds)
                     console.log('>>> API返回:', JSON.stringify(res))
-                    const records = res.data?.data
+                    const records = res.data
                     const hasValidData = Array.isArray(records) && records.length > 0
                     if (hasValidData) {
                       const record = records[0]
