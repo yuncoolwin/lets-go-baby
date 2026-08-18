@@ -1303,7 +1303,7 @@ export default function ChildDetailPage() {
                         <Text className="text-sm text-gray-500">缺勤</Text>
                       </View>
                       <View className="flex items-center gap-1">
-                        <Text className="text-sm px-1 rounded-full" style={{ color: '#8B5CF6', border: '1px solid #8B5CF6', backgroundColor: '#F5F3FF', lineHeight: '18px' }}>假期</Text>
+                        <Text className="text-sm px-1 rounded-full" style={{ color: '#E8651A', border: '1px solid #E8651A', backgroundColor: '#FFF8F0', lineHeight: '18px' }}>假期</Text>
                         <Text className="text-sm text-gray-500">假期</Text>
                       </View>
                     </View>
