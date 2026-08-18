@@ -337,12 +337,21 @@ export default function ChildDetailPage() {
 
   // 考勤日历相关
   const handleOpenAttendanceCalendar = async (enr: any) => {
-    setCurrentAttendanceCalendar({ ...enr, attendanceData: [] })
+    setCurrentAttendanceCalendar({
+      enrollmentId: enr.id,
+      courseType: enr.course_type,
+      startDate: enr.start_date,
+      endDate: enr.extended_end_date || enr.end_date,
+      attendanceData: [],
+      loading: false,
+    })
     setShowAttendanceCalendar(true)
     try {
-      const res = await enrollmentApi.getAttendanceCalendar(enr.id)
+      const res: any = await enrollmentApi.getAttendanceCalendar(enr.id)
+      console.log('[AttendanceCalendar] open calendar, response:', res.data)
       setCurrentAttendanceCalendar(prev => prev ? { ...prev, attendanceData: res.data || [] } : null)
-    } catch {
+    } catch (e) {
+      console.error('[AttendanceCalendar] load error:', e)
       Taro.showToast({ title: '加载考勤数据失败', icon: 'none' })
     }
   }
