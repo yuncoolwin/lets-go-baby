@@ -702,8 +702,8 @@ export default function ChildDetailPage() {
                   </View>
                   <View
                     onClick={() => handleOpenAttendanceCalendar(enr)}
-                    className="self-start px-2 py-1 rounded-full mt-1"
-                    style={{ backgroundColor: '#EBF5FF', border: '1px solid #BFDBFE' }}
+                    className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold self-start mt-1"
+                    style={{ backgroundColor: '#EBF5FF', borderColor: '#BFDBFE', color: '#3B82F6' }}
                   >
                     <Text className="text-xs" style={{ color: '#3B82F6' }}>考勤详情</Text>
                   </View>
