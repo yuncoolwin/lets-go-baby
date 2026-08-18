@@ -239,10 +239,10 @@ export const adminApi = {
 
 export const dailyApi = {
   getDailyFeedback: (childId: string, date: string) =>
-    request({ url: `/api/daily-feedbacks/child/${childId}/date/${date}`, method: 'GET' }),
+    request({ url: `/api/daily-feedbacks?child_id=${childId}&feedback_date=${date}`, method: 'GET' }),
 
   getByChildAndDate: (childId: string, date: string) =>
-    request({ url: `/api/daily-feedbacks/child/${childId}/date/${date}`, method: 'GET' }),
+    request({ url: `/api/daily-feedbacks?child_id=${childId}&feedback_date=${date}`, method: 'GET' }),
 }
 
 // ============ 课程管理 API ============

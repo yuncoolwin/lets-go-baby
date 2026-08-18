@@ -1140,17 +1140,23 @@ export default function ChildDetailPage() {
                   try {
                     const res: any = await dailyApi.getDailyFeedback(child.id, ds)
                     console.log('[AttendanceCalendar] daily_feedback response:', res.data)
-                    const data = res.data?.data
-                    if (data && (data.emotion || data.meal_status || data.nap_rating || data.notes)) {
-                      setAttendanceDayFeedback(data)
+                    const records = res.data?.data
+                    const hasValidData = Array.isArray(records) && records.length > 0
+                    if (hasValidData) {
+                      const record = records[0]
+                      // 映射字段：API 返回 mood_status/sleep_status，前端展示 emotion/nap_rating
+                      setAttendanceDayFeedback({
+                        emotion: record.mood_status || '',
+                        meal_status: record.meal_status || '',
+                        nap_rating: record.sleep_status ? Number(record.sleep_status) : 0,
+                        notes: record.notes || '',
+                      })
                     } else {
                       setAttendanceDayFeedback(null)
-                      Taro.showToast({ title: '暂无当日日常记录', icon: 'none', duration: 2000 })
                     }
                   } catch (e) {
                     console.error('[AttendanceCalendar] daily_feedback error:', e)
                     setAttendanceDayFeedback(null)
-                    Taro.showToast({ title: '暂无当日日常记录', icon: 'none', duration: 2000 })
                   }
                 }
 
@@ -1299,8 +1305,12 @@ export default function ChildDetailPage() {
 
       {/* ========== 日常记录详情弹窗 ========== */}
       {showAttendanceCalendar && currentAttendanceCalendar?.selectedDate && (
-        <View className="fixed inset-0 z-[210] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
-          <View className="bg-white rounded-2xl w-[90%] max-w-sm flex flex-col overflow-hidden shadow-2xl" style={{ zIndex: 1 }}>
+        <View
+          className="fixed inset-0 z-[210] flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
+          onClick={() => setCurrentAttendanceCalendar(prev => prev ? { ...prev, selectedDate: undefined } : null)}
+        >
+          <View className="bg-white rounded-2xl w-[90%] max-w-sm flex flex-col overflow-hidden shadow-2xl" style={{ zIndex: 1 }} onClick={(e) => e.stopPropagation()}>
             <View className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <Text className="text-sm font-medium text-gray-700">
                 {currentAttendanceCalendar?.selectedDate?.replace(/^\d{4}-(\d{2})-(\d{2})$/, '$1月$2日')}日常记录
