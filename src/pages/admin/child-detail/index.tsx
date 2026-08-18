@@ -1275,7 +1275,7 @@ export default function ChildDetailPage() {
                             {holidayMap[ds] && inRange && (
                               <View className="self-center">
                                 <Text className="text-sm px-1 rounded-sm" style={{ color: '#E8651A', border: '1px solid #E8651A', backgroundColor: '#FFF8F0', lineHeight: '16px' }}>
-                                  假期
+                                  放假
                                 </Text>
                               </View>
                             )}
@@ -1303,8 +1303,8 @@ export default function ChildDetailPage() {
                         <Text className="text-sm text-gray-500">缺勤</Text>
                       </View>
                       <View className="flex items-center gap-1">
-                        <Text className="text-sm px-1 rounded-sm" style={{ color: '#E8651A', border: '1px solid #E8651A', backgroundColor: '#FFF8F0', lineHeight: '16px' }}>假期</Text>
-                        <Text className="text-sm text-gray-500">假期</Text>
+                        <Text className="text-sm px-1 rounded-sm" style={{ color: '#E8651A', border: '1px solid #E8651A', backgroundColor: '#FFF8F0', lineHeight: '16px' }}>放假</Text>
+                        <Text className="text-sm text-gray-500">放假</Text>
                       </View>
                     </View>
 
