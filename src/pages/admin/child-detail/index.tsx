@@ -1072,7 +1072,7 @@ export default function ChildDetailPage() {
       {/* ========== 考勤详情日历弹窗 ========== */}
       {showAttendanceCalendar && (
         <View className="fixed inset-0 z-[200] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
-          <View className="bg-white rounded-3xl w-[95%] max-w-md max-h-[85vh] flex flex-col overflow-hidden shadow-2xl" style={{ zIndex: 1 }}>
+          <View className="rounded-3xl w-[95%] max-w-md max-h-[85vh] flex flex-col overflow-hidden shadow-2xl" style={{ backgroundColor: '#FFF8EE', zIndex: 1 }}>
             {/* 标题栏 */}
             <View className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <Text className="text-base font-semibold text-gray-800">
