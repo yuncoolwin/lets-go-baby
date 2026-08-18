@@ -1137,11 +1137,10 @@ export default function ChildDetailPage() {
                   const ds = `${displayYear}-${String(displayMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`
                   if (ds < startDate || ds > endDate) return
                   setCurrentAttendanceCalendar(prev => prev ? { ...prev, selectedDate: ds } : null)
-                  console.log('[DailyDebug] 请求参数 childId:', child.id, 'date:', ds)
+                  console.log('>>> handleDayClick 被调用, childId:', child.id, ', date:', ds)
                   try {
                     const res: any = await dailyApi.getDailyFeedback(child.id, ds)
-                    console.log('[DailyDebug] 接口原始返回 (JSON.stringify):', JSON.stringify(res))
-                    console.log('[DailyDebug] res.data:', JSON.stringify(res.data))
+                    console.log('>>> API返回:', JSON.stringify(res))
                     const records = res.data?.data
                     const hasValidData = Array.isArray(records) && records.length > 0
                     if (hasValidData) {
@@ -1157,7 +1156,7 @@ export default function ChildDetailPage() {
                       setAttendanceDayFeedback(null)
                     }
                   } catch (e) {
-                    console.error('[AttendanceCalendar] daily_feedback error:', e)
+                    console.log('>>> API请求失败:', e)
                     setAttendanceDayFeedback(null)
                   }
                 }
