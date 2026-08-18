@@ -220,6 +220,19 @@ export const enrollmentApi = {
 
   calcExtendedEndDate: (id: string) =>
     request({ url: `/api/enrollments/${id}/calc-extended-end-date`, method: 'GET' }),
+
+  getAttendanceCalendar: (enrollmentId: string) =>
+    request({ url: `/api/enrollments/${enrollmentId}/attendance-calendar`, method: 'GET' }),
+
+  getDailyFeedback: (childId: string, date: string) =>
+    request({ url: `/api/daily-feedbacks/child/${childId}/date/${date}`, method: 'GET' }),
+};
+
+// ============ 日常记录 API ============
+
+export const dailyFeedbackApi = {
+  getByChildAndDate: (childId: string, date: string) =>
+    request({ url: `/api/daily-feedbacks?child_id=${childId}&date=${date}`, method: 'GET' }),
 };
 
 // ============ 课程管理 API ============

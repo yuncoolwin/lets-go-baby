@@ -58,6 +58,17 @@ export class EnrollmentsController {
     }
   }
 
+  @Get(':id/attendance-calendar')
+  @HttpCode(200)
+  async getAttendanceCalendar(@Param('id') id: string) {
+    try {
+      const data = await this.enrollmentsService.getAttendanceCalendar(id);
+      return { code: 200, msg: 'success', data };
+    } catch (e: any) {
+      return { code: 500, msg: e.message || '查询失败' };
+    }
+  }
+
   @Get(':id/calc-extended-end-date')
   @HttpCode(200)
   async calcExtendedEndDate(@Param('id') id: string) {

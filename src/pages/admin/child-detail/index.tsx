@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Label } from '@/components/ui/label'
 import { childrenApi, enrollmentApi, classApi, courseApi, adminApi } from '@/utils/api'
+import { format } from 'date-fns'
 
 import { Pencil, Trash2, BookOpen, Plus, X, Info } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
@@ -116,6 +117,12 @@ export default function ChildDetailPage() {
     }, 200)
   }
 
+  // 考勤日历
+  const setCalDisplay = (year: number, month: number | null) => {
+    setCalDisplayYear(year)
+    setCalDisplayMonth(month)
+  }
+
   // 幼儿基本信息编辑
   const [isEditingChild, setIsEditingChild] = useState(false)
   const [editName, setEditName] = useState('')
@@ -125,6 +132,21 @@ export default function ChildDetailPage() {
   const [editStatus, setEditStatus] = useState('active')
   const [editParentName, setEditParentName] = useState('')
   const [editParentPhone, setEditParentPhone] = useState('')
+
+  // 考勤日历弹窗
+  const [showAttendanceCalendar, setShowAttendanceCalendar] = useState(false)
+  const [currentAttendanceCalendar, setCurrentAttendanceCalendar] = useState<{
+    enrollmentId: string
+    courseType: string
+    startDate: string
+    endDate: string
+    attendanceData: any[]
+    loading: boolean
+    selectedDate?: string
+  } | null>(null)
+  const [calDisplayYear, setCalDisplayYear] = useState(new Date().getFullYear())
+  const [calDisplayMonth, setCalDisplayMonth] = useState<number | null>(null)
+  const [attendanceDayFeedback, setAttendanceDayFeedback] = useState<any>(null)
   const [editAllergies, setEditAllergies] = useState('')
   const [editHealthInfo, setEditHealthInfo] = useState('')
   const [editSubmitting, setEditSubmitting] = useState(false)
@@ -317,6 +339,18 @@ export default function ChildDetailPage() {
         }
       },
     })
+  }
+
+  // 考勤日历相关
+  const handleOpenAttendanceCalendar = async (enr: any) => {
+    setCurrentAttendanceCalendar({ ...enr, attendanceData: [] })
+    setShowAttendanceCalendar(true)
+    try {
+      const res = await enrollmentApi.getAttendanceCalendar(enr.id)
+      setCurrentAttendanceCalendar(prev => prev ? { ...prev, attendanceData: res.data || [] } : null)
+    } catch {
+      Taro.showToast({ title: '加载考勤数据失败', icon: 'none' })
+    }
   }
 
   const handleUnbindParent = (relationId: string) => {
@@ -670,6 +704,13 @@ export default function ChildDetailPage() {
                       <Badge className={enr.status === '进行中' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
                         <Text className="text-xs">{enr.status}</Text>
                       </Badge>
+                      <View
+                        onClick={() => handleOpenAttendanceCalendar(enr)}
+                        className="px-2 py-1 rounded-full text-xs"
+                        style={{ backgroundColor: '#EBF5FF', border: '1px solid #BFDBFE', color: '#3B82F6' }}
+                      >
+                        <Text className="text-xs" style={{ color: '#3B82F6' }}>考勤详情</Text>
+                      </View>
                     </View>
                   </View>
                   <Text className="block text-xs text-gray-500">
@@ -1029,6 +1070,257 @@ export default function ChildDetailPage() {
               <Text className="block text-sm text-gray-500 text-center">
                 共顺延 <Text className="font-bold text-orange-500">{extendTotalDays}</Text> 天，顺延至 <Text className="font-bold text-orange-500">{extendToDate}</Text>
               </Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* ========== 考勤详情日历弹窗 ========== */}
+      {showAttendanceCalendar && (
+        <View className="fixed inset-0 z-[200] flex items-center justify-center bg-black bg-opacity-40">
+          <View className="bg-white rounded-2xl w-[95%] max-w-md max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+            {/* 标题栏 */}
+            <View className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <Text className="text-base font-semibold text-gray-800">
+                {currentAttendanceCalendar?.courseType || '课程'}考勤详情
+              </Text>
+              <View
+                onClick={() => {
+                  setShowAttendanceCalendar(false)
+                  setCurrentAttendanceCalendar(null)
+                }}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100"
+              >
+                <Text className="text-gray-500 text-lg leading-none">✕</Text>
+              </View>
+            </View>
+
+            {/* 日历主体 */}
+            <View className="flex-1 overflow-y-auto p-3">
+              {(() => {
+                const cal = currentAttendanceCalendar
+                if (!cal) return null
+                const { startDate, endDate, attendanceData } = cal
+                const today = format(new Date(), 'yyyy-MM-dd')
+
+                // 当前月
+                const displayYear = calDisplayYear || new Date().getFullYear()
+                const displayMonth = calDisplayMonth ?? new Date().getMonth() + 1
+                const firstDay = new Date(displayYear, displayMonth - 1, 1)
+                const lastDay = new Date(displayYear, displayMonth, 0)
+                const startDow = firstDay.getDay() === 0 ? 7 : firstDay.getDay()
+                const daysInMonth = lastDay.getDate()
+
+                const attendanceMap: Record<string, string> = {}
+                ;(attendanceData || []).forEach((item: any) => {
+                  attendanceMap[item.date] = item.status
+                })
+
+                const getDayClass = (d: number) => {
+                  const ds = `${displayYear}-${String(displayMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+                  if (ds < startDate || ds > endDate) return 'text-gray-300 cursor-not-allowed'
+                  if (ds === today) return 'text-blue-500 font-semibold'
+                  return 'text-gray-800'
+                }
+
+                const handleDayClick = async (d: number) => {
+                  const ds = `${displayYear}-${String(displayMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+                  if (ds < startDate || ds > endDate) return
+                  setCurrentAttendanceCalendar(prev => prev ? { ...prev, selectedDate: ds } : null)
+                  try {
+                    const res: any = await dailyFeedback.getByChildAndDate(child.id, ds)
+                    console.log('[AttendanceCalendar] daily_feedback response:', res.data)
+                    setAttendanceDayFeedback(res.data?.data || null)
+                  } catch (e) {
+                    console.error('[AttendanceCalendar] daily_feedback error:', e)
+                    setAttendanceDayFeedback(null)
+                  }
+                }
+
+                const renderStatusBadge = (status: string) => {
+                  if (status === 'full') {
+                    return (
+                      <View className="mt-1 self-center">
+                        <Text className="text-[9px] px-1 py-0 rounded-sm" style={{ color: '#52C41A', border: '1px solid #52C41A', backgroundColor: '#FFF8F0', lineHeight: '12px' }}>
+                          全天
+                        </Text>
+                      </View>
+                    )
+                  }
+                  if (status === 'half') {
+                    return (
+                      <View className="mt-1 self-center">
+                        <Text className="text-[8px] px-1 py-0 rounded-sm" style={{ color: '#73C974', border: '1px solid #52C41A', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>
+                          半天
+                        </Text>
+                      </View>
+                    )
+                  }
+                  if (status === 'leave') {
+                    return (
+                      <View className="mt-1 self-center">
+                        <Text className="text-[8px] px-1 py-0 rounded-sm" style={{ color: '#E53333', border: '1px solid #E53333', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>
+                          请假
+                        </Text>
+                      </View>
+                    )
+                  }
+                  if (status === 'absent') {
+                    return (
+                      <View className="mt-1 self-center">
+                        <Text className="text-[8px] px-1 py-0 rounded-sm" style={{ color: '#D4A017', border: '1px solid #D4A017', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>
+                          缺勤
+                        </Text>
+                      </View>
+                    )
+                  }
+                  return null
+                }
+
+                return (
+                  <View>
+                    {/* 月份切换 */}
+                    <View className="flex items-center justify-between mb-3 px-1">
+                      <View
+                        onClick={() => setAttendanceCalendarDisplay(prev => ({
+                          year: prev.month <= 1 ? prev.year - 1 : prev.year,
+                          month: prev.month <= 1 ? 12 : prev.month - 1
+                        }))}
+                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100"
+                      >
+                        <Text className="text-gray-600 text-sm">‹</Text>
+                      </View>
+                      <Text className="text-sm font-medium text-gray-700">
+                        {displayYear}年{displayMonth}月
+                      </Text>
+                      <View
+                        onClick={() => setCalDisplay(prev => ({
+                          year: prev.month >= 12 ? prev.year + 1 : prev.year,
+                          month: prev.month >= 12 ? 1 : prev.month + 1
+                        }))}
+                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100"
+                      >
+                        <Text className="text-gray-600 text-sm">›</Text>
+                      </View>
+                    </View>
+
+                    {/* 星期标题 */}
+                    <View className="flex mb-1">
+                      {['一', '二', '三', '四', '五', '六', '日'].map(w => (
+                        <Text key={w} className="flex-1 text-center text-[10px] text-gray-400 font-medium py-1">
+                          {w}
+                        </Text>
+                      ))}
+                    </View>
+
+                    {/* 日期网格 */}
+                    <View className="flex flex-wrap">
+                      {Array.from({ length: startDow - 1 }).map((_, i) => (
+                        <View key={`empty-${i}`} className="w-[14.28%] h-12" />
+                      ))}
+                      {Array.from({ length: daysInMonth }).map((_, i) => {
+                        const d = i + 1
+                        const ds = `${displayYear}-${String(displayMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+                        const status = attendanceMap[ds]
+                        return (
+                          <View
+                            key={d}
+                            onClick={() => handleDayClick(d)}
+                            className="w-[14.28%] h-12 flex flex-col items-center justify-start pt-1"
+                          >
+                            <Text className={`text-xs ${getDayClass(d)}`}>{d}</Text>
+                            {status && renderStatusBadge(status)}
+                          </View>
+                        )
+                      })}
+                    </View>
+
+                    {/* 图例 */}
+                    <View className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100 px-1">
+                      <View className="flex items-center gap-1">
+                        <Text className="text-[8px] px-1 py-0 rounded-sm" style={{ color: '#52C41A', border: '1px solid #52C41A', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>全天</Text>
+                        <Text className="text-[10px] text-gray-500">全天出勤</Text>
+                      </View>
+                      <View className="flex items-center gap-1">
+                        <Text className="text-[8px] px-1 py-0 rounded-sm" style={{ color: '#73C974', border: '1px solid #52C41A', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>半天</Text>
+                        <Text className="text-[10px] text-gray-500">半天出勤</Text>
+                      </View>
+                      <View className="flex items-center gap-1">
+                        <Text className="text-[8px] px-1 py-0 rounded-sm" style={{ color: '#E53333', border: '1px solid #E53333', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>请假</Text>
+                        <Text className="text-[10px] text-gray-500">请假</Text>
+                      </View>
+                      <View className="flex items-center gap-1">
+                        <Text className="text-[8px] px-1 py-0 rounded-sm" style={{ color: '#D4A017', border: '1px solid #D4A017', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>缺勤</Text>
+                        <Text className="text-[10px] text-gray-500">缺勤</Text>
+                      </View>
+                    </View>
+
+                    {/* 日历底部说明 */}
+                    <View className="mt-2 px-1">
+                      <Text className="text-[10px] text-gray-400">点击任意日期查看当日日常记录详情</Text>
+                    </View>
+                  </View>
+                )
+              })()}
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* ========== 日常记录详情弹窗 ========== */}
+      {showAttendanceCalendar && currentAttendanceCalendar?.selectedDate && (
+        <View className="fixed inset-0 z-[210] flex items-center justify-center bg-black bg-opacity-40">
+          <View className="bg-white rounded-2xl w-[90%] max-w-sm flex flex-col overflow-hidden shadow-2xl">
+            <View className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <Text className="text-sm font-medium text-gray-700">
+                {currentAttendanceCalendar?.selectedDate?.replace(/^\d{4}-(\d{2})-(\d{2})$/, '$1月$2日')}日常记录
+              </Text>
+              <View
+                onClick={() => setCurrentAttendanceCalendar(prev => prev ? { ...prev, selectedDate: undefined } : null)}
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100"
+              >
+                <Text className="text-gray-500 text-base leading-none">✕</Text>
+              </View>
+            </View>
+            <View className="p-4">
+              {attendanceDayFeedback ? (
+                <View className="space-y-3">
+                  {attendanceDayFeedback.emotion && (
+                    <View className="flex items-center gap-2">
+                      <Text className="text-xs text-gray-500 w-12">情绪</Text>
+                      <Text className="text-sm text-gray-800">{attendanceDayFeedback.emotion}</Text>
+                    </View>
+                  )}
+                  {attendanceDayFeedback.meal_status && (
+                    <View className="flex items-center gap-2">
+                      <Text className="text-xs text-gray-500 w-12">餐食</Text>
+                      <Text className="text-sm text-gray-800">{attendanceDayFeedback.meal_status}</Text>
+                    </View>
+                  )}
+                  {attendanceDayFeedback.nap_rating && (
+                    <View className="flex items-center gap-2">
+                      <Text className="text-xs text-gray-500 w-12">午睡</Text>
+                      <View className="flex gap-0.5">
+                        {[1,2,3,4,5].map(i => (
+                          <Text key={i} className={`text-sm ${i <= (attendanceDayFeedback.nap_rating || 0) ? 'text-yellow-400' : 'text-gray-300'}`}>★</Text>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                  {attendanceDayFeedback.notes && (
+                    <View>
+                      <Text className="text-xs text-gray-500 mb-1">备注</Text>
+                      <Text className="text-sm text-gray-700 leading-relaxed">{attendanceDayFeedback.notes}</Text>
+                    </View>
+                  )}
+                  {!attendanceDayFeedback.emotion && !attendanceDayFeedback.meal_status &&
+                   !attendanceDayFeedback.nap_rating && !attendanceDayFeedback.notes && (
+                    <Text className="text-sm text-gray-400 text-center py-4">暂无日常记录</Text>
+                  )}
+                </View>
+              ) : (
+                <Text className="text-sm text-gray-400 text-center py-4">暂无日常记录</Text>
+              )}
             </View>
           </View>
         </View>

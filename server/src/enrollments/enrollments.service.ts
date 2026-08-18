@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { StatutoryHolidaysService } from '@/statutory-holidays/statutory-holidays.service';
 
@@ -89,7 +89,6 @@ export class EnrollmentsService {
    * 输入/输出格式均为 YYYY-MM-DD
    */
   private addDays(dateStr: string, days: number): string {
-    // 支持 YYYY-MM-DD 和完整日期时间字符串
     const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (!match) return dateStr;
     const [, y, m, d] = match;
@@ -100,9 +99,6 @@ export class EnrollmentsService {
     return `${yy}-${mm}-${dd}`;
   }
 
-  /**
-   * 统一将日期转为 YYYY-MM-DD 字符串（取 UTC+8 本地日期）
-   */
   private toDateStr(dateStr: string): string {
     const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (!match) return dateStr;
@@ -110,7 +106,6 @@ export class EnrollmentsService {
     return `${y}-${m}-${d}`;
   }
 
-  // 使用 Date.UTC 避免本地时区偏移，适合 DB 日期字符串
   private addDaysUTC(dateStr: string, days: number): string {
     const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (!match) return dateStr;
@@ -124,12 +119,10 @@ export class EnrollmentsService {
 
   /**
    * 计算顺延结束日期
-   * 查询报读期间重叠的假期，累计天数后顺延
    */
   async calculateExtendedEndDate(enrollmentId: string): Promise<{ extended_end_date: string | null; details: HolidayDetail[] }> {
     const result = { extended_end_date: null as string | null, details: [] as HolidayDetail[] };
 
-    // 获取报读记录
     const { data: enr, error: enrError } = await this.client
       .from('enrollments')
       .select('*')
@@ -142,7 +135,6 @@ export class EnrollmentsService {
     const startDate = enr.start_date;
     const endDate = enr.end_date;
 
-    // 获取幼儿所在班级
     const { data: child } = await this.client
       .from('children')
       .select('class_id')
@@ -151,7 +143,6 @@ export class EnrollmentsService {
 
     const classId = child?.class_id || '';
 
-    // 查询该报读期间内重叠的假期（全园 + 班级 + 个人）
     const { data: holidays } = await this.client
       .from('holidays')
       .select('*')
@@ -159,15 +150,13 @@ export class EnrollmentsService {
       .lte('start_date', endDate)
       .gte('end_date', startDate);
 
-    // 筛选出匹配的假期（班级假期匹配班级ID，个人假期匹配幼儿ID）
-    const matchingHolidays = (holidays || []).filter(h => {
+    const matchingHolidays = (holidays || []).filter((h: any) => {
       if (h.type === 'all') return true;
       if (h.type === 'class') return h.target_id === classId;
       if (h.type === 'personal') return h.target_id === enr.child_id;
       return false;
     });
 
-    // 收集报读期间内所有重叠的假期日期，同时生成明细
     const holidayDates = new Set<string>();
     for (const h of matchingHolidays) {
       let current = this.toDateStr(h.start_date > startDate ? h.start_date : startDate);
@@ -192,19 +181,15 @@ export class EnrollmentsService {
     const totalHolidayDays = holidayDates.size;
     if (totalHolidayDays === 0) return result;
 
-    // 顺延 endDate，跳过顺延后的周末和节假日
     let extendedDate = endDate;
     let remainingDays = totalHolidayDays;
 
     while (remainingDays > 0) {
       extendedDate = this.addDays(extendedDate, 1);
       const [y, m, d] = extendedDate.split('-').map(Number);
-      // 用 Date.UTC 解析，与 holidayDates 保持一致
       const dateUtc = Date.UTC(y, m - 1, d);
       const dayOfWeek = new Date(dateUtc).getDay();
-      // 跳过周末
       if (dayOfWeek === 0 || dayOfWeek === 6) continue;
-      // 跳过法定节假日
       if (holidayDates.has(extendedDate)) continue;
       remainingDays--;
     }
@@ -224,7 +209,6 @@ export class EnrollmentsService {
     if (error) throw new Error(`查询报读记录失败: ${error.message}`);
     const enrollments = data || [];
 
-    // 批量计算每条报读记录的课时统计
     const enriched = await Promise.all(
       enrollments.map(async (enr) => {
         const attendanceStats = await this.calculateAttendanceStats(enr);
@@ -235,13 +219,6 @@ export class EnrollmentsService {
     return enriched;
   }
 
-  /**
-   * 计算某条报读记录的课时统计
-   * total_days: 从 start_date 到 end_date 的工作日数（周六托只计周六），排除法定节假日放假日期，计算调休日
-   * attended_days: 从 start_date 到 extended_end_date，该课程的出勤/半天出勤记录数
-   * leave_days: 同上区间，请假记录数
-   * absent_days: 同上区间，缺席记录数
-   */
   private async calculateAttendanceStats(enr: Enrollment): Promise<{
     total_days: number;
     attended_days: number;
@@ -254,17 +231,10 @@ export class EnrollmentsService {
 
     const isSaturdayOnly = enr.course_type === '周六托';
 
-    // 1. 计算 total_days（从 start_date 到 end_date）
-    //    排除法定节假日（holidays_old 表）的放假日期
-    //    调休日（周六日有考勤记录）算工作日
     const year = parseInt(enr.start_date.substring(0, 4));
-    const { holidays: statutoryHolidays, workWeekends: statutoryWorkWeekends } =
+    const { holidays: statutoryHolidays } =
       await this.statutoryHolidaysService.getDateSets(year);
-    // holidays_old 中的 work_weekend 本就是周末调班日，会自动计入 total_days（因为是周日）
-    // 但 transferWorkdays（考勤表中的调休日）需要额外加上
 
-    // 收集调休日：周六日有考勤记录的日期
-    // 按 course_type 匹配
     const { data: attRecords } = await this.client
       .from('attendance')
       .select('date')
@@ -282,25 +252,19 @@ export class EnrollmentsService {
     let current = enr.start_date;
     while (current <= enr.end_date) {
       const [y, m, d] = current.split('-').map(Number);
-      // 用 Date.UTC 解析，避免本地时区偏移导致周几计算错误
-      // DB 存的日期是 UTC midnight，JS local midnight = UTC 前一天16:00
       const dateUtc = Date.UTC(y, m - 1, d);
-      const dayOfWeek = new Date(dateUtc).getDay(); // 0=Sun, 6=Sat (UTC)
+      const dayOfWeek = new Date(dateUtc).getDay();
       const dateStr = this.toDateStr(current);
       const isHoliday = statutoryHolidays.has(dateStr);
       const isTransferWorkday = transferWorkdays.has(dateStr);
       if (isSaturdayOnly) {
-        // 周六托：只计周六，排除节假日，算调休日
         if (dayOfWeek === 6 && !isHoliday) totalDays++;
       } else {
-        // 全日托/晚间托：计工作日，排除节假日，算调休日
         if ((dayOfWeek !== 0 && dayOfWeek !== 6 || isTransferWorkday) && !isHoliday) totalDays++;
       }
       current = this.addDaysUTC(current, 1);
     }
 
-    // 2. 计算 attended_days/leave_days/absent_days（从 start_date 到 extended_end_date）
-    //    考勤必须按课程区分：优先匹配 course_id，fallback 到 course_type
     const attEndDate = enr.extended_end_date || enr.end_date;
 
     let attendanceQuery = this.client
@@ -308,10 +272,8 @@ export class EnrollmentsService {
       .select('status')
       .eq('child_id', enr.child_id)
       .gte('date', enr.start_date)
-      .lte('date', attEndDate);
-
-    // 按 course_type 匹配（attendance.course_type 对应 enrollment.course_type）
-    attendanceQuery = attendanceQuery.eq('course_type', enr.course_type);
+      .lte('date', attEndDate)
+      .eq('course_type', enr.course_type);
 
     const { data: attendanceRecords } = await attendanceQuery;
 
@@ -337,10 +299,6 @@ export class EnrollmentsService {
     };
   }
 
-  /**
-   * 获取区间内的节假日日期集合（全园节假日，排除调休日）
-   * 调休日（即本该放假但因补课变成工作日的日期）不算节假日
-   */
   async findActiveByChild(childId: string): Promise<Enrollment[]> {
     await this.syncExpiredStatus();
     const { data, error } = await this.client
@@ -357,7 +315,6 @@ export class EnrollmentsService {
   async create(dto: CreateEnrollmentDto): Promise<Enrollment> {
     const { class_id, course_id, ...rest } = dto;
 
-    // 如果传了 course_id，从 courses 表查询名称；否则尝试按 course_type 查找
     let finalCourseId = course_id || null;
     let finalCourseType = rest.course_type || '';
 
@@ -398,19 +355,17 @@ export class EnrollmentsService {
 
     if (error) throw new Error(`创建报读记录失败: ${error.message}`);
 
-    // 计算并更新顺延结束日期
     if (data.start_date && data.end_date) {
-      const extendedDate = await this.calculateExtendedEndDate(data.id);
-      if (extendedDate) {
+      const extended = await this.calculateExtendedEndDate(data.id);
+      if (extended.extended_end_date) {
         await this.client
           .from('enrollments')
-          .update({ extended_end_date: extendedDate })
+          .update({ extended_end_date: extended.extended_end_date })
           .eq('id', data.id);
-        data.extended_end_date = extendedDate;
+        data.extended_end_date = extended.extended_end_date;
       }
     }
 
-    // 同步更新幼儿的班级字段
     if (class_id) {
       await this.client.from('children').update({ class_id }).eq('id', rest.child_id);
     }
@@ -435,7 +390,6 @@ export class EnrollmentsService {
     if (class_id !== undefined) updateData.class_id = class_id;
     updateData.updated_at = new Date().toISOString();
 
-    // 如果更新了 course_id，同步更新 course_type
     if (course_id) {
       const { data: course } = await this.client
         .from('courses')
@@ -454,7 +408,6 @@ export class EnrollmentsService {
 
     if (error) throw new Error(`更新报读记录失败: ${error.message}`);
 
-    // 如果有日期变更，重新计算并更新顺延结束日期
     if (data.start_date && data.end_date) {
       const { extended_end_date: extendedDate } = await this.calculateExtendedEndDate(data.id);
       if (extendedDate) {
@@ -464,7 +417,6 @@ export class EnrollmentsService {
           .eq('id', data.id);
         data.extended_end_date = extendedDate;
       } else {
-        // 无顺延则清空
         await this.client
           .from('enrollments')
           .update({ extended_end_date: null })
@@ -473,7 +425,6 @@ export class EnrollmentsService {
       }
     }
 
-    // 同步更新幼儿的班级字段
     if (class_id) {
       await this.client.from('children').update({ class_id }).eq('id', data.child_id);
     }
@@ -488,5 +439,47 @@ export class EnrollmentsService {
       .eq('id', id);
 
     if (error) throw new Error(`删除报读记录失败: ${error.message}`);
+  }
+
+  /**
+   * 获取考勤日历数据
+   * 返回 start_date 到 extended_end_date（或 end_date）区间内有考勤记录的日期+状态列表
+   */
+  async getAttendanceCalendar(enrollmentId: string): Promise<
+    Array<{ date: string; status: 'full' | 'half' | 'leave' | 'absent' }>
+  > {
+    const { data: enr, error: enrError } = await this.client
+      .from('enrollments')
+      .select('start_date, end_date, extended_end_date, course_type, child_id')
+      .eq('id', enrollmentId)
+      .single();
+
+    if (enrError || !enr) {
+      throw new NotFoundException('报读记录不存在');
+    }
+
+    const endDate = enr.extended_end_date || enr.end_date;
+    if (!endDate) return [];
+
+    const records = await this.client
+      .from('attendance')
+      .select('date, status')
+      .eq('child_id', enr.child_id)
+      .eq('course_type', enr.course_type)
+      .gte('date', enr.start_date)
+      .lte('date', endDate)
+      .order('date', { ascending: true });
+
+    return (records.data || []).map((r: any) => {
+      let status: 'full' | 'half' | 'leave' | 'absent';
+      if (r.status === 'present') {
+        status = r.is_half_day ? 'half' : 'full';
+      } else if (r.status === 'leave') {
+        status = 'leave';
+      } else {
+        status = 'absent';
+      }
+      return { date: this.toDateStr(r.date), status };
+    });
   }
 }
