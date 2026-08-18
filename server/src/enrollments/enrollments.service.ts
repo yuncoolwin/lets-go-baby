@@ -472,7 +472,7 @@ export class EnrollmentsService {
 
     return (records.data || []).map((r: any) => {
       let status: 'full' | 'half' | 'leave' | 'absent';
-      if (r.status === 'present') {
+      if (r.status === 'present' || r.status === 'full_day') {
         status = r.is_half_day ? 'half' : 'full';
       } else if (r.status === 'leave') {
         status = 'leave';

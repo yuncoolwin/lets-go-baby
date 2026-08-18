@@ -139,7 +139,7 @@ export default function ChildDetailPage() {
     selectedDate?: string
   } | null>(null)
   const [calDisplayYear, setCalDisplayYear] = useState(new Date().getFullYear())
-  const [calDisplayMonth, setCalDisplayMonth] = useState<number | null>(null)
+  const [calDisplayMonth, setCalDisplayMonth] = useState(new Date().getMonth() + 1)
   const [attendanceDayFeedback, setAttendanceDayFeedback] = useState<any>(null)
   const [editAllergies, setEditAllergies] = useState('')
   const [editHealthInfo, setEditHealthInfo] = useState('')
@@ -698,14 +698,14 @@ export default function ChildDetailPage() {
                       <Badge className={enr.status === '进行中' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
                         <Text className="text-xs">{enr.status}</Text>
                       </Badge>
-                      <View
-                        onClick={() => handleOpenAttendanceCalendar(enr)}
-                        className="px-2 py-1 rounded-full text-xs"
-                        style={{ backgroundColor: '#EBF5FF', border: '1px solid #BFDBFE', color: '#3B82F6' }}
-                      >
-                        <Text className="text-xs" style={{ color: '#3B82F6' }}>考勤详情</Text>
-                      </View>
                     </View>
+                  </View>
+                  <View
+                    onClick={() => handleOpenAttendanceCalendar(enr)}
+                    className="self-start px-2 py-1 rounded-full mt-1"
+                    style={{ backgroundColor: '#EBF5FF', border: '1px solid #BFDBFE' }}
+                  >
+                    <Text className="text-xs" style={{ color: '#3B82F6' }}>考勤详情</Text>
                   </View>
                   <Text className="block text-xs text-gray-500">
                     时长：{enr.duration_type === '计日' ? `${enr.duration_days}天` : enr.duration_type}
@@ -1072,7 +1072,7 @@ export default function ChildDetailPage() {
       {/* ========== 考勤详情日历弹窗 ========== */}
       {showAttendanceCalendar && (
         <View className="fixed inset-0 z-[200] flex items-center justify-center bg-black bg-opacity-40">
-          <View className="bg-white rounded-2xl w-[95%] max-w-md max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+          <View className="bg-white rounded-3xl w-[95%] max-w-md max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
             {/* 标题栏 */}
             <View className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <Text className="text-base font-semibold text-gray-800">
@@ -1083,7 +1083,7 @@ export default function ChildDetailPage() {
                   setShowAttendanceCalendar(false)
                   setCurrentAttendanceCalendar(null)
                 }}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100"
+                className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100"
               >
                 <Text className="text-gray-500 text-lg leading-none">✕</Text>
               </View>
@@ -1096,13 +1096,13 @@ export default function ChildDetailPage() {
                 if (!cal) return null
                 const { startDate, endDate, attendanceData } = cal
                 const today = format(new Date(), 'yyyy-MM-dd')
+                const selectedDate = cal.selectedDate
 
-                // 当前月
-                const displayYear = calDisplayYear || new Date().getFullYear()
-                const displayMonth = calDisplayMonth ?? new Date().getMonth() + 1
+                const displayYear = calDisplayYear
+                const displayMonth = calDisplayMonth
                 const firstDay = new Date(displayYear, displayMonth - 1, 1)
                 const lastDay = new Date(displayYear, displayMonth, 0)
-                const startDow = firstDay.getDay() === 0 ? 7 : firstDay.getDay()
+                const startDow = firstDay.getDay()
                 const daysInMonth = lastDay.getDate()
 
                 const attendanceMap: Record<string, string> = {}
@@ -1110,11 +1110,17 @@ export default function ChildDetailPage() {
                   attendanceMap[item.date] = item.status
                 })
 
-                const getDayClass = (d: number) => {
-                  const ds = `${displayYear}-${String(displayMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-                  if (ds < startDate || ds > endDate) return 'text-gray-300 cursor-not-allowed'
+                const getDayClass = (ds: string) => {
+                  if (ds < startDate || ds > endDate) return 'text-gray-300'
+                  if (ds === selectedDate) return 'text-white font-semibold'
                   if (ds === today) return 'text-blue-500 font-semibold'
                   return 'text-gray-800'
+                }
+
+                const getTextWrapperClass = (ds: string) => {
+                  if (ds < startDate || ds > endDate) return ''
+                  if (ds === selectedDate) return 'flex items-center justify-center w-7 h-7 rounded-full bg-blue-500'
+                  return 'flex items-center justify-center w-7 h-7'
                 }
 
                 const handleDayClick = async (d: number) => {
@@ -1124,18 +1130,25 @@ export default function ChildDetailPage() {
                   try {
                     const res: any = await dailyApi.getDailyFeedback(child.id, ds)
                     console.log('[AttendanceCalendar] daily_feedback response:', res.data)
-                    setAttendanceDayFeedback(res.data?.data || null)
+                    const data = res.data?.data
+                    if (data && (data.emotion || data.meal_status || data.nap_rating || data.notes)) {
+                      setAttendanceDayFeedback(data)
+                    } else {
+                      setAttendanceDayFeedback(null)
+                      Taro.showToast({ title: '暂无当日日常记录', icon: 'none', duration: 2000 })
+                    }
                   } catch (e) {
                     console.error('[AttendanceCalendar] daily_feedback error:', e)
                     setAttendanceDayFeedback(null)
+                    Taro.showToast({ title: '暂无当日日常记录', icon: 'none', duration: 2000 })
                   }
                 }
 
                 const renderStatusBadge = (status: string) => {
                   if (status === 'full') {
                     return (
-                      <View className="mt-1 self-center">
-                        <Text className="text-[9px] px-1 py-0 rounded-sm" style={{ color: '#52C41A', border: '1px solid #52C41A', backgroundColor: '#FFF8F0', lineHeight: '12px' }}>
+                      <View className="self-center">
+                        <Text className="text-[9px] px-1 rounded-sm" style={{ color: '#52C41A', border: '1px solid #52C41A', backgroundColor: '#FFF8F0', lineHeight: '12px' }}>
                           全天
                         </Text>
                       </View>
@@ -1143,8 +1156,8 @@ export default function ChildDetailPage() {
                   }
                   if (status === 'half') {
                     return (
-                      <View className="mt-1 self-center">
-                        <Text className="text-[8px] px-1 py-0 rounded-sm" style={{ color: '#73C974', border: '1px solid #52C41A', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>
+                      <View className="self-center">
+                        <Text className="text-[8px] px-1 rounded-sm" style={{ color: '#73C974', border: '1px solid #52C41A', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>
                           半天
                         </Text>
                       </View>
@@ -1152,8 +1165,8 @@ export default function ChildDetailPage() {
                   }
                   if (status === 'leave') {
                     return (
-                      <View className="mt-1 self-center">
-                        <Text className="text-[8px] px-1 py-0 rounded-sm" style={{ color: '#E53333', border: '1px solid #E53333', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>
+                      <View className="self-center">
+                        <Text className="text-[8px] px-1 rounded-sm" style={{ color: '#E53333', border: '1px solid #E53333', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>
                           请假
                         </Text>
                       </View>
@@ -1161,8 +1174,8 @@ export default function ChildDetailPage() {
                   }
                   if (status === 'absent') {
                     return (
-                      <View className="mt-1 self-center">
-                        <Text className="text-[8px] px-1 py-0 rounded-sm" style={{ color: '#D4A017', border: '1px solid #D4A017', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>
+                      <View className="self-center">
+                        <Text className="text-[8px] px-1 rounded-sm" style={{ color: '#D4A017', border: '1px solid #D4A017', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>
                           缺勤
                         </Text>
                       </View>
@@ -1177,87 +1190,92 @@ export default function ChildDetailPage() {
                     <View className="flex items-center justify-between mb-3 px-1">
                       <View
                         onClick={() => {
-                          if (calDisplayMonth !== null && calDisplayMonth <= 1) {
+                          if (calDisplayMonth === 1) {
                             setCalDisplayYear(calDisplayYear - 1)
                             setCalDisplayMonth(12)
-                          } else if (calDisplayMonth !== null) {
+                          } else {
                             setCalDisplayMonth(calDisplayMonth - 1)
                           }
                         }}
-                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100"
+                        style={{ width: 36, height: 36 }}
+                        className="flex items-center justify-center rounded-full bg-gray-100"
                       >
-                        <Text className="text-gray-600 text-sm">‹</Text>
+                        <Text style={{ color: '#333', fontSize: 20, lineHeight: '20px' }}>‹</Text>
                       </View>
-                      <Text className="text-sm font-medium text-gray-700">
-                        {calDisplayYear}年{calDisplayMonth !== null ? `${calDisplayMonth + 1}月` : ''}
+                      <Text className="text-base font-semibold text-gray-700">
+                        {calDisplayYear}年{calDisplayMonth}月
                       </Text>
                       <View
                         onClick={() => {
-                          if (calDisplayMonth !== null && calDisplayMonth >= 11) {
+                          if (calDisplayMonth === 12) {
                             setCalDisplayYear(calDisplayYear + 1)
-                            setCalDisplayMonth(0)
-                          } else if (calDisplayMonth !== null) {
+                            setCalDisplayMonth(1)
+                          } else {
                             setCalDisplayMonth(calDisplayMonth + 1)
                           }
                         }}
-                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100"
+                        style={{ width: 36, height: 36 }}
+                        className="flex items-center justify-center rounded-full bg-gray-100"
                       >
-                        <Text className="text-gray-600 text-sm">›</Text>
+                        <Text style={{ color: '#333', fontSize: 20, lineHeight: '20px' }}>›</Text>
                       </View>
                     </View>
 
                     {/* 星期标题 */}
-                    <View className="flex mb-1">
-                      {['一', '二', '三', '四', '五', '六', '日'].map(w => (
-                        <Text key={w} className="flex-1 text-center text-[10px] text-gray-400 font-medium py-1">
+                    <View className="flex mb-1 bg-amber-50 rounded-lg px-1 py-1">
+                      {['日', '一', '二', '三', '四', '五', '六'].map(w => (
+                        <Text key={w} className="flex-1 text-center text-[11px] text-amber-700 font-semibold py-1">
                           {w}
                         </Text>
                       ))}
                     </View>
 
                     {/* 日期网格 */}
-                    <View className="flex flex-wrap">
-                      {Array.from({ length: startDow - 1 }).map((_, i) => (
-                        <View key={`empty-${i}`} className="w-[14.28%] h-12" />
+                    <View className="flex flex-wrap bg-amber-50 rounded-lg px-1 pt-1 pb-2">
+                      {Array.from({ length: startDow }).map((_, i) => (
+                        <View key={`empty-${i}`} className="w-[14.28%] h-14" />
                       ))}
                       {Array.from({ length: daysInMonth }).map((_, i) => {
                         const d = i + 1
                         const ds = `${displayYear}-${String(displayMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`
                         const status = attendanceMap[ds]
+                        const inRange = ds >= startDate && ds <= endDate
                         return (
                           <View
                             key={d}
                             onClick={() => handleDayClick(d)}
-                            className="w-[14.28%] h-12 flex flex-col items-center justify-start pt-1"
+                            className="w-[14.28%] h-14 flex flex-col items-center justify-start pt-1"
                           >
-                            <Text className={`text-xs ${getDayClass(d)}`}>{d}</Text>
-                            {status && renderStatusBadge(status)}
+                            <View className={getTextWrapperClass(ds)}>
+                              <Text className={`text-xs ${getDayClass(ds)}`}>{d}</Text>
+                            </View>
+                            {status && inRange && renderStatusBadge(status)}
                           </View>
                         )
                       })}
                     </View>
 
                     {/* 图例 */}
-                    <View className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100 px-1">
+                    <View className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-gray-100 px-1">
                       <View className="flex items-center gap-1">
-                        <Text className="text-[8px] px-1 py-0 rounded-sm" style={{ color: '#52C41A', border: '1px solid #52C41A', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>全天</Text>
+                        <Text className="text-[8px] px-1 rounded-sm" style={{ color: '#52C41A', border: '1px solid #52C41A', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>全天</Text>
                         <Text className="text-[10px] text-gray-500">全天出勤</Text>
                       </View>
                       <View className="flex items-center gap-1">
-                        <Text className="text-[8px] px-1 py-0 rounded-sm" style={{ color: '#73C974', border: '1px solid #52C41A', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>半天</Text>
+                        <Text className="text-[8px] px-1 rounded-sm" style={{ color: '#73C974', border: '1px solid #52C41A', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>半天</Text>
                         <Text className="text-[10px] text-gray-500">半天出勤</Text>
                       </View>
                       <View className="flex items-center gap-1">
-                        <Text className="text-[8px] px-1 py-0 rounded-sm" style={{ color: '#E53333', border: '1px solid #E53333', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>请假</Text>
+                        <Text className="text-[8px] px-1 rounded-sm" style={{ color: '#E53333', border: '1px solid #E53333', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>请假</Text>
                         <Text className="text-[10px] text-gray-500">请假</Text>
                       </View>
                       <View className="flex items-center gap-1">
-                        <Text className="text-[8px] px-1 py-0 rounded-sm" style={{ color: '#D4A017', border: '1px solid #D4A017', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>缺勤</Text>
+                        <Text className="text-[8px] px-1 rounded-sm" style={{ color: '#D4A017', border: '1px solid #D4A017', backgroundColor: '#FFF8F0', lineHeight: '11px' }}>缺勤</Text>
                         <Text className="text-[10px] text-gray-500">缺勤</Text>
                       </View>
                     </View>
 
-                    {/* 日历底部说明 */}
+                    {/* 底部说明 */}
                     <View className="mt-2 px-1">
                       <Text className="text-[10px] text-gray-400">点击任意日期查看当日日常记录详情</Text>
                     </View>
