@@ -1083,7 +1083,8 @@ export default function ChildDetailPage() {
                   setShowAttendanceCalendar(false)
                   setCurrentAttendanceCalendar(null)
                 }}
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100"
+                className="w-9 h-9 flex items-center justify-center rounded-full"
+                style={{ backgroundColor: '#FFF8EE' }}
               >
                 <Text className="text-gray-500 text-lg leading-none">✕</Text>
               </View>
@@ -1198,7 +1199,7 @@ export default function ChildDetailPage() {
                           }
                         }}
                         style={{ width: 36, height: 36 }}
-                        className="flex items-center justify-center rounded-full bg-gray-100"
+                        className="flex items-center justify-center rounded-full"
                       >
                         <Text style={{ color: '#333', fontSize: 20, lineHeight: '20px' }}>‹</Text>
                       </View>
@@ -1215,14 +1216,14 @@ export default function ChildDetailPage() {
                           }
                         }}
                         style={{ width: 36, height: 36 }}
-                        className="flex items-center justify-center rounded-full bg-gray-100"
+                        className="flex items-center justify-center rounded-full"
                       >
                         <Text style={{ color: '#333', fontSize: 20, lineHeight: '20px' }}>›</Text>
                       </View>
                     </View>
 
                     {/* 星期标题 */}
-                    <View className="flex mb-1 bg-amber-50 rounded-lg px-1 py-1">
+                    <View className="flex mb-1 px-1 py-1">
                       {['日', '一', '二', '三', '四', '五', '六'].map(w => (
                         <Text key={w} className="flex-1 text-center text-[11px] text-amber-700 font-semibold py-1">
                           {w}
@@ -1231,7 +1232,7 @@ export default function ChildDetailPage() {
                     </View>
 
                     {/* 日期网格 */}
-                    <View className="flex flex-wrap bg-amber-50 rounded-lg px-1 pt-1 pb-2">
+                    <View className="flex flex-wrap px-1 pt-1 pb-2">
                       {Array.from({ length: startDow }).map((_, i) => (
                         <View key={`empty-${i}`} className="w-[14.28%] h-14" />
                       ))}
