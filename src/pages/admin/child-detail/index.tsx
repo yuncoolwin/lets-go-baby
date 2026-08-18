@@ -680,49 +680,48 @@ export default function ChildDetailPage() {
               enrollments.map((enr) => (
                 <View
                   key={enr.id}
-                  className="relative rounded-xl p-3 mb-2"
-                  style={{ backgroundColor: '#FFFBF0' }}
+                  className="bg-gray-50 rounded-xl p-3 mb-2"
                 >
-                  {!isReadonly && (
-                    <View className="absolute bottom-3 right-3 flex items-center gap-2">
-                      <View onClick={() => openEditEnrollment(enr)}>
-                        <Pencil size={14} color="#999" />
-                      </View>
-                      <View onClick={() => handleDeleteEnrollment(enr)}>
-                        <Trash2 size={14} color="#999" />
-                      </View>
-                    </View>
-                  )}
-                  <View className="flex items-start justify-between mb-1 pr-12">
-                    <Text className="text-sm font-semibold text-foreground leading-snug">{enr.course_type}</Text>
-                    <View className="flex flex-col items-end gap-1 flex-shrink-0">
+                  <View className="flex items-center justify-between mb-1">
+                    <Text className="text-sm font-semibold text-foreground">{enr.course_type}</Text>
+                    <View className="flex items-center gap-2">
+                      {!isReadonly && (
+                        <>
+                          <View onClick={() => openEditEnrollment(enr)}>
+                            <Pencil size={14} color="#999" />
+                          </View>
+                          <View onClick={() => handleDeleteEnrollment(enr)}>
+                            <Trash2 size={14} color="#999" />
+                          </View>
+                        </>
+                      )}
                       <Badge className={enr.status === '进行中' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
                         <Text className="text-xs">{enr.status}</Text>
                       </Badge>
-                      <View
-                        onClick={() => handleOpenAttendanceCalendar(enr)}
-                        className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold"
-                        style={{ backgroundColor: '#EBF5FF', borderColor: '#BFDBFE' }}
-                      >
-                        <Text style={{ color: '#3B82F6', fontSize: 12 }}>考勤详情</Text>
-                      </View>
                     </View>
+                  </View>
+                  <View
+                    onClick={() => handleOpenAttendanceCalendar(enr)}
+                    className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold self-start mt-1"
+                    style={{ backgroundColor: '#EBF5FF', borderColor: '#BFDBFE', color: '#3B82F6' }}
+                  >
+                    <Text className="text-xs" style={{ color: '#3B82F6' }}>考勤详情</Text>
                   </View>
                   <Text className="block text-xs text-gray-500">
                     时长：{enr.duration_type === '计日' ? `${enr.duration_days}天` : enr.duration_type}
                   </Text>
                   {enr.attendance_stats && (
-                    <Text className="block text-xs text-gray-500 mt-0">
+                    <Text className="block text-xs text-gray-500 mt-1">
                       课时记录：{enr.attendance_stats.attended_days}/{enr.attendance_stats.total_days}，请假{enr.attendance_stats.leave_days}天，缺席{enr.attendance_stats.absent_days}天
                     </Text>
                   )}
-                  <Text className="block text-xs text-gray-500 mt-0">
+                  <Text className="block text-xs text-gray-500 mt-1">
                     班级：{enr.class_id ? (() => { const cls = classes.find((c: any) => c.id === enr.class_id); return cls ? `${cls.name}${cls.room ? `（${cls.room}）` : ''}` : '' })() : ''}
                   </Text>
-                  <Text className="block text-xs text-gray-500 mt-0">
+                  <Text className="block text-xs text-gray-500 mt-1">
                     日期：{enr.start_date || '--'} ~ {enr.end_date || '--'}
                   </Text>
-                  <View className="flex flex-row items-center mt-0">
+                  <View className="flex flex-row items-center mt-1">
                     <Text className="text-xs" style={enr.extended_end_date ? { color: '#E8651A' } : {}}>
                       顺延结束日期：{enr.extended_end_date || '无'}
                     </Text>
@@ -733,7 +732,7 @@ export default function ChildDetailPage() {
                     )}
                   </View>
                   {(enr.payment_amount || enr.payment_channel) && (
-                    <Text className="block text-xs text-gray-500 mt-0">
+                    <Text className="block text-xs text-gray-500 mt-1">
                       缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{enr.payment_channel ? `（${enr.payment_channel}）` : ''}
                     </Text>
                   )}
@@ -757,8 +756,7 @@ export default function ChildDetailPage() {
               parents.map((parent) => (
                 <View
                   key={parent.id}
-                  className="flex items-center justify-between rounded-xl px-3 py-2 mb-2"
-                  style={{ backgroundColor: '#FFFBF0' }}
+                  className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2 mb-2"
                 >
                   <Text className="text-sm text-foreground">{parent.relationship}</Text>
                   {!isReadonly && (
