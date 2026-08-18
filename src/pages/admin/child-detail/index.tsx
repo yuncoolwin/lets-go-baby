@@ -695,17 +695,19 @@ export default function ChildDetailPage() {
                           </View>
                         </>
                       )}
-                      <Badge className={enr.status === '进行中' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
-                        <Text className="text-xs">{enr.status}</Text>
-                      </Badge>
+                      <View className="flex flex-col items-end gap-1">
+                        <Badge className={enr.status === '进行中' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
+                          <Text className="text-xs">{enr.status}</Text>
+                        </Badge>
+                        <View
+                          onClick={() => handleOpenAttendanceCalendar(enr)}
+                          className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold"
+                          style={{ backgroundColor: '#EBF5FF', borderColor: '#BFDBFE' }}
+                        >
+                          <Text style={{ color: '#3B82F6', fontSize: 12 }}>考勤详情</Text>
+                        </View>
+                      </View>
                     </View>
-                  </View>
-                  <View
-                    onClick={() => handleOpenAttendanceCalendar(enr)}
-                    className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold self-start mt-1"
-                    style={{ backgroundColor: '#EBF5FF', borderColor: '#BFDBFE', color: '#3B82F6' }}
-                  >
-                    <Text className="text-xs" style={{ color: '#3B82F6' }}>考勤详情</Text>
                   </View>
                   <Text className="block text-xs text-gray-500">
                     时长：{enr.duration_type === '计日' ? `${enr.duration_days}天` : enr.duration_type}
