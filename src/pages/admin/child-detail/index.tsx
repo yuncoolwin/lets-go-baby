@@ -87,6 +87,8 @@ export default function ChildDetailPage() {
   const [showCalendar, setShowCalendar] = useState<'birthDate' | 'startDate' | null>(null)
   const [courses, setCourses] = useState<any[]>([])
   const [extendDetails, setExtendDetails] = useState<any[]>([])
+  const [autoStatus, setAutoStatus] = useState<string | null>(null)
+  const [userChangedStatus, setUserChangedStatus] = useState(false)
   const [extendTotalDays, setExtendTotalDays] = useState(0)
   const [extendToDate, setExtendToDate] = useState('')
   const [showExtendDialog, setShowExtendDialog] = useState(false)
@@ -225,6 +227,8 @@ export default function ChildDetailPage() {
     setFormPaymentAmount('')
     setFormPaymentChannel('')
     setFormClassId('')
+    setUserChangedStatus(false)
+    setAutoStatus(null)
     setShowEnrollmentForm(true)
   }
 
@@ -239,6 +243,16 @@ export default function ChildDetailPage() {
     setFormPaymentAmount(enr.payment_amount || '')
     setFormPaymentChannel(enr.payment_channel || '')
     setFormClassId(enr.class_id || '')
+    setUserChangedStatus(false)
+    // 根据现有结束日期确定自动建议状态
+    if (enr.end_date) {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const end = new Date(enr.end_date + 'T00:00:00')
+      setAutoStatus(end >= today ? '进行中' : '已结束')
+    } else {
+      setAutoStatus(null)
+    }
     setShowEnrollmentForm(true)
   }
 
@@ -246,6 +260,7 @@ export default function ChildDetailPage() {
   const calcEndDate = async (courseType: string, durationType: string, durationDays: string, startDate: string) => {
     if (!courseType || !durationType || !startDate) {
       setFormEndDate('')
+      setAutoStatus(null)
       return
     }
     const course = courses.find((c: any) => c.name === courseType)
@@ -259,11 +274,22 @@ export default function ChildDetailPage() {
       })
       if (res.code === 200 && res.data?.end_date) {
         setFormEndDate(res.data.end_date)
+        // 根据结束日期自动确定状态
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const end = new Date(res.data.end_date + 'T00:00:00')
+        const suggested = end >= today ? '进行中' : '已结束'
+        setAutoStatus(suggested)
+        if (!userChangedStatus) {
+          setFormStatus(suggested)
+        }
       } else {
         setFormEndDate('')
+        setAutoStatus(null)
       }
     } catch {
       setFormEndDate('')
+      setAutoStatus(null)
     }
   }
 
@@ -276,6 +302,25 @@ export default function ChildDetailPage() {
       Taro.showToast({ title: '请选择开始日期', icon: 'none' })
       return
     }
+
+    // 如果用户手动修改了状态且与系统建议不一致，弹出确认
+    const confirmSave = async (): Promise<boolean> => {
+      if (userChangedStatus && autoStatus && formStatus !== autoStatus) {
+        return new Promise((resolve) => {
+          Taro.showModal({
+            title: '提示',
+            content: '当前状态与系统建议不一致，确认保存吗？',
+            confirmColor: '#E8651A',
+            success: (res) => resolve(res.confirm),
+          })
+        })
+      }
+      return true
+    }
+
+    const confirmed = await confirmSave()
+    if (!confirmed) return
+
     setSubmitting(true)
     try {
       const payload: any = {
@@ -949,7 +994,7 @@ export default function ChildDetailPage() {
                       className={`px-3 py-2 rounded-lg text-sm ${
                         formStatus === s ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600'
                       }`}
-                      onClick={() => setFormStatus(s)}
+                      onClick={() => { setFormStatus(s); setUserChangedStatus(true) }}
                     >
                       <Text>{s}</Text>
                     </View>
