@@ -1052,8 +1052,8 @@ export default function ChildDetailPage() {
                 <Text className="block text-sm text-gray-500 text-center py-4">暂无顺延假期</Text>
               ) : (
                 extendDetails.map((item, idx) => {
-                  const typeLabel = item.type === 'all' ? '全园' : item.type === 'class' ? '班级' : '个人'
-                  const typeColor = item.type === 'all' ? 'bg-blue-100 text-blue-700' : item.type === 'class' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                  const typeLabel = item.type === '全园' ? '全园' : item.type === '班级' ? '班级' : '个人'
+                  const typeColor = item.type === '全园' ? 'bg-blue-100 text-blue-700' : item.type === '班级' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
                   return (
                     <View key={idx} className="flex flex-row items-center mb-3 pb-3" style={{ borderBottom: '1px solid #f0f0f0' }}>
                       <View className="flex-1">
