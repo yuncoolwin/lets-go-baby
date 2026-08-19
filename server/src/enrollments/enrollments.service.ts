@@ -145,12 +145,25 @@ export class EnrollmentsService {
     // 构建全园假期日期集合（holidays type=all ∪ holidays_old type=holiday）
     const holidaySet = new Set<string>();
 
-    // 展开 holidays type=all 的日期范围
+    // 展开 holidays type=all 的日期范围，并记录顺延原因
     if (allHolidays) {
       for (const h of allHolidays) {
         if (!h.start_date || !h.end_date) continue;
-        let current = this.toDateStr(h.start_date > startDate ? h.start_date : startDate);
-        const maxDate = this.toDateStr(h.end_date < endDate ? h.end_date : endDate);
+        const overlapStart = h.start_date > startDate ? h.start_date : startDate;
+        const overlapEnd = h.end_date < endDate ? h.end_date : endDate;
+        const overlapDays = Math.floor(
+          (new Date(overlapEnd).getTime() - new Date(overlapStart).getTime()) / 86400000
+        ) + 1;
+        if (overlapDays > 0) {
+          result.details.push({
+            name: h.name, type: 'all',
+            startDate: overlapStart,
+            endDate: overlapEnd,
+            overlapDays,
+          });
+        }
+        let current = this.toDateStr(overlapStart);
+        const maxDate = this.toDateStr(overlapEnd);
         while (current <= maxDate) {
           holidaySet.add(current);
           current = this.addDaysUTC(current, 1);
@@ -158,9 +171,10 @@ export class EnrollmentsService {
       }
     }
 
-    // 合并 holidays_old type=holiday
+    // 合并 holidays_old type=holiday，并记录顺延原因
     const startYear = parseInt(startDate.substring(0, 4));
     const endYear = parseInt(endDate.substring(0, 4));
+    const oldHolidayNames = new Map<string, string[]>();
     for (let y = startYear; y <= endYear; y++) {
       const { data: oldHolidays } = await this.client
         .from('holidays_old')
@@ -171,7 +185,18 @@ export class EnrollmentsService {
         const dateStr = h.date?.substring(0, 10);
         if (!dateStr || dateStr < startDate || dateStr > endDate) continue;
         holidaySet.add(dateStr);
+        if (!oldHolidayNames.has(h.name)) oldHolidayNames.set(h.name, []);
+        oldHolidayNames.get(h.name)!.push(dateStr);
       }
+    }
+    for (const [name, dates] of oldHolidayNames) {
+      dates.sort();
+      result.details.push({
+        name, type: 'all',
+        startDate: dates[0],
+        endDate: dates[dates.length - 1],
+        overlapDays: dates.length,
+      });
     }
 
     if (holidaySet.size === 0) return result;
