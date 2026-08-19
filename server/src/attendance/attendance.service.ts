@@ -329,26 +329,14 @@ export class AttendanceService {
   async getDates(classId: string, courseType?: string) {
     let query = this.client
       .from('attendance')
-      .select('date,course_type')
+      .select('date')
       .eq('class_id', classId);
     if (courseType) {
       query = query.eq('course_type', courseType);
     }
     const { data, error } = await query.order('date', { ascending: false });
     if (error) throw error;
-
-    // 按星期几过滤：周六只取周六托，工作日只取非周六托，周日排除
-    const filtered = (data || []).filter((r: any) => {
-      const dateStr = r.date?.split('T')[0];
-      if (!dateStr) return false;
-      const isSat = isSaturday(dateStr);
-      const isSun = isWeekend(dateStr) && !isSat;
-      if (isSun) return false;
-      if (isSat) return r.course_type === '周六托';
-      return r.course_type !== '周六托';
-    });
-
-    const dates = [...new Set(filtered.map((r: any) => r.date?.split('T')[0]) || [])];
+    const dates = [...new Set(data?.map((r: any) => r.date?.split('T')[0]) || [])];
     return dates;
   }
 }
