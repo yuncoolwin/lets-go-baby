@@ -136,6 +136,8 @@ export class EnrollmentsService {
 
     // 判断是否为周六托课程
     const isSaturdayCourse = enr.course_type?.includes('周六') || false;
+    // 固定月数课程（1个月/3个月/6个月/12个月）：法定节假日不顺延
+    const isMonthlyDuration = ['1个月', '3个月', '6个月', '12个月'].includes(enr.duration_type);
 
     // 查询全园假期：holidays 表 type=all
     const { data: allHolidays } = await this.client
@@ -175,33 +177,36 @@ export class EnrollmentsService {
       }
     }
 
-    // 合并 holidays_old type=holiday，并记录顺延原因
-    const startYear = parseInt(startDate.substring(0, 4));
-    const endYear = parseInt(endDate.substring(0, 4));
-    const oldHolidayNames = new Map<string, string[]>();
-    for (let y = startYear; y <= endYear; y++) {
-      const { data: oldHolidays } = await this.client
-        .from('holidays_old')
-        .select('date, name')
-        .eq('type', 'holiday')
-        .eq('year', y);
-      for (const h of oldHolidays || []) {
-        const dateStr = h.date?.substring(0, 10);
-        if (!dateStr || dateStr < startDate || dateStr > endDate) continue;
-        holidaySet.add(dateStr);
-        holidaySourceMap.set(dateStr, { name: h.name, type: 'all' });
-        if (!oldHolidayNames.has(h.name)) oldHolidayNames.set(h.name, []);
-        oldHolidayNames.get(h.name)!.push(dateStr);
+    // 固定月数课程：法定节假日不顺延
+    if (!isMonthlyDuration) {
+      // 合并 holidays_old type=holiday，并记录顺延原因
+      const startYear = parseInt(startDate.substring(0, 4));
+      const endYear = parseInt(endDate.substring(0, 4));
+      const oldHolidayNames = new Map<string, string[]>();
+      for (let y = startYear; y <= endYear; y++) {
+        const { data: oldHolidays } = await this.client
+          .from('holidays_old')
+          .select('date, name')
+          .eq('type', 'holiday')
+          .eq('year', y);
+        for (const h of oldHolidays || []) {
+          const dateStr = h.date?.substring(0, 10);
+          if (!dateStr || dateStr < startDate || dateStr > endDate) continue;
+          holidaySet.add(dateStr);
+          holidaySourceMap.set(dateStr, { name: h.name, type: 'all' });
+          if (!oldHolidayNames.has(h.name)) oldHolidayNames.set(h.name, []);
+          oldHolidayNames.get(h.name)!.push(dateStr);
+        }
       }
-    }
-    for (const [name, dates] of oldHolidayNames) {
-      dates.sort();
-      result.details.push({
-        name, type: '全园',
-        startDate: dates[0],
-        endDate: dates[dates.length - 1],
-        overlapDays: dates.length,
-      });
+      for (const [name, dates] of oldHolidayNames) {
+        dates.sort();
+        result.details.push({
+          name, type: '全园',
+          startDate: dates[0],
+          endDate: dates[dates.length - 1],
+          overlapDays: dates.length,
+        });
+      }
     }
 
     if (holidaySet.size === 0) return result;
