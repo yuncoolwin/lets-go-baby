@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { isSaturday, isWeekend } from '@/utils/date.util';
 
 @Injectable()
 export class AttendanceService {
@@ -58,11 +59,20 @@ export class AttendanceService {
       });
     }
 
+    // 按星期几过滤课程类型：周六只显示周六托，工作日只显示非周六托，周日报空
+    const isSat = isSaturday(targetDate);
+    const isSun = isWeekend(targetDate) && !isSat;
+    const filteredEnrollmentList = enrollmentList.filter(e => {
+      if (isSun) return false; // 周日不显示任何课程
+      if (isSat) return e.course_type === '周六托'; // 周六只显示周六托
+      return e.course_type !== '周六托'; // 工作日不显示周六托
+    });
+
     // 合并：每个幼儿按课程类型展开，每行一个 child_id + course_type 组合
     const childMap: Record<string, any> = {};
     childList.forEach(c => { childMap[c.id] = c; });
 
-    const mergedList = enrollmentList.map(e => {
+    const mergedList = filteredEnrollmentList.map(e => {
       const child = childMap[e.child_id];
       if (!child) return null;
       const key = `${e.child_id}__${e.course_type}`;
@@ -159,6 +169,12 @@ export class AttendanceService {
       if (queryDate && e.start_date && queryDate < e.start_date) continue;
       const effectiveEnd = e.extended_end_date || e.end_date;
       if (queryDate && effectiveEnd && queryDate > effectiveEnd) continue;
+      // 按星期几过滤课程类型
+      const isSat = isSaturday(queryDate);
+      const isSun = isWeekend(queryDate) && !isSat;
+      if (isSun) continue; // 周日不显示任何课程
+      if (isSat && ct !== '周六托') continue; // 周六只显示周六托
+      if (!isSat && ct === '周六托') continue; // 工作日不显示周六托
       if (!groupMap.has(ct)) groupMap.set(ct, []);
       groupMap.get(ct)!.push({
         child_id: e.child_id,
