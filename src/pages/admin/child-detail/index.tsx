@@ -544,8 +544,14 @@ export default function ChildDetailPage() {
                 </Text>
               </View>
               <View className="flex items-center gap-3 flex-shrink-0 pt-1">
-                <Pencil size={18} color="#999" onClick={startEditing} />
-                {!isReadonly && <Trash2 size={18} color="#E8651A" onClick={handleDelete} />}
+                {isEditingChild ? (
+                  <X size={20} color="#666" onClick={cancelEditing} />
+                ) : (
+                  <>
+                    <Pencil size={18} color="#999" onClick={startEditing} />
+                    {!isReadonly && <Trash2 size={18} color="#E8651A" onClick={handleDelete} />}
+                  </>
+                )}
               </View>
             </View>
 
