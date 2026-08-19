@@ -140,7 +140,7 @@ export class HolidaysService {
 
   /**
    * 获取指定年份的节假日日期集合（用于日期计算器）
-   * 将 holidays 表的日期范围展开为 Set<string>
+   * 数据源：holidays 表 type=all 的日期范围 + holidays_old 表所有日期，取并集去重
    */
   async getDateSets(year: number): Promise<{ holidays: Set<string>; workWeekends: Set<string> }> {
     const holidays = new Set<string>();
@@ -149,7 +149,7 @@ export class HolidaysService {
     const yearStart = `${year}-01-01`;
     const yearEnd = `${year}-12-31`;
 
-    // 查询全园假期（type='all'）
+    // 1. 查询 holidays 表全园假期（type='all'），展开日期范围
     const { data: allHolidays } = await this.supabase
       .from('holidays')
       .select('*')
@@ -157,7 +157,6 @@ export class HolidaysService {
       .lte('start_date', yearEnd)
       .gte('end_date', yearStart);
 
-    // 将日期范围展开为单个日期
     for (const h of allHolidays || []) {
       const start = new Date(h.start_date);
       const end = new Date(h.end_date);
@@ -166,6 +165,22 @@ export class HolidaysService {
         const dateStr = current.toISOString().split('T')[0];
         holidays.add(dateStr);
         current.setUTCDate(current.getUTCDate() + 1);
+      }
+    }
+
+    // 2. 查询 holidays_old 表（法定节假日+调休补班）
+    const { data: oldHolidays } = await this.supabase
+      .from('holidays_old')
+      .select('date, type')
+      .eq('year', year);
+
+    for (const h of oldHolidays || []) {
+      const dateStr = h.date?.substring(0, 10);
+      if (!dateStr) continue;
+      if (h.type === 'work_weekend') {
+        workWeekends.add(dateStr);
+      } else {
+        holidays.add(dateStr);
       }
     }
 

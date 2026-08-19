@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
-import { StatutoryHolidaysService } from '@/statutory-holidays/statutory-holidays.service';
 
 export interface HolidayDetail {
   name: string;
@@ -67,7 +66,6 @@ export interface UpdateEnrollmentDto {
 
 @Injectable()
 export class EnrollmentsService {
-  private readonly statutoryHolidaysService = new StatutoryHolidaysService();
 
   private get client() {
     return getSupabaseClient();
@@ -178,6 +176,31 @@ export class EnrollmentsService {
       }
     }
 
+    // 合并 holidays_old 表法定节假日（type='holiday'）到 holidayDates
+    const startYear = parseInt(startDate.substring(0, 4));
+    const endYear = parseInt(endDate.substring(0, 4));
+    for (let y = startYear; y <= endYear; y++) {
+      const { data: oldHolidays } = await this.client
+        .from('holidays_old')
+        .select('date, name')
+        .eq('type', 'holiday')
+        .eq('year', y);
+      for (const h of oldHolidays || []) {
+        const dateStr = h.date?.substring(0, 10);
+        if (!dateStr || dateStr < startDate || dateStr > endDate) continue;
+        if (!holidayDates.has(dateStr)) {
+          holidayDates.add(dateStr);
+          result.details.push({
+            name: h.name,
+            type: 'statutory',
+            startDate: dateStr,
+            endDate: dateStr,
+            overlapDays: 1,
+          });
+        }
+      }
+    }
+
     const totalHolidayDays = holidayDates.size;
     if (totalHolidayDays === 0) return result;
 
@@ -232,8 +255,36 @@ export class EnrollmentsService {
     const isSaturdayOnly = enr.course_type === '周六托';
 
     const year = parseInt(enr.start_date.substring(0, 4));
-    const { holidays: statutoryHolidays } =
-      await this.statutoryHolidaysService.getDateSets(year);
+
+    // 统一假期数据源：holidays 表 type=all ∪ holidays_old 表 type='holiday'
+    const allHolidays = new Set<string>();
+    // 查询 holidays 表全园假期
+    const { data: holidaysData } = await this.client
+      .from('holidays')
+      .select('*')
+      .eq('type', 'all')
+      .lte('start_date', enr.end_date)
+      .gte('end_date', enr.start_date);
+    for (const h of holidaysData || []) {
+      let current = h.start_date > enr.start_date ? h.start_date : enr.start_date;
+      const maxDate = h.end_date < enr.end_date ? h.end_date : enr.end_date;
+      while (current <= maxDate) {
+        allHolidays.add(this.toDateStr(current));
+        current = this.addDaysUTC(current, 1);
+      }
+    }
+    // 查询 holidays_old 表法定节假日
+    const { data: oldHolidays } = await this.client
+      .from('holidays_old')
+      .select('date')
+      .eq('type', 'holiday')
+      .eq('year', year);
+    for (const h of oldHolidays || []) {
+      const dateStr = h.date?.substring(0, 10);
+      if (dateStr && dateStr >= enr.start_date && dateStr <= enr.end_date) {
+        allHolidays.add(dateStr);
+      }
+    }
 
     const { data: attRecords } = await this.client
       .from('attendance')
@@ -255,7 +306,7 @@ export class EnrollmentsService {
       const dateUtc = Date.UTC(y, m - 1, d);
       const dayOfWeek = new Date(dateUtc).getDay();
       const dateStr = this.toDateStr(current);
-      const isHoliday = statutoryHolidays.has(dateStr);
+      const isHoliday = allHolidays.has(dateStr);
       const isTransferWorkday = transferWorkdays.has(dateStr);
       if (isSaturdayOnly) {
         if (dayOfWeek === 6 && !isHoliday) totalDays++;
@@ -509,7 +560,7 @@ export class EnrollmentsService {
       return false;
     });
 
-    // 展开假期日期范围并追加到结果
+    // 展开 holidays 表假期日期范围并追加到结果
     const holidaySet = new Set<string>();
     for (const h of matchingHolidays) {
       let current = h.start_date > enr.start_date ? h.start_date : enr.start_date;
@@ -521,6 +572,25 @@ export class EnrollmentsService {
           result.push({ date: dateStr, status: 'holiday', name: h.name || '假期' });
         }
         current = this.addDaysUTC(current, 1);
+      }
+    }
+
+    // 查询 holidays_old 表法定节假日（type='holiday'），与 holidays 表取并集去重
+    const startYear = parseInt(enr.start_date.substring(0, 4));
+    const endYear = parseInt(endDate.substring(0, 4));
+    for (let y = startYear; y <= endYear; y++) {
+      const { data: oldHolidays } = await this.client
+        .from('holidays_old')
+        .select('date, name')
+        .eq('type', 'holiday')
+        .eq('year', y);
+      for (const h of oldHolidays || []) {
+        const dateStr = h.date?.substring(0, 10);
+        if (!dateStr || dateStr < enr.start_date || dateStr > endDate) continue;
+        if (!holidaySet.has(dateStr)) {
+          holidaySet.add(dateStr);
+          result.push({ date: dateStr, status: 'holiday', name: h.name || '法定节假日' });
+        }
       }
     }
 

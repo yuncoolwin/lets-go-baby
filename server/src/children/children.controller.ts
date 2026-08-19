@@ -2,13 +2,13 @@ import { Controller, Get, Post, Patch, Delete, Body, Param, Query, HttpCode } fr
 import { ChildrenService } from './children.service';
 import { CreateChildDto, UpdateChildDto, ChildQueryDto } from './dto/create-child.dto';
 import { createDateCalculator } from './utils/date-calculator';
-import { StatutoryHolidaysService } from '@/statutory-holidays/statutory-holidays.service';
+import { HolidaysService } from '@/holidays/holidays.service';
 
 @Controller('children')
 export class ChildrenController {
   constructor(
     private readonly childrenService: ChildrenService,
-    private readonly statutoryHolidaysService: StatutoryHolidaysService,
+    private readonly holidaysService: HolidaysService,
   ) {}
 
   @Post()
@@ -48,7 +48,7 @@ export class ChildrenController {
     // 从数据库读取节假日数据
     try {
       const year = body.start_date ? new Date(body.start_date).getFullYear() : 2026;
-      const { holidays, workWeekends } = await this.statutoryHolidaysService.getDateSets(year);
+      const { holidays, workWeekends } = await this.holidaysService.getDateSets(year);
       const calculator = createDateCalculator(holidays, workWeekends);
       // 报名时的结束日期：只排除周六日，法定节假日算入工作日
       const endDate = calculator.calculateEndDateWithoutHolidays(
