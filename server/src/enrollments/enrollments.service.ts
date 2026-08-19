@@ -159,7 +159,7 @@ export class EnrollmentsService {
         ) + 1;
         if (overlapDays > 0) {
           result.details.push({
-            name: h.name, type: 'all',
+            name: h.name, type: '全园',
             startDate: overlapStart,
             endDate: overlapEnd,
             overlapDays,
@@ -197,7 +197,7 @@ export class EnrollmentsService {
     for (const [name, dates] of oldHolidayNames) {
       dates.sort();
       result.details.push({
-        name, type: 'all',
+        name, type: '全园',
         startDate: dates[0],
         endDate: dates[dates.length - 1],
         overlapDays: dates.length,
@@ -295,9 +295,10 @@ export class EnrollmentsService {
         current = addDays(current, 1);
       }
       if (overlapCount > 0) {
+        const displayType = h.type === 'class' ? '班级' : h.type === 'personal' ? '个人' : h.type;
         result.details.push({
           name: h.name,
-          type: h.type,
+          type: displayType,
           startDate: h.start_date,
           endDate: h.end_date,
           overlapDays: overlapCount,
