@@ -151,20 +151,9 @@ export class EnrollmentsService {
         if (!h.start_date || !h.end_date) continue;
         let current = this.toDateStr(h.start_date > startDate ? h.start_date : startDate);
         const maxDate = this.toDateStr(h.end_date < endDate ? h.end_date : endDate);
-        let overlapCount = 0;
         while (current <= maxDate) {
           holidaySet.add(current);
-          overlapCount++;
           current = this.addDaysUTC(current, 1);
-        }
-        if (overlapCount > 0) {
-          result.details.push({
-            name: h.name,
-            type: 'all',
-            startDate: h.start_date,
-            endDate: h.end_date,
-            overlapDays: overlapCount,
-          });
         }
       }
     }
@@ -178,24 +167,10 @@ export class EnrollmentsService {
         .select('date, name')
         .eq('type', 'holiday')
         .eq('year', y);
-      // 按名称分组统计 holidays_old 的重叠天数
-      const oldHolidayMap = new Map<string, { name: string; dates: string[] }>();
       for (const h of oldHolidays || []) {
         const dateStr = h.date?.substring(0, 10);
         if (!dateStr || dateStr < startDate || dateStr > endDate) continue;
         holidaySet.add(dateStr);
-        const name = h.name || '法定节假日';
-        if (!oldHolidayMap.has(name)) oldHolidayMap.set(name, { name, dates: [] });
-        oldHolidayMap.get(name)!.dates.push(dateStr);
-      }
-      for (const [, info] of oldHolidayMap) {
-        result.details.push({
-          name: info.name,
-          type: 'statutory',
-          startDate: info.dates[0],
-          endDate: info.dates[info.dates.length - 1],
-          overlapDays: info.dates.length,
-        });
       }
     }
 
