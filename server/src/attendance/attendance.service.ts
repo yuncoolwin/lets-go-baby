@@ -41,17 +41,20 @@ export class AttendanceService {
       recordMap[key] = r;
     });
 
-    // 查询该班级进行中的报读记录（不按 child_id 去重）
-    const enrollmentList: Array<{ child_id: string; course_type: string }> = [];
+    // 查询该班级在所选日期区间内的报读记录（按日期范围过滤，不限制状态）
+    const enrollmentList: Array<{ child_id: string; course_type: string; start_date: string; end_date: string; extended_end_date: string | null }> = [];
     if (childIds.length > 0) {
       const { data: enrollments } = await this.client
         .from('enrollments')
-        .select('child_id, course_type')
+        .select('child_id, course_type, start_date, end_date, extended_end_date')
         .in('child_id', childIds)
-        .eq('class_id', classId)
-        .eq('status', '进行中');
+        .eq('class_id', classId);
       (enrollments || []).forEach(e => {
-        enrollmentList.push({ child_id: e.child_id, course_type: e.course_type });
+        // 所选日期在 start_date 到 extended_end_date（或 end_date）区间内才返回
+        const effectiveEnd = e.extended_end_date || e.end_date;
+        if (e.start_date && targetDate >= e.start_date && targetDate <= effectiveEnd) {
+          enrollmentList.push({ child_id: e.child_id, course_type: e.course_type, start_date: e.start_date, end_date: e.end_date, extended_end_date: e.extended_end_date });
+        }
       });
     }
 
@@ -117,12 +120,11 @@ export class AttendanceService {
     }
     console.log(`[AdminOverview] Class found: ${cls.name}`);
 
-    // 查询该班级的进行中报读
+    // 查询该班级在所选日期区间内的报读记录（按日期范围过滤，不限制状态）
     const { data: enrollments } = await this.client
       .from('enrollments')
       .select('id, child_id, course_type, course_id, status, start_date, end_date, extended_end_date')
-      .eq('class_id', classId)
-      .eq('status', '进行中');
+      .eq('class_id', classId);
 
     const enrollmentList = enrollments || [];
     console.log(`[AdminOverview] Enrollments count: ${enrollmentList.length}`);
@@ -155,7 +157,8 @@ export class AttendanceService {
     for (const e of enrollmentList) {
       const ct = e.course_type;
       if (queryDate && e.start_date && queryDate < e.start_date) continue;
-      if (queryDate && e.end_date && queryDate > e.end_date) continue;
+      const effectiveEnd = e.extended_end_date || e.end_date;
+      if (queryDate && effectiveEnd && queryDate > effectiveEnd) continue;
       if (!groupMap.has(ct)) groupMap.set(ct, []);
       groupMap.get(ct)!.push({
         child_id: e.child_id,
