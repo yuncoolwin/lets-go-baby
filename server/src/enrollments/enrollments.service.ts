@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { addDays, isWeekend, isSaturday } from '@/utils/date.util';
 
 export interface HolidayDetail {
   name: string;
@@ -166,7 +167,7 @@ export class EnrollmentsService {
         const maxDate = this.toDateStr(overlapEnd);
         while (current <= maxDate) {
           holidaySet.add(current);
-          current = this.addDaysUTC(current, 1);
+          current = addDays(current, 1);
         }
       }
     }
@@ -205,15 +206,13 @@ export class EnrollmentsService {
       // 周六托专属顺延逻辑：只统计假期中落在周六的天数
       let saturdayCount = 0;
       for (const dateStr of holidaySet) {
-        const [y, m, d] = dateStr.split('-').map(Number);
-        const dayOfWeek = new Date(Date.UTC(y, m - 1, d)).getDay();
-        if (dayOfWeek === 6) saturdayCount++;
+        if (isSaturday(dateStr)) saturdayCount++;
       }
 
       if (saturdayCount === 0) return result;
 
       // 顺延天数 = 假期周六数量，调整到下一个周六（上课日）
-      let extendedDate = this.addDays(endDate, saturdayCount);
+      let extendedDate = addDays(endDate, saturdayCount);
       const [ey, em, ed] = extendedDate.split('-').map(Number);
       const rawDate = new Date(Date.UTC(ey, em - 1, ed));
       if (rawDate.getUTCDay() !== 6) {
@@ -264,7 +263,7 @@ export class EnrollmentsService {
       while (current <= maxDate) {
         holidaySet.add(current);
         overlapCount++;
-        current = this.addDaysUTC(current, 1);
+        current = addDays(current, 1);
       }
       if (overlapCount > 0) {
         result.details.push({
@@ -284,11 +283,8 @@ export class EnrollmentsService {
     let remainingDays = totalHolidayDays;
 
     while (remainingDays > 0) {
-      extendedDate = this.addDays(extendedDate, 1);
-      const [y, m, d] = extendedDate.split('-').map(Number);
-      const dateUtc = Date.UTC(y, m - 1, d);
-      const dayOfWeek = new Date(dateUtc).getDay();
-      if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+      extendedDate = addDays(extendedDate, 1);
+      if (isWeekend(extendedDate)) continue;
       if (holidaySet.has(extendedDate)) continue;
       remainingDays--;
     }
@@ -346,7 +342,7 @@ export class EnrollmentsService {
       const maxDate = h.end_date < enr.end_date ? h.end_date : enr.end_date;
       while (current <= maxDate) {
         allHolidays.add(this.toDateStr(current));
-        current = this.addDaysUTC(current, 1);
+        current = addDays(current, 1);
       }
     }
     // 查询 holidays_old 表法定节假日
@@ -379,18 +375,15 @@ export class EnrollmentsService {
     let totalDays = 0;
     let current = enr.start_date;
     while (current <= enr.end_date) {
-      const [y, m, d] = current.split('-').map(Number);
-      const dateUtc = Date.UTC(y, m - 1, d);
-      const dayOfWeek = new Date(dateUtc).getDay();
       const dateStr = this.toDateStr(current);
       const isHoliday = allHolidays.has(dateStr);
       const isTransferWorkday = transferWorkdays.has(dateStr);
       if (isSaturdayOnly) {
-        if (dayOfWeek === 6 && !isHoliday) totalDays++;
+        if (isSaturday(dateStr) && !isHoliday) totalDays++;
       } else {
-        if ((dayOfWeek !== 0 && dayOfWeek !== 6 || isTransferWorkday) && !isHoliday) totalDays++;
+        if ((!isWeekend(dateStr) || isTransferWorkday) && !isHoliday) totalDays++;
       }
-      current = this.addDaysUTC(current, 1);
+      current = addDays(current, 1);
     }
 
     const attEndDate = enr.extended_end_date || enr.end_date;
@@ -648,7 +641,7 @@ export class EnrollmentsService {
           holidaySet.add(dateStr);
           result.push({ date: dateStr, status: 'holiday', name: h.name || '假期' });
         }
-        current = this.addDaysUTC(current, 1);
+        current = addDays(current, 1);
       }
     }
 

@@ -3,6 +3,7 @@ import { ChildrenService } from './children.service';
 import { CreateChildDto, UpdateChildDto, ChildQueryDto } from './dto/create-child.dto';
 import { createDateCalculator } from './utils/date-calculator';
 import { HolidaysService } from '@/holidays/holidays.service';
+import { parseDate } from '@/utils/date.util';
 
 @Controller('children')
 export class ChildrenController {
@@ -47,7 +48,7 @@ export class ChildrenController {
     }
     // 从数据库读取节假日数据
     try {
-      const year = body.start_date ? new Date(body.start_date).getFullYear() : 2026;
+      const year = body.start_date ? parseDate(body.start_date).getUTCFullYear() : 2026;
       const { holidays, workWeekends } = await this.holidaysService.getDateSets(year);
       const calculator = createDateCalculator(holidays, workWeekends);
       // 报名时的结束日期：只排除周六日，法定节假日算入工作日
