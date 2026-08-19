@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
-import { parseDate, addDays, diffDays, isWeekend, isSaturday } from '@/utils/date.util';
 
 export interface HolidayDetail {
   name: string;
@@ -86,10 +85,16 @@ export class EnrollmentsService {
   /**
    * 日期字符串加减天数（纯字符串操作，避免 timezone 问题）
    * 输入/输出格式均为 YYYY-MM-DD
-   * @deprecated 使用 addDays from @/utils/date.util
    */
   private addDays(dateStr: string, days: number): string {
-    return addDays(dateStr, days);
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) return dateStr;
+    const [, y, m, d] = match;
+    const date = new Date(parseInt(y), parseInt(m) - 1, parseInt(d) + days);
+    const yy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yy}-${mm}-${dd}`;
   }
 
   private toDateStr(dateStr: string): string {
@@ -100,7 +105,14 @@ export class EnrollmentsService {
   }
 
   private addDaysUTC(dateStr: string, days: number): string {
-    return addDays(dateStr, days);
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) return dateStr;
+    const [, y, m, d] = match;
+    const date = new Date(Date.UTC(parseInt(y), parseInt(m) - 1, parseInt(d) + days));
+    const ny = date.getUTCFullYear();
+    const nm = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const nd = String(date.getUTCDate()).padStart(2, '0');
+    return `${ny}-${nm}-${nd}`;
   }
 
   /**
@@ -139,7 +151,9 @@ export class EnrollmentsService {
         if (!h.start_date || !h.end_date) continue;
         const overlapStart = h.start_date > startDate ? h.start_date : startDate;
         const overlapEnd = h.end_date < endDate ? h.end_date : endDate;
-        const overlapDays = diffDays(overlapStart, overlapEnd) + 1;
+        const overlapDays = Math.floor(
+          (new Date(overlapEnd).getTime() - new Date(overlapStart).getTime()) / 86400000
+        ) + 1;
         if (overlapDays > 0) {
           result.details.push({
             name: h.name, type: 'all',
@@ -191,18 +205,24 @@ export class EnrollmentsService {
       // 周六托专属顺延逻辑：只统计假期中落在周六的天数
       let saturdayCount = 0;
       for (const dateStr of holidaySet) {
-        if (isSaturday(dateStr)) saturdayCount++;
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const dayOfWeek = new Date(Date.UTC(y, m - 1, d)).getDay();
+        if (dayOfWeek === 6) saturdayCount++;
       }
 
       if (saturdayCount === 0) return result;
 
       // 顺延天数 = 假期周六数量，调整到下一个周六（上课日）
       let extendedDate = this.addDays(endDate, saturdayCount);
-      const rawDate = parseDate(extendedDate);
+      const [ey, em, ed] = extendedDate.split('-').map(Number);
+      const rawDate = new Date(Date.UTC(ey, em - 1, ed));
       if (rawDate.getUTCDay() !== 6) {
         rawDate.setUTCDate(rawDate.getUTCDate() + ((6 - rawDate.getUTCDay() + 7) % 7));
       }
-      extendedDate = `${rawDate.getUTCFullYear()}-${String(rawDate.getUTCMonth() + 1).padStart(2, '0')}-${String(rawDate.getUTCDate()).padStart(2, '0')}`;
+      const ey2 = rawDate.getUTCFullYear();
+      const em2 = String(rawDate.getUTCMonth() + 1).padStart(2, '0');
+      const ed2 = String(rawDate.getUTCDate()).padStart(2, '0');
+      extendedDate = `${ey2}-${em2}-${ed2}`;
       result.extended_end_date = extendedDate;
       result.details = [{
         name: '周六托顺延',
@@ -267,7 +287,7 @@ export class EnrollmentsService {
       extendedDate = this.addDays(extendedDate, 1);
       const [y, m, d] = extendedDate.split('-').map(Number);
       const dateUtc = Date.UTC(y, m - 1, d);
-      const dayOfWeek = parseDate(extendedDate).getUTCDay();
+      const dayOfWeek = new Date(dateUtc).getDay();
       if (dayOfWeek === 0 || dayOfWeek === 6) continue;
       if (holidaySet.has(extendedDate)) continue;
       remainingDays--;
@@ -359,7 +379,9 @@ export class EnrollmentsService {
     let totalDays = 0;
     let current = enr.start_date;
     while (current <= enr.end_date) {
-      const dayOfWeek = parseDate(current).getUTCDay();
+      const [y, m, d] = current.split('-').map(Number);
+      const dateUtc = Date.UTC(y, m - 1, d);
+      const dayOfWeek = new Date(dateUtc).getDay();
       const dateStr = this.toDateStr(current);
       const isHoliday = allHolidays.has(dateStr);
       const isTransferWorkday = transferWorkdays.has(dateStr);

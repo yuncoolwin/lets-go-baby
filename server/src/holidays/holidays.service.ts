@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { EnrollmentsService } from '@/enrollments/enrollments.service';
-import { parseDate, addDays } from '@/utils/date.util';
 
 @Injectable()
 export class HolidaysService {
@@ -159,11 +158,13 @@ export class HolidaysService {
       .gte('end_date', yearStart);
 
     for (const h of allHolidays || []) {
-      let current = h.start_date;
-      const end = h.end_date;
+      const start = new Date(h.start_date);
+      const end = new Date(h.end_date);
+      const current = new Date(start);
       while (current <= end) {
-        holidays.add(current);
-        current = addDays(current, 1);
+        const dateStr = current.toISOString().split('T')[0];
+        holidays.add(dateStr);
+        current.setUTCDate(current.getUTCDate() + 1);
       }
     }
 

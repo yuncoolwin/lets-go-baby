@@ -2,7 +2,6 @@ import { Controller, Get, Post, Patch, Delete, Body, Param, Query, HttpCode } fr
 import { ChildrenService } from './children.service';
 import { CreateChildDto, UpdateChildDto, ChildQueryDto } from './dto/create-child.dto';
 import { createDateCalculator } from './utils/date-calculator';
-import { parseDate } from '@/utils/date.util';
 import { HolidaysService } from '@/holidays/holidays.service';
 
 @Controller('children')

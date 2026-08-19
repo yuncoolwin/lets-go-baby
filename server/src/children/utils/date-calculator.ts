@@ -4,7 +4,6 @@
  * 支持工作日、自然月、周六计数
  * 节假日数据可从数据库加载，也可使用默认硬编码数据
  */
-import { parseDate, addDays, isWeekend, isSaturday } from '@/utils/date.util'
 
 // ====== 2026年默认节假日数据（硬编码兜底） ======
 const DEFAULT_HOLIDAYS = new Set<string>([
@@ -36,29 +35,39 @@ export function createDateCalculator(
   workWeekends: Set<string> = DEFAULT_WORK_WEEKENDS,
 ) {
   function isWorkingDay(dateStr: string): boolean {
+    const [y, m, d] = dateStr.split('-').map(Number)
+    const date = new Date(Date.UTC(y, m - 1, d))
+    const dayOfWeek = date.getUTCDay()
+
     if (workWeekends.has(dateStr)) return true
     if (holidays.has(dateStr)) return false
-    return !isWeekend(dateStr)
+    if (dayOfWeek === 0 || dayOfWeek === 6) return false
+    return true
   }
 
   function isNonHolidaySaturday(dateStr: string): boolean {
-    if (!isSaturday(dateStr)) return false
+    const [y, m, d] = dateStr.split('-').map(Number)
+    const date = new Date(Date.UTC(y, m - 1, d))
+    const dayOfWeek = date.getUTCDay()
+    if (dayOfWeek !== 6) return false
     if (workWeekends.has(dateStr)) return false
     if (holidays.has(dateStr)) return false
     return true
   }
 
   function addWorkingDays(startDate: string, numDays: number): string {
-    let current = startDate
+    const [y, m, d] = startDate.split('-').map(Number)
+    const current = new Date(Date.UTC(y, m - 1, d))
     let count = 0
     while (count < numDays) {
-      if (isWorkingDay(current)) {
+      const dateStr = current.toISOString().split('T')[0]
+      if (isWorkingDay(dateStr)) {
         count++
         if (count === numDays) break
       }
-      current = addDays(current, 1)
+      current.setUTCDate(current.getUTCDate() + 1)
     }
-    return current
+    return current.toISOString().split('T')[0]
   }
 
   function addCalendarMonths(startDate: string, numMonths: number): string {
@@ -66,23 +75,26 @@ export function createDateCalculator(
     const totalMonths = (m - 1) + numMonths
     const targetYear = y + Math.floor(totalMonths / 12)
     const targetMonth = totalMonths % 12
-    const lastDay = new Date(targetYear, targetMonth + 1, 0).getDate()
+    const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate()
     const targetDay = Math.min(d, lastDay)
     // 结束日期 = 对应日期 - 1天
-    return addDays(`${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`, -1)
+    const endDate = new Date(Date.UTC(targetYear, targetMonth, targetDay - 1))
+    return endDate.toISOString().split('T')[0]
   }
 
   function addSaturdays(startDate: string, numDays: number): string {
-    let current = startDate
+    const [y, m, d] = startDate.split('-').map(Number)
+    const current = new Date(Date.UTC(y, m - 1, d))
     let count = 0
     while (count < numDays) {
-      if (isNonHolidaySaturday(current)) {
+      const dateStr = current.toISOString().split('T')[0]
+      if (isNonHolidaySaturday(dateStr)) {
         count++
         if (count === numDays) break
       }
-      current = addDays(current, 1)
+      current.setUTCDate(current.getUTCDate() + 1)
     }
-    return current
+    return current.toISOString().split('T')[0]
   }
 
   function getDurationDays(duration: string, customDays: string): number {
@@ -115,13 +127,15 @@ export function createDateCalculator(
       let cur = start
       let added = 0
       while (added < count) {
-        if (!isWeekend(cur)) {
-          added++
-          if (added === count) break
-        }
-        cur = addDays(cur, 1)
+        const [y, m, d] = cur.split('-').map(Number)
+        const dow = new Date(Date.UTC(y, m - 1, d)).getDay()
+        if (dow !== 0 && dow !== 6) added++
+        const nd = new Date(Date.UTC(y, m - 1, d + 1))
+        cur = nd.getUTCFullYear() + '-' + String(nd.getUTCMonth() + 1).padStart(2, '0') + '-' + String(nd.getUTCDate()).padStart(2, '0')
       }
-      return cur
+      const [ly, lm, ld] = cur.split('-').map(Number)
+      const prev = new Date(Date.UTC(ly, lm - 1, ld - 1))
+      return prev.getUTCFullYear() + '-' + String(prev.getUTCMonth() + 1).padStart(2, '0') + '-' + String(prev.getUTCDate()).padStart(2, '0')
     }
     // 如果传入了 dateCalcRule，优先使用它来判断日期计算规则
     const useSaturday = dateCalcRule ? dateCalcRule.includes('周六') : isSaturdayType
