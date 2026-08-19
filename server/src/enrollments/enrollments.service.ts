@@ -239,11 +239,8 @@ export class EnrollmentsService {
           overlapDays: dates.length,
         });
       }
-      // 按优先级排序：全园排在前面
-      details.sort((a, b) => {
-        const priority = { '全园': 0, '班级': 1, '个人': 2 };
-        return (priority[a.type] ?? 9) - (priority[b.type] ?? 9);
-      });
+      // 按开始日期排序：早的放前面
+      details.sort((a, b) => a.startDate.localeCompare(b.startDate));
 
       // 顺延天数 = 假期周六数量，调整到下一个周六（上课日）
       let extendedDate = addDays(endDate, saturdayCount);
@@ -320,6 +317,8 @@ export class EnrollmentsService {
     }
 
     result.extended_end_date = extendedDate;
+    // 按开始日期排序：早的放前面
+    result.details.sort((a, b) => a.startDate.localeCompare(b.startDate));
     return result;
   }
 
