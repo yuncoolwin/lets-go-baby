@@ -187,8 +187,17 @@ export class EnrollmentsService {
 
       if (saturdayCount === 0) return result;
 
-      // 顺延天数 = 假期周六数量
-      const extendedDate = this.addDays(endDate, saturdayCount);
+      // 顺延天数 = 假期周六数量，调整到下一个周六（上课日）
+      let extendedDate = this.addDays(endDate, saturdayCount);
+      const [ey, em, ed] = extendedDate.split('-').map(Number);
+      const rawDate = new Date(ey, em - 1, ed);
+      if (rawDate.getDay() !== 6) {
+        rawDate.setDate(rawDate.getDate() + ((6 - rawDate.getDay() + 7) % 7));
+      }
+      const ey2 = rawDate.getFullYear();
+      const em2 = String(rawDate.getMonth() + 1).padStart(2, '0');
+      const ed2 = String(rawDate.getDate()).padStart(2, '0');
+      extendedDate = `${ey2}-${em2}-${ed2}`;
       result.extended_end_date = extendedDate;
       result.details = [{
         name: '周六托顺延',
