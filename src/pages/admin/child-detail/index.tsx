@@ -365,11 +365,14 @@ export default function ChildDetailPage() {
       console.log('[AttendanceCalendar] open calendar, response:', res.data)
       const data = res.data || []
       setCurrentAttendanceCalendar(prev => prev ? { ...prev, attendanceData: data } : null)
-      // 默认显示月份：取考勤记录中最晚日期所在月，无记录则取开始日期所在月
-      const dates = data.map((item: any) => item.date).filter(Boolean)
-      if (dates.length > 0) {
-        dates.sort()
-        const latest = dates[dates.length - 1]
+      // 默认显示月份：取考勤记录中（排除放假/无记录）最晚日期所在月，全部为放假或无记录则取开始日期所在月
+      const validStatuses = ['full', 'half', 'present', 'leave', 'absent']
+      const validDates = data
+        .filter((item: any) => item.date && validStatuses.includes(item.status))
+        .map((item: any) => item.date)
+      if (validDates.length > 0) {
+        validDates.sort()
+        const latest = validDates[validDates.length - 1]
         const dt = new Date(latest)
         setCalDisplayYear(dt.getFullYear())
         setCalDisplayMonth(dt.getMonth() + 1)
