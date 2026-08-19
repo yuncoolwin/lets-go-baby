@@ -363,7 +363,21 @@ export default function ChildDetailPage() {
     try {
       const res: any = await enrollmentApi.getAttendanceCalendar(enr.id)
       console.log('[AttendanceCalendar] open calendar, response:', res.data)
-      setCurrentAttendanceCalendar(prev => prev ? { ...prev, attendanceData: res.data || [] } : null)
+      const data = res.data || []
+      setCurrentAttendanceCalendar(prev => prev ? { ...prev, attendanceData: data } : null)
+      // 默认显示月份：取考勤记录中最晚日期所在月，无记录则取开始日期所在月
+      const dates = data.map((item: any) => item.date).filter(Boolean)
+      if (dates.length > 0) {
+        dates.sort()
+        const latest = dates[dates.length - 1]
+        const dt = new Date(latest)
+        setCalDisplayYear(dt.getFullYear())
+        setCalDisplayMonth(dt.getMonth() + 1)
+      } else {
+        const dt = new Date(enr.start_date)
+        setCalDisplayYear(dt.getFullYear())
+        setCalDisplayMonth(dt.getMonth() + 1)
+      }
     } catch (e) {
       console.error('[AttendanceCalendar] load error:', e)
       Taro.showToast({ title: '加载考勤数据失败', icon: 'none' })
