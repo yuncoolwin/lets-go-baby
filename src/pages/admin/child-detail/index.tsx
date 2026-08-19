@@ -707,7 +707,7 @@ export default function ChildDetailPage() {
                     </View>
                   </View>
                   {!isReadonly && (
-                    <View className="absolute bottom-3 right-3 flex items-center gap-1">
+                    <View className="absolute bottom-3 right-3 flex items-center gap-3">
                       <View onClick={() => openEditEnrollment(enr)}>
                         <Pencil size={14} color="#999" />
                       </View>
