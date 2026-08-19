@@ -145,6 +145,8 @@ export class EnrollmentsService {
 
     // 构建全园假期日期集合（holidays type=all ∪ holidays_old type=holiday）
     const holidaySet = new Set<string>();
+    // 记录每个日期来自哪个假期（用于顺延原因归因）
+    const holidaySourceMap = new Map<string, { name: string; type: string }>();
 
     // 展开 holidays type=all 的日期范围，并记录顺延原因
     if (allHolidays) {
@@ -167,6 +169,7 @@ export class EnrollmentsService {
         const maxDate = this.toDateStr(overlapEnd);
         while (current <= maxDate) {
           holidaySet.add(current);
+          holidaySourceMap.set(current, { name: h.name, type: 'all' });
           current = addDays(current, 1);
         }
       }
@@ -186,6 +189,7 @@ export class EnrollmentsService {
         const dateStr = h.date?.substring(0, 10);
         if (!dateStr || dateStr < startDate || dateStr > endDate) continue;
         holidaySet.add(dateStr);
+        holidaySourceMap.set(dateStr, { name: h.name, type: 'all' });
         if (!oldHolidayNames.has(h.name)) oldHolidayNames.set(h.name, []);
         oldHolidayNames.get(h.name)!.push(dateStr);
       }
@@ -204,12 +208,42 @@ export class EnrollmentsService {
 
     if (isSaturdayCourse) {
       // 周六托专属顺延逻辑：只统计假期中落在周六的天数
-      let saturdayCount = 0;
+      // 按假期名称+来源类型分组，展示实际假期名称
+      const saturdayHolidayMap = new Map<string, { name: string; type: string; dates: string[] }>();
       for (const dateStr of holidaySet) {
-        if (isSaturday(dateStr)) saturdayCount++;
+        if (!isSaturday(dateStr)) continue;
+        const source = holidaySourceMap.get(dateStr);
+        if (!source) continue;
+        // 来源类型归一化：all 视为 "全园"
+        const displayType = '全园';
+        const key = `${source.name}::${displayType}`;
+        if (!saturdayHolidayMap.has(key)) {
+          saturdayHolidayMap.set(key, { name: source.name, type: displayType, dates: [] });
+        }
+        saturdayHolidayMap.get(key)!.dates.push(dateStr);
       }
 
-      if (saturdayCount === 0) return result;
+      if (saturdayHolidayMap.size === 0) return result;
+
+      // 统计总顺延天数
+      let saturdayCount = 0;
+      const details: any[] = [];
+      for (const [, group] of saturdayHolidayMap) {
+        const dates = group.dates.sort();
+        saturdayCount += dates.length;
+        details.push({
+          name: group.name,
+          type: group.type,
+          startDate: dates[0],
+          endDate: dates[dates.length - 1],
+          overlapDays: dates.length,
+        });
+      }
+      // 按优先级排序：全园排在前面
+      details.sort((a, b) => {
+        const priority = { '全园': 0, '班级': 1, '个人': 2 };
+        return (priority[a.type] ?? 9) - (priority[b.type] ?? 9);
+      });
 
       // 顺延天数 = 假期周六数量，调整到下一个周六（上课日）
       let extendedDate = addDays(endDate, saturdayCount);
@@ -223,13 +257,7 @@ export class EnrollmentsService {
       const ed2 = String(rawDate.getUTCDate()).padStart(2, '0');
       extendedDate = `${ey2}-${em2}-${ed2}`;
       result.extended_end_date = extendedDate;
-      result.details = [{
-        name: '周六托顺延',
-        type: 'saturday',
-        startDate: startDate,
-        endDate: endDate,
-        overlapDays: saturdayCount,
-      }];
+      result.details = details;
       return result;
     }
 
@@ -262,6 +290,7 @@ export class EnrollmentsService {
       let overlapCount = 0;
       while (current <= maxDate) {
         holidaySet.add(current);
+        holidaySourceMap.set(current, { name: h.name, type: h.type });
         overlapCount++;
         current = addDays(current, 1);
       }
