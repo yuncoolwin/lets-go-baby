@@ -1,6 +1,7 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { createDateCalculator } from './utils/date-calculator';
+import { parseDate } from '@/utils/date.util';
 import { HolidaysService } from '@/holidays/holidays.service';
 
 @Injectable()
@@ -337,7 +338,7 @@ export class ChildrenService {
     // 如果有报读时长和开始日期但没传结束日期，自动计算
     if (dto.enrollment_duration && dto.start_date && !dto.end_date) {
       // 从数据库读取节假日数据
-      const year = new Date(dto.start_date).getFullYear();
+      const year = parseDate(dto.start_date).getFullYear();
       const { holidays: holidaySet, workWeekends: workWeekendSet } = await this.holidaysService.getDateSets(year);
       const calc = createDateCalculator(holidaySet, workWeekendSet);
       // end_date：报名时计算，只排除周六日，法定节假日算入工作日
