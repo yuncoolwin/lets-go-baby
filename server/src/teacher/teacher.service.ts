@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { isSaturday, isWeekend } from '@/utils/date.util';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { isSaturday, isWeekend } from '@/utils/date.util';
 
 @Injectable()
 export class TeacherService {
@@ -147,7 +149,7 @@ export class TeacherService {
     // 按 child_id 分组，每人只取一条（全日托优先）
     const childEnrollmentMap = new Map<string, typeof enrollmentList[0]>();
     const sortOrder = ['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日'];
-    for (const e of enrollmentList) {
+    for (const e of filteredEnrollments) {
       const existing = childEnrollmentMap.get(e.child_id);
       if (!existing) {
         childEnrollmentMap.set(e.child_id, e);
@@ -234,33 +236,23 @@ export class TeacherService {
     const { data: enrollments } = await this.client
       .from('enrollments')
       .select('id, child_id, course_type, course_id, status, start_date, end_date, extended_end_date')
-      .eq('class_id', teacherClassId)
-      .eq('status', '进行中');
+      .eq('class_id', teacherClassId);
 
-    const enrollmentList = enrollments || [];
-
-    // 按星期过滤课程（根据 date_calc_rule）
-    const today = new Date();
-    const weekday = today.getDay(); // 0=周日, 1=周一, ..., 6=周六
-    let weekdayRule = '';
-    if (weekday >= 1 && weekday <= 5) {
-      weekdayRule = '工作日';
-    } else if (weekday === 6) {
-      weekdayRule = '周六';
-    } else if (weekday === 0) {
-      weekdayRule = '周日';
-    }
-    // 查询当前星期有排课的课程 ID
-    const { data: weekdayCourses } = await this.client
-      .from('courses')
-      .select('id, name')
-      .eq('date_calc_rule', weekdayRule);
-    const weekdayCourseIds = new Set((weekdayCourses || []).map(c => c.id));
-    // 过滤：只保留 course_id 匹配当天排课的报读
-    const filteredEnrollments = enrollmentList.filter(e => e.course_id && weekdayCourseIds.has(e.course_id));
+    const enrollmentList = (enrollments || []).filter(e => {
+      // 日期范围过滤
+      const effectiveEnd = e.extended_end_date || e.end_date;
+      if (queryDate < e.start_date || queryDate > effectiveEnd) return false;
+      // 星期过滤
+      const isSat = isSaturday(queryDate);
+      const isSun = isWeekend(queryDate) && !isSat;
+      if (isSun) return false;
+      if (isSat && e.course_type !== '周六托') return false;
+      if (!isSat && !isSun && e.course_type === '周六托') return false;
+      return true;
+    });
 
     // 收集所有 child_id
-    const childIds = [...new Set(filteredEnrollments.map(e => e.child_id))];
+    const childIds = [...new Set(enrollmentList.map(e => e.child_id))];
 
     // 查询幼儿信息（仅 active 状态）
     let childrenMap: Record<string, { name: string; gender: string; birth_date: string; nickname: string }> = {};
@@ -288,11 +280,12 @@ export class TeacherService {
       extended_end_date: string | null;
     }>>();
 
-    for (const e of filteredEnrollments) {
+    for (const e of enrollmentList) {
       const ct = e.course_type;
-      // 过滤日期范围：queryDate 必须在 start_date ~ end_date 之间
+      // 过滤日期范围：queryDate 必须在 start_date ~ extended_end_date 之间
       if (queryDate && e.start_date && queryDate < e.start_date) continue;
-      if (queryDate && e.end_date && queryDate > e.end_date) continue;
+      const effectiveEnd = e.extended_end_date || e.end_date;
+      if (queryDate && effectiveEnd && queryDate > effectiveEnd) continue;
       if (!groupMap.has(ct)) groupMap.set(ct, []);
       groupMap.get(ct)!.push({
         child_id: e.child_id,
@@ -398,32 +391,27 @@ export class TeacherService {
       .single();
     if (!cls) return [];
 
-    // 查询该班级的进行中报读
+    // 查询该班级所有报读记录（按日期范围过滤）
     const { data: enrollments } = await this.client
       .from('enrollments')
       .select('id, child_id, course_type, course_id, status, start_date, end_date, extended_end_date')
-      .eq('class_id', classId)
-      .eq('status', '进行中');
+      .eq('class_id', classId);
 
     const enrollmentList = enrollments || [];
 
-    // 按星期过滤课程（根据 date_calc_rule）
-    const today = new Date();
-    const weekday = today.getDay();
-    let weekdayRule = '';
-    if (weekday >= 1 && weekday <= 5) {
-      weekdayRule = '工作日';
-    } else if (weekday === 6) {
-      weekdayRule = '周六';
-    } else if (weekday === 0) {
-      weekdayRule = '周日';
-    }
-    const { data: weekdayCourses } = await this.client
-      .from('courses')
-      .select('id, name')
-      .eq('date_calc_rule', weekdayRule);
-    const weekdayCourseIds = new Set((weekdayCourses || []).map(c => c.id));
-    const filteredEnrollments = enrollmentList.filter(e => e.course_id && weekdayCourseIds.has(e.course_id));
+    // 按日期范围 + 星期过滤
+    const filteredEnrollments = enrollmentList.filter(e => {
+      // 日期范围过滤
+      const effectiveEnd = e.extended_end_date || e.end_date;
+      if (queryDate < e.start_date || queryDate > effectiveEnd) return false;
+      // 星期过滤
+      const isSat = isSaturday(queryDate);
+      const isSun = isWeekend(queryDate) && !isSat;
+      if (isSun) return false;
+      if (isSat && e.course_type !== '周六托') return false;
+      if (!isSat && !isSun && e.course_type === '周六托') return false;
+      return true;
+    });
 
     const childIds = [...new Set(filteredEnrollments.map(e => e.child_id))];
 
@@ -454,8 +442,6 @@ export class TeacherService {
 
     for (const e of filteredEnrollments) {
       const ct = e.course_type;
-      if (queryDate && e.start_date && queryDate < e.start_date) continue;
-      if (queryDate && e.end_date && queryDate > e.end_date) continue;
       if (!groupMap.has(ct)) groupMap.set(ct, []);
       groupMap.get(ct)!.push({
         child_id: e.child_id,
