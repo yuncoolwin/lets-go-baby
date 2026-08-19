@@ -286,18 +286,19 @@ export class EnrollmentsService {
       }
     }
 
-    const { data: attRecords } = await this.client
-      .from('attendance')
-      .select('date')
-      .eq('child_id', enr.child_id)
-      .eq('course_type', enr.course_type)
-      .gte('date', enr.start_date)
-      .lte('date', enr.end_date)
-      .in('status', ['present', 'full_day', 'half_day']);
+    // 调休补班视为工作日：从 holidays_old 表取 type='work_weekend'
     const transferWorkdays = new Set<string>();
-    (attRecords || []).forEach((r: any) => {
-      transferWorkdays.add(this.toDateStr(r.date));
-    });
+    const { data: workWeekendData } = await this.client
+      .from('holidays_old')
+      .select('date')
+      .eq('type', 'work_weekend')
+      .eq('year', year);
+    for (const w of workWeekendData || []) {
+      const dateStr = w.date?.substring(0, 10);
+      if (dateStr && dateStr >= enr.start_date && dateStr <= enr.end_date) {
+        transferWorkdays.add(dateStr);
+      }
+    }
 
     let totalDays = 0;
     let current = enr.start_date;
