@@ -431,66 +431,72 @@ export class EnrollmentsService {
       return { total_days: 0, attended_days: 0, leave_days: 0, absent_days: 0 };
     }
 
-    const isSaturdayOnly = enr.course_type === '周六托';
+    let totalDays = 0;
 
-    const year = parseInt(enr.start_date.substring(0, 4));
+    // 按课程时长类型区分 total_days 计算规则
+    if (enr.duration_type === '一周体验') {
+      totalDays = 5;
+    } else if (enr.duration_type === '计日') {
+      totalDays = enr.duration_days || 0;
+    } else {
+      // 1个月、3个月、6个月、12个月等：遍历日期逐日统计工作日
+      const isSaturdayOnly = enr.course_type === '周六托';
+      const year = parseInt(enr.start_date.substring(0, 4));
 
-    // 统一假期数据源：holidays 表 type=all ∪ holidays_old 表 type='holiday'
-    const allHolidays = new Set<string>();
-    // 查询 holidays 表全园假期
-    const { data: holidaysData } = await this.client
-      .from('holidays')
-      .select('*')
-      .eq('type', 'all')
-      .lte('start_date', enr.end_date)
-      .gte('end_date', enr.start_date);
-    for (const h of holidaysData || []) {
-      let current = h.start_date > enr.start_date ? h.start_date : enr.start_date;
-      const maxDate = h.end_date < enr.end_date ? h.end_date : enr.end_date;
-      while (current <= maxDate) {
-        allHolidays.add(this.toDateStr(current));
+      const allHolidays = new Set<string>();
+      // 查询 holidays 表假期（type=all/class/personal）
+      const { data: holidaysData } = await this.client
+        .from('holidays')
+        .select('*')
+        .lte('start_date', enr.end_date)
+        .gte('end_date', enr.start_date);
+      for (const h of holidaysData || []) {
+        let current = h.start_date > enr.start_date ? h.start_date : enr.start_date;
+        const maxDate = h.end_date < enr.end_date ? h.end_date : enr.end_date;
+        while (current <= maxDate) {
+          allHolidays.add(this.toDateStr(current));
+          current = addDays(current, 1);
+        }
+      }
+      // 查询 holidays_old 表法定节假日（type=holiday）
+      const { data: oldHolidays } = await this.client
+        .from('holidays_old')
+        .select('date')
+        .eq('type', 'holiday')
+        .eq('year', year);
+      for (const h of oldHolidays || []) {
+        const dateStr = h.date?.substring(0, 10);
+        if (dateStr && dateStr >= enr.start_date && dateStr <= enr.end_date) {
+          allHolidays.add(dateStr);
+        }
+      }
+
+      // 调休补班视为工作日（type=work_weekend）
+      const transferWorkdays = new Set<string>();
+      const { data: workWeekendData } = await this.client
+        .from('holidays_old')
+        .select('date')
+        .eq('type', 'work_weekend')
+        .eq('year', year);
+      for (const w of workWeekendData || []) {
+        const dateStr = w.date?.substring(0, 10);
+        if (dateStr && dateStr >= enr.start_date && dateStr <= enr.end_date) {
+          transferWorkdays.add(dateStr);
+        }
+      }
+
+      let current = enr.start_date;
+      while (current <= enr.end_date) {
+        const dateStr = this.toDateStr(current);
+        const isHoliday = allHolidays.has(dateStr);
+        const isTransferWorkday = transferWorkdays.has(dateStr);
+        if (isSaturdayOnly) {
+          if (isSaturday(dateStr) && !isHoliday) totalDays++;
+        } else {
+          if ((!isWeekend(dateStr) || isTransferWorkday) && !isHoliday) totalDays++;
+        }
         current = addDays(current, 1);
       }
-    }
-    // 查询 holidays_old 表法定节假日
-    const { data: oldHolidays } = await this.client
-      .from('holidays_old')
-      .select('date')
-      .eq('type', 'holiday')
-      .eq('year', year);
-    for (const h of oldHolidays || []) {
-      const dateStr = h.date?.substring(0, 10);
-      if (dateStr && dateStr >= enr.start_date && dateStr <= enr.end_date) {
-        allHolidays.add(dateStr);
-      }
-    }
-
-    // 调休补班视为工作日：从 holidays_old 表取 type='work_weekend'
-    const transferWorkdays = new Set<string>();
-    const { data: workWeekendData } = await this.client
-      .from('holidays_old')
-      .select('date')
-      .eq('type', 'work_weekend')
-      .eq('year', year);
-    for (const w of workWeekendData || []) {
-      const dateStr = w.date?.substring(0, 10);
-      if (dateStr && dateStr >= enr.start_date && dateStr <= enr.end_date) {
-        transferWorkdays.add(dateStr);
-      }
-    }
-
-    let totalDays = 0;
-    let current = enr.start_date;
-    while (current <= enr.end_date) {
-      const dateStr = this.toDateStr(current);
-      const isHoliday = allHolidays.has(dateStr);
-      const isTransferWorkday = transferWorkdays.has(dateStr);
-      if (isSaturdayOnly) {
-        if (isSaturday(dateStr) && !isHoliday) totalDays++;
-      } else {
-        if ((!isWeekend(dateStr) || isTransferWorkday) && !isHoliday) totalDays++;
-      }
-      current = addDays(current, 1);
     }
 
     const attEndDate = enr.extended_end_date || enr.end_date;
