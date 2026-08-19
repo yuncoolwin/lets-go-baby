@@ -83,6 +83,8 @@ export default function ChildDetailPage() {
   const [formPaymentChannel, setFormPaymentChannel] = useState('')
   const [formClassId, setFormClassId] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const isStatusAutoRef = useRef(true) // 状态是否由系统自动设置（未手动改过）
+  const autoCalculatedStatusRef = useRef('进行中') // 系统建议的状态
   const [showEnrollmentForm, setShowEnrollmentForm] = useState(false)
   const [showCalendar, setShowCalendar] = useState<'birthDate' | 'startDate' | null>(null)
   const [courses, setCourses] = useState<any[]>([])
@@ -225,6 +227,8 @@ export default function ChildDetailPage() {
     setFormPaymentAmount('')
     setFormPaymentChannel('')
     setFormClassId('')
+    isStatusAutoRef.current = true
+    autoCalculatedStatusRef.current = '进行中'
     setShowEnrollmentForm(true)
   }
 
@@ -239,10 +243,12 @@ export default function ChildDetailPage() {
     setFormPaymentAmount(enr.payment_amount || '')
     setFormPaymentChannel(enr.payment_channel || '')
     setFormClassId(enr.class_id || '')
+    isStatusAutoRef.current = true
+    autoCalculatedStatusRef.current = enr.status || '进行中'
     setShowEnrollmentForm(true)
   }
 
-  // 计算结束日期
+  // 计算结束日期，同时自动设置状态
   const calcEndDate = async (courseType: string, durationType: string, durationDays: string, startDate: string) => {
     if (!courseType || !durationType || !startDate) {
       setFormEndDate('')
@@ -259,6 +265,14 @@ export default function ChildDetailPage() {
       })
       if (res.code === 200 && res.data?.end_date) {
         setFormEndDate(res.data.end_date)
+        // 根据结束日期自动设置状态：结束日期≥今天→进行中，否则→已结束
+        const today = new Date()
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+        const suggested = res.data.end_date >= todayStr ? '进行中' : '已结束'
+        autoCalculatedStatusRef.current = suggested
+        if (isStatusAutoRef.current) {
+          setFormStatus(suggested)
+        }
       } else {
         setFormEndDate('')
       }
@@ -949,7 +963,26 @@ export default function ChildDetailPage() {
                       className={`px-3 py-2 rounded-lg text-sm ${
                         formStatus === s ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600'
                       }`}
-                      onClick={() => setFormStatus(s)}
+                      onClick={() => {
+                        // 用户手动点击与系统建议相反的状态时弹窗确认
+                        if (isStatusAutoRef.current && s !== autoCalculatedStatusRef.current) {
+                          Taro.showModal({
+                            title: '确认切换',
+                            content: '当前状态与系统建议不一致，确认切换吗？',
+                            confirmColor: '#E8651A',
+                            success: (res) => {
+                              if (res.confirm) {
+                                isStatusAutoRef.current = false
+                                setFormStatus(s)
+                              }
+                              // 取消则保持自动值
+                            },
+                          })
+                        } else {
+                          isStatusAutoRef.current = false
+                          setFormStatus(s)
+                        }
+                      }}
                     >
                       <Text>{s}</Text>
                     </View>
