@@ -680,7 +680,7 @@ export class EnrollmentsService {
    * 返回 start_date 到 extended_end_date（或 end_date）区间内有考勤记录的日期+状态列表
    */
   async getAttendanceCalendar(enrollmentId: string): Promise<
-    Array<{ date: string; status: 'full' | 'half' | 'leave' | 'absent' | 'holiday'; name?: string }>
+    Array<{ date: string; status: 'full' | 'half' | 'present' | 'leave' | 'absent' | 'holiday'; name?: string }>
   > {
     const { data: enr, error: enrError } = await this.client
       .from('enrollments')
@@ -705,11 +705,16 @@ export class EnrollmentsService {
       .lte('date', endDate)
       .order('date', { ascending: true });
 
-    const result: Array<{ date: string; status: 'full' | 'half' | 'leave' | 'absent' | 'holiday'; name?: string }> =
+    const result: Array<{ date: string; status: 'full' | 'half' | 'present' | 'leave' | 'absent' | 'holiday'; name?: string }> =
       (records.data || []).map((r: any) => {
-        let status: 'full' | 'half' | 'leave' | 'absent';
+        let status: 'full' | 'half' | 'present' | 'leave' | 'absent';
+        const isFullDayCourse = enr.course_type === '全日托';
         if (r.status === 'present' || r.status === 'full_day') {
-          status = r.is_half_day ? 'half' : 'full';
+          if (isFullDayCourse) {
+            status = r.is_half_day ? 'half' : 'full';
+          } else {
+            status = 'present';
+          }
         } else if (r.status === 'leave') {
           status = 'leave';
         } else {
@@ -778,7 +783,7 @@ export class EnrollmentsService {
     }
 
     // 按日期排序：同一日期假期优先于考勤，所以把假期条目移到前面
-    const dateOrder: Record<string, number> = { holiday: 0, full: 1, half: 1, leave: 1, absent: 1 };
+    const dateOrder: Record<string, number> = { holiday: 0, present: 1, full: 1, half: 1, leave: 1, absent: 1 };
     result.sort((a, b) => {
       if (a.date !== b.date) return a.date < b.date ? -1 : 1;
       return (dateOrder[a.status] ?? 1) - (dateOrder[b.status] ?? 1);
