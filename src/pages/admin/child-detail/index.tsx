@@ -702,7 +702,7 @@ export default function ChildDetailPage() {
                         className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold"
                         style={{ backgroundColor: '#EBF5FF', borderColor: '#BFDBFE', color: '#3B82F6' }}
                       >
-                        <Text className="text-xs" style={{ color: '#3B82F6' }}>考勤详情</Text>
+                        <Text className="text-xs" style={{ color: '#3B82F6' }}>考勤日历</Text>
                       </View>
                     </View>
                   </View>
@@ -1078,14 +1078,14 @@ export default function ChildDetailPage() {
         </View>
       )}
 
-      {/* ========== 考勤详情日历弹窗 ========== */}
+      {/* ========== 考勤日历弹窗 ========== */}
       {showAttendanceCalendar && (
         <View className="fixed inset-0 z-[200] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }} onClick={() => { setShowAttendanceCalendar(false); setCurrentAttendanceCalendar(null) }}>
           <View className="rounded-3xl w-[95%] max-w-md max-h-[85vh] flex flex-col overflow-hidden shadow-2xl" style={{ backgroundColor: '#FFF8EE', zIndex: 1 }} onClick={e => e.stopPropagation()}>
             {/* 标题栏 */}
             <View className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <Text className="text-base font-semibold text-gray-800">
-                {currentAttendanceCalendar?.courseType || '课程'}考勤详情
+                {currentAttendanceCalendar?.courseType || '课程'}考勤日历
               </Text>
               <View
                 onClick={() => {
