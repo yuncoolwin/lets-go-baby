@@ -324,6 +324,79 @@ export class EnrollmentsService {
     result.extended_end_date = extendedDate;
     // 按开始日期排序：早的放前面
     result.details.sort((a, b) => a.startDate.localeCompare(b.startDate));
+
+    // ====== 请假顺延逻辑（仅全日托/半日托） ======
+    const isFullOrHalfDay = enr.course_type === '全日托' || enr.course_type === '半日托';
+    if (isFullOrHalfDay) {
+      // 查询该报读记录在课程区间内的请假记录
+      const { data: leaveRecords, error: leaveError } = await this.client
+        .from('attendance')
+        .select('date')
+        .eq('child_id', enr.child_id)
+        .eq('course_type', enr.course_type)
+        .eq('status', 'leave')
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .order('date', { ascending: true });
+
+      if (leaveRecords && leaveRecords.length > 0) {
+        // 按日期排序，识别连续请假段
+        const leaveDates = leaveRecords.map(r => r.date?.substring(0, 10)).filter(Boolean).sort() as string[];
+        const segments: { startDate: string; endDate: string; days: number }[] = [];
+        let segStart = leaveDates[0];
+        let segEnd = leaveDates[0];
+        let segCount = 1;
+        for (let i = 1; i < leaveDates.length; i++) {
+          const prev = leaveDates[i - 1];
+          const curr = leaveDates[i];
+          // 判断是否连续（差1天）
+          const diff = (new Date(curr).getTime() - new Date(prev).getTime()) / 86400000;
+          if (diff === 1) {
+            segEnd = curr;
+            segCount++;
+          } else {
+            if (segCount >= 5) {
+              segments.push({ startDate: segStart, endDate: segEnd, days: segCount });
+            }
+            segStart = curr;
+            segEnd = curr;
+            segCount = 1;
+          }
+        }
+        // 处理最后一个段
+        if (segCount >= 5) {
+          segments.push({ startDate: segStart, endDate: segEnd, days: segCount });
+        }
+
+        if (segments.length > 0) {
+          const totalLeaveDays = segments.reduce((sum, s) => sum + s.days, 0);
+          // 在已有顺延基础上再叠加请假天数
+          let currentExtDate = result.extended_end_date || endDate;
+          let remaining = totalLeaveDays;
+          while (remaining > 0) {
+            currentExtDate = addDays(currentExtDate, 1);
+            if (isWeekend(currentExtDate)) continue;
+            if (holidaySet.has(currentExtDate)) continue;
+            remaining--;
+          }
+          result.extended_end_date = currentExtDate;
+
+          // 添加请假顺延详情
+          for (const seg of segments) {
+            result.details.push({
+              name: '请假',
+              type: '个人',
+              startDate: seg.startDate,
+              endDate: seg.endDate,
+              overlapDays: seg.days,
+            });
+          }
+          // 重新排序
+          result.details.sort((a, b) => a.startDate.localeCompare(b.startDate));
+        }
+      }
+    }
+
     return result;
   }
 
