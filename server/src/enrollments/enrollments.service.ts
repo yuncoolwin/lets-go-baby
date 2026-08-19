@@ -133,6 +133,74 @@ export class EnrollmentsService {
     const startDate = enr.start_date;
     const endDate = enr.end_date;
 
+    // 判断是否为周六托课程
+    const isSaturdayCourse = enr.course_type?.includes('周六') || false;
+
+    // 查询全园假期：holidays 表 type=all
+    const { data: allHolidays } = await this.client
+      .from('holidays')
+      .select('*')
+      .eq('type', 'all');
+
+    // 构建全园假期日期集合（holidays type=all ∪ holidays_old type=holiday）
+    const holidaySet = new Set<string>();
+
+    // 展开 holidays type=all 的日期范围
+    if (allHolidays) {
+      for (const h of allHolidays) {
+        if (!h.start_date || !h.end_date) continue;
+        let current = this.toDateStr(h.start_date > startDate ? h.start_date : startDate);
+        const maxDate = this.toDateStr(h.end_date < endDate ? h.end_date : endDate);
+        while (current <= maxDate) {
+          holidaySet.add(current);
+          current = this.addDaysUTC(current, 1);
+        }
+      }
+    }
+
+    // 合并 holidays_old type=holiday
+    const startYear = parseInt(startDate.substring(0, 4));
+    const endYear = parseInt(endDate.substring(0, 4));
+    for (let y = startYear; y <= endYear; y++) {
+      const { data: oldHolidays } = await this.client
+        .from('holidays_old')
+        .select('date, name')
+        .eq('type', 'holiday')
+        .eq('year', y);
+      for (const h of oldHolidays || []) {
+        const dateStr = h.date?.substring(0, 10);
+        if (!dateStr || dateStr < startDate || dateStr > endDate) continue;
+        holidaySet.add(dateStr);
+      }
+    }
+
+    if (holidaySet.size === 0) return result;
+
+    if (isSaturdayCourse) {
+      // 周六托专属顺延逻辑：只统计假期中落在周六的天数
+      let saturdayCount = 0;
+      for (const dateStr of holidaySet) {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const dayOfWeek = new Date(Date.UTC(y, m - 1, d)).getDay();
+        if (dayOfWeek === 6) saturdayCount++;
+      }
+
+      if (saturdayCount === 0) return result;
+
+      // 顺延天数 = 假期周六数量
+      const extendedDate = this.addDays(endDate, saturdayCount);
+      result.extended_end_date = extendedDate;
+      result.details = [{
+        name: '周六托顺延',
+        type: 'saturday',
+        startDate: startDate,
+        endDate: endDate,
+        overlapDays: saturdayCount,
+      }];
+      return result;
+    }
+
+    // 非周六托：原有顺延逻辑
     const { data: child } = await this.client
       .from('children')
       .select('class_id')
@@ -141,27 +209,26 @@ export class EnrollmentsService {
 
     const classId = child?.class_id || '';
 
-    const { data: holidays } = await this.client
+    // 查询班级假期和个人假期
+    const { data: classPersonalHolidays } = await this.client
       .from('holidays')
       .select('*')
-      .in('type', ['all', 'class', 'personal'])
+      .in('type', ['class', 'personal'])
       .lte('start_date', endDate)
       .gte('end_date', startDate);
 
-    const matchingHolidays = (holidays || []).filter((h: any) => {
-      if (h.type === 'all') return true;
+    const matchingHolidays = (classPersonalHolidays || []).filter((h: any) => {
       if (h.type === 'class') return h.target_id === classId;
       if (h.type === 'personal') return h.target_id === enr.child_id;
       return false;
     });
 
-    const holidayDates = new Set<string>();
     for (const h of matchingHolidays) {
       let current = this.toDateStr(h.start_date > startDate ? h.start_date : startDate);
       const maxDate = this.toDateStr(h.end_date < endDate ? h.end_date : endDate);
       let overlapCount = 0;
       while (current <= maxDate) {
-        holidayDates.add(current);
+        holidaySet.add(current);
         overlapCount++;
         current = this.addDaysUTC(current, 1);
       }
@@ -176,32 +243,7 @@ export class EnrollmentsService {
       }
     }
 
-    // 合并 holidays_old 表法定节假日（type='holiday'）到 holidayDates
-    const startYear = parseInt(startDate.substring(0, 4));
-    const endYear = parseInt(endDate.substring(0, 4));
-    for (let y = startYear; y <= endYear; y++) {
-      const { data: oldHolidays } = await this.client
-        .from('holidays_old')
-        .select('date, name')
-        .eq('type', 'holiday')
-        .eq('year', y);
-      for (const h of oldHolidays || []) {
-        const dateStr = h.date?.substring(0, 10);
-        if (!dateStr || dateStr < startDate || dateStr > endDate) continue;
-        if (!holidayDates.has(dateStr)) {
-          holidayDates.add(dateStr);
-          result.details.push({
-            name: h.name,
-            type: 'statutory',
-            startDate: dateStr,
-            endDate: dateStr,
-            overlapDays: 1,
-          });
-        }
-      }
-    }
-
-    const totalHolidayDays = holidayDates.size;
+    const totalHolidayDays = holidaySet.size;
     if (totalHolidayDays === 0) return result;
 
     let extendedDate = endDate;
@@ -213,7 +255,7 @@ export class EnrollmentsService {
       const dateUtc = Date.UTC(y, m - 1, d);
       const dayOfWeek = new Date(dateUtc).getDay();
       if (dayOfWeek === 0 || dayOfWeek === 6) continue;
-      if (holidayDates.has(extendedDate)) continue;
+      if (holidaySet.has(extendedDate)) continue;
       remainingDays--;
     }
 
