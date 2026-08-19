@@ -184,7 +184,7 @@ export class HolidaysService {
       const { data: enrollments } = await this.supabase
         .from('enrollments')
         .select('id')
-        .or('status.eq.进行中,extended_end_date.not.isnull');
+        .or('status.eq.进行中,extended_end_date.not.is.null');
       enrollmentIds = (enrollments || []).map(e => e.id);
     } else if (holiday.type === 'class' && holiday.target_id) {
       // 班级假期→该班级幼儿的进行中报读 + 已有顺延日期的已结束报读
@@ -198,7 +198,7 @@ export class HolidaysService {
           .from('enrollments')
           .select('id')
           .in('child_id', childIds)
-          .or('status.eq.进行中,extended_end_date.not.isnull');
+          .or('status.eq.进行中,extended_end_date.not.is.null');
         enrollmentIds = (enrollments || []).map(e => e.id);
       }
     } else if (holiday.type === 'personal' && holiday.target_id) {
@@ -207,7 +207,7 @@ export class HolidaysService {
         .from('enrollments')
         .select('id')
         .eq('child_id', holiday.target_id)
-        .or('status.eq.进行中,extended_end_date.not.isnull');
+        .or('status.eq.进行中,extended_end_date.not.is.null');
       enrollmentIds = (enrollments || []).map(e => e.id);
     }
 
