@@ -303,24 +303,6 @@ export default function ChildDetailPage() {
       return
     }
 
-    // 如果用户手动修改了状态且与系统建议不一致，弹出确认
-    const confirmSave = async (): Promise<boolean> => {
-      if (userChangedStatus && autoStatus && formStatus !== autoStatus) {
-        return new Promise((resolve) => {
-          Taro.showModal({
-            title: '提示',
-            content: '当前状态与系统建议不一致，确认保存吗？',
-            confirmColor: '#E8651A',
-            success: (res) => resolve(res.confirm),
-          })
-        })
-      }
-      return true
-    }
-
-    const confirmed = await confirmSave()
-    if (!confirmed) return
-
     setSubmitting(true)
     try {
       const payload: any = {
@@ -994,7 +976,26 @@ export default function ChildDetailPage() {
                       className={`px-3 py-2 rounded-lg text-sm ${
                         formStatus === s ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600'
                       }`}
-                      onClick={() => { setFormStatus(s); setUserChangedStatus(true) }}
+                      onClick={() => {
+                        const clickedStatus = s
+                        // 如果点击的状态与当前不同，且系统有建议值，且点击的是与建议值相反的值 => 弹窗确认
+                        if (clickedStatus !== formStatus && autoStatus && clickedStatus !== autoStatus) {
+                          Taro.showModal({
+                            title: '提示',
+                            content: '当前课程状态与系统建议不一致，确认切换吗？',
+                            confirmColor: '#E8651A',
+                            success: (res) => {
+                              if (res.confirm) {
+                                setFormStatus(clickedStatus)
+                                setUserChangedStatus(true)
+                              }
+                            },
+                          })
+                        } else {
+                          setFormStatus(clickedStatus)
+                          if (clickedStatus !== formStatus) setUserChangedStatus(true)
+                        }
+                      }}
                     >
                       <Text>{s}</Text>
                     </View>
