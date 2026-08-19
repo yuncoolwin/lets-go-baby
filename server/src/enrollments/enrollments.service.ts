@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
-import { parseDate, addDays, diffDays, isWeekend, isSaturday, toDateStr } from '@/utils/date.util';
+import { parseDate, addDays, diffDays, isWeekend, isSaturday } from '@/utils/date.util';
 
 export interface HolidayDetail {
   name: string;
@@ -359,9 +359,7 @@ export class EnrollmentsService {
     let totalDays = 0;
     let current = enr.start_date;
     while (current <= enr.end_date) {
-      const [y, m, d] = current.split('-').map(Number);
-      const dateUtc = Date.UTC(y, m - 1, d);
-      const dayOfWeek = parseDate(extendedDate).getUTCDay();
+      const dayOfWeek = parseDate(current).getUTCDay();
       const dateStr = this.toDateStr(current);
       const isHoliday = allHolidays.has(dateStr);
       const isTransferWorkday = transferWorkdays.has(dateStr);
