@@ -293,6 +293,20 @@ export class AttendanceService {
     status: string;
     course_type?: string;
   }) {
+    // 根据 child_id + course_type 匹配"进行中"的报读记录，取得 enrollment_id
+    const courseType = dto.course_type || '';
+    let enrollmentId: string | null = null;
+    const { data: enr } = await this.client
+      .from('enrollments')
+      .select('id')
+      .eq('child_id', dto.child_id)
+      .eq('course_type', courseType)
+      .eq('status', '进行中')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    enrollmentId = enr?.id || null;
+
     const { data, error } = await this.client
       .from('attendance')
       .upsert({
@@ -301,7 +315,8 @@ export class AttendanceService {
         class_id: dto.class_id,
         date: dto.date,
         status: dto.status,
-        course_type: dto.course_type || '',
+        course_type: courseType,
+        enrollment_id: enrollmentId,
         updated_at: new Date().toISOString(),
       }, {
         onConflict: 'child_id,date,course_type',

@@ -703,15 +703,15 @@ export class EnrollmentsService {
       throw new NotFoundException('报读记录不存在');
     }
 
-    const endDate = enr.extended_end_date || enr.end_date;
-    if (!endDate) return [];
+    const today = new Date().toISOString().split('T')[0];
+    // 长期在读（无结束日期）时，考勤查询截止到今日
+    const endDate = enr.extended_end_date || enr.end_date || today;
 
-    // 查询出勤记录
+    // 查询出勤记录（按 enrollment_id 精准关联）
     const records = await this.client
       .from('attendance')
       .select('date, status')
-      .eq('child_id', enr.child_id)
-      .eq('course_type', enr.course_type)
+      .eq('enrollment_id', enrollmentId)
       .gte('date', enr.start_date)
       .lte('date', endDate)
       .order('date', { ascending: true });
