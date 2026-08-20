@@ -151,7 +151,7 @@ export default function RollCallPage() {
       }
 
       // 教师模式：原有逻辑
-      const teacherId = currentRole?.user_id
+      const teacherId = Taro.getStorageSync('teacherId') || currentRole?.id
       if (!teacherId) {
         setLoading(false)
         return
