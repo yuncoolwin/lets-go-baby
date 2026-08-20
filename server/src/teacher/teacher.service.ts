@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { isSaturday, isWeekend } from '@/utils/date.util';
 
 @Injectable()
 export class TeacherService {
@@ -239,18 +240,19 @@ export class TeacherService {
 
     const enrollmentList = enrollments || [];
 
-    // 按星期过滤课程（根据 date_calc_rule）
-    const today = new Date();
-    const weekday = today.getDay(); // 0=周日, 1=周一, ..., 6=周六
+    // 考勤查询日期（优先使用所选日期，其次今天）
+    const queryDate = date || new Date().toISOString().split('T')[0];
+
+    // 按所选日期对应的星期过滤课程（根据 date_calc_rule）
     let weekdayRule = '';
-    if (weekday >= 1 && weekday <= 5) {
-      weekdayRule = '工作日';
-    } else if (weekday === 6) {
+    if (isSaturday(queryDate)) {
       weekdayRule = '周六';
-    } else if (weekday === 0) {
+    } else if (isWeekend(queryDate)) {
       weekdayRule = '周日';
+    } else {
+      weekdayRule = '工作日';
     }
-    // 查询当前星期有排课的课程 ID
+    // 查询当天有排课的课程 ID
     const { data: weekdayCourses } = await this.client
       .from('courses')
       .select('id, name')
@@ -272,9 +274,6 @@ export class TeacherService {
         .eq('status', 'active');
       childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date, nickname: c.nickname || "" }; });
     }
-
-    // 考勤查询日期
-    const queryDate = date || new Date().toISOString().split('T')[0];
 
     // 按课程类型分组（一个 child 可出现在多个分组）
     const groupMap = new Map<string, Array<{
@@ -407,16 +406,17 @@ export class TeacherService {
 
     const enrollmentList = enrollments || [];
 
-    // 按星期过滤课程（根据 date_calc_rule）
-    const today = new Date();
-    const weekday = today.getDay();
+    // 考勤查询日期（优先使用所选日期，其次今天）
+    const queryDate = date || new Date().toISOString().split('T')[0];
+
+    // 按所选日期对应的星期过滤课程（根据 date_calc_rule）
     let weekdayRule = '';
-    if (weekday >= 1 && weekday <= 5) {
-      weekdayRule = '工作日';
-    } else if (weekday === 6) {
+    if (isSaturday(queryDate)) {
       weekdayRule = '周六';
-    } else if (weekday === 0) {
+    } else if (isWeekend(queryDate)) {
       weekdayRule = '周日';
+    } else {
+      weekdayRule = '工作日';
     }
     const { data: weekdayCourses } = await this.client
       .from('courses')
@@ -437,8 +437,6 @@ export class TeacherService {
         .eq('status', 'active');
       childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date, nickname: c.nickname || "" }; });
     }
-
-    const queryDate = date || new Date().toISOString().split('T')[0];
 
     // 按课程类型分组
     const groupMap = new Map<string, Array<{
