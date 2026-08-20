@@ -71,6 +71,17 @@ export function formatDate(dateStr: string | null | undefined): string {
 }
 
 /**
+ * 格式化为中文完整日期，如 2026年8月1日（含年份，月份日期去前导0）
+ * @param dateStr 日期字符串 (YYYY-MM-DD)
+ */
+export function formatFullDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return ''
+  const match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)
+  if (!match) return ''
+  return `${Number(match[1])}年${Number(match[2])}月${Number(match[3])}日`
+}
+
+/**
  * 安全地格式化时间为 HH:mm，无效日期返回空字符串
  */
 export function formatTime(dateStr: string | number | null | undefined): string {
