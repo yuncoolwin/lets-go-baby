@@ -695,7 +695,7 @@ export class EnrollmentsService {
   > {
     const { data: enr, error: enrError } = await this.client
       .from('enrollments')
-      .select('start_date, end_date, extended_end_date, course_type, child_id')
+      .select('start_date, end_date, extended_end_date, course_type, child_id, class_id')
       .eq('id', enrollmentId)
       .single();
 
