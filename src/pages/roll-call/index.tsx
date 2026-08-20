@@ -77,15 +77,12 @@ export default function RollCallPage() {
 
       if (isAdminUser) {
         // 管理员模式：加载所有班级列表
-        let allClasses: Array<{ id: string; name: string }> = classList
-        if (allClasses.length === 0) {
-          const classRes = await Network.request({ url: '/api/classes' })
-          allClasses = classRes.data?.data?.list || classRes.data?.data || []
-          setClassList(allClasses)
-          if (allClasses.length > 0 && !selectedClassId) {
-            setSelectedClassId(allClasses[0].id)
-            setClassName(allClasses[0].name)
-          }
+        const classRes = await Network.request({ url: '/api/classes' })
+        const allClasses: Array<{ id: string; name: string }> = classRes.data?.data?.list || classRes.data?.data || []
+        setClassList(allClasses)
+        if (allClasses.length > 0 && !selectedClassId) {
+          setSelectedClassId(allClasses[0].id)
+          setClassName(allClasses[0].name)
         }
 
         const currentClassId = selectedClassId || (allClasses.length > 0 ? allClasses[0].id : '')
@@ -154,7 +151,7 @@ export default function RollCallPage() {
       }
 
       // 教师模式：原有逻辑
-      const teacherId = Taro.getStorageSync('teacherId') || currentRole?.id
+      const teacherId = currentRole?.user_id
       if (!teacherId) {
         setLoading(false)
         return
