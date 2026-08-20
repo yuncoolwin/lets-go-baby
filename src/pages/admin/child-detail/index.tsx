@@ -359,7 +359,7 @@ export default function ChildDetailPage() {
       enrollmentId: enr.id,
       courseType: enr.course_type,
       startDate: enr.start_date,
-      endDate: enr.extended_end_date || enr.end_date,
+      endDate: enr.extended_end_date || enr.end_date || '9999-12-31',
       attendanceData: [],
       loading: false,
     })
