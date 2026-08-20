@@ -1102,7 +1102,7 @@ export default function ChildDetailPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <Text className="block text-lg font-bold text-center mb-3">顺延原因</Text>
-            <ScrollView scrollY className="flex-1 py-2">
+            <ScrollView scrollY className="flex-1 py-2 pr-3">
               {extendDetails.length === 0 ? (
                 <Text className="block text-sm text-gray-500 text-center py-4">暂无顺延假期</Text>
               ) : (
