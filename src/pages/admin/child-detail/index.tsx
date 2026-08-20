@@ -1084,7 +1084,7 @@ export default function ChildDetailPage() {
           onClick={handleCloseExtendDialog}
         >
           <View
-            className="max-h-[70vh] flex flex-col overflow-hidden"
+            className="flex flex-col overflow-hidden"
             style={{
               backgroundColor: '#fff',
               borderRadius: 16,
@@ -1102,7 +1102,7 @@ export default function ChildDetailPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <Text className="block text-lg font-bold text-center mb-3">顺延原因</Text>
-            <ScrollView scrollY className="py-2 pr-3" style={{ maxHeight: '50vh' }}>
+            <ScrollView scrollY className="py-2 pr-3" style={{ height: '40vh' }}>
               {extendDetails.length === 0 ? (
                 <Text className="block text-sm text-gray-500 text-center py-4">暂无顺延假期</Text>
               ) : (
