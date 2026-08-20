@@ -291,7 +291,7 @@ export class TeacherService {
       const ct = e.course_type;
       // 过滤日期范围：queryDate 必须在 start_date ~ end_date 之间
       if (queryDate && e.start_date && queryDate < e.start_date) continue;
-      if (queryDate && e.end_date && queryDate > e.end_date) continue;
+      if (queryDate && (e.extended_end_date || e.end_date) && queryDate > (e.extended_end_date || e.end_date)) continue;
       if (!groupMap.has(ct)) groupMap.set(ct, []);
       groupMap.get(ct)!.push({
         child_id: e.child_id,
@@ -453,7 +453,7 @@ export class TeacherService {
     for (const e of filteredEnrollments) {
       const ct = e.course_type;
       if (queryDate && e.start_date && queryDate < e.start_date) continue;
-      if (queryDate && e.end_date && queryDate > e.end_date) continue;
+      if (queryDate && (e.extended_end_date || e.end_date) && queryDate > (e.extended_end_date || e.end_date)) continue;
       if (!groupMap.has(ct)) groupMap.set(ct, []);
       groupMap.get(ct)!.push({
         child_id: e.child_id,
