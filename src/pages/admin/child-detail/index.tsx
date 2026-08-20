@@ -12,7 +12,7 @@ import { format } from 'date-fns'
 
 import { Pencil, Trash2, BookOpen, Plus, X, Info } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
-import { formatAge, formatFullDate } from '@/utils/format'
+import { formatAge } from '@/utils/format'
 
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
 
@@ -769,7 +769,7 @@ export default function ChildDetailPage() {
                     班级：{enr.class_id ? (() => { const cls = classes.find((c: any) => c.id === enr.class_id); return cls ? `${cls.name}${cls.room ? `（${cls.room}）` : ''}` : '' })() : ''}
                   </Text>
                   <Text className="block text-xs text-gray-500 mt-1">
-                    日期：{enr.start_date ? `${formatFullDate(enr.start_date)}${(enr.extended_end_date || enr.end_date) ? ` ~ ${formatFullDate(enr.extended_end_date || enr.end_date)}` : '起'}` : '--'}
+                    日期：{enr.start_date || '--'}{(enr.extended_end_date || enr.end_date) ? ` ~ ${enr.extended_end_date || enr.end_date}` : ''}
                   </Text>
                   {(enr.payment_amount || enr.payment_channel) && (
                     <Text className="block text-xs text-gray-500 mt-1">

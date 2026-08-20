@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { childrenApi } from '@/utils/api'
 import { Search, Plus } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
-import { formatAge, formatFullDate } from '@/utils/format'
+import { formatAge } from '@/utils/format'
 import { getNameInitial } from '@/utils/helpers'
 
 interface Enrollment {
@@ -209,7 +209,7 @@ export default function ChildrenManagePage() {
                         )}
                         {enr.start_date && (
                           <Text className="text-xs opacity-70">
-                            {formatFullDate(enr.start_date)}{(enr.extended_end_date || enr.end_date) ? ` ~ ${formatFullDate(enr.extended_end_date || enr.end_date)}` : '起'}
+                            {enr.start_date}{(enr.extended_end_date || enr.end_date) ? ` ~ ${enr.extended_end_date || enr.end_date}` : ''}
                           </Text>
                         )}
                       </View>
