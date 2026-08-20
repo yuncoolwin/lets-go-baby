@@ -264,13 +264,8 @@ export class EnrollmentsService {
     }
 
     // 非周六托：原有顺延逻辑
-    const { data: child } = await this.client
-      .from('children')
-      .select('class_id')
-      .eq('id', enr.child_id)
-      .single();
-
-    const classId = child?.class_id || '';
+    // 班级假期按报读记录所属班级匹配，而非孩子当前所在班级
+    const classId = enr.class_id || '';
 
     // 查询班级假期和个人假期
     const { data: classPersonalHolidays } = await this.client
@@ -739,14 +734,8 @@ export class EnrollmentsService {
         return { date: this.toDateStr(r.date), status };
       });
 
-    // 查询该幼儿的班级
-    const { data: child } = await this.client
-      .from('children')
-      .select('class_id')
-      .eq('id', enr.child_id)
-      .single();
-
-    const classId = child?.class_id || '';
+    // 班级假期按报读记录所属班级匹配，而非孩子当前所在班级
+    const classId = enr.class_id || '';
 
     // 查询假期（与报读日期范围重叠）
     const { data: holidays } = await this.client
