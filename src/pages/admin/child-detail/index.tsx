@@ -1084,7 +1084,7 @@ export default function ChildDetailPage() {
           onClick={handleCloseExtendDialog}
         >
           <View
-            className="h-[70vh] flex flex-col"
+            className="h-[35vh] flex flex-col"
             style={{
               backgroundColor: '#fff',
               borderRadius: 16,
