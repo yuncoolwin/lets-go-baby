@@ -27,7 +27,7 @@ interface ClassItem {
   name: string
 }
 
-const durationOptions = ['一周体验', '1个月', '3个月', '6个月', '12个月', '计日']
+const durationOptions = ['一周体验', '1个月', '3个月', '6个月', '12个月', '计日', '一学期', '一学年']
 
 const allCourseNames = ['全日托', '半日托', '周六托', '晚间托', '兴趣班']
 

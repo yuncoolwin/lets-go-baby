@@ -767,7 +767,7 @@ export default function IndexPage() {
                               }
                               const config = statusConfig[child.attendance_status] || { label: '未考勤', bg: 'bg-gray-100', text: 'text-gray-500' }
                               const dateRange = child.start_date
-                                ? `${formatDate(child.start_date)} ~ ${formatDate(child.extended_end_date || child.end_date)}`
+                                ? `${formatDate(child.start_date)}${child.extended_end_date || child.end_date ? ` ~ ${formatDate(child.extended_end_date || child.end_date)}` : ''}`
                                 : null
                               // 到期标签
                               const endDateStr = child.extended_end_date || child.end_date

@@ -86,7 +86,7 @@ export default function ChildDetailPage() {
   const isStatusAutoRef = useRef(true) // 状态是否由系统自动设置（未手动改过）
   const autoCalculatedStatusRef = useRef('进行中') // 系统建议的状态
   const [showEnrollmentForm, setShowEnrollmentForm] = useState(false)
-  const [showCalendar, setShowCalendar] = useState<'birthDate' | 'startDate' | null>(null)
+  const [showCalendar, setShowCalendar] = useState<'birthDate' | 'startDate' | 'endDate' | null>(null)
   const [courses, setCourses] = useState<any[]>([])
   const [extendDetails, setExtendDetails] = useState<any[]>([])
   const [extendTotalDays, setExtendTotalDays] = useState(0)
@@ -250,6 +250,10 @@ export default function ChildDetailPage() {
 
   // 计算结束日期，同时自动设置状态
   const calcEndDate = async (courseType: string, durationType: string, durationDays: string, startDate: string) => {
+    if (['一学期', '一学年'].includes(durationType)) {
+      setFormEndDate('')
+      return
+    }
     if (!courseType || !durationType || !startDate) {
       setFormEndDate('')
       return
@@ -765,23 +769,25 @@ export default function ChildDetailPage() {
                     班级：{enr.class_id ? (() => { const cls = classes.find((c: any) => c.id === enr.class_id); return cls ? `${cls.name}${cls.room ? `（${cls.room}）` : ''}` : '' })() : ''}
                   </Text>
                   <Text className="block text-xs text-gray-500 mt-1">
-                    日期：{enr.start_date || '--'} ~ {enr.end_date || '--'}
+                    日期：{enr.start_date || '--'}{(enr.extended_end_date || enr.end_date) ? ` ~ ${enr.extended_end_date || enr.end_date}` : ''}
                   </Text>
                   {(enr.payment_amount || enr.payment_channel) && (
                     <Text className="block text-xs text-gray-500 mt-1">
                       缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{enr.payment_channel ? `（${enr.payment_channel}）` : ''}
                     </Text>
                   )}
-                  <View className="flex flex-row items-center mt-1">
-                    <Text className="text-xs" style={enr.extended_end_date ? { color: '#E8651A' } : {}}>
-                      顺延结束日期：{enr.extended_end_date || '无'}
-                    </Text>
-                    {enr.extended_end_date && (
-                      <View className="ml-1" onClick={() => loadExtendDetail(enr)}>
-                        <Info size={12} color="#999" />
-                      </View>
-                    )}
-                  </View>
+                  {!['一学期', '一学年'].includes(enr.duration_type) && (
+                    <View className="flex flex-row items-center mt-1">
+                      <Text className="text-xs" style={enr.extended_end_date ? { color: '#E8651A' } : {}}>
+                        顺延结束日期：{enr.extended_end_date || '无'}
+                      </Text>
+                      {enr.extended_end_date && (
+                        <View className="ml-1" onClick={() => loadExtendDetail(enr)}>
+                          <Info size={12} color="#999" />
+                        </View>
+                      )}
+                    </View>
+                  )}
                 </View>
               ))
             )}
@@ -881,7 +887,7 @@ export default function ChildDetailPage() {
               <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">报读时长</Text>
                 <View className="flex flex-wrap gap-2">
-                  {['一周体验', '1个月', '3个月', '6个月', '12个月', '计日'].map((t) => {
+                  {['一周体验', '1个月', '3个月', '6个月', '12个月', '计日', '一学期', '一学年'].map((t) => {
                     const disabled = ['周六托', '兴趣班'].includes(formCourseType) && t !== '计日'
                     return (
                       <View
@@ -895,6 +901,8 @@ export default function ChildDetailPage() {
                             setFormDurationType(newDuration)
                             setFormDurationDays('')
                             if (newDuration === '计日') {
+                              setFormEndDate('')
+                            } else if (['一学期', '一学年'].includes(newDuration)) {
                               setFormEndDate('')
                             } else {
                               calcEndDate(formCourseType, newDuration, '', formStartDate)
@@ -945,9 +953,20 @@ export default function ChildDetailPage() {
               </View>
               <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">结束日期</Text>
-                <View className="bg-gray-50 rounded-xl px-4 py-3">
-                  <Text className="text-sm text-gray-600">{formEndDate || '自动计算'}</Text>
-                </View>
+                {['一学期', '一学年'].includes(formDurationType) ? (
+                  <View
+                    className="bg-gray-50 rounded-xl px-4 py-3"
+                    onClick={() => setShowCalendar('endDate')}
+                  >
+                    <Text className={`text-sm ${formEndDate ? 'text-foreground' : 'text-gray-400'}`}>
+                      {formEndDate || '请选择结束日期（可留空）'}
+                    </Text>
+                  </View>
+                ) : (
+                  <View className="bg-gray-50 rounded-xl px-4 py-3">
+                    <Text className="text-sm text-gray-600">{formEndDate || '自动计算'}</Text>
+                  </View>
+                )}
               </View>
               <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">所在班级</Text>
@@ -1076,6 +1095,12 @@ export default function ChildDetailPage() {
           if (formDurationType === '一周体验' && hasWeekday) return date.getDay() === 0 || date.getDay() === 6
           return false
         }}
+      />
+      <CalendarOverlay
+        visible={showCalendar === 'endDate'}
+        onClose={() => setShowCalendar(null)}
+        value={formEndDate}
+        onChange={(dateStr) => setFormEndDate(dateStr)}
       />
 
       {showExtendDialog && (
