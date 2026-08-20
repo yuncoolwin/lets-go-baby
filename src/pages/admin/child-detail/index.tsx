@@ -1102,7 +1102,7 @@ export default function ChildDetailPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <Text className="block text-lg font-bold text-center mb-3">顺延原因</Text>
-            <ScrollView scrollY className="py-2 pr-3" style={{ height: '40vh' }}>
+            <ScrollView scrollY className="py-2" style={{ height: '40vh' }}>
               {extendDetails.length === 0 ? (
                 <Text className="block text-sm text-gray-500 text-center py-4">暂无顺延假期</Text>
               ) : (
@@ -1110,7 +1110,7 @@ export default function ChildDetailPage() {
                   const typeLabel = item.type === '全园' ? '全园' : item.type === '班级' ? '班级' : '个人'
                   const typeColor = item.type === '全园' ? 'bg-blue-100 text-blue-700' : item.type === '班级' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
                   return (
-                    <View key={idx} className="flex flex-row items-center mb-3 pb-3" style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <View key={idx} className="flex flex-row items-center mb-3 pb-3 pr-3" style={{ borderBottom: '1px solid #f0f0f0' }}>
                       <View className="flex-1">
                         <Text className="block text-sm font-medium">{item.name}</Text>
                         <View className="flex flex-row items-center mt-1">
