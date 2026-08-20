@@ -231,12 +231,11 @@ export class TeacherService {
       .single();
     if (!cls) return [];
 
-    // 查询该班级的进行中报读（通过 enrollments.class_id，关联 courses 获取课程名称）
+    // 查询该班级的全部报读（通过 enrollments.class_id，关联 courses 获取课程名称）
     const { data: enrollments } = await this.client
       .from('enrollments')
       .select('id, child_id, course_type, course_id, status, start_date, end_date, extended_end_date')
-      .eq('class_id', teacherClassId)
-      .eq('status', '进行中');
+      .eq('class_id', teacherClassId);
 
     const enrollmentList = enrollments || [];
 
@@ -289,7 +288,7 @@ export class TeacherService {
 
     for (const e of filteredEnrollments) {
       const ct = e.course_type;
-      // 过滤日期范围：queryDate 必须在 start_date ~ end_date 之间
+      // 过滤日期范围：queryDate 必须在 start_date ~ (extended_end_date || end_date) 之间
       if (queryDate && e.start_date && queryDate < e.start_date) continue;
       if (queryDate && (e.extended_end_date || e.end_date) && queryDate > (e.extended_end_date || e.end_date)) continue;
       if (!groupMap.has(ct)) groupMap.set(ct, []);
