@@ -209,7 +209,7 @@ export default function ChildrenManagePage() {
                         )}
                         {enr.start_date && (
                           <Text className="text-xs opacity-70">
-                            {enr.start_date}{(enr.extended_end_date || enr.end_date) ? ` ~ ${enr.extended_end_date || enr.end_date}` : ''}
+                            {enr.start_date}{(enr.extended_end_date || enr.end_date) ? ` ~ ${enr.extended_end_date || enr.end_date}` : '起'}
                           </Text>
                         )}
                       </View>

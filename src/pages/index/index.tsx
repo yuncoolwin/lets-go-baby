@@ -11,7 +11,7 @@ import { Bus, Users, Camera, GraduationCap, Plus, ChevronDown, ChevronUp, BookOp
 import { getRelationshipLabel } from '@/utils/helpers'
 import { courseApi } from '@/utils/api'
 import rabbitLogo from '@/assets/rabbit-logo.png'
-import { formatAge, formatDate, formatTime } from '@/utils/format'
+import { formatAge, formatTime } from '@/utils/format'
 
 interface BabyStatus {
   child_id: string
@@ -767,7 +767,7 @@ export default function IndexPage() {
                               }
                               const config = statusConfig[child.attendance_status] || { label: '未考勤', bg: 'bg-gray-100', text: 'text-gray-500' }
                               const dateRange = child.start_date
-                                ? `${formatDate(child.start_date)}${child.extended_end_date || child.end_date ? ` ~ ${formatDate(child.extended_end_date || child.end_date)}` : ''}`
+                                ? `${child.start_date}${child.extended_end_date || child.end_date ? ` ~ ${child.extended_end_date || child.end_date}` : '起'}`
                                 : null
                               // 到期标签
                               const endDateStr = child.extended_end_date || child.end_date

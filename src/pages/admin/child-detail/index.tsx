@@ -769,7 +769,7 @@ export default function ChildDetailPage() {
                     班级：{enr.class_id ? (() => { const cls = classes.find((c: any) => c.id === enr.class_id); return cls ? `${cls.name}${cls.room ? `（${cls.room}）` : ''}` : '' })() : ''}
                   </Text>
                   <Text className="block text-xs text-gray-500 mt-1">
-                    日期：{enr.start_date || '--'}{(enr.extended_end_date || enr.end_date) ? ` ~ ${enr.extended_end_date || enr.end_date}` : ''}
+                    日期：{enr.start_date ? `${enr.start_date}${(enr.extended_end_date || enr.end_date) ? ` ~ ${enr.extended_end_date || enr.end_date}` : '起'}` : '--'}
                   </Text>
                   {(enr.payment_amount || enr.payment_channel) && (
                     <Text className="block text-xs text-gray-500 mt-1">

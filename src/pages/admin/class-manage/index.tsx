@@ -57,15 +57,6 @@ function calcAge(birthDate?: string | null): string {
   return years > 0 ? `${years}岁${months}个月` : `${months}个月`
 }
 
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}.${m}.${day}`
-}
-
 export default function ClassManagePage() {
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -363,7 +354,7 @@ export default function ClassManagePage() {
                                         <Text className="text-xs text-gray-400">{child.gender === 'male' ? '男' : '女'}</Text>
                                         <Text className="text-xs text-gray-400">{calcAge(child.birth_date)}</Text>
                                       </View>
-                                      <Text className="text-xs text-gray-400 text-right">{formatDate(child.start_date)}-{formatDate(child.end_date)}</Text>
+                                      <Text className="text-xs text-gray-400 text-right">{child.start_date ? `${child.start_date}${child.end_date ? ` ~ ${child.end_date}` : '起'}` : ''}</Text>
                                     </View>
                                   ))}
                                 </View>
