@@ -400,6 +400,22 @@ export class EnrollmentsService {
     return result;
   }
 
+  async calcExtendedEndDateAndPersist(enrollmentId: string): Promise<{ extended_end_date: string | null; details: HolidayDetail[] }> {
+    const { extended_end_date: extendedDate, details } = await this.calculateExtendedEndDate(enrollmentId);
+    if (extendedDate) {
+      await this.client
+        .from('enrollments')
+        .update({ extended_end_date: extendedDate })
+        .eq('id', enrollmentId);
+    } else {
+      await this.client
+        .from('enrollments')
+        .update({ extended_end_date: null })
+        .eq('id', enrollmentId);
+    }
+    return { extended_end_date: extendedDate, details };
+  }
+
   async findByChild(childId: string): Promise<Enrollment[]> {
     await this.syncExpiredStatus();
     const { data, error } = await this.client

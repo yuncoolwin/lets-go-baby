@@ -73,7 +73,7 @@ export class EnrollmentsController {
   @HttpCode(200)
   async calcExtendedEndDate(@Param('id') id: string) {
     try {
-      const data = await this.enrollmentsService.calculateExtendedEndDate(id);
+      const data = await this.enrollmentsService.calcExtendedEndDateAndPersist(id);
       return { code: 200, msg: 'success', data: data };
     } catch (e: any) {
       return { code: 500, msg: e.message || '计算失败' };
