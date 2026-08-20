@@ -606,13 +606,13 @@ export class EnrollmentsService {
     if (error) throw new Error(`创建报读记录失败: ${error.message}`);
 
     if (data.start_date && data.end_date) {
-      const extended = await this.calculateExtendedEndDate(data.id);
-      if (extended.extended_end_date) {
+      const { extended_end_date: extendedDate } = await this.calculateExtendedEndDate(data.id);
+      if (extendedDate) {
         await this.client
           .from('enrollments')
-          .update({ extended_end_date: extended.extended_end_date })
+          .update({ extended_end_date: extendedDate })
           .eq('id', data.id);
-        data.extended_end_date = extended.extended_end_date;
+        data.extended_end_date = extendedDate;
       }
     }
 
