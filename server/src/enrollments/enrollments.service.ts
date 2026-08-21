@@ -378,12 +378,11 @@ export class EnrollmentsService {
     // ====== 请假顺延逻辑（仅全日托/半日托） ======
     const isFullOrHalfDay = enr.course_type === '全日托' || enr.course_type === '半日托';
     if (isFullOrHalfDay) {
-      // 查询该报读记录在课程区间内的请假记录
+      // 查询该报读记录在课程区间内的请假记录（按 enrollment_id 精确匹配当前报读）
       const { data: leaveRecords, error: leaveError } = await this.client
         .from('attendance')
         .select('date')
-        .eq('child_id', enr.child_id)
-        .eq('course_type', enr.course_type)
+        .eq('enrollment_id', enr.id)
         .eq('status', 'leave')
         .gte('date', startDate)
         .lte('date', endDate)
