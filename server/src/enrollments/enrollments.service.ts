@@ -707,18 +707,16 @@ export class EnrollmentsService {
   }
 
   /**
-   * 判断某天是否为上课日（按 date_calc_rule 规则）
-   * - 工作日：工作日上课；调休补班日算工作日；排除法定节假日与全园/班级/个人假期
-   * - 周六：非调休周六上课；排除法定节假日与假期
-   * - 工作日+周六：工作日与非调休周六上课；调休补班日算工作日；排除法定节假日与假期
+   * 判断某天是否符合规则中的星期/调休上课条件（不含假期排除）
+   * - 工作日：工作日上课；调休补班日算工作日
+   * - 周六：非调休周六上课
+   * - 工作日+周六：工作日与非调休周六上课；调休补班日算工作日
    */
-  private isClassDay(
+  private matchesWeekRule(
     dateStr: string,
     rule: string,
-    holidaySet: Set<string>,
     transferWorkdaySet: Set<string>,
   ): boolean {
-    if (holidaySet.has(dateStr)) return false;
     const hasWeekday = rule.includes('工作日');
     const hasSaturday = rule.includes('周六');
     const isTransfer = transferWorkdaySet.has(dateStr);
@@ -738,6 +736,19 @@ export class EnrollmentsService {
       return saturday && !isTransfer;
     }
     return false;
+  }
+
+  /**
+   * 判断某天是否为实际上课日（符合星期规则且排除假期）
+   */
+  private isClassDay(
+    dateStr: string,
+    rule: string,
+    holidaySet: Set<string>,
+    transferWorkdaySet: Set<string>,
+  ): boolean {
+    if (holidaySet.has(dateStr)) return false;
+    return this.matchesWeekRule(dateStr, rule, transferWorkdaySet);
   }
 
   /**
@@ -848,10 +859,22 @@ export class EnrollmentsService {
     let cursor = startDate;
     while (cursor <= endDate) {
       const dateStr = this.toDateStr(cursor);
-      const isClassDay = this.isClassDay(dateStr, rule, holidaySet, transferWorkdaySet);
-      let status: 'full' | 'half' | 'present' | 'leave' | 'absent' | 'holiday' | null = statusMap.get(dateStr) || null;
-      if (holidayNameMap.has(dateStr)) status = 'holiday';
-      result.push({ date: dateStr, status, is_class_day: isClassDay, name: holidayNameMap.get(dateStr) });
+      const matchesWeek = this.matchesWeekRule(dateStr, rule, transferWorkdaySet);
+      const isHoliday = holidayNameMap.has(dateStr);
+      let status: 'full' | 'half' | 'present' | 'leave' | 'absent' | 'holiday' | null = null;
+      let isClassDay = false;
+      if (matchesWeek) {
+        if (isHoliday) {
+          // 符合上课日规律但因法定节假日/假期放假
+          status = 'holiday';
+        } else {
+          // 实际可上课日
+          isClassDay = true;
+          status = statusMap.get(dateStr) || null;
+        }
+      }
+      // 非上课日（matchesWeek=false）无论是否假期，status 保持 null，前端置灰、不显示放假标签
+      result.push({ date: dateStr, status, is_class_day: isClassDay, name: matchesWeek && isHoliday ? holidayNameMap.get(dateStr) : undefined });
       cursor = addDays(cursor, 1);
     }
 
