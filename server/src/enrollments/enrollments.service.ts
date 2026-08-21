@@ -590,8 +590,6 @@ export class EnrollmentsService {
       }
     }
 
-    console.log('[DEBUG attHolidaySet]', enr.course_type, 'class_id=', enr.class_id, 'start=', enr.start_date, 'rawEnd=', enr.end_date, 'extended=', enr.extended_end_date, 'attEnd=', attEndDate, 'enrId=', enr.id, 'set=', JSON.stringify([...attHolidaySet]), 'holidays=', JSON.stringify((attHolidays || []).map(h => ({ type: h.type, target: h.target_id, s: h.start_date, e: h.end_date }))));
-
     // 严格按课程过滤：child_id + course_type，并在结果中排除同课程类型其他报读（续报）的记录
     const { data: attendanceRecords } = await this.client
       .from('attendance')
@@ -610,9 +608,8 @@ export class EnrollmentsService {
       const s = r.status;
       if (s === 'present' || s === 'full_day' || s === 'half_day') {
         // 排除落在假期日的出勤记录（与考勤日历的假期判断一致）
-        const ds = this.toDateStr(r.date);
-        console.log('[DEBUG att]', JSON.stringify(r.date), '->', ds, 'hit=', attHolidaySet.has(ds));
-        if (attHolidaySet.has(ds)) return;
+        const dateStr = this.toDateStr(r.date);
+        if (attHolidaySet.has(dateStr)) return;
         attendedDays++;
       } else if (s === 'leave') {
         leaveDays++;
