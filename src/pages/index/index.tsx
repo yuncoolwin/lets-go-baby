@@ -1176,7 +1176,7 @@ export default function IndexPage() {
 
           <Card
             className="bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => Taro.navigateTo({ url: '/pages/roll-call/index' })}
+            onClick={() => Taro.switchTab({ url: '/pages/roll-call/index' })}
           >
             <CardContent className="p-4 flex flex-col items-center">
               <View className="w-12 h-12 rounded-lg bg-teal-50 flex items-center justify-center mb-2">

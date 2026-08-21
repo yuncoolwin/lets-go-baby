@@ -92,7 +92,7 @@ export default function ClassDetailPage() {
       {/* 快捷操作 */}
       <Card
         className="bg-white rounded-xl border-0 shadow-sm mb-4"
-        onClick={() => Taro.navigateTo({ url: `/pages/roll-call/index?id=${classId}` })}
+        onClick={() => Taro.switchTab({ url: '/pages/roll-call/index' })}
       >
         <CardContent className="p-4 flex items-center justify-between">
           <View className="flex items-center gap-3">
