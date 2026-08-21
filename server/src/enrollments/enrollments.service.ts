@@ -460,52 +460,61 @@ export class EnrollmentsService {
 
     let totalDays = 0;
 
-    // 统一按课程 date_calc_rule 计算总课时（start_date ~ end_date，不含顺延 extended_end_date）
-    const dateCalcRule = await this.resolveDateCalcRule(enr);
+    // 总课时按报读时长类型计算，不参与 date_calc_rule（date_calc_rule 仅用于日期字段与考勤日历上课日）
+    if (enr.duration_type === '一周体验') {
+      // 一周体验：固定 5 个工作日，不查数据库
+      totalDays = 5;
+    } else if (enr.duration_type === '计日') {
+      // 计日：直接取计日日数，不做任何日期计算
+      totalDays = enr.duration_days || 0;
+    } else {
+      // 1个月 / 3个月 / 6个月 / 12个月：遍历 start_date ~ end_date 逐日统计工作日天数
+      const holidaySet = new Set<string>();          // 全园/班级/个人假期 + 法定节假日
+      const transferWorkdaySet = new Set<string>();  // 调休补班日（视为工作日）
 
-    const holidaySet = new Set<string>();          // 全园/班级/个人假期 + 法定节假日
-    const transferWorkdaySet = new Set<string>();  // 调休补班日
+      // 全园/班级/个人假期（holidays 表），与报读区间重叠的日期均计为假期
+      const { data: holidaysData } = await this.client
+        .from('holidays')
+        .select('*')
+        .lte('start_date', enr.end_date)
+        .gte('end_date', enr.start_date);
+      for (const h of holidaysData || []) {
+        let hCurrent = h.start_date > enr.start_date ? h.start_date : enr.start_date;
+        const maxDate = h.end_date < enr.end_date ? h.end_date : enr.end_date;
+        while (hCurrent <= maxDate) {
+          holidaySet.add(this.toDateStr(hCurrent));
+          hCurrent = addDays(hCurrent, 1);
+        }
+      }
 
-    // 全园/班级/个人假期（holidays 表），与报读区间重叠的日期均计为假期
-    const { data: holidaysData } = await this.client
-      .from('holidays')
-      .select('*')
-      .lte('start_date', enr.end_date)
-      .gte('end_date', enr.start_date);
-    for (const h of holidaysData || []) {
-      let current = h.start_date > enr.start_date ? h.start_date : enr.start_date;
-      const maxDate = h.end_date < enr.end_date ? h.end_date : enr.end_date;
-      while (current <= maxDate) {
-        holidaySet.add(this.toDateStr(current));
+      // 法定节假日（type=holiday）与调休补班日（type=work_weekend），跨年查询
+      const yearStart = parseInt(enr.start_date.substring(0, 4));
+      const yearEnd = parseInt(enr.end_date.substring(0, 4));
+      for (let y = yearStart; y <= yearEnd; y++) {
+        const { data: oldHolidays } = await this.client
+          .from('holidays_old')
+          .select('date, type')
+          .eq('year', y)
+          .in('type', ['holiday', 'work_weekend']);
+        for (const h of oldHolidays || []) {
+          const dateStr = h.date?.substring(0, 10);
+          if (!dateStr || dateStr < enr.start_date || dateStr > enr.end_date) continue;
+          if (h.type === 'holiday') holidaySet.add(dateStr);
+          else if (h.type === 'work_weekend') transferWorkdaySet.add(dateStr);
+        }
+      }
+
+      // 逐日统计工作日：排除周六日、法定节假日；调休补班日视为工作日；周六日与假期重叠只扣一次（周六日本身不算工作日）
+      let current = enr.start_date;
+      while (current <= enr.end_date) {
+        const dateStr = this.toDateStr(current);
+        const isWorkday = !isWeekend(dateStr) || transferWorkdaySet.has(dateStr);
+        const isHoliday = holidaySet.has(dateStr);
+        if (isWorkday && !isHoliday) {
+          totalDays++;
+        }
         current = addDays(current, 1);
       }
-    }
-
-    // 法定节假日（type=holiday）与调休补班日（type=work_weekend），跨年查询
-    const yearStart = parseInt(enr.start_date.substring(0, 4));
-    const yearEnd = parseInt(enr.end_date.substring(0, 4));
-    for (let y = yearStart; y <= yearEnd; y++) {
-      const { data: oldHolidays } = await this.client
-        .from('holidays_old')
-        .select('date, type')
-        .eq('year', y)
-        .in('type', ['holiday', 'work_weekend']);
-      for (const h of oldHolidays || []) {
-        const dateStr = h.date?.substring(0, 10);
-        if (!dateStr || dateStr < enr.start_date || dateStr > enr.end_date) continue;
-        if (h.type === 'holiday') holidaySet.add(dateStr);
-        else if (h.type === 'work_weekend') transferWorkdaySet.add(dateStr);
-      }
-    }
-
-    // 逐日统计上课日天数
-    let current = enr.start_date;
-    while (current <= enr.end_date) {
-      const dateStr = this.toDateStr(current);
-      if (this.isClassDay(dateStr, dateCalcRule, holidaySet, transferWorkdaySet)) {
-        totalDays++;
-      }
-      current = addDays(current, 1);
     }
 
     const attEndDate = enr.extended_end_date || enr.end_date;
@@ -736,19 +745,6 @@ export class EnrollmentsService {
       return saturday && !isTransfer;
     }
     return false;
-  }
-
-  /**
-   * 判断某天是否为实际上课日（符合星期规则且排除假期）
-   */
-  private isClassDay(
-    dateStr: string,
-    rule: string,
-    holidaySet: Set<string>,
-    transferWorkdaySet: Set<string>,
-  ): boolean {
-    if (holidaySet.has(dateStr)) return false;
-    return this.matchesWeekRule(dateStr, rule, transferWorkdaySet);
   }
 
   /**
