@@ -134,8 +134,9 @@ export class EnrollmentsService {
     const startDate = enr.start_date;
     const endDate = enr.end_date;
 
-    // 判断是否为周六托课程
-    const isSaturdayCourse = enr.course_type?.includes('周六') || false;
+    // 根据课程日期计算规则判断上课日类型（date_calc_rule = 周六 / 工作日）
+    const dateCalcRule = await this.resolveDateCalcRule(enr);
+    const isSaturdayCourse = dateCalcRule === '周六';
     // 固定月数课程（1个月/3个月/6个月/12个月）：法定节假日不顺延
     const isMonthlyDuration = ['1个月', '3个月', '6个月', '12个月'].includes(enr.duration_type);
 
@@ -248,17 +249,53 @@ export class EnrollmentsService {
       // 按开始日期排序：早的放前面
       details.sort((a, b) => a.startDate.localeCompare(b.startDate));
 
-      // 顺延天数 = 假期周六数量，调整到下一个周六（上课日）
-      let extendedDate = addDays(endDate, saturdayCount);
-      const [ey, em, ed] = extendedDate.split('-').map(Number);
-      const rawDate = new Date(Date.UTC(ey, em - 1, ed));
-      if (rawDate.getUTCDay() !== 6) {
-        rawDate.setUTCDate(rawDate.getUTCDate() + ((6 - rawDate.getUTCDay() + 7) % 7));
+      // 顺延结束日期必须落在合法周六（非法定节假日/非假期管理节假日/非调休补班日）
+      // 预加载 end_date 之后的非法周六，供顺延落点跳过
+      const satClassId = enr.class_id || '';
+      const futureInvalidSaturdays = new Set<string>();
+      const futureSStart = addDays(endDate, 1);
+      const futureSEnd = addDays(endDate, 730);
+      const futureSStartYear = parseInt(futureSStart.substring(0, 4));
+      const futureSEndYear = parseInt(futureSEnd.substring(0, 4));
+      for (let y = futureSStartYear; y <= futureSEndYear; y++) {
+        const { data: futureSOld } = await this.client
+          .from('holidays_old')
+          .select('date, type')
+          .eq('year', y)
+          .in('type', ['holiday', 'work_weekend']);
+        for (const h of futureSOld || []) {
+          const d = h.date?.substring(0, 10);
+          if (!d || d < futureSStart || d > futureSEnd) continue;
+          if (!isSaturday(d)) continue;
+          futureInvalidSaturdays.add(d);
+        }
       }
-      const ey2 = rawDate.getUTCFullYear();
-      const em2 = String(rawDate.getUTCMonth() + 1).padStart(2, '0');
-      const ed2 = String(rawDate.getUTCDate()).padStart(2, '0');
-      extendedDate = `${ey2}-${em2}-${ed2}`;
+      const { data: futureSHolidays } = await this.client
+        .from('holidays')
+        .select('*')
+        .lte('start_date', futureSEnd)
+        .gte('end_date', futureSStart);
+      for (const h of futureSHolidays || []) {
+        if (h.type === 'class' && h.target_id !== satClassId) continue;
+        if (h.type === 'personal' && h.target_id !== enr.child_id) continue;
+        if (!h.start_date || !h.end_date) continue;
+        let c = this.toDateStr(h.start_date > futureSStart ? h.start_date : futureSStart);
+        const max = this.toDateStr(h.end_date < futureSEnd ? h.end_date : futureSEnd);
+        while (c <= max) {
+          if (isSaturday(c)) futureInvalidSaturdays.add(c);
+          c = addDays(c, 1);
+        }
+      }
+
+      // 从 end_date 之后逐个周六推进，跳过非法周六，数满 saturdayCount 个合法周六
+      let extendedDate = endDate;
+      let satRemaining = saturdayCount;
+      while (satRemaining > 0) {
+        extendedDate = addDays(extendedDate, 1);
+        if (!isSaturday(extendedDate)) continue;
+        if (futureInvalidSaturdays.has(extendedDate)) continue;
+        satRemaining--;
+      }
       result.extended_end_date = extendedDate;
       result.details = details;
       return result;
