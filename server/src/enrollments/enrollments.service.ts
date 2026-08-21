@@ -156,9 +156,15 @@ export class EnrollmentsService {
         if (!h.start_date || !h.end_date) continue;
         const overlapStart = h.start_date > startDate ? h.start_date : startDate;
         const overlapEnd = h.end_date < endDate ? h.end_date : endDate;
-        const overlapDays = Math.floor(
-          (new Date(overlapEnd).getTime() - new Date(overlapStart).getTime()) / 86400000
-        ) + 1;
+        let overlapDays = 0;
+        let current = this.toDateStr(overlapStart);
+        const maxDate = this.toDateStr(overlapEnd);
+        while (current <= maxDate) {
+          holidaySet.add(current);
+          holidaySourceMap.set(current, { name: h.name, type: 'all' });
+          if (!isWeekend(current)) overlapDays++;
+          current = addDays(current, 1);
+        }
         if (overlapDays > 0) {
           result.details.push({
             name: h.name, type: '全园',
@@ -166,13 +172,6 @@ export class EnrollmentsService {
             endDate: overlapEnd,
             overlapDays,
           });
-        }
-        let current = this.toDateStr(overlapStart);
-        const maxDate = this.toDateStr(overlapEnd);
-        while (current <= maxDate) {
-          holidaySet.add(current);
-          holidaySourceMap.set(current, { name: h.name, type: 'all' });
-          current = addDays(current, 1);
         }
       }
     }
@@ -200,11 +199,13 @@ export class EnrollmentsService {
       }
       for (const [name, dates] of oldHolidayNames) {
         dates.sort();
+        const workdayDates = dates.filter(d => !isWeekend(d));
+        if (workdayDates.length === 0) continue;
         result.details.push({
           name, type: '全园',
-          startDate: dates[0],
-          endDate: dates[dates.length - 1],
-          overlapDays: dates.length,
+          startDate: workdayDates[0],
+          endDate: workdayDates[workdayDates.length - 1],
+          overlapDays: workdayDates.length,
         });
       }
     }
@@ -282,13 +283,15 @@ export class EnrollmentsService {
     });
 
     for (const h of matchingHolidays) {
-      let current = this.toDateStr(h.start_date > startDate ? h.start_date : startDate);
-      const maxDate = this.toDateStr(h.end_date < endDate ? h.end_date : endDate);
+      const overlapStart = h.start_date > startDate ? h.start_date : startDate;
+      const overlapEnd = h.end_date < endDate ? h.end_date : endDate;
       let overlapCount = 0;
+      let current = this.toDateStr(overlapStart);
+      const maxDate = this.toDateStr(overlapEnd);
       while (current <= maxDate) {
         holidaySet.add(current);
         holidaySourceMap.set(current, { name: h.name, type: h.type });
-        overlapCount++;
+        if (!isWeekend(current)) overlapCount++;
         current = addDays(current, 1);
       }
       if (overlapCount > 0) {
@@ -303,7 +306,10 @@ export class EnrollmentsService {
       }
     }
 
-    const totalHolidayDays = holidaySet.size;
+    let totalHolidayDays = 0;
+    for (const dateStr of holidaySet) {
+      if (!isWeekend(dateStr)) totalHolidayDays++;
+    }
     if (totalHolidayDays === 0) return result;
 
     let extendedDate = endDate;
@@ -344,9 +350,19 @@ export class EnrollmentsService {
         for (let i = 1; i < leaveDates.length; i++) {
           const prev = leaveDates[i - 1];
           const curr = leaveDates[i];
-          // 判断是否连续（差1天）
+          // 判断是否连续（工作日连续：相邻日历日，或中间只隔周六日）
           const diff = (new Date(curr).getTime() - new Date(prev).getTime()) / 86400000;
-          if (diff === 1) {
+          let isConsecutive = diff === 1;
+          if (!isConsecutive && diff > 1) {
+            let gapAllWeekend = true;
+            let d = addDays(prev, 1);
+            while (d < curr) {
+              if (!isWeekend(d)) { gapAllWeekend = false; break; }
+              d = addDays(d, 1);
+            }
+            isConsecutive = gapAllWeekend;
+          }
+          if (isConsecutive) {
             segEnd = curr;
             segCount++;
           } else {
