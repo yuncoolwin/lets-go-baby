@@ -726,7 +726,7 @@ export class EnrollmentsService {
     // 查询出勤记录（按 enrollment_id 精准关联）
     const records = await this.client
       .from('attendance')
-      .select('date, status')
+      .select('date, status, is_half_day')
       .eq('enrollment_id', enrollmentId)
       .gte('date', enr.start_date)
       .lte('date', endDate)
@@ -735,17 +735,17 @@ export class EnrollmentsService {
     const result: Array<{ date: string; status: 'full' | 'half' | 'present' | 'leave' | 'absent' | 'holiday'; name?: string }> =
       (records.data || []).map((r: any) => {
         let status: 'full' | 'half' | 'present' | 'leave' | 'absent';
-        const isFullDayCourse = enr.course_type === '全日托';
-        if (r.status === 'present' || r.status === 'full_day') {
-          if (isFullDayCourse) {
-            status = r.is_half_day ? 'half' : 'full';
-          } else {
-            status = 'present';
-          }
-        } else if (r.status === 'leave') {
+        const isFullDayCourse = enr.course_type === '全日托' || enr.course_type === '周六托';
+        if (r.status === 'leave') {
           status = 'leave';
-        } else {
+        } else if (r.status === 'absent') {
           status = 'absent';
+        } else if (isFullDayCourse) {
+          // 全日托/周六托：half_day 或 is_half_day 标记 -> 半天；present/full_day 历史记录默认全天
+          status = r.status === 'half_day' || r.is_half_day ? 'half' : 'full';
+        } else {
+          // 其他课程：出勤统一为 present
+          status = 'present';
         }
         return { date: this.toDateStr(r.date), status };
       });

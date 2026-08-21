@@ -307,6 +307,9 @@ export class AttendanceService {
       .maybeSingle();
     enrollmentId = enr?.id || null;
 
+    // 全天/半天标记：half_day -> true，full_day -> false，其余（present/absent/leave）-> null
+    const isHalfDay = dto.status === 'half_day' ? true : dto.status === 'full_day' ? false : null;
+
     const { data, error } = await this.client
       .from('attendance')
       .upsert({
@@ -317,6 +320,7 @@ export class AttendanceService {
         status: dto.status,
         course_type: courseType,
         enrollment_id: enrollmentId,
+        is_half_day: isHalfDay,
         updated_at: new Date().toISOString(),
       }, {
         onConflict: 'child_id,date,course_type',

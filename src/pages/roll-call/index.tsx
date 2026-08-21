@@ -307,7 +307,7 @@ export default function RollCallPage() {
 
   /** 检查某个分组是否全部已标记为出勤 */
   const isGroupAllPresent = (courseType: string, groupChildren: ChildItem[]) => {
-    const expectedStatus = courseType === '全日托' ? 'full_day' : 'present'
+    const expectedStatus = (courseType === '全日托' || courseType === '周六托') ? 'full_day' : 'present'
     const display = isLocked ? attendance : tempAttendance
     return groupChildren.length > 0 && groupChildren.every(child => {
       const key = child.id + '__' + child.course_type
@@ -318,7 +318,7 @@ export default function RollCallPage() {
   /** 切换全勤状态 */
   const handleToggleAllPresent = (courseType: string, groupChildren: ChildItem[]) => {
     if (isLocked) return
-    const expectedStatus = courseType === '全日托' ? 'full_day' : 'present'
+    const expectedStatus = (courseType === '全日托' || courseType === '周六托') ? 'full_day' : 'present'
     const isActive = isGroupAllPresent(courseType, groupChildren)
 
     const newTemp = { ...tempAttendance }
@@ -453,7 +453,7 @@ export default function RollCallPage() {
                   const leave = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'leave').length
                   const fullDay = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'full_day').length
                   const halfDay = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'half_day').length
-                  const totalPresent = courseType === '全日托' ? fullDay + halfDay : present
+                  const totalPresent = (courseType === '全日托' || courseType === '周六托') ? fullDay + halfDay : present
                   const unrecorded = groupChildren.length - totalPresent - absent - leave
                   const colorClass = COURSE_TYPE_COLORS[courseType] || 'bg-gray-100 text-gray-700'
                   const statExpanded = expandedAttendStat === courseType
@@ -507,7 +507,7 @@ export default function RollCallPage() {
                           <>
                             {/* 分组统计 */}
                             <View className="flex gap-2 mt-4 mb-4">
-                              {courseType === '全日托' ? (
+                              {(courseType === '全日托' || courseType === '周六托') ? (
                                 <>
                                   <View className="flex-1 bg-green-50 rounded-xl py-2 px-3 text-center" onClick={() => setExpandedAttendStat(statExpanded ? '' : courseType)}>
                                     <Text className="block text-xl font-bold text-green-600">{totalPresent}</Text>
@@ -572,7 +572,7 @@ export default function RollCallPage() {
                                     </View>
 
                                     <View className="flex gap-2">
-                                      {(child.course_type === '全日托' ? ['full_day', 'half_day', 'absent', 'leave'] : ['present', 'absent', 'leave'] as const).map(status => {
+                                      {((child.course_type === '全日托' || child.course_type === '周六托') ? ['full_day', 'half_day', 'absent', 'leave'] : ['present', 'absent', 'leave'] as const).map(status => {
                                         const isSelected = current === status
                                         const isClickable = !isLocked
                                         return (

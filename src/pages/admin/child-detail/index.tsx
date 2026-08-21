@@ -1375,7 +1375,7 @@ export default function ChildDetailPage() {
 
                     {/* 图例 */}
                     <View className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-gray-100 px-1">
-                      {currentAttendanceCalendar?.courseType === '全日托' ? (
+                      {(currentAttendanceCalendar?.courseType === '全日托' || currentAttendanceCalendar?.courseType === '周六托') ? (
                         <>
                           <View className="flex items-center gap-1">
                             <Text className="text-sm px-1 rounded-sm" style={{ color: '#52C41A', border: '1px solid #52C41A', backgroundColor: '#FFF8F0', lineHeight: '16px' }}>全天</Text>
