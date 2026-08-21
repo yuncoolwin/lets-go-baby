@@ -590,26 +590,23 @@ export class EnrollmentsService {
       }
     }
 
-    // 严格按课程过滤：child_id + course_type，并在结果中排除同课程类型其他报读（续报）的记录
+    // 精确按 enrollment_id 匹配当前报读（与 getAttendanceCalendar 保持一致）
     const { data: attendanceRecords } = await this.client
       .from('attendance')
-      .select('status, enrollment_id, date')
-      .eq('child_id', enr.child_id)
+      .select('status, date')
+      .eq('enrollment_id', enr.id)
       .gte('date', enr.start_date)
-      .lte('date', attEndDate)
-      .eq('course_type', enr.course_type);
+      .lte('date', attEndDate);
 
     let attendedDays = 0;
     let leaveDays = 0;
     let absentDays = 0;
     (attendanceRecords || []).forEach((r: any) => {
-      // 排除属于同 child+course_type 其他报读的考勤，兼容历史 enrollment_id 为空的情况
-      if (r.enrollment_id && r.enrollment_id !== enr.id) return;
       const s = r.status;
+      // 落在四类假期日的考勤（present/leave/absent）一律剔除，与考勤日历假期标记对齐
+      const dateStr = this.toDateStr(r.date);
+      if (attHolidaySet.has(dateStr)) return;
       if (s === 'present' || s === 'full_day' || s === 'half_day') {
-        // 排除落在假期日的出勤记录（与考勤日历的假期判断一致）
-        const dateStr = this.toDateStr(r.date);
-        if (attHolidaySet.has(dateStr)) return;
         attendedDays++;
       } else if (s === 'leave') {
         leaveDays++;

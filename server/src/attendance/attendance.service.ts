@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
-import { isSaturday, isWeekend } from '@/utils/date.util';
+import { getShanghaiToday, isSaturday, isWeekend } from '@/utils/date.util';
 
 @Injectable()
 export class AttendanceService {
@@ -15,7 +15,7 @@ export class AttendanceService {
    * @param date 可选，默认当天
    */
   async findByClassAndDate(classId: string, date?: string) {
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    const targetDate = date || getShanghaiToday();
 
     // 查询班级在读幼儿
     const { data: children, error: childErr } = await this.client
@@ -115,7 +115,7 @@ export class AttendanceService {
   async getAdminOverview(classId: string, date?: string) {
     if (!classId) return [];
 
-    const queryDate = date || new Date().toISOString().split('T')[0];
+    const queryDate = date || getShanghaiToday();
     console.log(`[AdminOverview] classId=${classId}, date=${queryDate}`);
 
     // 查询班级信息
@@ -364,7 +364,7 @@ export class AttendanceService {
    * 覆盖四类假期：法定节假日、全园假期、班级假期、个人假期
    */
   async getHolidayStatus(classId: string, date?: string) {
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    const targetDate = date || getShanghaiToday();
     let holidayLabel: string | null = null;
 
     // 1. 全园假期（type=all）

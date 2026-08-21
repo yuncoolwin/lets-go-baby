@@ -49,3 +49,20 @@ export function diffDays(start: string, end: string): number {
   const e = parseDate(end);
   return Math.abs(Math.floor((e.getTime() - s.getTime()) / 86400000));
 }
+
+/**
+ * 获取 Asia/Shanghai 时区的"今天"日期字符串（YYYY-MM-DD）
+ * 避免使用 toISOString（UTC）在凌晨（北京时间 0:00-8:00）偏一天
+ */
+export function getShanghaiToday(): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const y = parts.find(p => p.type === 'year')?.value || '';
+  const m = parts.find(p => p.type === 'month')?.value || '';
+  const d = parts.find(p => p.type === 'day')?.value || '';
+  return `${y}-${m}-${d}`;
+}
