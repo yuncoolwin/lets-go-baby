@@ -540,6 +540,11 @@ export default function ChildDetailPage() {
     )
   }
 
+  const currentCourse = courses.find((c) => c.name === formCourseType)
+  const currentDurationOptions: string[] = currentCourse?.duration_options?.length
+    ? currentCourse.duration_options
+    : ['一周体验', '1个月', '3个月', '6个月', '12个月', '计日', '一学期', '一学年']
+
   return (
     <View className="min-h-screen bg-background pb-20">
       
@@ -887,8 +892,8 @@ export default function ChildDetailPage() {
               <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">报读时长</Text>
                 <View className="flex flex-wrap gap-2">
-                  {['一周体验', '1个月', '3个月', '6个月', '12个月', '计日', '一学期', '一学年'].map((t) => {
-                    const disabled = ['周六托', '兴趣班'].includes(formCourseType) && t !== '计日'
+                  {currentDurationOptions.map((t) => {
+                    const disabled = currentCourse?.duration_options?.length ? false : ['周六托', '兴趣班'].includes(formCourseType) && t !== '计日'
                     return (
                       <View
                         key={t}
@@ -1197,16 +1202,19 @@ export default function ChildDetailPage() {
 
                 const attendanceMap: Record<string, string> = {}
                 const holidayMap: Record<string, string> = {}
+                const classDaySet: Record<string, boolean> = {}
                 ;(attendanceData || []).forEach((item: any) => {
+                  if (item.is_class_day === true) classDaySet[item.date] = true
                   if (item.status === 'holiday') {
                     holidayMap[item.date] = item.name
-                  } else {
+                  } else if (item.status) {
                     attendanceMap[item.date] = item.status
                   }
                 })
 
                 const getDayClass = (ds: string) => {
                   if (ds < startDate || ds > endDate) return 'text-gray-300'
+                  if (!classDaySet[ds] && !holidayMap[ds]) return 'text-gray-300'
                   if (ds === selectedDate) return 'text-white font-semibold'
                   if (ds === today) return 'text-blue-500 font-semibold'
                   return 'text-gray-800'
@@ -1221,6 +1229,7 @@ export default function ChildDetailPage() {
                 const handleDayClick = async (d: number) => {
                   const ds = `${displayYear}-${String(displayMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`
                   if (ds < startDate || ds > endDate) return
+                  if (!classDaySet[ds]) return
                   setCurrentAttendanceCalendar(prev => prev ? { ...prev, selectedDate: ds } : null)
                   console.log('>>> handleDayClick 被调用, childId:', child.id, ', date:', ds)
                   try {
