@@ -312,13 +312,48 @@ export class EnrollmentsService {
     }
     if (totalHolidayDays === 0) return result;
 
+    // 顺延结束日期若落在 end_date 之后的节假日（法定节假日 / 假期管理内节假日），需继续顺延至下一个工作日。
+    // 预加载未来两年的节假日集合，供顺延落点时跳过。
+    const futureHolidaySet = new Set<string>();
+    const futureStart = addDays(endDate, 1);
+    const futureEnd = addDays(endDate, 730);
+    const futureStartYear = parseInt(futureStart.substring(0, 4));
+    const futureEndYear = parseInt(futureEnd.substring(0, 4));
+    for (let y = futureStartYear; y <= futureEndYear; y++) {
+      const { data: futureOldHolidays } = await this.client
+        .from('holidays_old')
+        .select('date')
+        .eq('type', 'holiday')
+        .eq('year', y);
+      for (const h of futureOldHolidays || []) {
+        const d = h.date?.substring(0, 10);
+        if (d && d >= futureStart && d <= futureEnd) futureHolidaySet.add(d);
+      }
+    }
+    const { data: futureHolidaysData } = await this.client
+      .from('holidays')
+      .select('*')
+      .lte('start_date', futureEnd)
+      .gte('end_date', futureStart);
+    for (const h of futureHolidaysData || []) {
+      if (h.type === 'class' && h.target_id !== classId) continue;
+      if (h.type === 'personal' && h.target_id !== enr.child_id) continue;
+      if (!h.start_date || !h.end_date) continue;
+      let c = this.toDateStr(h.start_date > futureStart ? h.start_date : futureStart);
+      const max = this.toDateStr(h.end_date < futureEnd ? h.end_date : futureEnd);
+      while (c <= max) {
+        futureHolidaySet.add(c);
+        c = addDays(c, 1);
+      }
+    }
+
     let extendedDate = endDate;
     let remainingDays = totalHolidayDays;
 
     while (remainingDays > 0) {
       extendedDate = addDays(extendedDate, 1);
       if (isWeekend(extendedDate)) continue;
-      if (holidaySet.has(extendedDate)) continue;
+      if (holidaySet.has(extendedDate) || futureHolidaySet.has(extendedDate)) continue;
       remainingDays--;
     }
 
@@ -387,7 +422,7 @@ export class EnrollmentsService {
           while (remaining > 0) {
             currentExtDate = addDays(currentExtDate, 1);
             if (isWeekend(currentExtDate)) continue;
-            if (holidaySet.has(currentExtDate)) continue;
+            if (holidaySet.has(currentExtDate) || futureHolidaySet.has(currentExtDate)) continue;
             remaining--;
           }
           result.extended_end_date = currentExtDate;
@@ -472,13 +507,16 @@ export class EnrollmentsService {
       const holidaySet = new Set<string>();          // 全园/班级/个人假期 + 法定节假日
       const transferWorkdaySet = new Set<string>();  // 调休补班日（视为工作日）
 
-      // 全园/班级/个人假期（holidays 表），与报读区间重叠的日期均计为假期
+      // 假期管理内日期（holidays 表）：全园假期、本班级假期、本幼儿个人假期
       const { data: holidaysData } = await this.client
         .from('holidays')
         .select('*')
         .lte('start_date', enr.end_date)
         .gte('end_date', enr.start_date);
       for (const h of holidaysData || []) {
+        // 班级假期仅匹配本幼儿所属班级，个人假期仅匹配本幼儿，避免混入其他班级/幼儿的假期
+        if (h.type === 'class' && h.target_id !== enr.class_id) continue;
+        if (h.type === 'personal' && h.target_id !== enr.child_id) continue;
         let hCurrent = h.start_date > enr.start_date ? h.start_date : enr.start_date;
         const maxDate = h.end_date < enr.end_date ? h.end_date : enr.end_date;
         while (hCurrent <= maxDate) {
