@@ -60,14 +60,14 @@ export function createDateCalculator(
     const current = new Date(Date.UTC(y, m - 1, d))
     let count = 0
     while (count < numDays) {
-      const dateStr = current.toISOString().split('T')[0]
+      const dateStr = current.toISOString().slice(0, 10)
       if (isWorkingDay(dateStr)) {
         count++
         if (count === numDays) break
       }
       current.setUTCDate(current.getUTCDate() + 1)
     }
-    return current.toISOString().split('T')[0]
+    return current.toISOString().slice(0, 10)
   }
 
   function addCalendarMonths(startDate: string, numMonths: number): string {
@@ -79,7 +79,7 @@ export function createDateCalculator(
     const targetDay = Math.min(d, lastDay)
     // 结束日期 = 对应日期 - 1天
     const endDate = new Date(Date.UTC(targetYear, targetMonth, targetDay - 1))
-    return endDate.toISOString().split('T')[0]
+    return endDate.toISOString().slice(0, 10)
   }
 
   function addSaturdays(startDate: string, numDays: number): string {
@@ -87,14 +87,14 @@ export function createDateCalculator(
     const current = new Date(Date.UTC(y, m - 1, d))
     let count = 0
     while (count < numDays) {
-      const dateStr = current.toISOString().split('T')[0]
+      const dateStr = current.toISOString().slice(0, 10)
       if (isNonHolidaySaturday(dateStr)) {
         count++
         if (count === numDays) break
       }
       current.setUTCDate(current.getUTCDate() + 1)
     }
-    return current.toISOString().split('T')[0]
+    return current.toISOString().slice(0, 10)
   }
 
   function getDurationDays(duration: string, customDays: string): number {

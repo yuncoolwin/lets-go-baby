@@ -378,12 +378,12 @@ export default function ChildDetailPage() {
         validDates.sort()
         const latest = validDates[validDates.length - 1]
         const dt = new Date(latest)
-        setCalDisplayYear(dt.getFullYear())
-        setCalDisplayMonth(dt.getMonth() + 1)
+        setCalDisplayYear(dt.getUTCFullYear())
+        setCalDisplayMonth(dt.getUTCMonth() + 1)
       } else {
         const dt = new Date(enr.start_date)
-        setCalDisplayYear(dt.getFullYear())
-        setCalDisplayMonth(dt.getMonth() + 1)
+        setCalDisplayYear(dt.getUTCFullYear())
+        setCalDisplayMonth(dt.getUTCMonth() + 1)
       }
     } catch (e) {
       console.error('[AttendanceCalendar] load error:', e)

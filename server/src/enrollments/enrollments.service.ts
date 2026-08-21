@@ -73,7 +73,7 @@ export class EnrollmentsService {
   }
 
   private async syncExpiredStatus(): Promise<void> {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().slice(0, 10);
     const { error } = await this.client
       .from('enrollments')
       .update({ status: '已结束', updated_at: new Date().toISOString() })
@@ -84,36 +84,13 @@ export class EnrollmentsService {
   }
 
   /**
-   * 日期字符串加减天数（纯字符串操作，避免 timezone 问题）
-   * 输入/输出格式均为 YYYY-MM-DD
+   * 将日期字符串规整为 YYYY-MM-DD（纯字符串提取，不涉及时区）
    */
-  private addDays(dateStr: string, days: number): string {
-    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (!match) return dateStr;
-    const [, y, m, d] = match;
-    const date = new Date(parseInt(y), parseInt(m) - 1, parseInt(d) + days);
-    const yy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const dd = String(date.getDate()).padStart(2, '0');
-    return `${yy}-${mm}-${dd}`;
-  }
-
   private toDateStr(dateStr: string): string {
     const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (!match) return dateStr;
     const [, y, m, d] = match;
     return `${y}-${m}-${d}`;
-  }
-
-  private addDaysUTC(dateStr: string, days: number): string {
-    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (!match) return dateStr;
-    const [, y, m, d] = match;
-    const date = new Date(Date.UTC(parseInt(y), parseInt(m) - 1, parseInt(d) + days));
-    const ny = date.getUTCFullYear();
-    const nm = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const nd = String(date.getUTCDate()).padStart(2, '0');
-    return `${ny}-${nm}-${nd}`;
   }
 
   /**
@@ -541,26 +518,8 @@ export class EnrollmentsService {
       totalDays = enr.duration_days || 0;
     } else {
       // 1个月 / 3个月 / 6个月 / 12个月：遍历 start_date ~ end_date 逐日统计工作日天数
-      const holidaySet = new Set<string>();          // 全园/班级/个人假期 + 法定节假日
+      const holidaySet = new Set<string>();          // 法定节假日（不再排除假期管理内日期）
       const transferWorkdaySet = new Set<string>();  // 调休补班日（视为工作日）
-
-      // 假期管理内日期（holidays 表）：全园假期、本班级假期、本幼儿个人假期
-      const { data: holidaysData } = await this.client
-        .from('holidays')
-        .select('*')
-        .lte('start_date', enr.end_date)
-        .gte('end_date', enr.start_date);
-      for (const h of holidaysData || []) {
-        // 班级假期仅匹配本幼儿所属班级，个人假期仅匹配本幼儿，避免混入其他班级/幼儿的假期
-        if (h.type === 'class' && h.target_id !== enr.class_id) continue;
-        if (h.type === 'personal' && h.target_id !== enr.child_id) continue;
-        let hCurrent = h.start_date > enr.start_date ? h.start_date : enr.start_date;
-        const maxDate = h.end_date < enr.end_date ? h.end_date : enr.end_date;
-        while (hCurrent <= maxDate) {
-          holidaySet.add(this.toDateStr(hCurrent));
-          hCurrent = addDays(hCurrent, 1);
-        }
-      }
 
       // 法定节假日（type=holiday）与调休补班日（type=work_weekend），跨年查询
       const yearStart = parseInt(enr.start_date.substring(0, 4));
@@ -631,6 +590,8 @@ export class EnrollmentsService {
       }
     }
 
+    console.log('[DEBUG attHolidaySet]', enr.course_type, 'class_id=', enr.class_id, 'start=', enr.start_date, 'rawEnd=', enr.end_date, 'extended=', enr.extended_end_date, 'attEnd=', attEndDate, 'enrId=', enr.id, 'set=', JSON.stringify([...attHolidaySet]), 'holidays=', JSON.stringify((attHolidays || []).map(h => ({ type: h.type, target: h.target_id, s: h.start_date, e: h.end_date }))));
+
     // 严格按课程过滤：child_id + course_type，并在结果中排除同课程类型其他报读（续报）的记录
     const { data: attendanceRecords } = await this.client
       .from('attendance')
@@ -649,7 +610,9 @@ export class EnrollmentsService {
       const s = r.status;
       if (s === 'present' || s === 'full_day' || s === 'half_day') {
         // 排除落在假期日的出勤记录（与考勤日历的假期判断一致）
-        if (attHolidaySet.has(this.toDateStr(r.date))) return;
+        const ds = this.toDateStr(r.date);
+        console.log('[DEBUG att]', JSON.stringify(r.date), '->', ds, 'hit=', attHolidaySet.has(ds));
+        if (attHolidaySet.has(ds)) return;
         attendedDays++;
       } else if (s === 'leave') {
         leaveDays++;
@@ -881,7 +844,7 @@ export class EnrollmentsService {
     const startDate = enr.start_date;
     if (!startDate) return [];
     // 上课期间：start_date ~ 顺延结束日期（无顺延取原始结束日期，长期在读取今日）
-    const endDate = enr.extended_end_date || enr.end_date || new Date().toISOString().split('T')[0];
+    const endDate = enr.extended_end_date || enr.end_date || new Date().toISOString().slice(0, 10);
 
     // 解析上课日规则（从课程管理动态读取）
     const rule = await this.resolveDateCalcRule(enr);

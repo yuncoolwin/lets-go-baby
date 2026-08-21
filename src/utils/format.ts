@@ -65,8 +65,9 @@ export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return ''
   const d = new Date(dateStr)
   if (Number.isNaN(d.getTime())) return ''
-  const month = d.getMonth() + 1
-  const day = d.getDate()
+  // 日期字符串按 UTC 解析，统一使用 UTC getter 避免时区偏移导致偏一天
+  const month = d.getUTCMonth() + 1
+  const day = d.getUTCDate()
   return `${month}月${day}日`
 }
 
