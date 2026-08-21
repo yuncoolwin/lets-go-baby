@@ -358,4 +358,80 @@ export class AttendanceService {
     const dates = [...new Set(data?.map((r: any) => r.date?.split('T')[0]) || [])];
     return dates;
   }
+
+  /**
+   * 获取某班级某天的假期状态（用于点名页：假期日出勤按钮置灰）
+   * 覆盖四类假期：法定节假日、全园假期、班级假期、个人假期
+   */
+  async getHolidayStatus(classId: string, date?: string) {
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    let holidayLabel: string | null = null;
+
+    // 1. 全园假期（type=all）
+    const { data: allHolidays } = await this.client
+      .from('holidays')
+      .select('name, start_date, end_date')
+      .eq('type', 'all')
+      .lte('start_date', targetDate)
+      .gte('end_date', targetDate);
+    if ((allHolidays || []).length > 0) {
+      holidayLabel = allHolidays![0].name || '全园放假';
+    }
+
+    // 2. 班级假期（type=class，target_id=班级id）
+    if (!holidayLabel && classId) {
+      const { data: classHolidays } = await this.client
+        .from('holidays')
+        .select('name')
+        .eq('type', 'class')
+        .eq('target_id', classId)
+        .lte('start_date', targetDate)
+        .gte('end_date', targetDate);
+      if ((classHolidays || []).length > 0) {
+        holidayLabel = classHolidays![0].name || '班级放假';
+      }
+    }
+
+    // 3. 法定节假日（holidays_old type=holiday）
+    if (!holidayLabel) {
+      const year = parseInt(targetDate.substring(0, 4));
+      const { data: statutory } = await this.client
+        .from('holidays_old')
+        .select('date, name')
+        .eq('year', year)
+        .eq('type', 'holiday');
+      const hit = (statutory || []).find(h => h.date?.substring(0, 10) === targetDate);
+      if (hit) holidayLabel = hit.name || '法定节假日';
+    }
+
+    // 4. 个人假期（type=personal，target_id=幼儿id）：返回命中该日期的幼儿列表
+    const personalHolidayChildIds: string[] = [];
+    if (classId) {
+      const { data: children } = await this.client
+        .from('children')
+        .select('id')
+        .eq('class_id', classId)
+        .eq('status', 'active');
+      const childIds = (children || []).map(c => c.id);
+      if (childIds.length > 0) {
+        const { data: personalHolidays } = await this.client
+          .from('holidays')
+          .select('target_id')
+          .eq('type', 'personal')
+          .in('target_id', childIds)
+          .lte('start_date', targetDate)
+          .gte('end_date', targetDate);
+        (personalHolidays || []).forEach(h => {
+          if (h.target_id) personalHolidayChildIds.push(h.target_id);
+        });
+      }
+    }
+
+    return {
+      is_class_holiday: !!holidayLabel,
+      holiday_label: holidayLabel,
+      personal_holiday_child_ids: personalHolidayChildIds,
+    };
+  }
 }
+    

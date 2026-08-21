@@ -62,6 +62,7 @@ export default function RollCallPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [classList, setClassList] = useState<Array<{ id: string; name: string }>>([])
   const [selectedClassId, setSelectedClassId] = useState('')
+  const [holidayInfo, setHolidayInfo] = useState<{ is_class_holiday: boolean; holiday_label: string | null; personal_holiday_child_ids: string[] }>({ is_class_holiday: false, holiday_label: null, personal_holiday_child_ids: [] })
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -91,6 +92,9 @@ export default function RollCallPage() {
           return
         }
         setClassId(currentClassId)
+
+        // 加载该班级该日期的假期状态（四类假期）
+        await fetchHolidayStatus(currentClassId)
 
         // 加载日期列表
         try {
@@ -168,6 +172,7 @@ export default function RollCallPage() {
       const theClassId = teacherData.class_id
       setClassId(theClassId)
       setClassName(teacherData.class_name || '')
+      await fetchHolidayStatus(theClassId)
 
       // 加载有考勤记录的日期列表
       try {
@@ -229,6 +234,20 @@ export default function RollCallPage() {
       console.error('[RollCall] load error:', e)
     }
     setLoading(false)
+  }
+
+  const fetchHolidayStatus = async (cid: string) => {
+    try {
+      const res = await Network.request({
+        url: '/api/attendance/holiday-status',
+        data: { class_id: cid, date: selectedDate },
+      })
+      const data = res.data?.data
+      setHolidayInfo(data || { is_class_holiday: false, holiday_label: null, personal_holiday_child_ids: [] })
+    } catch (e) {
+      console.error('[RollCall] load holiday status error:', e)
+      setHolidayInfo({ is_class_holiday: false, holiday_label: null, personal_holiday_child_ids: [] })
+    }
   }
 
   const handleStatusChange = (childId: string, status: AttendanceItem['status']) => {
@@ -574,28 +593,30 @@ export default function RollCallPage() {
                                     <View className="flex gap-2">
                                       {((child.course_type === '全日托' || child.course_type === '周六托') ? ['full_day', 'half_day', 'absent', 'leave'] : ['present', 'absent', 'leave'] as const).map(status => {
                                         const isSelected = current === status
-                                        const isClickable = !isLocked
+                                        const isAttendanceStatus = status === 'present' || status === 'full_day' || status === 'half_day'
+                                        const holidayDisabled = isAttendanceStatus && (holidayInfo.is_class_holiday || holidayInfo.personal_holiday_child_ids.includes(child.id))
+                                        const isClickable = !isLocked && !holidayDisabled
                                         return (
                                           <View
                                             key={status}
                                             className={`flex-1 py-2 rounded-xl text-center font-medium transition-all ${
-                                              isSelected
+                                              isSelected && !holidayDisabled
                                                 ? `${STATUS_CONFIG[status].color} ${STATUS_CONFIG[status].text}`
                                                 : isClickable
                                                   ? 'bg-gray-100 text-gray-500 active:bg-gray-200'
                                                   : 'bg-gray-100 text-gray-300'
                                             }`}
-                                            onClick={() => !isLocked && handleStatusChange(child.id + '__' + child.course_type, status)}
+                                            onClick={() => !isLocked && !holidayDisabled && handleStatusChange(child.id + '__' + child.course_type, status)}
                                           >
                                             <Text className={`block text-sm font-medium ${
-                                              isSelected
+                                              isSelected && !holidayDisabled
                                                 ? STATUS_CONFIG[status].text
                                                 : isClickable
                                                   ? 'text-gray-600'
                                                   : 'text-gray-300'
                                             }`}
                                             >
-                                              {status === 'full_day' ? '✓ 全天' : status === 'half_day' ? '✓ 半天' : status === 'present' ? '✓ 到' : status === 'absent' ? '✗ 缺' : '△ 假'}
+                                              {holidayDisabled ? '放假' : (status === 'full_day' ? '✓ 全天' : status === 'half_day' ? '✓ 半天' : status === 'present' ? '✓ 到' : status === 'absent' ? '✗ 缺' : '△ 假')}
                                             </Text>
                                           </View>
                                         )

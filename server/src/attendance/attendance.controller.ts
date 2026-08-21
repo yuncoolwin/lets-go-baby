@@ -15,6 +15,16 @@ export class AttendanceController {
     return { code: 200, msg: 'success', data };
   }
 
+  @Get('holiday-status')
+  @HttpCode(200)
+  async getHolidayStatus(
+    @Query('class_id') classId: string,
+    @Query('date') date?: string,
+  ) {
+    const data = await this.attendanceService.getHolidayStatus(classId, date);
+    return { code: 200, msg: 'success', data };
+  }
+
   @Get()
   @HttpCode(200)
   async findByClass(
