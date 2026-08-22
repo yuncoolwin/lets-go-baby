@@ -465,7 +465,7 @@ export default function RollCallPage() {
             })
 
             return (
-              <View className="px-4 pb-32 space-y-4">
+              <View className="px-4 pb-4 space-y-4">
                 {sortedGroups.map(([courseType, groupChildren]) => {
                   const present = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'present').length
                   const absent = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'absent').length
@@ -654,10 +654,9 @@ export default function RollCallPage() {
       {/* 底部操作栏 */}
       <View
         style={{
-          position: 'fixed', bottom: 50, left: 0, right: 0,
           display: 'flex', flexDirection: 'row', gap: '12px',
           padding: '12px 16px', backgroundColor: '#fff',
-          borderTop: '1px solid #f3f4f6', zIndex: 100,
+          borderTop: '1px solid #f3f4f6',
         }}
       >
         {isAdmin ? (
