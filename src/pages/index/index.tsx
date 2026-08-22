@@ -1090,11 +1090,11 @@ export default function IndexPage() {
             {/* 餐食评分说明弹窗 */}
             {mealInfoOpen && (
               <View
-                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)' }}
+                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
                 onClick={() => setMealInfoOpen(false)}
               >
                 <View
-                  style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderRadius: '16px 16px 0 0', padding: 24, maxHeight: '70vh', overflowY: 'auto' }}
+                  style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, maxHeight: '70vh', overflowY: 'auto', width: '88%', maxWidth: '400px' }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -1121,11 +1121,11 @@ export default function IndexPage() {
             {/* 午睡评分说明弹窗 */}
             {napInfoOpen && (
               <View
-                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)' }}
+                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
                 onClick={() => setNapInfoOpen(false)}
               >
                 <View
-                  style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderRadius: '16px 16px 0 0', padding: 24, maxHeight: '70vh', overflowY: 'auto' }}
+                  style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, maxHeight: '70vh', overflowY: 'auto', width: '88%', maxWidth: '400px' }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -1152,11 +1152,11 @@ export default function IndexPage() {
             {/* 情绪评分说明弹窗 */}
             {feedbackChild && moodInfoOpen && (
               <View
-                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)' }}
+                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
                 onClick={() => setMoodInfoOpen(false)}
               >
                 <View
-                  style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderRadius: '16px 16px 0 0', padding: 24, maxHeight: '70vh', overflowY: 'auto' }}
+                  style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, maxHeight: '70vh', overflowY: 'auto', width: '88%', maxWidth: '400px' }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
