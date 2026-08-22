@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { View, Text, Image, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
+import { Portal } from '@/components/ui/portal'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -85,7 +86,32 @@ export default function IndexPage() {
   const [feedbackSleepStatus, setFeedbackSleepStatus] = useState('')
   const [feedbackMoodStatus, setFeedbackMoodStatus] = useState('')
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
+  const [feedbackShow, setFeedbackShow] = useState(false)
+  const [feedbackAnimating, setFeedbackAnimating] = useState<'open' | 'close' | 'idle'>('idle')
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const [mealInfoOpen, setMealInfoOpen] = useState(false)
+
+  useEffect(() => {
+    if (feedbackChild) {
+      setFeedbackShow(true)
+      setFeedbackAnimating('idle')
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setFeedbackAnimating('open')
+        })
+      })
+    }
+  }, [feedbackChild])
+
+  const handleCloseFeedback = () => {
+    setFeedbackAnimating('close')
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current)
+    feedbackTimerRef.current = setTimeout(() => {
+      setFeedbackShow(false)
+      setFeedbackAnimating('idle')
+      setFeedbackChild(null)
+    }, 200)
+  }
   const [napInfoOpen, setNapInfoOpen] = useState(false)
   const [moodInfoOpen, setMoodInfoOpen] = useState(false)
   const [courseList, setCourseList] = useState<{ id: string; name: string; class_id: string }[]>([])
@@ -909,29 +935,32 @@ export default function IndexPage() {
         </View>  {/* end of p-4 content wrapper */}
 
         {/* 日常记录底部抽屉 */}
-        {feedbackChild && (
-          <View>
+        {feedbackShow && feedbackChild && (
+          <Portal>
             <View
               style={{
                 position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 200, backgroundColor: 'rgba(0,0,0,0.4)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center'
               }}
-              onClick={() => setFeedbackChild(null)}
-            />
-            <View
-              style={{
-                width: '85%', backgroundColor: '#fff', borderRadius: '16px', maxHeight: '70vh',
-                overflowY: 'auto'
-              }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={handleCloseFeedback}
             >
+              <View
+                style={{
+                  width: '88%', maxWidth: '400px', backgroundColor: '#fff', borderRadius: 16, maxHeight: '70vh',
+                  overflowY: 'auto',
+                  transform: feedbackAnimating === 'open' ? 'scale(1)' : 'scale(0.3)',
+                  opacity: feedbackAnimating === 'idle' ? 0 : 1,
+                  transition: feedbackAnimating === 'open' ? 'transform 300ms ease, opacity 300ms ease' : feedbackAnimating === 'close' ? 'transform 200ms ease-in, opacity 200ms ease-in' : 'none'
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
               <View style={{ padding: '16px', borderBottom: '1px solid #f0f0f0', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ width: 36, height: 36, flexShrink: 0 }} />
                 <Text className="block text-base font-semibold text-foreground text-center">
                   {feedbackChild.name} - 日常记录
                 </Text>
                 <View
-                  onClick={() => setFeedbackChild(null)}
+                  onClick={handleCloseFeedback}
                   style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
                 >
                   <X size={20} color="#6b7280" />
@@ -1037,7 +1066,7 @@ export default function IndexPage() {
                         console.log('[Index] save feedback:', res.data)
                         if (res.data?.code === 200) {
                           await loadChildFeedbacks()
-                          setFeedbackChild(null)
+                          handleCloseFeedback()
                         }
                       } catch (e) {
                         console.error('[Index] save feedback error:', e)
@@ -1054,6 +1083,9 @@ export default function IndexPage() {
                 </View>
               </View>
             </View>
+            </View>
+          </Portal>
+        )}
 
             {/* 餐食评分说明弹窗 */}
             {mealInfoOpen && (
@@ -1148,8 +1180,6 @@ export default function IndexPage() {
                 </View>
               </View>
             )}
-            </View>
-          )}
       </View>
     )
   }
