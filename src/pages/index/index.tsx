@@ -920,21 +920,21 @@ export default function IndexPage() {
             />
             <View
               style={{
-                width: '85%', backgroundColor: '#fff', borderRadius: '16px', maxHeight: '90vh',
+                width: '85%', backgroundColor: '#fff', borderRadius: '16px', maxHeight: '70vh',
                 overflowY: 'auto'
               }}
               onClick={(e) => e.stopPropagation()}
             >
               <View style={{ padding: '16px', borderBottom: '1px solid #f0f0f0', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ width: 28, height: 28, flexShrink: 0 }} />
+                <View style={{ width: 36, height: 36, flexShrink: 0 }} />
                 <Text className="block text-base font-semibold text-foreground text-center">
                   {feedbackChild.name} - 日常记录
                 </Text>
                 <View
                   onClick={() => setFeedbackChild(null)}
-                  style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                  style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
                 >
-                  <X size={16} color="#6b7280" />
+                  <X size={20} color="#6b7280" />
                 </View>
               </View>
 
@@ -944,8 +944,8 @@ export default function IndexPage() {
                   { label: '餐食', value: feedbackMealStatus, setter: setFeedbackMealStatus },
                   { label: '午睡', value: feedbackSleepStatus, setter: setFeedbackSleepStatus },
                 ].map(({ label, value, setter }) => (
-                  <View className="mb-4" key={label}>
-                    <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <View className="mb-3" key={label}>
+                    <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                       <Text className="text-sm font-medium text-foreground">{label}</Text>
                       {label === '餐食' && (
                         <View
@@ -981,7 +981,7 @@ export default function IndexPage() {
                         </View>
                       )}
                     </View>
-                    <View style={{ display: 'flex', flexDirection: 'row', gap: '8px' }}>
+                    <View style={{ display: 'flex', flexDirection: 'row', gap: '4px' }}>
                       {[1, 2, 3, 4, 5].map((star) => {
                         const filled = (parseInt(value || '0', 10) || 0) >= star
                         return (
