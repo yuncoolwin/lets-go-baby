@@ -521,11 +521,8 @@ export default function RollCallPage() {
                           )}
                         </View>
 
-                        {/* 展开内容 */}
-                        {isExpanded && (
-                          <>
-                            {/* 分组统计 */}
-                            <View className="flex gap-2 mt-4 mb-4">
+                        {/* 分组统计 — 始终显示 */}
+                        <View className="flex gap-2 mt-4">
                               {(courseType === '全日托' || courseType === '周六托') ? (
                                 <>
                                   <View className="flex-1 bg-green-50 rounded-xl py-2 px-3 text-center" onClick={() => setExpandedAttendStat(statExpanded ? '' : courseType)}>
@@ -573,8 +570,9 @@ export default function RollCallPage() {
                               )}
                             </View>
 
-                            {/* 分组幼儿列表 */}
-                            <View className="space-y-3">
+                            {/* 分组幼儿列表 — 受展开控制 */}
+                            {isExpanded && (
+                            <View className="space-y-3 mt-4">
                               {groupChildren.map(child => {
                                 const current = currentDisplay[child.id + '__' + child.course_type] || 'unknown'
                                 return (
@@ -626,7 +624,6 @@ export default function RollCallPage() {
                                 )
                               })}
                             </View>
-                          </>
                         )}
                       </CardContent>
                     </Card>
