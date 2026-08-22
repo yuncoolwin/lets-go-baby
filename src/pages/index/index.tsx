@@ -1204,7 +1204,7 @@ export default function IndexPage() {
           >
             <CardContent className="p-4 flex flex-col items-center">
               <View className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center mb-2">
-                <Users size={24} color="#8B5CF6" />
+                <User size={24} color="#8B5CF6" />
               </View>
               <Text className="text-sm text-foreground">教师管理</Text>
             </CardContent>
@@ -1216,7 +1216,7 @@ export default function IndexPage() {
           >
             <CardContent className="p-4 flex flex-col items-center">
               <View className="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center mb-2">
-                <Users size={24} color="#22C55E" />
+                <Baby size={24} color="#22C55E" />
               </View>
               <Text className="text-sm text-foreground">幼儿管理</Text>
             </CardContent>
@@ -1239,8 +1239,8 @@ export default function IndexPage() {
             onClick={() => Taro.navigateTo({ url: '/pages/admin/holiday-mgmt/index' })}
           >
             <CardContent className="p-4 flex flex-col items-center">
-              <View className="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center mb-2">
-                <Calendar size={24} color="#16A34A" />
+              <View className="w-12 h-12 rounded-lg bg-orange-50 flex items-center justify-center mb-2">
+                <Sun size={24} color="#F97316" />
               </View>
               <Text className="text-sm text-foreground">假期管理</Text>
             </CardContent>
@@ -1252,7 +1252,7 @@ export default function IndexPage() {
           >
             <CardContent className="p-4 flex flex-col items-center">
               <View className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center mb-2">
-                <Text className="text-purple-500 text-xl leading-none">📝</Text>
+                <Bell size={24} color="#8B5CF6" />
               </View>
               <Text className="text-sm text-foreground">通知管理</Text>
             </CardContent>
