@@ -357,7 +357,7 @@ export default function RollCallPage() {
   const currentDisplay = isLocked ? attendance : tempAttendance
 
   return (
-    <View className="min-h-screen bg-background" style={{ display: 'flex', flexDirection: 'column' }}>
+    <View className="h-full overflow-hidden bg-background" style={{ display: 'flex', flexDirection: 'column' }}>
       {/* 头部信息 */}
       <View className="bg-white px-4 py-3 flex items-center justify-between border-b border-gray-100">
         <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
