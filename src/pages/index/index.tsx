@@ -912,23 +912,33 @@ export default function IndexPage() {
         {feedbackChild && (
           <View>
             <View
-              style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 200, backgroundColor: 'rgba(0,0,0,0.4)' }}
+              style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 200, backgroundColor: 'rgba(0,0,0,0.4)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}
               onClick={() => setFeedbackChild(null)}
             />
             <View
               style={{
-                position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 201,
-                backgroundColor: '#fff', borderRadius: '16px 16px 0 0', maxHeight: '90vh',
+                width: '85%', backgroundColor: '#fff', borderRadius: '16px', maxHeight: '90vh',
                 overflowY: 'auto'
               }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <View style={{ padding: '16px', borderBottom: '1px solid #f0f0f0' }}>
+              <View style={{ padding: '16px', borderBottom: '1px solid #f0f0f0', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ width: 28, height: 28, flexShrink: 0 }} />
                 <Text className="block text-base font-semibold text-foreground text-center">
                   {feedbackChild.name} - 日常记录
                 </Text>
+                <View
+                  onClick={() => setFeedbackChild(null)}
+                  style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                >
+                  <X size={16} color="#6b7280" />
+                </View>
               </View>
 
-              <View style={{ padding: '16px 20px 120px' }}>
+              <View style={{ padding: '20px 20px 24px' }}>
                 {[
                   { label: '情绪', value: feedbackMoodStatus, setter: setFeedbackMoodStatus },
                   { label: '餐食', value: feedbackMealStatus, setter: setFeedbackMealStatus },
