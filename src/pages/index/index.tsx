@@ -1094,7 +1094,7 @@ export default function IndexPage() {
                 onClick={() => setMealInfoOpen(false)}
               >
                 <View
-                  style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, maxHeight: '70vh', overflowY: 'auto', width: '88%', maxWidth: '400px' }}
+                  style={{ position: 'relative', backgroundColor: '#fff', borderRadius: 16, padding: 24, maxHeight: '70vh', overflowY: 'auto', width: '88%', maxWidth: '400px' }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -1125,7 +1125,7 @@ export default function IndexPage() {
                 onClick={() => setNapInfoOpen(false)}
               >
                 <View
-                  style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, maxHeight: '70vh', overflowY: 'auto', width: '88%', maxWidth: '400px' }}
+                  style={{ position: 'relative', backgroundColor: '#fff', borderRadius: 16, padding: 24, maxHeight: '70vh', overflowY: 'auto', width: '88%', maxWidth: '400px' }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -1156,7 +1156,7 @@ export default function IndexPage() {
                 onClick={() => setMoodInfoOpen(false)}
               >
                 <View
-                  style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, maxHeight: '70vh', overflowY: 'auto', width: '88%', maxWidth: '400px' }}
+                  style={{ position: 'relative', backgroundColor: '#fff', borderRadius: 16, padding: 24, maxHeight: '70vh', overflowY: 'auto', width: '88%', maxWidth: '400px' }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
