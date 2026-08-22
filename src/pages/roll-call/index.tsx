@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
 import { format } from 'date-fns'
@@ -63,6 +63,28 @@ export default function RollCallPage() {
   const [classList, setClassList] = useState<Array<{ id: string; name: string }>>([])
   const [selectedClassId, setSelectedClassId] = useState('')
   const [holidayInfo, setHolidayInfo] = useState<{ is_class_holiday: boolean; holiday_label: string | null; personal_holiday_child_ids: string[] }>({ is_class_holiday: false, holiday_label: null, personal_holiday_child_ids: [] })
+
+  // 平台判断：直接判断，不用 state（避免 H5 首屏白屏）
+  const isMiniApp = Taro.getEnv() === Taro.ENV_TYPE.WEAPP || Taro.getEnv() === Taro.ENV_TYPE.TT
+
+  // 底部安全区高度（小程序端），H5 端交给 env(safe-area-inset-bottom) 计算
+  const safeBottom = useMemo(() => {
+    if (!isMiniApp) return 0
+    try {
+      const info = Taro.getSystemInfoSync() as any
+      const insets = info?.safeAreaInsets
+      if (insets && typeof insets.bottom === 'number') {
+        return insets.bottom
+      }
+      const safeArea = info?.safeArea
+      if (safeArea && typeof info?.screenHeight === 'number' && safeArea.bottom < info.screenHeight) {
+        return info.screenHeight - safeArea.bottom
+      }
+      return 0
+    } catch (e) {
+      return 0
+    }
+  }, [isMiniApp])
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -465,7 +487,7 @@ export default function RollCallPage() {
             })
 
             return (
-              <View className="px-4 pb-4 space-y-4">
+              <View className="px-4 pb-32 space-y-4">
                 {sortedGroups.map(([courseType, groupChildren]) => {
                   const present = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'present').length
                   const absent = groupChildren.filter(c => (currentDisplay[c.id + '__' + c.course_type] || 'unknown') === 'absent').length
@@ -654,9 +676,11 @@ export default function RollCallPage() {
       {/* 底部操作栏 */}
       <View
         style={{
+          position: 'fixed', left: 0, right: 0,
+          bottom: isMiniApp ? `${50 + safeBottom}px` : 'calc(50px + env(safe-area-inset-bottom))',
           display: 'flex', flexDirection: 'row', gap: '12px',
           padding: '12px 16px', backgroundColor: '#fff',
-          borderTop: '1px solid #f3f4f6',
+          borderTop: '1px solid #f3f4f6', zIndex: 100,
         }}
       >
         {isAdmin ? (
