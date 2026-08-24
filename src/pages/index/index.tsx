@@ -1089,6 +1089,7 @@ export default function IndexPage() {
 
             {/* 餐食评分说明弹窗 */}
             {mealInfoOpen && (
+              <Portal>
               <View
                 style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
                 onClick={() => setMealInfoOpen(false)}
@@ -1117,9 +1118,11 @@ export default function IndexPage() {
                   ))}
                 </View>
               </View>
+              </Portal>
             )}
             {/* 午睡评分说明弹窗 */}
             {napInfoOpen && (
+              <Portal>
               <View
                 style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
                 onClick={() => setNapInfoOpen(false)}
@@ -1148,9 +1151,11 @@ export default function IndexPage() {
                   ))}
                 </View>
               </View>
+              </Portal>
             )}
             {/* 情绪评分说明弹窗 */}
             {feedbackChild && moodInfoOpen && (
+              <Portal>
               <View
                 style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
                 onClick={() => setMoodInfoOpen(false)}
@@ -1179,6 +1184,7 @@ export default function IndexPage() {
                   ))}
                 </View>
               </View>
+              </Portal>
             )}
       </View>
     )
