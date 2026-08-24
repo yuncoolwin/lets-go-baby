@@ -367,8 +367,31 @@ export class NotificationsService {
     if (error) return { error: true, code: 500, msg: `查询失败: ${error.message}` };
 
     const list = data || [];
+
+    // 统计每条通知的接收人总数与已读数（draft 无 recipients，两者为 0）
+    const statsMap = new Map<string, { recipient_count: number; read_count: number }>();
+    const notificationIds = list.map((n: any) => n.id);
+    if (notificationIds.length) {
+      const { data: recipients } = await this.client
+        .from('notification_recipients')
+        .select('notification_id, is_read')
+        .in('notification_id', notificationIds);
+
+      (recipients || []).forEach((r: any) => {
+        const cur = statsMap.get(r.notification_id) || { recipient_count: 0, read_count: 0 };
+        cur.recipient_count += 1;
+        if (r.is_read) cur.read_count += 1;
+        statsMap.set(r.notification_id, cur);
+      });
+    }
+
+    const listWithStats = list.map((n: any) => {
+      const stats = statsMap.get(n.id) || { recipient_count: 0, read_count: 0 };
+      return { ...n, recipient_count: stats.recipient_count, read_count: stats.read_count };
+    });
+
     return {
-      list,
+      list: listWithStats,
       total: count || 0,
       page,
       page_size: pageSize,

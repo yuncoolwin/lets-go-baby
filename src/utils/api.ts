@@ -171,8 +171,11 @@ export const notificationApi = {
   remove: (id: string) =>
     request({ url: `/api/notifications/${id}`, method: 'DELETE' }),
 
-  markRead: (id: string, userId: string) =>
-    request({ url: `/api/notifications/${id}/read`, method: 'POST', data: { user_id: userId } }),
+  markRead: (id: string, userRoleId: string) =>
+    request({ url: `/api/notifications/${id}/read`, method: 'POST', data: { user_role_id: userRoleId } }),
+
+  revoke: (id: string) =>
+    request({ url: `/api/notifications/${id}/revoke`, method: 'POST' }),
 
   stats: () =>
     request({ url: '/api/notifications/stats', method: 'GET' }),
