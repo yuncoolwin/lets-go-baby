@@ -70,6 +70,34 @@ const courseTypeColors: Record<string, string> = {
   '计日': 'bg-teal-50 text-teal-700 border-teal-200',
 }
 
+// 弹窗动画 hook：管理挂载状态（show）与动效状态（animating），实现与主弹窗一致的缩放+淡入淡出动画
+function usePopupAnimation() {
+  const [show, setShow] = useState(false)
+  const [animating, setAnimating] = useState<'open' | 'close' | 'idle'>('idle')
+  const timerRef = useRef<ReturnType<typeof setTimeout>>()
+
+  const open = () => {
+    setShow(true)
+    setAnimating('idle')
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setAnimating('open')
+      })
+    })
+  }
+
+  const close = () => {
+    setAnimating('close')
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      setShow(false)
+      setAnimating('idle')
+    }, 200)
+  }
+
+  return { show, animating, open, close }
+}
+
 export default function IndexPage() {
   const { isLoggedIn, currentRole, isLoading, fetchUserInfo, children, currentChildIndex, setCurrentChild, nickname } = useAppStore()
   const [babyStatus, setBabyStatus] = useState<BabyStatus | null>(null)
@@ -89,7 +117,7 @@ export default function IndexPage() {
   const [feedbackShow, setFeedbackShow] = useState(false)
   const [feedbackAnimating, setFeedbackAnimating] = useState<'open' | 'close' | 'idle'>('idle')
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout>>()
-  const [mealInfoOpen, setMealInfoOpen] = useState(false)
+  const mealInfo = usePopupAnimation()
 
   useEffect(() => {
     if (feedbackChild) {
@@ -112,8 +140,8 @@ export default function IndexPage() {
       setFeedbackChild(null)
     }, 200)
   }
-  const [napInfoOpen, setNapInfoOpen] = useState(false)
-  const [moodInfoOpen, setMoodInfoOpen] = useState(false)
+  const napInfo = usePopupAnimation()
+  const moodInfo = usePopupAnimation()
   const [courseList, setCourseList] = useState<{ id: string; name: string; class_id: string }[]>([])
   // 家长端今日记录
   const [todayFeedbacks, setTodayFeedbacks] = useState<DailyFeedbackRecord[]>([])
@@ -982,7 +1010,7 @@ export default function IndexPage() {
                             width: 20, height: 20, borderRadius: 10,
                             display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 6,
                           }}
-                          onClick={(e) => { e.stopPropagation(); setMealInfoOpen(true) }}
+                          onClick={(e) => { e.stopPropagation(); mealInfo.open() }}
                         >
                           <Info size={12} color="#9ca3af" />
                         </View>
@@ -993,7 +1021,7 @@ export default function IndexPage() {
                             width: 20, height: 20, borderRadius: 10,
                             display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 6,
                           }}
-                          onClick={(e) => { e.stopPropagation(); setNapInfoOpen(true) }}
+                          onClick={(e) => { e.stopPropagation(); napInfo.open() }}
                         >
                           <Info size={12} color="#9ca3af" />
                         </View>
@@ -1004,7 +1032,7 @@ export default function IndexPage() {
                             width: 20, height: 20, borderRadius: 10,
                             display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 6,
                           }}
-                          onClick={(e) => { e.stopPropagation(); setMoodInfoOpen(true) }}
+                          onClick={(e) => { e.stopPropagation(); moodInfo.open() }}
                         >
                           <Info size={12} color="#9ca3af" />
                         </View>
@@ -1088,19 +1116,19 @@ export default function IndexPage() {
         )}
 
             {/* 餐食评分说明弹窗 */}
-            {mealInfoOpen && (
+            {mealInfo.show && (
               <Portal>
               <View
                 style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                onClick={() => setMealInfoOpen(false)}
+                onClick={() => mealInfo.close()}
               >
                 <View
-                  style={{ position: 'relative', backgroundColor: '#fff', borderRadius: 16, padding: 24, maxHeight: '70vh', overflowY: 'auto', width: '88%', maxWidth: '400px' }}
+                  style={{ position: 'relative', backgroundColor: '#fff', borderRadius: 16, padding: 24, maxHeight: '70vh', overflowY: 'auto', width: '88%', maxWidth: '400px', transform: mealInfo.animating === 'open' ? 'scale(1)' : 'scale(0.3)', opacity: mealInfo.animating === 'idle' ? 0 : 1, transition: mealInfo.animating === 'open' ? 'transform 300ms ease, opacity 300ms ease' : mealInfo.animating === 'close' ? 'transform 200ms ease-in, opacity 200ms ease-in' : 'none' }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                     <Text className="block text-lg font-bold text-foreground">餐食评分说明</Text>
-                    <View onClick={() => setMealInfoOpen(false)} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <View onClick={() => mealInfo.close()} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <X size={16} color="#6b7280" />
                     </View>
                   </View>
@@ -1121,19 +1149,19 @@ export default function IndexPage() {
               </Portal>
             )}
             {/* 午睡评分说明弹窗 */}
-            {napInfoOpen && (
+            {napInfo.show && (
               <Portal>
               <View
                 style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                onClick={() => setNapInfoOpen(false)}
+                onClick={() => napInfo.close()}
               >
                 <View
-                  style={{ position: 'relative', backgroundColor: '#fff', borderRadius: 16, padding: 24, maxHeight: '70vh', overflowY: 'auto', width: '88%', maxWidth: '400px' }}
+                  style={{ position: 'relative', backgroundColor: '#fff', borderRadius: 16, padding: 24, maxHeight: '70vh', overflowY: 'auto', width: '88%', maxWidth: '400px', transform: napInfo.animating === 'open' ? 'scale(1)' : 'scale(0.3)', opacity: napInfo.animating === 'idle' ? 0 : 1, transition: napInfo.animating === 'open' ? 'transform 300ms ease, opacity 300ms ease' : napInfo.animating === 'close' ? 'transform 200ms ease-in, opacity 200ms ease-in' : 'none' }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                     <Text className="block text-lg font-bold text-foreground">午睡评分说明</Text>
-                    <View onClick={() => setNapInfoOpen(false)} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <View onClick={() => napInfo.close()} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <X size={16} color="#6b7280" />
                     </View>
                   </View>
@@ -1154,19 +1182,19 @@ export default function IndexPage() {
               </Portal>
             )}
             {/* 情绪评分说明弹窗 */}
-            {feedbackChild && moodInfoOpen && (
+            {feedbackChild && moodInfo.show && (
               <Portal>
               <View
                 style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                onClick={() => setMoodInfoOpen(false)}
+                onClick={() => moodInfo.close()}
               >
                 <View
-                  style={{ position: 'relative', backgroundColor: '#fff', borderRadius: 16, padding: 24, maxHeight: '70vh', overflowY: 'auto', width: '88%', maxWidth: '400px' }}
+                  style={{ position: 'relative', backgroundColor: '#fff', borderRadius: 16, padding: 24, maxHeight: '70vh', overflowY: 'auto', width: '88%', maxWidth: '400px', transform: moodInfo.animating === 'open' ? 'scale(1)' : 'scale(0.3)', opacity: moodInfo.animating === 'idle' ? 0 : 1, transition: moodInfo.animating === 'open' ? 'transform 300ms ease, opacity 300ms ease' : moodInfo.animating === 'close' ? 'transform 200ms ease-in, opacity 200ms ease-in' : 'none' }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                     <Text className="block text-lg font-bold text-foreground">情绪评分说明</Text>
-                    <View onClick={() => setMoodInfoOpen(false)} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <View onClick={() => moodInfo.close()} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <X size={16} color="#6b7280" />
                     </View>
                   </View>
