@@ -142,7 +142,7 @@ export default function NotificationManagePage() {
       {/* 悬浮新建按钮 */}
       <View
         className="fixed right-4 bottom-20 w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-lg"
-        onClick={() => Taro.navigateTo({ url: '/pages/admin/notification-edit/index' })}
+        onClick={() => Taro.navigateTo({ url: '/pages/teacher-notification/index' })}
       >
         <Plus size={28} color="#ffffff" />
       </View>

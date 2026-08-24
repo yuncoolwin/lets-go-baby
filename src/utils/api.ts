@@ -150,9 +150,15 @@ export const teacherApi = {
 // ============ 通知管理 API ============
 
 export const notificationApi = {
-  create: (data: Record<string, any>) =>
-    request({ url: '/api/notifications', method: 'POST', data }),
+  // author_id 通过 url query 传（body 只传 title/content/type/target_ids/status）
+  create: (data: Record<string, any>, authorId?: string) =>
+    request({
+      url: authorId ? `/api/notifications?author_id=${authorId}` : '/api/notifications',
+      method: 'POST',
+      data,
+    }),
 
+  // list 透传 scope / author_id / user_role_id / type / keyword 等 query 参数
   list: (params?: ListParams) =>
     request({ url: '/api/notifications', method: 'GET', data: params }),
 

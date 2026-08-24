@@ -7,7 +7,7 @@ interface BackButtonProps {
   className?: string
 }
 
-export default function BackButton({ title, className = '' }: BackButtonProps) {
+export default function BackButton({ title, className = 'mb-4' }: BackButtonProps) {
   const handleBack = () => {
     const pages = Taro.getCurrentPages()
     if (pages.length > 1) {
@@ -19,7 +19,7 @@ export default function BackButton({ title, className = '' }: BackButtonProps) {
 
   return (
     <View
-      className={`flex items-center gap-2 mb-4 ${className}`}
+      className={`flex items-center gap-2 ${className}`}
       onClick={handleBack}
     >
       <View className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm">
