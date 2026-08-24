@@ -18,7 +18,18 @@ export class NotificationsController {
 
   @Get()
   @HttpCode(200)
-  async findAll(@Query() query: { page?: number; page_size?: number; type?: string; keyword?: string }) {
+  async findAll(
+    @Query()
+    query: {
+      page?: number | string;
+      page_size?: number | string;
+      type?: string;
+      keyword?: string;
+      scope?: string;
+      user_role_id?: string;
+      author_id?: string;
+    },
+  ) {
     const data = await this.notificationsService.findAll(query);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
@@ -28,8 +39,11 @@ export class NotificationsController {
 
   @Get('stats')
   @HttpCode(200)
-  async getStats() {
-    const data = await this.notificationsService.getStats();
+  async getStats(@Query('author_id') authorId?: string) {
+    const data = await this.notificationsService.getStats(authorId);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
     return { code: 200, msg: 'success', data };
   }
 
@@ -65,8 +79,18 @@ export class NotificationsController {
 
   @Post(':id/read')
   @HttpCode(200)
-  async markRead(@Param('id') id: string, @Body() body: { user_id: string }) {
-    const data = await this.notificationsService.markRead(id, body.user_id);
+  async markRead(@Param('id') id: string, @Body() body: { user_role_id?: string; user_id?: string }) {
+    const data = await this.notificationsService.markRead(id, body.user_role_id || body.user_id);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
+    return { code: 200, msg: 'success', data };
+  }
+
+  @Post(':id/revoke')
+  @HttpCode(200)
+  async revoke(@Param('id') id: string) {
+    const data = await this.notificationsService.revoke(id);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
