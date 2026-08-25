@@ -160,17 +160,6 @@ export default function ClassManagePage() {
 
   return (
     <View className="min-h-screen bg-background">
-      {/* 顶部标题栏 */}
-      <View className="bg-white px-4 py-4 border-b border-gray-100">
-        <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text className="block text-lg font-semibold">班级管理</Text>
-          <Button className="bg-primary text-white rounded-xl px-4 py-2 flex items-center gap-1" onClick={goCreate}>
-            <Plus size={16} color="#fff" />
-            <Text className="text-white text-sm">添加班级</Text>
-          </Button>
-        </View>
-      </View>
-
       {/* 课程类型筛选标签 */}
       <ScrollView scrollX className="bg-white border-b border-gray-100">
         <View className="flex px-3 py-2 gap-2" style={{ display: 'flex', flexDirection: 'row' }}>
@@ -237,9 +226,6 @@ export default function ClassManagePage() {
             <Text className="block text-gray-400 text-base mb-4">
               {activeCourseType && activeCourseType !== 'all' ? `暂无${activeCourseType}班级` : '暂无班级'}
             </Text>
-            <Button className="bg-primary text-white rounded-xl px-6 py-2" onClick={goCreate}>
-              <Text className="text-white text-sm">添加第一个班级</Text>
-            </Button>
           </View>
         ) : (
           // 班级卡片列表
@@ -372,8 +358,16 @@ export default function ClassManagePage() {
         )}
       </View>
 
-      {/* 底部间距（避开 TabBar） */}
-      <View className="h-16" />
+      {/* 底部间距（避开固定操作栏） */}
+      <View className="h-20" />
+
+      {/* 底部固定操作栏 */}
+      <View style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '1px solid #f0f0f0', padding: '12px 16px', zIndex: 100 }}>
+        <Button className="w-full bg-primary text-primary-foreground rounded-xl py-3" onClick={goCreate}>
+          <Plus size={16} color="#fff" className="mr-1" />
+          <Text className="text-primary-foreground">添加班级</Text>
+        </Button>
+      </View>
     </View>
   )
 }

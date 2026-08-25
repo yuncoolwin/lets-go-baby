@@ -210,26 +210,11 @@ export default function CourseManagePage() {
 
   return (
     <View className="min-h-screen bg-background p-4 pb-20">
-      {/* 顶部操作栏 */}
-      <View className="flex items-center justify-between mb-4">
-        <Text className="block text-lg font-bold text-foreground">
-          课程列表
-        </Text>
-        <Button
-          className="bg-primary text-primary-foreground rounded-xl h-9 px-4"
-          onClick={openCreateDialog}
-        >
-          <Plus size={16} color="#fff" className="mr-1" />
-          <Text>新增课程</Text>
-        </Button>
-      </View>
-
       {/* 课程列表 */}
       {courses.length === 0 ? (
         <View className="flex flex-col items-center justify-center py-20">
           <BookOpen size={48} color="#d0d0d0" />
           <Text className="block text-sm text-gray-400 mt-3">暂无课程</Text>
-          <Text className="block text-xs text-gray-300 mt-1">点击右上角新增课程</Text>
         </View>
       ) : (
         <View className="space-y-3">
@@ -445,6 +430,14 @@ export default function CourseManagePage() {
           </View>
         </DialogContent>
       </Dialog>
+
+      {/* 底部固定操作栏 */}
+      <View style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '1px solid #f0f0f0', padding: '12px 16px', zIndex: 100 }}>
+        <Button className="w-full bg-primary text-primary-foreground rounded-xl py-3" onClick={openCreateDialog}>
+          <Plus size={16} color="#fff" className="mr-1" />
+          <Text className="text-primary-foreground">新增课程</Text>
+        </Button>
+      </View>
     </View>
   )
 }

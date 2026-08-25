@@ -251,14 +251,10 @@ export default function HolidayManagePage() {
             <Calendar size={16} className="mr-1" color="#666" />
             <Text className="text-sm">法定节假日</Text>
           </Button>
-          <Button className="bg-primary text-primary-foreground rounded-xl px-4 py-2" onClick={openAddDialog}>
-            <Plus size={16} className="mr-1" color="#fff" />
-            <Text className="text-sm">新增假期</Text>
-          </Button>
-        </View>
+          </View>
       </View>
 
-      <ScrollView className="flex-1 px-4 pb-6" scrollY>
+      <ScrollView className="flex-1 px-4 pb-20" scrollY>
         {loading ? (
           <View className="flex items-center justify-center py-20">
             <Text className="block text-sm text-gray-400">加载中...</Text>
@@ -267,7 +263,6 @@ export default function HolidayManagePage() {
           <View className="flex flex-col items-center justify-center py-20">
             <Calendar size={48} color="#d1d5db" />
             <Text className="block text-sm text-gray-400 mt-3">暂无假期数据</Text>
-            <Text className="block text-xs text-gray-300 mt-1">点击右上角新增假期</Text>
           </View>
         ) : (
           <View className="space-y-3">
@@ -480,6 +475,14 @@ export default function HolidayManagePage() {
         visible={showEndCalendar}
         onClose={() => setShowEndCalendar(false)}
       />
+
+      {/* 底部固定操作栏 */}
+      <View style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '1px solid #f0f0f0', padding: '12px 16px', zIndex: 100 }}>
+        <Button className="w-full bg-primary text-primary-foreground rounded-xl py-3" onClick={openAddDialog}>
+          <Plus size={16} color="#fff" className="mr-1" />
+          <Text className="text-primary-foreground">新增假期</Text>
+        </Button>
+      </View>
     </View>
   )
 }
