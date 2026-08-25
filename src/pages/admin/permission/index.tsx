@@ -21,6 +21,7 @@ interface UserItem {
   nickname: string
   phone: string
   avatar_url: string | null
+  display_name?: string
   roles: RoleItem[]
 }
 
@@ -251,11 +252,8 @@ export default function PermissionPage() {
   return (
     <View className="min-h-screen bg-background">
       <ScrollView className="h-screen" scrollY>
-        <View className="px-4 pt-4 pb-6 space-y-3">
-          <View className="flex items-center justify-between">
-            <Text className="block text-lg font-bold text-foreground">权限管理</Text>
-            <Button size="sm" className="h-8 px-3" onClick={openCreateDialog}>新增用户</Button>
-          </View>
+        <View className="px-4 pt-4 pb-28 space-y-3">
+          <Text className="block text-lg font-bold text-foreground">权限管理</Text>
 
           <View className="bg-gray-50 rounded-xl px-4 py-3">
             <Input
@@ -286,7 +284,7 @@ export default function PermissionPage() {
                   <View className="flex items-start justify-between mb-2">
                     <View className="flex-1 min-w-0 mr-2">
                       <Text className="block text-base font-medium text-foreground truncate">
-                        {user.nickname || '未命名'}
+                        {user.display_name || user.nickname || '未命名'}
                       </Text>
                       <Text className="block text-sm text-muted-foreground mt-1">
                         {user.phone || '未绑定手机号'}
@@ -317,6 +315,22 @@ export default function PermissionPage() {
           )}
         </View>
       </ScrollView>
+
+      {/* 底部固定操作栏 */}
+      <View
+        style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0,
+          background: '#fff', borderTop: '1px solid #f0f0f0',
+          padding: '12px 16px', zIndex: 100
+        }}
+      >
+        <Button
+          className="w-full bg-primary text-white rounded-xl py-3"
+          onClick={openCreateDialog}
+        >
+          <Text className="text-white">新增用户</Text>
+        </Button>
+      </View>
 
       {/* 新增/编辑用户弹窗 */}
       {showDialog && (

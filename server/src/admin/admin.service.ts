@@ -510,13 +510,91 @@ export class AdminService {
       roleMap.set(role.user_id, list);
     });
 
-    const list = (users || []).map((user: any) => ({
-      id: user.id,
-      nickname: user.nickname,
-      phone: user.phone,
-      avatar_url: user.avatar_url,
-      roles: roleMap.get(user.id) || [],
-    }));
+    // 查询 active 的家长绑定关系与幼儿姓名，用于 display_name 与过滤
+    const { data: relations, error: relationsError } = await this.client
+      .from('parent_child_relations')
+      .select('child_id, relationship, custom_relationship, parent_role_id, is_primary')
+      .eq('status', 'active');
+
+    if (relationsError) {
+      throw new Error(`查询家长绑定关系失败: ${relationsError.message}`);
+    }
+
+    const { data: childrenList, error: childrenError } = await this.client
+      .from('children')
+      .select('id, name');
+
+    if (childrenError) {
+      throw new Error(`查询幼儿失败: ${childrenError.message}`);
+    }
+
+    const childrenMap = new Map<string, string>();
+    (childrenList || []).forEach((child: any) => childrenMap.set(child.id, child.name));
+
+    const relationsByParentRole = new Map<string, any[]>();
+    (relations || []).forEach((rel: any) => {
+      const arr = relationsByParentRole.get(rel.parent_role_id) || [];
+      arr.push(rel);
+      relationsByParentRole.set(rel.parent_role_id, arr);
+    });
+
+    const RELATION_LABELS: Record<string, string> = {
+      father: '爸爸',
+      mother: '妈妈',
+      grandfather: '爷爷',
+      grandmother: '奶奶',
+    };
+
+    const buildRelationLabel = (rel: any): string => {
+      if (RELATION_LABELS[rel.relationship]) return RELATION_LABELS[rel.relationship];
+      if (rel.relationship === 'other') return rel.custom_relationship || '家长';
+      return rel.custom_relationship || '家长';
+    };
+
+    const MANAGE_ROLE_TYPES = ['teacher', 'admin', 'superadmin'];
+
+    const list: any[] = [];
+    for (const user of users || []) {
+      const userRoles = roleMap.get(user.id) || [];
+      const hasManageRole = userRoles.some((r: any) => MANAGE_ROLE_TYPES.includes(r.role_type));
+      const parentRoles = userRoles.filter((r: any) => r.role_type === 'parent');
+
+      const activeBindings: any[] = [];
+      for (const pr of parentRoles) {
+        const arr = relationsByParentRole.get(pr.id);
+        if (arr) activeBindings.push(...arr);
+      }
+
+      const hasAnyActiveRole = userRoles.length > 0;
+      const isParentWithBinding = parentRoles.length > 0 && activeBindings.length > 0;
+
+      // 过滤：隐藏「只有 parent 角色且没有任何 active 绑定关系」的用户
+      if (hasAnyActiveRole && !hasManageRole && !isParentWithBinding) {
+        continue;
+      }
+
+      let displayName: string;
+      if (isParentWithBinding) {
+        const primary = activeBindings.find((b: any) => b.is_primary) || activeBindings[0];
+        const childName = childrenMap.get(primary.child_id) || '';
+        const relLabel = buildRelationLabel(primary);
+        displayName = `${childName}${relLabel}`;
+      } else if (hasManageRole) {
+        const manageRole = userRoles.find((r: any) => MANAGE_ROLE_TYPES.includes(r.role_type));
+        displayName = user.nickname || manageRole?.real_name || '未命名';
+      } else {
+        displayName = user.nickname || '未命名';
+      }
+
+      list.push({
+        id: user.id,
+        nickname: user.nickname,
+        phone: user.phone,
+        avatar_url: user.avatar_url,
+        display_name: displayName,
+        roles: userRoles,
+      });
+    }
 
     return { code: 200, msg: 'success', data: list };
   }

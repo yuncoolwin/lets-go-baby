@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/app'
 import { childrenApi, growthApi } from '@/utils/api'
-import { Plus, Pencil, Trash2 } from 'lucide-react-taro'
+import { Pencil, Trash2 } from 'lucide-react-taro'
 
 interface GrowthRecord {
   id: string
@@ -206,7 +206,6 @@ export default function GrowthManagePage() {
         }}
       >
         <Button className="w-full" onClick={() => goEdit()}>
-          <Plus size={16} color="#fff" />
           <Text className="text-white">新增记录</Text>
         </Button>
       </View>

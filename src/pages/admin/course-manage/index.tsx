@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { courseApi, classApi } from '@/utils/api'
 import { useAppStore } from '@/store/app'
-import { BookOpen, Plus, Pencil, Trash2 } from 'lucide-react-taro'
+import { BookOpen, Pencil, Trash2 } from 'lucide-react-taro'
 
 interface Course {
   id: string
@@ -434,7 +434,6 @@ export default function CourseManagePage() {
       {/* 底部固定操作栏 */}
       <View style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '1px solid #f0f0f0', padding: '12px 16px', zIndex: 100 }}>
         <Button className="w-full bg-primary text-primary-foreground rounded-xl py-3" onClick={openCreateDialog}>
-          <Plus size={16} color="#fff" className="mr-1" />
           <Text className="text-primary-foreground">新增课程</Text>
         </Button>
       </View>

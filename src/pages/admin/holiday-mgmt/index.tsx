@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
 import { Network } from '@/network'
 import { classApi } from '@/utils/api'
-import { Calendar, Plus, Pencil, Trash2 } from 'lucide-react-taro'
+import { Calendar, Pencil, Trash2 } from 'lucide-react-taro'
 
 interface HolidayRecord {
   id: string
@@ -479,7 +479,6 @@ export default function HolidayManagePage() {
       {/* 底部固定操作栏 */}
       <View style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '1px solid #f0f0f0', padding: '12px 16px', zIndex: 100 }}>
         <Button className="w-full bg-primary text-primary-foreground rounded-xl py-3" onClick={openAddDialog}>
-          <Plus size={16} color="#fff" className="mr-1" />
           <Text className="text-primary-foreground">新增假期</Text>
         </Button>
       </View>

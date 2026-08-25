@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, MapPin, Pencil, ChevronDown, ChevronUp } from 'lucide-react-taro'
+import { MapPin, Pencil, ChevronDown, ChevronUp } from 'lucide-react-taro'
 import { classApi, courseApi } from '@/utils/api'
 
 const courseColorMap: Record<string, string> = {
@@ -364,7 +364,6 @@ export default function ClassManagePage() {
       {/* 底部固定操作栏 */}
       <View style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '1px solid #f0f0f0', padding: '12px 16px', zIndex: 100 }}>
         <Button className="w-full bg-primary text-primary-foreground rounded-xl py-3" onClick={goCreate}>
-          <Plus size={16} color="#fff" className="mr-1" />
           <Text className="text-primary-foreground">添加班级</Text>
         </Button>
       </View>
