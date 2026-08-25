@@ -1,5 +1,5 @@
 import * as React from "react"
-import { View } from "@tarojs/components"
+import { View, Button as NativeButton } from "@tarojs/components"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
@@ -39,17 +39,49 @@ export interface ButtonProps
   asChild?: boolean
   disabled?: boolean
   className?: string
+  openType?: string
+  onGetPhoneNumber?: (e: any) => void
+  loading?: boolean
 }
 
 const Button = React.forwardRef<React.ElementRef<typeof View>, ButtonProps>(
-  ({ className, variant, size, asChild = false, disabled, ...props }, ref) => {
+  (
+    {
+      className,
+      variant,
+      size,
+      asChild = false,
+      disabled,
+      openType,
+      onGetPhoneNumber,
+      loading,
+      ...props
+    },
+    ref
+  ) => {
+    const classes = cn(
+      buttonVariants({ variant, size, className }),
+      disabled && "opacity-50 pointer-events-none"
+    )
+
+    // 需要原生小程序能力（如 openType="getPhoneNumber"）时渲染原生 Button
+    if (openType) {
+      return (
+        <NativeButton
+          className={classes}
+          openType={openType}
+          onGetPhoneNumber={onGetPhoneNumber}
+          disabled={disabled}
+          loading={loading}
+          {...(props as any)}
+        />
+      )
+    }
+
     const tabIndex = (props as { tabIndex?: number }).tabIndex ?? (disabled ? -1 : 0)
     return (
       <View
-        className={cn(
-          buttonVariants({ variant, size, className }),
-          disabled && "opacity-50 pointer-events-none"
-        )}
+        className={classes}
         ref={ref}
         {...({ tabIndex } as { tabIndex?: number })}
         hoverClass={

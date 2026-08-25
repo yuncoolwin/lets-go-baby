@@ -13,7 +13,7 @@ import logoUrl from '@/assets/logo.png'
 const APP_VERSION = '1.0.0'
 
 export default function LoginPage() {
-  const { wxLogin, isLoading } = useAppStore()
+  const { wxLogin, phoneLogin, isLoading } = useAppStore()
   const [showMockPanel, setShowMockPanel] = useState(false)
   const [teacherPhone, setTeacherPhone] = useState('13800001111')
   const [showTeacherInput, setShowTeacherInput] = useState(false)
@@ -80,6 +80,29 @@ export default function LoginPage() {
         console.error('[Login] H5 login error:', err)
         Taro.showToast({ title: '登录失败，请重试', icon: 'none' })
       }
+    }
+  }
+
+  const handlePhoneLogin = async (e: any) => {
+    console.log('[Login] handlePhoneLogin called, detail:', e?.detail)
+    const phoneCode = e?.detail?.code
+    if (!phoneCode) {
+      Taro.showToast({ title: '未授权手机号，请重试', icon: 'none' })
+      return
+    }
+    try {
+      const { code } = await new Promise<any>((resolve, reject) => {
+        Taro.login({ success: resolve, fail: reject })
+      })
+      if (!code) {
+        Taro.showToast({ title: '未获取到微信授权code', icon: 'none' })
+        return
+      }
+      const result = await phoneLogin(code, phoneCode)
+      handleLoginResult(result)
+    } catch (err) {
+      console.error('[Login] phoneLogin error:', err)
+      Taro.showToast({ title: '登录失败，请重试', icon: 'none' })
     }
   }
 
@@ -189,10 +212,20 @@ export default function LoginPage() {
       <View className="w-full max-w-sm space-y-4">
         <Button
           className="w-full h-12 rounded-xl bg-primary text-white text-base font-medium"
+          openType="getPhoneNumber"
+          onGetPhoneNumber={handlePhoneLogin}
+          disabled={isLoading}
+        >
+          {isLoading ? '登录中...' : '手机号一键登录'}
+        </Button>
+
+        <Button
+          variant="outline"
+          className="w-full h-12 rounded-xl text-base font-medium"
           onClick={handleWxLogin}
           disabled={isLoading}
         >
-          {isLoading ? '登录中...' : '微信授权登录'}
+          微信授权登录
         </Button>
 
         {isDev && showMockPanel && (

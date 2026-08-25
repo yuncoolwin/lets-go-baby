@@ -76,4 +76,21 @@ export class AuthController {
     const data = await this.authService.teacherLoginByPhone(body.phone);
     return { code: 200, msg: 'success', data };
   }
+
+  /**
+   * 手机号一键登录
+   * POST /api/auth/phone-login
+   */
+  @Post('phone-login')
+  @HttpCode(200)
+  async phoneLogin(
+    @Body() body: { login_code: string; phone_code?: string; mock_role?: string },
+  ) {
+    const data = await this.authService.phoneLogin(
+      body.login_code,
+      body.phone_code,
+      body.mock_role,
+    );
+    return { code: 200, msg: 'success', data };
+  }
 }

@@ -1,8 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { WechatService } from './wechat.service';
 
 @Injectable()
 export class AuthService {
+  constructor(private readonly wechat: WechatService) {}
+
   private get client() {
     return getSupabaseClient();
   }
@@ -97,7 +100,16 @@ export class AuthService {
       }
     }
 
-    // 2. 处理 mock 角色（测试用）
+    const context = await this.getLoginContext(userId, mockRole);
+    return {
+      user,
+      ...context,
+    };
+  }
+
+  // 组装登录上下文：mock角色处理 → 查roles → 确定目标角色 → 查绑定孩子
+  private async getLoginContext(userId: string, mockRole?: string) {
+    // 处理 mock 角色（测试用）
     if (mockRole && mockRole !== 'parent') {
       // 检查是否已有该角色
       const { data: existingRole } = await this.client
@@ -118,7 +130,7 @@ export class AuthService {
       }
     }
 
-    // 3. 获取用户所有角色
+    // 获取用户所有角色
     const { data: roles, error: rolesError } = await this.client
       .from('user_roles')
       .select('id, user_id, role_type, real_name, status')
@@ -127,7 +139,7 @@ export class AuthService {
 
     if (rolesError) throw new Error(`查询角色失败: ${rolesError.message}`);
 
-    // 4. 确定登录目标
+    // 确定登录目标
     const activeRoles = roles || [];
     let targetRole: string | null = null;
     let needRoleSelection = false;
@@ -142,7 +154,7 @@ export class AuthService {
       needRoleSelection = true;
     }
 
-    // 4. 获取家长绑定的孩子信息
+    // 获取家长绑定的孩子信息
     let children: Array<{
       id: string;
       name: string;
@@ -182,12 +194,140 @@ export class AuthService {
     }
 
     return {
-      user,
       roles: activeRoles,
       target_role: targetRole,
       need_role_selection: needRoleSelection,
       children,
       has_bound_children: children.length > 0,
+    };
+  }
+
+  // 手机号登录：微信手机号授权 code + login code
+  async phoneLogin(loginCode: string, phoneCode?: string, mockRole?: string) {
+    console.log('[AuthService] phoneLogin 调用:', {
+      loginCode: loginCode ? `${loginCode.slice(0, 10)}...` : loginCode,
+      phoneCode: phoneCode ? '***' : undefined,
+      mockRole,
+    });
+
+    const openid = await this.wechat.getOpenidByCode(loginCode);
+    const phone = phoneCode ? await this.wechat.getPhoneByCode(phoneCode) : null;
+    console.log('[AuthService] phoneLogin 解析:', { openid, phone });
+
+    let userId: string;
+    let user: {
+      id: string;
+      openid: string;
+      nickname: string;
+      avatar_url: string | null;
+      phone: string | null;
+    };
+
+    if (phone) {
+      // a) 手机号非空：先按手机号查
+      const { data: byPhone } = await this.client
+        .from('users')
+        .select('id, openid, nickname, avatar_url, phone')
+        .eq('phone', phone)
+        .maybeSingle();
+
+      if (byPhone) {
+        // 命中：合并 openid（若 openid 已被别行占用，先清空那一行）
+        if (openid && openid !== byPhone.openid) {
+          const { data: openidOwner } = await this.client
+            .from('users')
+            .select('id')
+            .eq('openid', openid)
+            .neq('id', byPhone.id)
+            .maybeSingle();
+          if (openidOwner) {
+            await this.client.from('users').update({ openid: null }).eq('id', openidOwner.id);
+          }
+          await this.client.from('users').update({ openid }).eq('id', byPhone.id);
+        }
+        userId = byPhone.id;
+        user = byPhone;
+      } else if (openid) {
+        // b) 手机号未命中，openid 有值：按 openid 查
+        const { data: byOpenid } = await this.client
+          .from('users')
+          .select('id, openid, nickname, avatar_url, phone')
+          .eq('openid', openid)
+          .maybeSingle();
+
+        if (byOpenid) {
+          // openid 命中，把手机号更新进去（手机号已被别行占用则跳过）
+          if (!byOpenid.phone || byOpenid.phone === phone) {
+            await this.client.from('users').update({ phone }).eq('id', byOpenid.id);
+          }
+          userId = byOpenid.id;
+          user = { ...byOpenid, phone };
+        } else {
+          // c) 都未命中：insert 用户 + parent 角色
+          const { data: newUser, error } = await this.client
+            .from('users')
+            .insert({ openid, nickname: '新用户', phone })
+            .select('id, openid, nickname, avatar_url, phone')
+            .single();
+          if (error) throw new Error(`创建用户失败: ${error.message}`);
+          userId = newUser.id;
+          user = newUser;
+          await this.client.from('user_roles').insert({
+            user_id: userId,
+            role_type: 'parent',
+            status: 'active',
+          });
+        }
+      } else {
+        // 手机号未命中且 openid 无值：insert 用户（无 openid）+ parent 角色
+        const { data: newUser, error } = await this.client
+          .from('users')
+          .insert({ nickname: '新用户', phone })
+          .select('id, openid, nickname, avatar_url, phone')
+          .single();
+        if (error) throw new Error(`创建用户失败: ${error.message}`);
+        userId = newUser.id;
+        user = newUser;
+        await this.client.from('user_roles').insert({
+          user_id: userId,
+          role_type: 'parent',
+          status: 'active',
+        });
+      }
+    } else if (openid) {
+      // 无手机号：按 openid 查
+      const { data: byOpenid } = await this.client
+        .from('users')
+        .select('id, openid, nickname, avatar_url, phone')
+        .eq('openid', openid)
+        .maybeSingle();
+
+      if (byOpenid) {
+        userId = byOpenid.id;
+        user = byOpenid;
+      } else {
+        const { data: newUser, error } = await this.client
+          .from('users')
+          .insert({ openid, nickname: '新用户' })
+          .select('id, openid, nickname, avatar_url, phone')
+          .single();
+        if (error) throw new Error(`创建用户失败: ${error.message}`);
+        userId = newUser.id;
+        user = newUser;
+        await this.client.from('user_roles').insert({
+          user_id: userId,
+          role_type: 'parent',
+          status: 'active',
+        });
+      }
+    } else {
+      throw new Error('登录参数缺失');
+    }
+
+    const context = await this.getLoginContext(userId, mockRole);
+    return {
+      user,
+      ...context,
     };
   }
 

@@ -82,6 +82,7 @@ export const users = pgTable("users", {
 }, (table) => [
 	index("users_openid_idx").using("btree", table.openid.asc().nullsLast().op("text_ops")),
 	unique("users_openid_unique").on(table.openid),
+	unique("users_phone_unique").on(table.phone),
 ]);
 
 export const parentChildRelations = pgTable("parent_child_relations", {

@@ -3,6 +3,7 @@ import { AppController } from '@/app.controller';
 import { AppService } from '@/app.service';
 import { AuthController } from '@/auth/auth.controller';
 import { AuthService } from '@/auth/auth.service';
+import { WechatService } from '@/auth/wechat.service';
 import { ParentController } from '@/parent/parent.controller';
 import { ParentService } from '@/parent/parent.service';
 import { TeacherController } from '@/teacher/teacher.controller';
@@ -49,6 +50,7 @@ import { StatutoryHolidaysService } from '@/statutory-holidays/statutory-holiday
   providers: [
     AppService,
     AuthService,
+    WechatService,
     ParentService,
     TeacherService,
     AdminService,

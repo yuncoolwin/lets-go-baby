@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import Taro from '@tarojs/taro'
 import { Network } from '@/network'
+import { authApi } from '@/utils/api'
 
 export type RoleType = 'parent' | 'teacher' | 'admin' | 'superadmin' | null
 
@@ -67,6 +68,13 @@ interface AppStore {
     needRoleSelection: boolean
     targetRole: string | null
     hasBoundChildren: boolean
+    error?: boolean
+  }>
+  phoneLogin: (loginCode: string, phoneCode?: string, mockRole?: string) => Promise<{
+    needRoleSelection: boolean
+    targetRole: string | null
+    hasBoundChildren: boolean
+    error?: boolean
   }>
   fetchUserInfo: () => Promise<void>
   selectRole: (roleType: string) => Promise<void>
@@ -249,6 +257,70 @@ export const useAppStore = create<AppStore>()(
       return { needRoleSelection: false, targetRole: null, hasBoundChildren: false, error: true }
     } catch (err) {
       console.error('[Auth] wxLogin error:', err)
+      set({ isLoading: false })
+      const errMsg = err instanceof Error ? err.message : '网络错误'
+      Taro.showToast({ title: errMsg, icon: 'none' })
+      return { needRoleSelection: false, targetRole: null, hasBoundChildren: false, error: true }
+    }
+  },
+
+  phoneLogin: async (loginCode, phoneCode, mockRole) => {
+    set({ isLoading: true })
+    console.log('[Auth] phoneLogin request:', { loginCode, hasPhoneCode: !!phoneCode, mockRole })
+
+    try {
+      const res = await authApi.phoneLogin({
+        login_code: loginCode,
+        phone_code: phoneCode,
+        mock_role: mockRole,
+      })
+      console.log('[Auth] phoneLogin response:', { statusCode: res.statusCode, data: res.data })
+
+      if (res.statusCode !== 200) {
+        console.error('[Auth] phoneLogin bad status:', res.statusCode)
+        set({ isLoading: false })
+        Taro.showToast({ title: `登录失败(${res.statusCode})`, icon: 'none' })
+        return { needRoleSelection: false, targetRole: null, hasBoundChildren: false, error: true }
+      }
+
+      const data = res.data?.data
+      if (data) {
+        const roles = (data.roles || []) as UserRole[]
+        const children = (data.children || []) as ChildInfo[]
+        const targetRoleType = data.target_role || 'parent'
+        const currentRoleIndex = roles.findIndex(r => r.role_type === targetRoleType)
+        const currentRole = currentRoleIndex >= 0 ? roles[currentRoleIndex] : (roles.length > 0 ? roles[0] : null)
+
+        set({
+          userId: data.user?.id || null,
+          nickname: data.user?.nickname || '',
+          avatarUrl: data.user?.avatar_url || null,
+          phone: data.user?.phone || null,
+          roles,
+          currentRole,
+          currentRoleIndex: currentRoleIndex >= 0 ? currentRoleIndex : 0,
+          children,
+          currentChildIndex: 0,
+          isLoggedIn: true,
+          isLoading: false,
+          needRoleSelection: data.need_role_selection || false,
+        })
+
+        console.log('[Auth] phoneLogin success:', { userId: data.user?.id, roles: roles.length, children: children.length })
+
+        return {
+          needRoleSelection: data.need_role_selection || false,
+          targetRole: data.target_role || null,
+          hasBoundChildren: data.has_bound_children || false,
+        }
+      }
+
+      console.error('[Auth] phoneLogin empty data:', res.data)
+      set({ isLoading: false })
+      Taro.showToast({ title: '登录数据异常', icon: 'none' })
+      return { needRoleSelection: false, targetRole: null, hasBoundChildren: false, error: true }
+    } catch (err) {
+      console.error('[Auth] phoneLogin error:', err)
       set({ isLoading: false })
       const errMsg = err instanceof Error ? err.message : '网络错误'
       Taro.showToast({ title: errMsg, icon: 'none' })

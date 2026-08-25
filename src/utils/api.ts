@@ -207,6 +207,13 @@ export const authApi = {
       data: { phone },
     });
   },
+  phoneLogin(data: { login_code: string; phone_code?: string; mock_role?: string }) {
+    return Network.request({
+      url: '/api/auth/phone-login',
+      method: 'POST',
+      data,
+    });
+  },
 };
 
 // ============ 报读记录 API ============
