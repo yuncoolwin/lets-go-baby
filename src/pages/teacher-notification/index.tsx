@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { notificationApi, classApi, childrenApi, teacherApi, courseApi } from '@/utils/api'
 import { useAppStore } from '@/store/app'
 import BackButton from '@/components/back-button'
@@ -441,11 +441,13 @@ export default function TeacherNotificationPage() {
       </View>
 
       {/* 草稿箱半屏弹窗 */}
-      <Sheet open={draftOpen} onOpenChange={setDraftOpen}>
-        <SheetContent side="bottom" className="rounded-t-2xl max-h-[75vh] overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>草稿箱</SheetTitle>
-          </SheetHeader>
+      <Dialog open={draftOpen} onOpenChange={setDraftOpen}>
+        <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+          <DialogHeader>
+            <DialogTitle>
+              <Text className="block text-lg font-semibold text-foreground">草稿箱</Text>
+            </DialogTitle>
+          </DialogHeader>
           <View className="mt-4 space-y-3">
             {draftLoading ? (
               <Text className="block text-center text-sm text-muted-foreground py-8">加载中...</Text>
@@ -470,8 +472,8 @@ export default function TeacherNotificationPage() {
               ))
             )}
           </View>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </View>
   )
 }

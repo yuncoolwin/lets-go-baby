@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { teacherApi } from '@/utils/api'
 import { getNameInitial } from '@/utils/helpers'
-import { Search, GraduationCap, Plus } from 'lucide-react-taro'
+import { Search, GraduationCap } from 'lucide-react-taro'
 
 interface Teacher {
   id: string
@@ -92,7 +92,7 @@ export default function TeacherManagePage() {
   }
 
   return (
-    <View className="min-h-screen bg-background p-4 pb-20">
+    <View className="min-h-screen bg-background p-4 pb-28">
       {/* 搜索栏 */}
       <View className="mb-3">
         <View className="flex items-center gap-2 bg-white rounded-xl px-4 py-3 shadow-sm">
@@ -186,15 +186,21 @@ export default function TeacherManagePage() {
         </View>
       )}
 
-      {/* 添加教师浮动按钮 */}
-      {teachers.length > 0 && (
-        <View
-          className="fixed right-4 bottom-24 w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-lg z-50"
+      {/* 底部固定按钮 */}
+      <View
+        style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0,
+          background: '#fff', borderTop: '1px solid #f0f0f0',
+          padding: '12px 16px', zIndex: 100
+        }}
+      >
+        <Button
+          className="w-full bg-primary text-white rounded-xl py-3"
           onClick={() => Taro.navigateTo({ url: '/pages/admin/teacher-edit/index' })}
         >
-          <Plus size={28} color="#FFFFFF" />
-        </View>
-      )}
+          <Text className="text-white">新增教师</Text>
+        </Button>
+      </View>
 
     </View>
   )

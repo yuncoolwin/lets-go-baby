@@ -123,6 +123,20 @@ const DialogContent = React.forwardRef<
     const context = React.useContext(DialogContext)
     const offset = useKeyboardOffset()
     const state = context?.open ? "open" : "closed"
+    const [animating, setAnimating] = React.useState<'open' | 'close' | 'idle'>(
+      context?.open ? 'open' : 'idle'
+    )
+
+    React.useEffect(() => {
+      if (context?.open) {
+        setAnimating('idle')
+        const raf = requestAnimationFrame(() => {
+          requestAnimationFrame(() => setAnimating('open'))
+        })
+        return () => cancelAnimationFrame(raf)
+      }
+      setAnimating('close')
+    }, [context?.open])
     
     return (
         <DialogPortal>
@@ -135,12 +149,19 @@ const DialogContent = React.forwardRef<
                 ref={ref}
                 data-state={state}
                 className={cn(
-                      "fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-xl",
+                      "fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-lg gap-4 border bg-background p-6 shadow-lg rounded-xl",
                       className
                   )}
                 style={{
                   ...(style as object),
-                  top: offset > 0 ? `calc(50% - ${offset / 2}px)` : undefined
+                  top: offset > 0 ? `calc(50% - ${offset / 2}px)` : undefined,
+                  transform: `translate(-50%, -50%) ${animating === 'open' ? 'scale(1)' : 'scale(0.3)'}`,
+                  opacity: animating === 'idle' ? 0 : 1,
+                  transition: animating === 'open'
+                    ? 'transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 300ms ease-out'
+                    : animating === 'close'
+                    ? 'transform 200ms ease-in, opacity 200ms ease-in'
+                    : 'none',
                 }}
                 onClick={(e) => e.stopPropagation()}
                 {...props}

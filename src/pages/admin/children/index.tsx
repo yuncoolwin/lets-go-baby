@@ -5,8 +5,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
 import { childrenApi } from '@/utils/api'
-import { Search, Plus } from 'lucide-react-taro'
+import { Search } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge } from '@/utils/format'
 import { getNameInitial } from '@/utils/helpers'
@@ -120,7 +121,7 @@ export default function ChildrenManagePage() {
   }
 
   return (
-    <View className="min-h-screen bg-background p-4 pb-20">
+    <View className="min-h-screen bg-background p-4 pb-28">
       {/* 搜索栏 */}
       <View className="mb-3">
         <View className="flex items-center gap-2 bg-white rounded-xl px-4 py-3 shadow-sm">
@@ -225,12 +226,20 @@ export default function ChildrenManagePage() {
           ))}
         </View>
       )}
-      {/* 悬浮新增按钮 */}
+      {/* 底部固定按钮 */}
       <View
-        className="fixed bottom-6 right-6 w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-lg z-50"
-        onClick={() => Taro.navigateTo({ url: '/pages/admin/child-add/index' })}
+        style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0,
+          background: '#fff', borderTop: '1px solid #f0f0f0',
+          padding: '12px 16px', zIndex: 100
+        }}
       >
-        <Plus size={24} color="#fff" />
+        <Button
+          className="w-full bg-primary text-white rounded-xl py-3"
+          onClick={() => Taro.navigateTo({ url: '/pages/admin/child-add/index' })}
+        >
+          <Text className="text-white">新增幼儿</Text>
+        </Button>
       </View>
     </View>
   )
