@@ -355,3 +355,21 @@ export const holidays = pgTable("holidays", {
 	unique("holidays_date_key").on(table.date),
 	check("holidays_type_check", sql`(type)::text = ANY ((ARRAY['holiday'::character varying, 'work_weekend'::character varying])::text[])`),
 ]);
+
+export const auditLogs = pgTable("audit_logs", {
+	id: varchar({ length: 36 }).default(sql`gen_random_uuid()`).primaryKey().notNull(),
+	userId: varchar("user_id", { length: 36 }),
+	userRoleId: varchar("user_role_id", { length: 36 }),
+	action: varchar({ length: 50 }).notNull(),
+	targetType: varchar("target_type", { length: 50 }),
+	targetId: varchar("target_id", { length: 36 }),
+	detail: jsonb(),
+	level: varchar({ length: 20 }).default('info'),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("audit_logs_user_id_idx").on(table.userId),
+	index("audit_logs_user_role_id_idx").on(table.userRoleId),
+	index("audit_logs_created_at_idx").on(table.createdAt),
+	index("audit_logs_action_idx").on(table.action),
+	index("audit_logs_target_type_idx").on(table.targetType),
+]);

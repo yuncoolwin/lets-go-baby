@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import Taro from '@tarojs/taro'
 import { Network } from '@/network'
 
-export type RoleType = 'parent' | 'teacher' | 'admin' | null
+export type RoleType = 'parent' | 'teacher' | 'admin' | 'superadmin' | null
 
 export interface UserRole {
   id: string

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Button } from '@/components/ui/button'
@@ -6,15 +6,20 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAppStore } from '@/store/app'
 import { authApi } from '@/utils/api'
-import { Shield, GraduationCap } from 'lucide-react-taro'
+import { Shield, GraduationCap, ShieldCheck } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import logoUrl from '@/assets/logo.png'
 
+const APP_VERSION = '1.0.0'
+
 export default function LoginPage() {
   const { wxLogin, isLoading } = useAppStore()
-  const [loginMode, setLoginMode] = useState<'normal' | 'mock'>('normal')
+  const [showMockPanel, setShowMockPanel] = useState(false)
   const [teacherPhone, setTeacherPhone] = useState('13800001111')
   const [showTeacherInput, setShowTeacherInput] = useState(false)
+  const mockTapCountRef = useRef(0)
+
+  const isDev = !PROJECT_DOMAIN
 
   const handleWxLogin = async () => {
     console.log('[Login] handleWxLogin called, env:', Taro.getEnv())
@@ -79,7 +84,6 @@ export default function LoginPage() {
     }
   }
 
-
   const handleTeacherPhoneLogin = async () => {
     if (!teacherPhone) {
       Taro.showToast({ title: '请输入手机号', icon: 'none' })
@@ -95,7 +99,7 @@ export default function LoginPage() {
         Taro.setStorageSync('userInfo', userData)
         Taro.setStorageSync('role', 'teacher')
         Taro.setStorageSync('userId', userData.id)
-        
+
         // 更新 store 登录状态
         const store = useAppStore.getState()
         store.setLoginInfo({
@@ -116,7 +120,7 @@ export default function LoginPage() {
         if (userData.teacher_id) {
           Taro.setStorageSync('teacherId', userData.teacher_id)
         }
-        
+
         Taro.switchTab({ url: '/pages/index/index' })
       } else {
         Taro.showToast({ title: res.data?.msg || '登录失败', icon: 'none' })
@@ -152,6 +156,15 @@ export default function LoginPage() {
     }
   }
 
+  const handleVersionLongPress = () => {
+    if (!isDev) return
+    mockTapCountRef.current += 1
+    if (mockTapCountRef.current >= 5) {
+      mockTapCountRef.current = 0
+      setShowMockPanel(true)
+    }
+  }
+
   return (
     <View className="min-h-screen bg-gradient-to-b from-orange-50 to-white flex flex-col items-center justify-center px-6">
       {/* Logo 区域 */}
@@ -165,34 +178,18 @@ export default function LoginPage() {
 
       {/* 登录按钮 */}
       <View className="w-full max-w-sm space-y-4">
-        {loginMode === 'normal' ? (
-          <>
-            <Button
-              className="w-full h-12 rounded-xl bg-primary text-white text-base font-medium"
-              onClick={handleWxLogin}
-              disabled={isLoading}
-            >
-              {isLoading ? '登录中...' : '微信授权登录'}
-            </Button>
+        <Button
+          className="w-full h-12 rounded-xl bg-primary text-white text-base font-medium"
+          onClick={handleWxLogin}
+          disabled={isLoading}
+        >
+          {isLoading ? '登录中...' : '微信授权登录'}
+        </Button>
 
-            <View className="flex items-center gap-3 py-4">
-              <View className="flex-1 h-px bg-gray-200" />
-              <Text className="text-xs text-gray-400">开发测试</Text>
-              <View className="flex-1 h-px bg-gray-200" />
-            </View>
-
-            <Button
-              variant="outline"
-              className="w-full h-10 rounded-xl text-sm text-gray-600"
-              onClick={() => setLoginMode('mock')}
-            >
-              使用角色模拟登录
-            </Button>
-          </>
-        ) : (
+        {isDev && showMockPanel && (
           <>
             <Text className="block text-center text-sm text-gray-500 mb-4">
-              选择角色登录（测试用）
+              选择角色登录（开发测试）
             </Text>
 
             <Card className="border-0 shadow-sm">
@@ -256,16 +253,18 @@ export default function LoginPage() {
                   <Shield size={20} color="#10B981" />
                   <Text className="text-base">管理员登录</Text>
                 </Button>
+
+                <Button
+                  variant="outline"
+                  className="w-full h-12 rounded-xl justify-start gap-3"
+                  onClick={() => handleMockLogin('superadmin')}
+                  disabled={isLoading}
+                >
+                  <ShieldCheck size={20} color="#8B5CF6" />
+                  <Text className="text-base">超级管理员登录</Text>
+                </Button>
               </CardContent>
             </Card>
-
-            <Button
-              variant="ghost"
-              className="w-full h-10 text-sm text-gray-500"
-              onClick={() => setLoginMode('normal')}
-            >
-              返回
-            </Button>
           </>
         )}
       </View>
@@ -275,6 +274,14 @@ export default function LoginPage() {
         <Text className="block text-xs text-gray-400">
           登录即表示同意《用户协议》和《隐私政策》
         </Text>
+        {isDev && (
+          <Text
+            className="block text-xs text-gray-300 mt-4 select-none"
+            onLongPress={handleVersionLongPress}
+          >
+            版本 v{APP_VERSION}（长按 5 次打开开发测试面板）
+          </Text>
+        )}
       </View>
     </View>
   )

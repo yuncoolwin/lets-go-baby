@@ -6,18 +6,14 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { useAppStore, type RoleType } from '@/store/app'
 import { getRelationshipLabel } from '@/utils/helpers'
-import { Network } from '@/network'
-import { User, ChevronRight, LogOut, Users, Shield } from 'lucide-react-taro'
+import { User, ChevronRight, LogOut, Users, Shield, ShieldCheck } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
-import { useState } from 'react'
 
 export default function ProfilePage() {
   const {
-    nickname, roles, currentRole, currentRoleIndex, userId,
+    nickname, roles, currentRole, currentRoleIndex,
     children, currentChildIndex, isLoggedIn, setCurrentRole, logout, fetchUserInfo,
   } = useAppStore()
-
-  const [parentStatus, setParentStatus] = useState<{ hasParentRole: boolean; childCount: number } | null>(null)
 
   const currentChild = children[currentChildIndex] || null
 
@@ -38,6 +34,8 @@ export default function ProfilePage() {
         return nickname || currentRole.real_name || '老师'
       case 'admin':
         return '管理员'
+      case 'superadmin':
+        return '超级管理员'
       default:
         return nickname || '用户'
     }
@@ -53,6 +51,8 @@ export default function ProfilePage() {
         return `教师 · ${currentRole.real_name || ''}`
       case 'admin':
         return '管理员'
+      case 'superadmin':
+        return '超级管理员'
       default:
         return ''
     }
@@ -60,20 +60,7 @@ export default function ProfilePage() {
 
   Taro.useDidShow(() => {
     fetchUserInfo()
-    loadParentStatus()
   })
-
-  const loadParentStatus = async () => {
-    if (!userId) return
-    try {
-      const res = await Network.request({ url: '/api/admin/user/parent-status', data: { userId } })
-      if (res.data?.data) {
-        setParentStatus(res.data.data)
-      }
-    } catch {
-      // 非管理员/教师或接口不可用时忽略
-    }
-  }
 
   const displayName = getDisplayName()
   const subTitle = getSubTitle()
@@ -83,6 +70,7 @@ export default function ProfilePage() {
       case 'parent': return '家长'
       case 'teacher': return '教师'
       case 'admin': return '管理员'
+      case 'superadmin': return '超级管理员'
       default: return '未知'
     }
   }
@@ -92,6 +80,7 @@ export default function ProfilePage() {
       case 'parent': return { type: 'image', src: rabbitLogo }
       case 'teacher': return { type: 'component', component: Users }
       case 'admin': return { type: 'component', component: Shield }
+      case 'superadmin': return { type: 'component', component: ShieldCheck }
       default: return { type: 'component', component: User }
     }
   }
@@ -126,7 +115,7 @@ export default function ProfilePage() {
 
       {/* 角色切换 */}
       {(() => {
-        const showParent = parentStatus?.hasParentRole && (parentStatus?.childCount || 0) > 0
+        const showParent = roles.some((r) => r.role_type === 'parent') && children.length > 0
         const filteredRoles = roles.filter((r) => r.role_type !== 'parent' || showParent)
         return filteredRoles.length > 1 && (
           <Card className="bg-white rounded-xl border-0 shadow-sm mb-4">
@@ -194,6 +183,18 @@ export default function ProfilePage() {
           </View>
           <Separator />
           {currentRole?.role_type === 'admin' && (
+            <>
+              <View
+                className="flex items-center justify-between p-4"
+                onClick={() => Taro.navigateTo({ url: '/pages/admin/holidays/index' })}
+              >
+                <Text className="text-sm text-foreground">法定节假日</Text>
+                <ChevronRight size={16} color="#999" />
+              </View>
+              <Separator />
+            </>
+          )}
+          {currentRole?.role_type === 'superadmin' && (
             <>
               <View
                 className="flex items-center justify-between p-4"

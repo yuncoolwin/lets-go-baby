@@ -4,7 +4,7 @@ import Taro from '@tarojs/taro'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAppStore, type RoleType } from '@/store/app'
-import { GraduationCap, Shield, Check } from 'lucide-react-taro'
+import { GraduationCap, Shield, ShieldCheck, Check } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 
 const roleConfig: Record<string, { name: string; desc: string; icon: any; color: string; isImage?: boolean }> = {
@@ -27,12 +27,22 @@ const roleConfig: Record<string, { name: string; desc: string; icon: any; color:
     icon: Shield,
     color: '#10B981',
   },
+  superadmin: {
+    name: '超级管理员',
+    desc: '管理系统用户与角色权限、审计日志',
+    icon: ShieldCheck,
+    color: '#8B5CF6',
+  },
 }
 
 export default function RoleSelectPage() {
-  const { roles, selectRole } = useAppStore()
+  const { roles, selectRole, children } = useAppStore()
   const [selectedRole, setSelectedRole] = useState<RoleType>(null)
   const [loading, setLoading] = useState(false)
+
+  const hasParentRole = roles.some((r) => r.role_type === 'parent')
+  const showParent = hasParentRole && children.length > 0
+  const filteredRoles = roles.filter((r) => r.role_type !== 'parent' || showParent)
 
   const handleConfirm = async () => {
     if (!selectedRole) return
@@ -48,6 +58,8 @@ export default function RoleSelectPage() {
       Taro.switchTab({ url: '/pages/index/index' })
     } else if (selectedRole === 'admin') {
       Taro.switchTab({ url: '/pages/index/index' })
+    } else if (selectedRole === 'superadmin') {
+      Taro.switchTab({ url: '/pages/index/index' })
     }
   }
 
@@ -61,7 +73,7 @@ export default function RoleSelectPage() {
       </View>
 
       <View className="space-y-3">
-        {roles.map((role) => {
+        {filteredRoles.map((role) => {
           const config = roleConfig[role.role_type || '']
           if (!config) return null
 

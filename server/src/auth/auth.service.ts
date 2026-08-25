@@ -113,7 +113,7 @@ export class AuthService {
           user_id: userId,
           role_type: mockRole,
           status: 'active',
-          real_name: `测试${mockRole === 'teacher' ? '教师' : '管理员'}`,
+          real_name: `测试${mockRole === 'teacher' ? '教师' : mockRole === 'admin' ? '管理员' : '超级管理员'}`,
         });
       }
     }

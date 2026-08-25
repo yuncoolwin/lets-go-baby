@@ -60,4 +60,22 @@ export class AdminController {
     const data = await this.adminService.getParentStatus(userId);
     return { code: 200, msg: 'success', data };
   }
+
+  @Get('permission/users')
+  @HttpCode(200)
+  async getPermissionUsers(@Query('operator_user_id') operatorUserId: string) {
+    return this.adminService.getPermissionUsers(operatorUserId);
+  }
+
+  @Post('permission/assign')
+  @HttpCode(200)
+  async assignRole(@Body() body: { operator_user_id: string; user_id: string; role_type: string }) {
+    return this.adminService.assignRole(body.operator_user_id, body.user_id, body.role_type);
+  }
+
+  @Post('permission/revoke')
+  @HttpCode(200)
+  async revokeRole(@Body() body: { operator_user_id: string; user_role_id: string }) {
+    return this.adminService.revokeRole(body.operator_user_id, body.user_role_id);
+  }
 }

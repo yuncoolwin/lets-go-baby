@@ -412,4 +412,155 @@ export class AdminService {
     if (error) throw new Error(`审核失败: ${error.message}`);
     return { success: true };
   }
+
+  // 校验操作者是否为 active 超管，返回 user_role 记录或 null
+  private async getActiveSuperAdmin(operatorUserId: string) {
+    const { data, error } = await this.client
+      .from('user_roles')
+      .select('id')
+      .eq('user_id', operatorUserId)
+      .eq('role_type', 'superadmin')
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (error) throw new Error(`权限校验失败: ${error.message}`);
+    return data || null;
+  }
+
+  // 返回系统全部用户及各自 active 角色
+  async getPermissionUsers(operatorUserId: string) {
+    const isSuperAdmin = await this.getActiveSuperAdmin(operatorUserId);
+    if (!isSuperAdmin) {
+      return { code: 403, msg: '无权限', data: null };
+    }
+
+    const { data: users, error: usersError } = await this.client
+      .from('users')
+      .select('id, nickname, phone, avatar_url');
+
+    if (usersError) throw new Error(`查询用户失败: ${usersError.message}`);
+
+    const { data: roles, error: rolesError } = await this.client
+      .from('user_roles')
+      .select('id, user_id, role_type, real_name, status')
+      .eq('status', 'active');
+
+    if (rolesError) throw new Error(`查询角色失败: ${rolesError.message}`);
+
+    const roleMap = new Map<string, any[]>();
+    (roles || []).forEach((role: any) => {
+      const list = roleMap.get(role.user_id) || [];
+      list.push({
+        id: role.id,
+        role_type: role.role_type,
+        real_name: role.real_name,
+        status: role.status,
+      });
+      roleMap.set(role.user_id, list);
+    });
+
+    const list = (users || []).map((user: any) => ({
+      id: user.id,
+      nickname: user.nickname,
+      phone: user.phone,
+      avatar_url: user.avatar_url,
+      roles: roleMap.get(user.id) || [],
+    }));
+
+    return { code: 200, msg: 'success', data: list };
+  }
+
+  // 给用户追加一条 active 角色
+  async assignRole(operatorUserId: string, userId: string, roleType: string) {
+    const isSuperAdmin = await this.getActiveSuperAdmin(operatorUserId);
+    if (!isSuperAdmin) {
+      return { code: 403, msg: '无权限', data: null };
+    }
+
+    if (!['teacher', 'admin', 'superadmin'].includes(roleType)) {
+      return { code: 400, msg: '角色类型仅限 teacher/admin/superadmin', data: null };
+    }
+
+    const { data: user, error: userError } = await this.client
+      .from('users')
+      .select('nickname')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (userError) throw new Error(`查询用户失败: ${userError.message}`);
+    if (!user) {
+      return { code: 400, msg: '用户不存在', data: null };
+    }
+
+    const { data: existing, error: existingError } = await this.client
+      .from('user_roles')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('role_type', roleType)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (existingError) throw new Error(`查询角色失败: ${existingError.message}`);
+    if (existing) {
+      return { code: 200, msg: '该角色已存在', data: existing };
+    }
+
+    const { data: created, error: createError } = await this.client
+      .from('user_roles')
+      .insert({
+        user_id: userId,
+        role_type: roleType,
+        real_name: user.nickname || '',
+        status: 'active',
+        created_at: new Date().toISOString(),
+      })
+      .select('id, user_id, role_type, real_name, status')
+      .single();
+
+    if (createError) throw new Error(`分配角色失败: ${createError.message}`);
+
+    return { code: 200, msg: 'success', data: created };
+  }
+
+  // 软删除角色
+  async revokeRole(operatorUserId: string, userRoleId: string) {
+    const isSuperAdmin = await this.getActiveSuperAdmin(operatorUserId);
+    if (!isSuperAdmin) {
+      return { code: 403, msg: '无权限', data: null };
+    }
+
+    const { data: target, error: targetError } = await this.client
+      .from('user_roles')
+      .select('id, role_type, status')
+      .eq('id', userRoleId)
+      .maybeSingle();
+
+    if (targetError) throw new Error(`查询角色失败: ${targetError.message}`);
+    if (!target) {
+      return { code: 400, msg: '角色不存在', data: null };
+    }
+
+    // 超管兜底：目标为 superadmin 时，至少保留一个 active 超管
+    if (target.role_type === 'superadmin') {
+      const { count, error: countError } = await this.client
+        .from('user_roles')
+        .select('id', { count: 'exact', head: true })
+        .eq('role_type', 'superadmin')
+        .eq('status', 'active');
+
+      if (countError) throw new Error(`统计超管失败: ${countError.message}`);
+      if ((count || 0) <= 1) {
+        return { code: 400, msg: '至少保留一个超管', data: null };
+      }
+    }
+
+    const { error: revokeError } = await this.client
+      .from('user_roles')
+      .update({ status: 'inactive' })
+      .eq('id', userRoleId);
+
+    if (revokeError) throw new Error(`撤销角色失败: ${revokeError.message}`);
+
+    return { code: 200, msg: 'success', data: { success: true } };
+  }
 }
