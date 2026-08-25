@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { courseApi, classApi } from '@/utils/api'
+import { useAppStore } from '@/store/app'
 import { BookOpen, Plus, Pencil, Trash2 } from 'lucide-react-taro'
 
 interface Course {
@@ -40,6 +41,8 @@ const courseTypeColors: Record<string, string> = {
 }
 
 export default function CourseManagePage() {
+  const userId = useAppStore((s) => s.userId)
+  const currentRole = useAppStore((s) => s.currentRole)
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [classes, setClasses] = useState<ClassItem[]>([])
@@ -165,7 +168,7 @@ export default function CourseManagePage() {
       success: async (res) => {
         if (res.confirm) {
           try {
-            const result = await courseApi.remove(course.id)
+            const result = await courseApi.remove(course.id, { operator_user_id: userId ?? undefined, operator_role_id: currentRole?.id })
             console.log('[CourseManage] delete:', result)
             if (result.code === 200) {
               Taro.showToast({ title: '删除成功', icon: 'success' })

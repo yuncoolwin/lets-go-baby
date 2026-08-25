@@ -154,7 +154,12 @@ export class AdminService {
     return results;
   }
 
-  async approveBindingRequest(requestId: string) {
+  async approveBindingRequest(requestId: string, operatorUserId: string) {
+    const isSuperAdmin = await this.getActiveSuperAdmin(operatorUserId);
+    if (!isSuperAdmin) {
+      return { code: 403, msg: '无权限', data: null };
+    }
+
     // 1. 先获取绑定请求的完整信息
     const { data: request, error: reqError } = await this.client
       .from('binding_requests')
@@ -267,7 +272,15 @@ export class AdminService {
 
     if (error) throw new Error(`审核失败: ${error.message}`);
 
-    return { success: true };
+    await this.writeAuditLog({
+      user_id: operatorUserId,
+      user_role_id: isSuperAdmin.id,
+      action: 'binding_approve',
+      target_type: 'binding_request',
+      target_id: requestId,
+    });
+
+    return { code: 200, msg: 'success', data: { success: true } };
   }
 
   async getChildParents(childId: string) {
@@ -395,7 +408,12 @@ export class AdminService {
     return map[relationship] || relationship;
   }
 
-  async rejectBindingRequest(requestId: string, reason?: string) {
+  async rejectBindingRequest(requestId: string, reason: string | undefined, operatorUserId: string) {
+    const isSuperAdmin = await this.getActiveSuperAdmin(operatorUserId);
+    if (!isSuperAdmin) {
+      return { code: 403, msg: '无权限', data: null };
+    }
+
     const updateData: any = {
       status: 'rejected',
       approved_at: new Date().toISOString(),
@@ -410,7 +428,17 @@ export class AdminService {
       .eq('id', requestId);
 
     if (error) throw new Error(`审核失败: ${error.message}`);
-    return { success: true };
+
+    await this.writeAuditLog({
+      user_id: operatorUserId,
+      user_role_id: isSuperAdmin.id,
+      action: 'binding_reject',
+      target_type: 'binding_request',
+      target_id: requestId,
+      detail: { reason: reason || '' },
+    });
+
+    return { code: 200, msg: 'success', data: { success: true } };
   }
 
   // 校验操作者是否为 active 超管，返回 user_role 记录或 null
@@ -425,6 +453,29 @@ export class AdminService {
 
     if (error) throw new Error(`权限校验失败: ${error.message}`);
     return data || null;
+  }
+
+  // 操作日志写入（失败仅告警，不阻断主流程）
+  async writeAuditLog(payload: {
+    user_id?: string;
+    user_role_id?: string;
+    action: string;
+    target_type?: string;
+    target_id?: string;
+    detail?: any;
+    level?: string;
+  }) {
+    try {
+      const { error } = await this.client.from('audit_logs').insert({
+        ...payload,
+        created_at: new Date().toISOString(),
+      });
+      if (error) {
+        console.warn('[audit-log] 写入失败:', error.message);
+      }
+    } catch (err) {
+      console.warn('[audit-log] 写入异常:', err);
+    }
   }
 
   // 返回系统全部用户及各自 active 角色
@@ -519,6 +570,15 @@ export class AdminService {
 
     if (createError) throw new Error(`分配角色失败: ${createError.message}`);
 
+    await this.writeAuditLog({
+      user_id: operatorUserId,
+      user_role_id: isSuperAdmin.id,
+      action: 'role_assign',
+      target_type: 'user',
+      target_id: userId,
+      detail: { role_type: roleType },
+    });
+
     return { code: 200, msg: 'success', data: created };
   }
 
@@ -561,6 +621,14 @@ export class AdminService {
 
     if (revokeError) throw new Error(`撤销角色失败: ${revokeError.message}`);
 
+    await this.writeAuditLog({
+      user_id: operatorUserId,
+      user_role_id: isSuperAdmin.id,
+      action: 'role_revoke',
+      target_type: 'user_role',
+      target_id: userRoleId,
+    });
+
     return { code: 200, msg: 'success', data: { success: true } };
   }
 
@@ -583,6 +651,14 @@ export class AdminService {
       .single();
 
     if (error) throw new Error(`新增用户失败: ${error.message}`);
+
+    await this.writeAuditLog({
+      user_id: operatorUserId,
+      user_role_id: isSuperAdmin.id,
+      action: 'user_create',
+      target_type: 'user',
+      target_id: created.id,
+    });
 
     return { code: 200, msg: 'success', data: created };
   }
@@ -617,6 +693,14 @@ export class AdminService {
       .single();
 
     if (updateError) throw new Error(`更新用户失败: ${updateError.message}`);
+
+    await this.writeAuditLog({
+      user_id: operatorUserId,
+      user_role_id: isSuperAdmin.id,
+      action: 'user_update',
+      target_type: 'user',
+      target_id: userId,
+    });
 
     return { code: 200, msg: 'success', data: updated };
   }
@@ -693,6 +777,72 @@ export class AdminService {
 
     if (deleteUserError) throw new Error(`删除用户失败: ${deleteUserError.message}`);
 
+    await this.writeAuditLog({
+      user_id: operatorUserId,
+      user_role_id: isSuperAdmin.id,
+      action: 'user_delete',
+      target_type: 'user',
+      target_id: userId,
+      level: 'warn',
+    });
+
     return { code: 200, msg: 'success', data: { success: true } };
+  }
+
+  // 查询操作日志（超管）
+  async getAuditLogs(
+    operatorUserId: string,
+    page: number,
+    pageSize: number,
+    action?: string,
+    targetType?: string,
+  ) {
+    const isSuperAdmin = await this.getActiveSuperAdmin(operatorUserId);
+    if (!isSuperAdmin) {
+      return { code: 403, msg: '无权限', data: null };
+    }
+
+    let query = this.client
+      .from('audit_logs')
+      .select('*', { count: 'exact' });
+
+    if (action) query = query.eq('action', action);
+    if (targetType) query = query.eq('target_type', targetType);
+
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    const { data, count, error } = await query
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) throw new Error(`查询日志失败: ${error.message}`);
+
+    const list = data || [];
+
+    // 批量查 users 昵称
+    const userIds = [...new Set(list.map((l: any) => l.user_id).filter(Boolean))] as string[];
+    const nicknameMap: Record<string, string> = {};
+    if (userIds.length > 0) {
+      const { data: users, error: userErr } = await this.client
+        .from('users')
+        .select('id, nickname')
+        .in('id', userIds);
+      if (userErr) throw new Error(`查询用户失败: ${userErr.message}`);
+      (users || []).forEach((u: any) => {
+        nicknameMap[u.id] = u.nickname || '';
+      });
+    }
+
+    const enriched = list.map((l: any) => ({
+      ...l,
+      operator_nickname: nicknameMap[l.user_id] || '',
+    }));
+
+    return {
+      code: 200,
+      msg: 'success',
+      data: { list: enriched, total: count || 0 },
+    };
   }
 }

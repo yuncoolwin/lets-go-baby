@@ -108,8 +108,8 @@ export const childrenApi = {
   calcEndDate: (data: { course_type: string; enrollment_duration: string; start_date: string; custom_days?: string; date_calc_rule?: string }) =>
     request({ url: '/api/children/calc-end-date', method: 'POST', data }),
 
-  remove: (id: string) =>
-    request({ url: `/api/children/${id}`, method: 'DELETE' }),
+  remove: (id: string, operator?: { operator_user_id?: string; operator_role_id?: string }) =>
+    request({ url: `/api/children/${id}`, method: 'DELETE', data: { ...operator } }),
 
   assignClass: (childId: string, classId: string) =>
     request({ url: `/api/children/${childId}/assign-class`, method: 'POST', data: { class_id: classId } }),
@@ -266,6 +266,6 @@ export const courseApi = {
   update: (id: string, data: Record<string, any>) =>
     request({ url: `/api/courses/${id}`, method: 'PUT', data }),
 
-  remove: (id: string) =>
-    request({ url: `/api/courses/${id}`, method: 'DELETE' }),
+  remove: (id: string, operator?: { operator_user_id?: string; operator_role_id?: string }) =>
+    request({ url: `/api/courses/${id}`, method: 'DELETE', data: { ...operator } }),
 }

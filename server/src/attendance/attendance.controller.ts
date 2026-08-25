@@ -47,6 +47,8 @@ export class AttendanceController {
       date: string;
       status: string;
       course_type?: string;
+      operator_user_id?: string;
+      operator_role_id?: string;
     },
   ) {
     const data = await this.attendanceService.upsert(body);
@@ -56,9 +58,9 @@ export class AttendanceController {
   @Post('clear')
   @HttpCode(200)
   async clearByClassAndDate(
-    @Body() body: { class_id: string; date: string },
+    @Body() body: { class_id: string; date: string; operator_user_id?: string; operator_role_id?: string },
   ) {
-    const data = await this.attendanceService.clearByClassAndDate(body.class_id, body.date);
+    const data = await this.attendanceService.clearByClassAndDate(body.class_id, body.date, undefined, body.operator_user_id, body.operator_role_id);
     return { code: 200, msg: 'success', data };
   }
 

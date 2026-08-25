@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Network } from '@/network'
+import { useAppStore } from '@/store/app'
 import { ShieldCheck } from 'lucide-react-taro'
 import { getRelationshipLabel } from '@/utils/helpers'
 
@@ -22,6 +23,8 @@ interface BindingRequest {
 }
 
 export default function ReviewPage() {
+  const userId = useAppStore((s) => s.userId)
+  const currentRole = useAppStore((s) => s.currentRole)
   const [requests, setRequests] = useState<BindingRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [approvingId, setApprovingId] = useState<string | null>(null)
@@ -56,7 +59,7 @@ export default function ReviewPage() {
       const res = await Network.request({
         url: '/api/admin/binding-requests/approve',
         method: 'POST',
-        data: { request_id: requestId },
+        data: { request_id: requestId, operator_user_id: userId ?? undefined, operator_role_id: currentRole?.id },
       })
       // 检查响应是否成功
       if (res.data?.code === 200) {
@@ -83,7 +86,7 @@ export default function ReviewPage() {
       const res = await Network.request({
         url: '/api/admin/binding-requests/reject',
         method: 'POST',
-        data: { request_id: requestId },
+        data: { request_id: requestId, operator_user_id: userId ?? undefined, operator_role_id: currentRole?.id },
       })
       // 检查响应是否成功
       if (res.data?.code === 200) {

@@ -15,6 +15,7 @@ import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge } from '@/utils/format'
 
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
+import { useAppStore } from '@/store/app'
 
 interface ChildDetail {
   id: string
@@ -68,6 +69,8 @@ export default function ChildDetailPage() {
   const router = useRouter()
   const { id, readonly } = router.params
   const isReadonly = readonly === 'true'
+  const userId = useAppStore((s) => s.userId)
+  const currentRole = useAppStore((s) => s.currentRole)
   const [child, setChild] = useState<ChildDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [enrollments, setEnrollments] = useState<any[]>([])
@@ -503,7 +506,7 @@ export default function ChildDetailPage() {
       success: async (res) => {
         if (res.confirm) {
           try {
-            const result = await childrenApi.remove(id!)
+            const result = await childrenApi.remove(id!, { operator_user_id: userId ?? undefined, operator_role_id: currentRole?.id })
             if (result.code === 200) {
               Taro.showToast({ title: '删除成功', icon: 'success' })
               setTimeout(() => {

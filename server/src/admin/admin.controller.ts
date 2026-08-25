@@ -42,16 +42,14 @@ export class AdminController {
 
   @Post('binding-requests/approve')
   @HttpCode(200)
-  async approveBindingRequest(@Body() body: { request_id: string }) {
-    const data = await this.adminService.approveBindingRequest(body.request_id);
-    return { code: 200, msg: 'success', data };
+  async approveBindingRequest(@Body() body: { request_id: string; operator_user_id: string }) {
+    return this.adminService.approveBindingRequest(body.request_id, body.operator_user_id);
   }
 
   @Post('binding-requests/reject')
   @HttpCode(200)
-  async rejectBindingRequest(@Body() body: { request_id: string; reason?: string }) {
-    const data = await this.adminService.rejectBindingRequest(body.request_id, body.reason);
-    return { code: 200, msg: 'success', data };
+  async rejectBindingRequest(@Body() body: { request_id: string; reason?: string; operator_user_id: string }) {
+    return this.adminService.rejectBindingRequest(body.request_id, body.reason, body.operator_user_id);
   }
 
   @Get('user/parent-status')
@@ -95,5 +93,23 @@ export class AdminController {
   @HttpCode(200)
   async deletePermissionUser(@Param('id') id: string, @Body() body: { operator_user_id: string }) {
     return this.adminService.deletePermissionUser(body.operator_user_id, id);
+  }
+
+  @Get('audit-logs')
+  @HttpCode(200)
+  async getAuditLogs(
+    @Query('operator_user_id') operatorUserId: string,
+    @Query('page') page?: string,
+    @Query('page_size') pageSize?: string,
+    @Query('action') action?: string,
+    @Query('target_type') targetType?: string,
+  ) {
+    return this.adminService.getAuditLogs(
+      operatorUserId,
+      page ? parseInt(page, 10) || 1 : 1,
+      pageSize ? parseInt(pageSize, 10) || 20 : 20,
+      action,
+      targetType,
+    );
   }
 }

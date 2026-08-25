@@ -46,7 +46,7 @@ const STATUS_CONFIG = {
 } as const
 
 export default function RollCallPage() {
-  const { currentRole } = useAppStore()
+  const { currentRole, userId } = useAppStore()
   const [children, setChildren] = useState<ChildItem[]>([])
   const [attendance, setAttendance] = useState<Record<string, AttendanceItem['status']>>({})
   const [classId, setClassId] = useState('')
@@ -277,6 +277,8 @@ export default function RollCallPage() {
             course_type: child.course_type,
             status,
             teacher_id: currentRole?.id || '',
+            operator_user_id: userId ?? undefined,
+            operator_role_id: currentRole?.id,
           },
         })
       }
@@ -310,7 +312,7 @@ export default function RollCallPage() {
             await Network.request({
               url: '/api/attendance/clear',
               method: 'POST',
-              data: { class_id: classId, date: selectedDate },
+              data: { class_id: classId, date: selectedDate, operator_user_id: userId ?? undefined, operator_role_id: currentRole?.id },
             })
             setAttendance({})
             setTempAttendance({})

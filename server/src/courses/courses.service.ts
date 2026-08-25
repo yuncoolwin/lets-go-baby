@@ -79,7 +79,7 @@ export class CoursesService {
     return data;
   }
 
-  async remove(id: string) {
+  async remove(id: string, operatorUserId?: string, operatorRoleId?: string) {
     // 检查是否有进行中的报读记录
     const { data: activeEnrollments, error: queryError } = await this.supabase
       .from('enrollments')
@@ -99,6 +99,18 @@ export class CoursesService {
       .delete()
       .eq('id', id);
     if (error) throw new Error(error.message);
+
+    const { error: logErr } = await this.supabase.from('audit_logs').insert({
+      user_id: operatorUserId || null,
+      user_role_id: operatorRoleId || null,
+      action: 'course_delete',
+      target_type: 'course',
+      target_id: id,
+      level: 'warn',
+      created_at: new Date().toISOString(),
+    });
+    if (logErr) console.warn('[audit-log] course_delete 写入失败:', logErr.message);
+
     return { success: true, message: '删除成功' };
   }
 }

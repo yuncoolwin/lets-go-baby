@@ -292,6 +292,8 @@ export class AttendanceService {
     date: string;
     status: string;
     course_type?: string;
+    operator_user_id?: string;
+    operator_role_id?: string;
   }) {
     // 根据 child_id + course_type 匹配"进行中"的报读记录，取得 enrollment_id
     const courseType = dto.course_type || '';
@@ -328,10 +330,31 @@ export class AttendanceService {
       .select()
       .single();
     if (error) throw error;
+
+    if (data) {
+      const { error: logErr } = await this.client.from('audit_logs').insert({
+        user_id: dto.operator_user_id || null,
+        user_role_id: dto.operator_role_id || null,
+        action: 'attendance_upsert',
+        target_type: 'attendance',
+        target_id: data.id,
+        detail: { child_id: dto.child_id, class_id: dto.class_id, date: dto.date, status: dto.status },
+        level: 'info',
+        created_at: new Date().toISOString(),
+      });
+      if (logErr) console.warn('[audit-log] attendance_upsert 写入失败:', logErr.message);
+    }
+
     return data;
   }
 
-  async clearByClassAndDate(classId: string, date: string, courseType?: string) {
+  async clearByClassAndDate(
+    classId: string,
+    date: string,
+    courseType?: string,
+    operatorUserId?: string,
+    operatorRoleId?: string,
+  ) {
     let query = this.client
       .from('attendance')
       .delete()
@@ -342,6 +365,18 @@ export class AttendanceService {
     }
     const { error } = await query;
     if (error) throw error;
+
+    const { error: logErr } = await this.client.from('audit_logs').insert({
+      user_id: operatorUserId || null,
+      user_role_id: operatorRoleId || null,
+      action: 'attendance_clear',
+      target_type: 'attendance',
+      detail: { class_id: classId, date: date },
+      level: 'info',
+      created_at: new Date().toISOString(),
+    });
+    if (logErr) console.warn('[audit-log] attendance_clear 写入失败:', logErr.message);
+
     return { deleted: true };
   }
 

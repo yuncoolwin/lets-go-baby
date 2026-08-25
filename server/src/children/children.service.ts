@@ -380,7 +380,7 @@ export class ChildrenService {
   /**
    * 软删除
    */
-  async remove(id: string) {
+  async remove(id: string, operatorUserId?: string, operatorRoleId?: string) {
     const { data, error } = await this.client
       .from('children')
       .update({ status: 'archived' })
@@ -391,6 +391,20 @@ export class ChildrenService {
     if (error) {
       return { error: true, code: 500, msg: `删除失败: ${error.message}` };
     }
+
+    if (data) {
+      const { error: logErr } = await this.client.from('audit_logs').insert({
+        user_id: operatorUserId || null,
+        user_role_id: operatorRoleId || null,
+        action: 'child_delete',
+        target_type: 'child',
+        target_id: id,
+        level: 'warn',
+        created_at: new Date().toISOString(),
+      });
+      if (logErr) console.warn('[audit-log] child_delete 写入失败:', logErr.message);
+    }
+
     return data;
   }
 
