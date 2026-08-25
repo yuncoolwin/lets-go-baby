@@ -242,10 +242,20 @@ export default function HolidayManagePage() {
         <Text className="block text-base font-semibold text-foreground">
           共 {holidays.length} 条假期
         </Text>
-        <Button className="bg-primary text-primary-foreground rounded-xl px-4 py-2" onClick={openAddDialog}>
-          <Plus size={16} className="mr-1" color="#fff" />
-          <Text className="text-sm">新增假期</Text>
-        </Button>
+        <View className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="rounded-xl px-4 py-2 text-foreground"
+            onClick={() => Taro.navigateTo({ url: '/pages/admin/holidays/index' })}
+          >
+            <Calendar size={16} className="mr-1" color="#666" />
+            <Text className="text-sm">法定节假日</Text>
+          </Button>
+          <Button className="bg-primary text-primary-foreground rounded-xl px-4 py-2" onClick={openAddDialog}>
+            <Plus size={16} className="mr-1" color="#fff" />
+            <Text className="text-sm">新增假期</Text>
+          </Button>
+        </View>
       </View>
 
       <ScrollView className="flex-1 px-4 pb-6" scrollY>
