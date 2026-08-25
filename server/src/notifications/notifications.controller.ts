@@ -16,6 +16,16 @@ export class NotificationsController {
     return { code: 200, msg: 'success', data };
   }
 
+  @Post('upload')
+  @HttpCode(200)
+  async uploadImage(@Body() body: { image: string; name?: string }) {
+    const data = await this.notificationsService.uploadImage(body);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
+    return { code: 200, msg: 'success', data };
+  }
+
   @Get()
   @HttpCode(200)
   async findAll(
@@ -41,6 +51,16 @@ export class NotificationsController {
   @HttpCode(200)
   async getStats(@Query('author_id') authorId?: string) {
     const data = await this.notificationsService.getStats(authorId);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
+    return { code: 200, msg: 'success', data };
+  }
+
+  @Get('unread-count')
+  @HttpCode(200)
+  async unreadCount(@Query('user_role_id') userRoleId?: string) {
+    const data = await this.notificationsService.getUnreadCount(userRoleId || '');
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }

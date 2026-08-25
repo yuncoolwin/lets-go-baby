@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
@@ -25,6 +25,7 @@ interface DraftItem {
   content: string
   type: string
   target_ids: string[]
+  images?: string[]
   created_at: string
 }
 
@@ -94,6 +95,8 @@ export default function TeacherNotificationPage() {
   const [submitting, setSubmitting] = useState(false)
   const [childPickerOpen, setChildPickerOpen] = useState(false)
   const [childSearch, setChildSearch] = useState('')
+  const [images, setImages] = useState<string[]>([])
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   const isFirstRender = useRef(true)
 
@@ -201,6 +204,7 @@ export default function TeacherNotificationPage() {
     setContent(draft.content || '')
     setType((draft.type as NotificationType) || 'class')
     setSelectedTargetIds(Array.isArray(draft.target_ids) ? draft.target_ids : [])
+    setImages(Array.isArray(draft.images) ? draft.images : [])
     setDraftId(draft.id)
     setDraftOpen(false)
   }
@@ -218,6 +222,58 @@ export default function TeacherNotificationPage() {
       console.error('[TeacherNotification] delete draft error:', err)
       Taro.showToast({ title: '删除失败', icon: 'none' })
     }
+  }
+
+  const handleChooseImage = async () => {
+    if (images.length >= 9) {
+      Taro.showToast({ title: '最多添加 9 张图片', icon: 'none' })
+      return
+    }
+    try {
+      const res = await Taro.chooseImage({
+        count: 9 - images.length,
+        sizeType: ['compressed'],
+        sourceType: ['album', 'camera'],
+      })
+      const tempFilePaths = res?.tempFilePaths || []
+      if (!tempFilePaths.length) return
+
+      setUploadingImage(true)
+      const uploadedUrls: string[] = []
+      for (const filePath of tempFilePaths) {
+        try {
+          const base64 = await new Promise<string>((resolve, reject) => {
+            Taro.getFileSystemManager().readFile({
+              filePath,
+              encoding: 'base64',
+              success: (r) => resolve(r.data as string),
+              fail: reject,
+            })
+          })
+          const name = filePath.split('/').pop() || 'image.png'
+          const upRes = await notificationApi.uploadImage({ image: base64, name })
+          const url = upRes?.data?.url
+          if (url) uploadedUrls.push(url)
+        } catch (err) {
+          console.error('[TeacherNotification] upload image error:', err)
+        }
+      }
+      setUploadingImage(false)
+      if (uploadedUrls.length) {
+        setImages((prev) => [...prev, ...uploadedUrls].slice(0, 9))
+        Taro.showToast({ title: `已添加 ${uploadedUrls.length} 张图片`, icon: 'success' })
+      } else {
+        Taro.showToast({ title: '图片上传失败', icon: 'none' })
+      }
+    } catch (err) {
+      console.error('[TeacherNotification] chooseImage error:', err)
+      setUploadingImage(false)
+      Taro.showToast({ title: '选择图片失败', icon: 'none' })
+    }
+  }
+
+  const handleRemoveImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handleSubmit = async (status: 'draft' | 'published') => {
@@ -240,6 +296,7 @@ export default function TeacherNotificationPage() {
       type,
       target_ids: type === 'all' ? [] : selectedTargetIds,
       status,
+      images,
     }
 
     setSubmitting(true)
@@ -407,6 +464,36 @@ export default function TeacherNotificationPage() {
             <Text className="block text-xs text-muted-foreground mt-1 text-right">
               {content.length}/2000
             </Text>
+          </View>
+
+          {/* 通知图片 */}
+          <View>
+            <Label className="text-sm text-foreground mb-2">
+              <Text>通知图片</Text>
+            </Label>
+            <View className="flex flex-wrap gap-2 mt-2">
+              {images.map((url, idx) => (
+                <View key={idx} className="relative">
+                  <Image src={url} className="w-16 h-16 rounded-lg" mode="aspectFill" />
+                  <View
+                    className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center"
+                    onClick={() => handleRemoveImage(idx)}
+                  >
+                    <Text className="text-white text-xs">×</Text>
+                  </View>
+                </View>
+              ))}
+              {images.length < 9 && (
+                <View
+                  className="w-16 h-16 rounded-lg bg-gray-50 flex items-center justify-center"
+                  onClick={handleChooseImage}
+                >
+                  <Text className={uploadingImage ? 'text-xs text-gray-400' : 'text-2xl text-gray-400'}>
+                    {uploadingImage ? '上传中' : '+'}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
         </CardContent>
       </Card>

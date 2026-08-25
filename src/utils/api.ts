@@ -179,6 +179,14 @@ export const notificationApi = {
 
   stats: () =>
     request({ url: '/api/notifications/stats', method: 'GET' }),
+
+  // 底部导航未读数（当前角色未读且通知仍 published）
+  unreadCount: (userRoleId: string) =>
+    request({ url: '/api/notifications/unread-count', method: 'GET', data: { user_role_id: userRoleId } }),
+
+  // 图片上传（base64 字符串 + 文件名）
+  uploadImage: (data: { image: string; name?: string }) =>
+    request({ url: '/api/notifications/upload', method: 'POST', data }),
 }
 
 // ============ 点名 API ============

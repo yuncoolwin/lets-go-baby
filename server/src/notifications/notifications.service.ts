@@ -263,10 +263,11 @@ export class NotificationsService {
       return this.findSent(query.author_id, query, page, pageSize, from, to, true);
     }
 
-    // 默认：管理端全量列表
+    // 默认：管理端全量列表（仅已发布，排除草稿和已撤回）
     let builder = this.client
       .from('notifications')
       .select('*', { count: 'exact' })
+      .eq('status', 'published')
       .order('created_at', { ascending: false });
 
     if (query.type) builder = builder.eq('type', query.type);
@@ -276,8 +277,40 @@ export class NotificationsService {
     if (error) return { error: true, code: 500, msg: `查询失败: ${error.message}` };
 
     const list = data || [];
+
+    // 统计每条通知的接收人总数与已读数
+    const statsMap = new Map<string, { recipient_count: number; read_count: number }>();
+    const notificationIds = list.map((n: any) => n.id);
+    if (notificationIds.length) {
+      const { data: recipients } = await this.client
+        .from('notification_recipients')
+        .select('notification_id, is_read')
+        .in('notification_id', notificationIds);
+
+      (recipients || []).forEach((r: any) => {
+        const cur = statsMap.get(r.notification_id) || { recipient_count: 0, read_count: 0 };
+        cur.recipient_count += 1;
+        if (r.is_read) cur.read_count += 1;
+        statsMap.set(r.notification_id, cur);
+      });
+    }
+
+    // 反查发送对象名称
+    const listWithMeta = await Promise.all(
+      list.map(async (n: any) => {
+        const stats = statsMap.get(n.id) || { recipient_count: 0, read_count: 0 };
+        const targetLabels = await this.getTargetLabels(n.type, n.target_ids || []);
+        return {
+          ...n,
+          read_count: stats.read_count,
+          recipient_count: stats.recipient_count,
+          target_labels: targetLabels,
+        };
+      }),
+    );
+
     return {
-      list,
+      list: listWithMeta,
       total: count || 0,
       page,
       page_size: pageSize,
@@ -568,5 +601,109 @@ export class NotificationsService {
       draft: rows.filter((n) => n.status === 'draft').length,
       revoked: rows.filter((n) => n.status === 'revoked').length,
     };
+  }
+
+  /**
+   * 反查发送对象名称
+   */
+  private async getTargetLabels(type: string, targetIds: string[]): Promise<string[]> {
+    if (type === 'all' || !targetIds || !targetIds.length) return [];
+    const ids = [...new Set(targetIds.filter(Boolean))];
+    if (!ids.length) return [];
+
+    if (type === 'course') {
+      const { data } = await this.client.from('courses').select('name').in('id', ids);
+      return (data || []).map((r: any) => r.name).filter(Boolean);
+    }
+    if (type === 'class') {
+      const { data } = await this.client.from('classes').select('name').in('id', ids);
+      return (data || []).map((r: any) => r.name).filter(Boolean);
+    }
+    if (type === 'personal') {
+      const { data } = await this.client.from('children').select('name').in('id', ids);
+      return (data || []).map((r: any) => r.name).filter(Boolean);
+    }
+    if (type === 'teacher') {
+      const { data } = await this.client.from('teachers').select('real_name, nickname').in('id', ids);
+      return (data || []).map((r: any) => r.real_name || r.nickname).filter(Boolean);
+    }
+    return [];
+  }
+
+  /**
+   * 未读数：当前角色未读且通知仍为 published 的数量
+   */
+  async getUnreadCount(userRoleId: string) {
+    if (!userRoleId) return { error: true, code: 400, msg: '缺少 user_role_id' };
+
+    const { data: unreadRecipients, error } = await this.client
+      .from('notification_recipients')
+      .select('notification_id')
+      .eq('user_role_id', userRoleId)
+      .eq('is_read', false);
+
+    if (error) return { error: true, code: 500, msg: `查询未读失败: ${error.message}` };
+
+    const unreadNotificationIds = [
+      ...new Set((unreadRecipients || []).map((r: any) => r.notification_id).filter(Boolean)),
+    ];
+    if (!unreadNotificationIds.length) return { count: 0 };
+
+    const { count } = await this.client
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .in('id', unreadNotificationIds)
+      .eq('status', 'published');
+
+    return { count: count || 0 };
+  }
+
+  /**
+   * 图片上传：base64 → Buffer → Supabase Storage public bucket notifications
+   */
+  async uploadImage(body: { image: string; name?: string }) {
+    const { image, name } = body || {};
+    if (!image) return { error: true, code: 400, msg: 'image 不能为空' };
+
+    let base64 = image;
+    let contentType = 'image/png';
+    const match = image.match(/^data:(image\/(?:png|jpeg|jpg|gif|webp));base64,(.*)$/i);
+    if (match) {
+      contentType = match[1] === 'image/jpg' ? 'image/jpeg' : match[1];
+      base64 = match[2];
+    } else if (name && /\.(jpe?g)$/i.test(name)) {
+      contentType = 'image/jpeg';
+    }
+
+    let buffer: Buffer;
+    try {
+      buffer = Buffer.from(base64, 'base64');
+    } catch (e) {
+      return { error: true, code: 400, msg: '图片 base64 解析失败' };
+    }
+
+    // 确保 bucket 存在（不存在则创建 public bucket）
+    try {
+      const { data: existingBucket } = await this.client.storage.getBucket('notifications');
+      if (!existingBucket) {
+        await this.client.storage.createBucket('notifications', { public: true });
+      }
+    } catch (e) {
+      console.warn('[Notifications] ensure bucket error:', (e as Error)?.message);
+    }
+
+    const ext = contentType === 'image/jpeg' ? 'jpg' : 'png';
+    const path = `notification/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+    const { error: uploadError } = await this.client.storage
+      .from('notifications')
+      .upload(path, buffer, { contentType });
+
+    if (uploadError) {
+      return { error: true, code: 500, msg: `上传失败: ${uploadError.message}` };
+    }
+
+    const publicUrl = this.client.storage.from('notifications').getPublicUrl(path).data.publicUrl;
+    return { url: publicUrl };
   }
 }

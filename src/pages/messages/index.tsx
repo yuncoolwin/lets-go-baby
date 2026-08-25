@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { View, Text, Image } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { notificationApi } from '@/utils/api'
 import { useAppStore } from '@/store/app'
+import { refreshUnreadBadge } from '@/utils/unread-badge'
 import { Bell } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 
@@ -40,6 +41,10 @@ export default function MessagesPage() {
 
   const [detailItem, setDetailItem] = useState<NotificationItem | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+
+  useDidShow(() => {
+    if (currentRole?.id) refreshUnreadBadge(currentRole.id)
+  })
 
   useEffect(() => {
     loadData()
@@ -114,6 +119,7 @@ export default function MessagesPage() {
           prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
         )
         setDetailItem((prev) => (prev && prev.id === item.id ? { ...prev, is_read: true } : prev))
+        refreshUnreadBadge(currentRole?.id)
       } catch (err) {
         console.error('[Messages] markRead error:', err)
       }
@@ -205,7 +211,15 @@ export default function MessagesPage() {
                     </Text>
                   </View>
 
-                  <Text className="block text-sm text-muted-foreground line-clamp-2">
+                  <Text
+                    className="block text-sm text-muted-foreground"
+                    style={{
+                      display: '-webkit-box',
+                      WebkitBoxOrient: 'vertical',
+                      WebkitLineClamp: 2,
+                      overflow: 'hidden',
+                    }}
+                  >
                     {item.content}
                   </Text>
 

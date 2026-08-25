@@ -16,7 +16,8 @@ interface Notification {
   content: string
   is_pinned: boolean
   read_count: number
-  total_count: number
+  recipient_count: number
+  target_labels?: string[]
   created_at: string
 }
 
@@ -76,11 +77,6 @@ export default function NotificationManagePage() {
     return `${date.getMonth() + 1}-${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`
   }
 
-  const getReadRate = (readCount: number, totalCount: number) => {
-    if (!totalCount) return '0%'
-    return `${Math.round((readCount / totalCount) * 100)}%`
-  }
-
   if (loading) {
     return (
       <View className="min-h-screen bg-background p-4">
@@ -123,22 +119,25 @@ export default function NotificationManagePage() {
             <Card key={item.id} className="bg-white rounded-xl border-0 shadow-sm" onClick={() => { setDetailItem(item); setDetailOpen(true) }}>
               <CardContent className="p-4">
                 <View className="flex items-center justify-between mb-2">
-                  <View className="flex items-center gap-2 flex-1">
+                  <View className="flex items-center gap-1 flex-1 min-w-0">
                     {item.is_pinned && (
-                      <Badge className="bg-red-100 text-red-700 text-xs">
+                      <Badge className="bg-red-100 text-red-700 text-xs shrink-0">
                         <Text className="text-xs">置顶</Text>
                       </Badge>
                     )}
-                    <Text className="text-base font-semibold text-foreground flex-1">{item.title}</Text>
+                    <Text className="text-base font-semibold text-foreground shrink-0">{item.title}</Text>
+                    {item.type !== 'all' && (item.target_labels || []).length > 0 && (
+                      <Text className="text-xs text-muted-foreground truncate">{(item.target_labels || []).join('、')}</Text>
+                    )}
                   </View>
-                  <Badge className={`${typeMap[item.type]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
+                  <Badge className={`${typeMap[item.type]?.className || 'bg-gray-100 text-gray-700'} text-xs shrink-0`}>
                     <Text className="text-xs">{typeMap[item.type]?.label || item.type}</Text>
                   </Badge>
                 </View>
                 <View className="flex items-center justify-between">
                   <Text className="text-xs text-muted-foreground">{formatTime(item.created_at)}</Text>
                   <Text className="text-xs text-muted-foreground">
-                    已读率: {getReadRate(item.read_count, item.total_count)}
+                    已读 {item.read_count ?? 0}/{item.recipient_count ?? 0}
                   </Text>
                 </View>
               </CardContent>
@@ -169,6 +168,9 @@ export default function NotificationManagePage() {
           <DialogHeader>
             <DialogTitle>
               <Text className="block text-lg font-semibold text-foreground">{detailItem?.title || '通知详情'}</Text>
+              {detailItem && detailItem.type !== 'all' && (detailItem.target_labels || []).length > 0 && (
+                <Text className="block text-xs text-muted-foreground mt-2">{(detailItem.target_labels || []).join('、')}</Text>
+              )}
             </DialogTitle>
           </DialogHeader>
           <View className="mt-4 space-y-3">
@@ -190,7 +192,7 @@ export default function NotificationManagePage() {
                 <View className="flex items-center justify-between">
                   <Text className="text-xs text-muted-foreground">{formatTime(detailItem.created_at)}</Text>
                   <Text className="text-xs text-muted-foreground">
-                    已读率: {getReadRate(detailItem.read_count, detailItem.total_count)}
+                    已读 {detailItem.read_count ?? 0}/{detailItem.recipient_count ?? 0}
                   </Text>
                 </View>
               </>
