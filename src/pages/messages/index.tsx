@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { notificationApi } from '@/utils/api'
 import { useAppStore } from '@/store/app'
 import { Bell } from 'lucide-react-taro'
@@ -247,11 +247,13 @@ export default function MessagesPage() {
       )}
 
       {/* 详情半屏弹窗 */}
-      <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-        <SheetContent side="bottom" className="rounded-t-2xl max-h-[75vh] overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{detailItem?.title || '通知详情'}</SheetTitle>
-          </SheetHeader>
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+          <DialogHeader>
+            <DialogTitle>
+              <Text className="block text-lg font-semibold text-foreground">{detailItem?.title || '通知详情'}</Text>
+            </DialogTitle>
+          </DialogHeader>
           <View className="mt-4 space-y-3">
             {detailItem && (
               <>
@@ -276,8 +278,8 @@ export default function MessagesPage() {
               </>
             )}
           </View>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </View>
   )
 }
