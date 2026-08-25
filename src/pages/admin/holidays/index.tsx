@@ -134,7 +134,7 @@ export default function StatutoryHolidaysPage() {
                               }`}
                             />
                             <Text className="block text-sm text-foreground">
-                              {formatDate(h.date)} {getDayOfWeek(h.date)}
+                              {formatDate(h.date)} {getDayOfWeek(h.date)} {h.name}
                             </Text>
                           </View>
                           <View
@@ -151,11 +151,6 @@ export default function StatutoryHolidaysPage() {
                         </View>
                       ))}
                     </View>
-                    {items.length > 0 && (
-                      <Text className="block text-xs text-muted-foreground mt-2">
-                        {items[0].name}
-                      </Text>
-                    )}
                   </CardContent>
                 </Card>
               )
