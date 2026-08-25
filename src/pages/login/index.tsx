@@ -19,7 +19,16 @@ export default function LoginPage() {
   const [showTeacherInput, setShowTeacherInput] = useState(false)
   const mockTapCountRef = useRef(0)
 
-  const isDev = !PROJECT_DOMAIN
+  const isDev = (() => {
+    if (Taro.getEnv() !== Taro.ENV_TYPE.WEAPP) return true
+    try {
+      const info = (Taro as any).getAccountInfoSync?.()
+      const envVersion = info?.miniProgram?.envVersion ?? 'release'
+      return envVersion !== 'release'
+    } catch (e) {
+      return false
+    }
+  })()
 
   const handleWxLogin = async () => {
     console.log('[Login] handleWxLogin called, env:', Taro.getEnv())
@@ -156,7 +165,7 @@ export default function LoginPage() {
     }
   }
 
-  const handleVersionLongPress = () => {
+  const handleVersionTap = () => {
     if (!isDev) return
     mockTapCountRef.current += 1
     if (mockTapCountRef.current >= 5) {
@@ -277,9 +286,9 @@ export default function LoginPage() {
         {isDev && (
           <Text
             className="block text-xs text-gray-300 mt-4 select-none"
-            onLongPress={handleVersionLongPress}
+            onClick={handleVersionTap}
           >
-            版本 v{APP_VERSION}（长按 5 次打开开发测试面板）
+            版本 v{APP_VERSION}（点击 5 次打开开发测试面板）
           </Text>
         )}
       </View>

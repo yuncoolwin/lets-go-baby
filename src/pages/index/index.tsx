@@ -221,7 +221,7 @@ export default function IndexPage() {
         await loadParentData()
       } else if (type === 'teacher') {
         await loadTeacherData()
-      } else if (type === 'admin') {
+      } else if (type === 'admin' || type === 'superadmin') {
         await loadAdminData()
       }
     } catch (err) {
@@ -328,7 +328,7 @@ export default function IndexPage() {
   // 监听审核刷新事件
   useEffect(() => {
     const handler = () => {
-      if (currentRole?.role_type === 'admin') {
+      if (currentRole?.role_type === 'admin' || currentRole?.role_type === 'superadmin') {
         loadAdminData()
       }
     }
@@ -1218,8 +1218,8 @@ export default function IndexPage() {
     )
   }
 
-  // 管理员端首页
-  if (currentRole?.role_type === 'admin') {
+  // 管理员端首页（管理员与超管共用）
+  if (currentRole?.role_type === 'admin' || currentRole?.role_type === 'superadmin') {
     return (
       <View className="min-h-screen bg-background p-4">
         <View className="mb-4">
