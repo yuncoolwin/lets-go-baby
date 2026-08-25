@@ -1240,9 +1240,11 @@ export default function IndexPage() {
     return (
       <View className="min-h-screen bg-background p-4 pb-24">
         <View className="mb-4">
-          <Text className="block text-xl font-bold text-foreground">管理后台</Text>
+          <Text className="block text-xl font-bold text-foreground">
+            您好，{currentRole?.real_name || nickname || '管理员'}
+          </Text>
           <Text className="block text-sm text-muted-foreground mt-1">
-            {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
+            {currentRole?.role_type === 'superadmin' ? '超级管理员' : '管理员'}
           </Text>
         </View>
 

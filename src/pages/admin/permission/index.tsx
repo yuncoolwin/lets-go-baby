@@ -21,7 +21,7 @@ interface UserItem {
   nickname: string
   phone: string
   avatar_url: string | null
-  display_name?: string
+  display_name: string | null
   roles: RoleItem[]
 }
 
@@ -179,7 +179,7 @@ export default function PermissionPage() {
   const openEditDialog = (user: UserItem) => {
     setDialogMode('edit')
     setDialogUserId(user.id)
-    setDialogNickname(user.nickname || '')
+    setDialogNickname(user.display_name || user.nickname || '')
     setDialogPhone(user.phone || '')
     setDialogRoles(user.roles || [])
     setShowDialog(true)
@@ -218,7 +218,7 @@ export default function PermissionPage() {
     if (!userId) return
     Taro.showModal({
       title: '确认删除',
-      content: `确认删除用户「${user.nickname || '未命名'}」？`,
+      content: `确认删除用户「${user.display_name || user.nickname || '未命名'}」？`,
       confirmText: '删除',
       confirmColor: '#ef4444',
       success: async (res) => {
@@ -244,7 +244,7 @@ export default function PermissionPage() {
   const filteredUsers = users.filter((user) => {
     const kw = searchKeyword.trim().toLowerCase()
     if (!kw) return true
-    const name = (user.nickname || '').toLowerCase()
+    const name = (user.display_name || user.nickname || '').toLowerCase()
     const phone = user.phone || ''
     return name.includes(kw) || phone.includes(kw)
   })
@@ -359,7 +359,7 @@ export default function PermissionPage() {
             <View className="bg-gray-50 rounded-xl px-4 py-3 mb-3">
               <Input
                 className="w-full bg-transparent"
-                placeholder="昵称"
+                placeholder="用户名"
                 value={dialogNickname}
                 onInput={(e) => setDialogNickname(e.detail.value)}
               />

@@ -34,9 +34,9 @@ export default function ProfilePage() {
         // 教师显示昵称
         return nickname || currentRole.real_name || '老师'
       case 'admin':
-        return '管理员'
+        return currentRole.real_name || nickname || '管理员'
       case 'superadmin':
-        return '超级管理员'
+        return currentRole.real_name || nickname || '超级管理员'
       default:
         return nickname || '用户'
     }

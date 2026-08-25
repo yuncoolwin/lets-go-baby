@@ -510,80 +510,44 @@ export class AdminService {
       roleMap.set(role.user_id, list);
     });
 
-    // 查询 active 的家长绑定关系与幼儿姓名，用于 display_name 与过滤
+    // 查询 active 的家长绑定关系，用于过滤「有 parent 角色且有绑定」的用户
     const { data: relations, error: relationsError } = await this.client
       .from('parent_child_relations')
-      .select('child_id, relationship, custom_relationship, parent_role_id, is_primary')
+      .select('parent_role_id')
       .eq('status', 'active');
 
     if (relationsError) {
       throw new Error(`查询家长绑定关系失败: ${relationsError.message}`);
     }
 
-    const { data: childrenList, error: childrenError } = await this.client
-      .from('children')
-      .select('id, name');
-
-    if (childrenError) {
-      throw new Error(`查询幼儿失败: ${childrenError.message}`);
-    }
-
-    const childrenMap = new Map<string, string>();
-    (childrenList || []).forEach((child: any) => childrenMap.set(child.id, child.name));
-
-    const relationsByParentRole = new Map<string, any[]>();
-    (relations || []).forEach((rel: any) => {
-      const arr = relationsByParentRole.get(rel.parent_role_id) || [];
-      arr.push(rel);
-      relationsByParentRole.set(rel.parent_role_id, arr);
-    });
-
-    const RELATION_LABELS: Record<string, string> = {
-      father: '爸爸',
-      mother: '妈妈',
-      grandfather: '爷爷',
-      grandmother: '奶奶',
-    };
-
-    const buildRelationLabel = (rel: any): string => {
-      if (RELATION_LABELS[rel.relationship]) return RELATION_LABELS[rel.relationship];
-      if (rel.relationship === 'other') return rel.custom_relationship || '家长';
-      return rel.custom_relationship || '家长';
-    };
+    const boundParentRoleIds = new Set<string>();
+    (relations || []).forEach((rel: any) => boundParentRoleIds.add(rel.parent_role_id));
 
     const MANAGE_ROLE_TYPES = ['teacher', 'admin', 'superadmin'];
+    const MANAGE_ROLE_PRIORITY = ['superadmin', 'admin', 'teacher'];
 
     const list: any[] = [];
     for (const user of users || []) {
       const userRoles = roleMap.get(user.id) || [];
       const hasManageRole = userRoles.some((r: any) => MANAGE_ROLE_TYPES.includes(r.role_type));
       const parentRoles = userRoles.filter((r: any) => r.role_type === 'parent');
-
-      const activeBindings: any[] = [];
-      for (const pr of parentRoles) {
-        const arr = relationsByParentRole.get(pr.id);
-        if (arr) activeBindings.push(...arr);
-      }
+      const isParentWithBinding = parentRoles.some((r: any) => boundParentRoleIds.has(r.id));
 
       const hasAnyActiveRole = userRoles.length > 0;
-      const isParentWithBinding = parentRoles.length > 0 && activeBindings.length > 0;
 
       // 过滤：隐藏「只有 parent 角色且没有任何 active 绑定关系」的用户
       if (hasAnyActiveRole && !hasManageRole && !isParentWithBinding) {
         continue;
       }
 
-      let displayName: string;
-      if (isParentWithBinding) {
-        const primary = activeBindings.find((b: any) => b.is_primary) || activeBindings[0];
-        const childName = childrenMap.get(primary.child_id) || '';
-        const relLabel = buildRelationLabel(primary);
-        displayName = `${childName}${relLabel}`;
-      } else if (hasManageRole) {
-        const manageRole = userRoles.find((r: any) => MANAGE_ROLE_TYPES.includes(r.role_type));
-        displayName = user.nickname || manageRole?.real_name || '未命名';
-      } else {
-        displayName = user.nickname || '未命名';
+      // display_name：按 superadmin > admin > teacher 优先级取 real_name，否则 nickname
+      let displayName: string = user.nickname || '';
+      for (const rt of MANAGE_ROLE_PRIORITY) {
+        const hit = userRoles.find((r: any) => r.role_type === rt && r.real_name);
+        if (hit) {
+          displayName = hit.real_name;
+          break;
+        }
       }
 
       list.push({
@@ -759,13 +723,45 @@ export class AdminService {
       return { code: 400, msg: '用户不存在', data: null };
     }
 
+    // 查 active 角色里 superadmin/admin/teacher 优先级最高的一条
+    const MANAGE_ROLE_PRIORITY = ['superadmin', 'admin', 'teacher'];
+    const { data: activeRoles, error: rolesError } = await this.client
+      .from('user_roles')
+      .select('id, role_type')
+      .eq('user_id', userId)
+      .eq('status', 'active');
+
+    if (rolesError) throw new Error(`查询角色失败: ${rolesError.message}`);
+
+    let targetRoleId: string | null = null;
+    for (const rt of MANAGE_ROLE_PRIORITY) {
+      const hit = (activeRoles || []).find((r: any) => r.role_type === rt);
+      if (hit) {
+        targetRoleId = hit.id;
+        break;
+      }
+    }
+
+    // 用户名：有管理角色写 real_name，否则写 nickname
+    if (targetRoleId) {
+      const { error: roleUpdateError } = await this.client
+        .from('user_roles')
+        .update({ real_name: nickname || '' })
+        .eq('id', targetRoleId);
+      if (roleUpdateError) throw new Error(`更新角色真实姓名失败: ${roleUpdateError.message}`);
+    }
+
+    const userUpdatePayload: any = {
+      phone: phone || null,
+      updated_at: new Date().toISOString(),
+    };
+    if (!targetRoleId) {
+      userUpdatePayload.nickname = nickname || '';
+    }
+
     const { data: updated, error: updateError } = await this.client
       .from('users')
-      .update({
-        nickname: nickname || '',
-        phone: phone || null,
-        updated_at: new Date().toISOString(),
-      })
+      .update(userUpdatePayload)
       .eq('id', userId)
       .select('id, nickname, phone, avatar_url')
       .single();
