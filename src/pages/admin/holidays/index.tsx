@@ -133,9 +133,7 @@ export default function StatutoryHolidaysPage() {
                                 h.type === 'holiday' ? 'bg-green-500' : 'bg-orange-400'
                               }`}
                             />
-                            <Text className="block text-sm text-foreground">
-                              {formatDate(h.date)} {getDayOfWeek(h.date)} {h.name}
-                            </Text>
+                            <Text className="block text-sm text-foreground">{formatDate(h.date)} {getDayOfWeek(h.date)}<Text className="text-xs text-muted-foreground"> {h.name}</Text></Text>
                           </View>
                           <View
                             className={`px-2 py-1 rounded-full text-xs ${
