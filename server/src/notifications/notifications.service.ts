@@ -1,5 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const sharp = require('sharp');
 
 const VALID_TYPES = ['all', 'course', 'class', 'personal', 'teacher'];
 
@@ -675,24 +677,29 @@ export class NotificationsService {
    * 图片上传：base64 → Buffer → Supabase Storage public bucket notifications
    */
   async uploadImage(body: { image: string; name?: string }) {
-    const { image, name } = body || {};
+    const { image } = body || {};
     if (!image) return { error: true, code: 400, msg: 'image 不能为空' };
 
     let base64 = image;
-    let contentType = 'image/png';
     const match = image.match(/^data:(image\/(?:png|jpeg|jpg|gif|webp));base64,(.*)$/i);
-    if (match) {
-      contentType = match[1] === 'image/jpg' ? 'image/jpeg' : match[1];
-      base64 = match[2];
-    } else if (name && /\.(jpe?g)$/i.test(name)) {
-      contentType = 'image/jpeg';
-    }
+    if (match) base64 = match[2];
 
     let buffer: Buffer;
     try {
       buffer = Buffer.from(base64, 'base64');
     } catch (e) {
       return { error: true, code: 400, msg: '图片 base64 解析失败' };
+    }
+
+    let compressed: Buffer;
+    try {
+      compressed = await sharp(buffer)
+        .rotate()
+        .resize({ width: 1080, height: 1080, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 75 })
+        .toBuffer();
+    } catch (e) {
+      return { error: true, code: 400, msg: `图片压缩失败: ${(e as Error).message}` };
     }
 
     // 确保 bucket 存在（不存在则创建 public bucket）
@@ -705,12 +712,11 @@ export class NotificationsService {
       console.warn('[Notifications] ensure bucket error:', (e as Error)?.message);
     }
 
-    const ext = contentType === 'image/jpeg' ? 'jpg' : 'png';
-    const path = `notification/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const path = `notification/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.webp`;
 
     const { error: uploadError } = await this.client.storage
       .from('notifications')
-      .upload(path, buffer, { contentType });
+      .upload(path, compressed, { contentType: 'image/webp' });
 
     if (uploadError) {
       return { error: true, code: 500, msg: `上传失败: ${uploadError.message}` };

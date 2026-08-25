@@ -75,6 +75,7 @@ export default function PermissionPage() {
   const [dialogUserId, setDialogUserId] = useState<string | null>(null)
   const [dialogNickname, setDialogNickname] = useState('')
   const [dialogPhone, setDialogPhone] = useState('')
+  const [dialogRoles, setDialogRoles] = useState<RoleItem[]>([])
 
   const loadUsers = useCallback(async () => {
     if (!userId) return
@@ -120,7 +121,16 @@ export default function PermissionPage() {
       })
       console.log('[权限管理] POST', url, { operator_user_id: userId, user_id: targetUserId, role_type: roleType }, '->', res.data)
       if (res.data?.code === 200) {
-        Taro.showToast({ title: '已分配', icon: 'success' })
+        const msg = res.data?.msg === 'success' ? '已分配' : (res.data?.msg || '已分配')
+        Taro.showToast({ title: msg, icon: res.data?.msg === 'success' ? 'success' : 'none' })
+        if (dialogMode === 'edit' && dialogUserId === targetUserId) {
+          const created = res.data?.data
+          if (created?.id && created?.role_type) {
+            setDialogRoles((prev) =>
+              prev.some((r) => r.id === created.id) ? prev : sortRoles([...prev, created]),
+            )
+          }
+        }
         loadUsers()
       } else {
         Taro.showToast({ title: res.data?.msg || '分配失败', icon: 'none' })
@@ -143,6 +153,9 @@ export default function PermissionPage() {
       console.log('[权限管理] POST', url, { operator_user_id: userId, user_role_id: roleId }, '->', res.data)
       if (res.data?.code === 200) {
         Taro.showToast({ title: '已撤销', icon: 'success' })
+        if (dialogMode === 'edit') {
+          setDialogRoles((prev) => prev.filter((r) => r.id !== roleId))
+        }
         loadUsers()
       } else {
         Taro.showToast({ title: res.data?.msg || '撤销失败', icon: 'none' })
@@ -158,6 +171,7 @@ export default function PermissionPage() {
     setDialogUserId(null)
     setDialogNickname('')
     setDialogPhone('')
+    setDialogRoles([])
     setShowDialog(true)
   }
 
@@ -166,6 +180,7 @@ export default function PermissionPage() {
     setDialogUserId(user.id)
     setDialogNickname(user.nickname || '')
     setDialogPhone(user.phone || '')
+    setDialogRoles(user.roles || [])
     setShowDialog(true)
   }
 
@@ -283,43 +298,20 @@ export default function PermissionPage() {
                     </View>
                   </View>
 
-                  {/* 当前角色标签 + 撤销 */}
+                  {/* 当前角色（只读展示） */}
                   <View className="flex flex-wrap items-center gap-2 mb-3">
                     {user.roles.length === 0 ? (
                       <Text className="block text-xs text-gray-400">暂无角色</Text>
                     ) : (
                       sortRoles(user.roles).map((role) => (
-                        <View key={role.id} className="flex items-center gap-1">
-                          <Badge className={`${getRoleColor(role.role_type)} border-transparent`}>
-                            {getRoleLabel(role.role_type)}
-                          </Badge>
-                          <Text
-                            className="block text-xs text-red-500 px-1"
-                            onClick={() => handleRevoke(role.id)}
-                          >
-                            撤销
-                          </Text>
-                        </View>
+                        <Badge key={role.id} className={`${getRoleColor(role.role_type)} border-transparent`}>
+                          {getRoleLabel(role.role_type)}
+                        </Badge>
                       ))
                     )}
                   </View>
 
-                  {/* 分配角色 */}
-                  <View className="flex flex-wrap items-center gap-2">
-                    <Text className="block text-xs text-gray-500 shrink-0">分配角色：</Text>
-                    {ASSIGN_ROLE_TYPES.map((rt) => (
-                      <Button
-                        key={rt.value}
-                        size="sm"
-                        variant="outline"
-                        className="px-3 h-8"
-                        onClick={() => handleAssign(user.id, rt.value)}
-                      >
-                        {rt.label}
-                      </Button>
-                    ))}
-                  </View>
-                </CardContent>
+                  </CardContent>
               </Card>
             ))
           )}
@@ -368,6 +360,43 @@ export default function PermissionPage() {
                 onInput={(e) => setDialogPhone(e.detail.value)}
               />
             </View>
+            {dialogMode === 'edit' && (
+              <View className="mb-5">
+                <Text className="block text-sm font-medium text-foreground mb-2">角色分配</Text>
+                <View className="flex flex-wrap items-center gap-2 mb-3">
+                  {dialogRoles.length === 0 ? (
+                    <Text className="block text-xs text-gray-400">暂无角色</Text>
+                  ) : (
+                    sortRoles(dialogRoles).map((role) => (
+                      <View key={role.id} className="flex items-center gap-1">
+                        <Badge className={`${getRoleColor(role.role_type)} border-transparent`}>
+                          {getRoleLabel(role.role_type)}
+                        </Badge>
+                        <Text
+                          className="block text-xs text-red-500 px-1"
+                          onClick={() => handleRevoke(role.id)}
+                        >
+                          撤销
+                        </Text>
+                      </View>
+                    ))
+                  )}
+                </View>
+                <View className="flex flex-wrap items-center gap-2">
+                  {ASSIGN_ROLE_TYPES.map((rt) => (
+                    <Button
+                      key={rt.value}
+                      size="sm"
+                      variant="outline"
+                      className="px-3 h-8"
+                      onClick={() => dialogUserId && handleAssign(dialogUserId, rt.value)}
+                    >
+                      {rt.label}
+                    </Button>
+                  ))}
+                </View>
+              </View>
+            )}
             <View className="flex gap-3">
               <Button variant="outline" className="flex-1" onClick={() => setShowDialog(false)}>取消</Button>
               <Button className="flex-1" onClick={handleDialogConfirm}>确认</Button>
