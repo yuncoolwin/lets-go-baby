@@ -9,6 +9,8 @@ export default typeof defineAppConfig === 'function'
       'pages/profile/index',
       'pages/pickup/index',
       'pages/growth/index',
+      'pages/growth-edit/index',
+      'pages/growth-manage/index',
       'pages/roll-call/index',
       'pages/class-detail/index',
       'pages/binding/index',
@@ -36,12 +38,19 @@ export default typeof defineAppConfig === 'function'
       selectedColor: '#E8651A',
       backgroundColor: '#ffffff',
       borderStyle: 'white',
+      custom: true,
       list: [
         {
           pagePath: 'pages/index/index',
           text: '首页',
           iconPath: './assets/tabbar/house.png',
           selectedIconPath: './assets/tabbar/house-active.png',
+        },
+        {
+          pagePath: 'pages/growth/index',
+          text: '成长',
+          iconPath: './assets/tabbar/clipboard-list.png',
+          selectedIconPath: './assets/tabbar/clipboard-list-active.png',
         },
         {
           pagePath: 'pages/roll-call/index',
@@ -80,6 +89,8 @@ export default typeof defineAppConfig === 'function'
       'pages/profile/index',
       'pages/pickup/index',
       'pages/growth/index',
+      'pages/growth-edit/index',
+      'pages/growth-manage/index',
       'pages/roll-call/index',
       'pages/class-detail/index',
       'pages/binding/index',
@@ -106,12 +117,19 @@ export default typeof defineAppConfig === 'function'
       selectedColor: '#E8651A',
       backgroundColor: '#ffffff',
       borderStyle: 'white',
+      custom: true,
       list: [
         {
           pagePath: 'pages/index/index',
           text: '首页',
           iconPath: './assets/tabbar/house.png',
           selectedIconPath: './assets/tabbar/house-active.png',
+        },
+        {
+          pagePath: 'pages/growth/index',
+          text: '成长',
+          iconPath: './assets/tabbar/clipboard-list.png',
+          selectedIconPath: './assets/tabbar/clipboard-list-active.png',
         },
         {
           pagePath: 'pages/roll-call/index',

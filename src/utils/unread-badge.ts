@@ -1,23 +1,20 @@
-import Taro from '@tarojs/taro'
+import { useAppStore } from '@/store/app'
 import { notificationApi } from './api'
 
 /**
  * 刷新底部导航「消息」tab 的未读角标
- * 入参当前角色 id；无角色或 count=0 时移除角标
+ * 入参当前角色 id；无角色或 count=0 时清空角标
+ * custom tabBar 下不再使用 Taro.setTabBarBadge，改为写入全局 store 状态
  */
 export async function refreshUnreadBadge(userRoleId?: string) {
   try {
     if (!userRoleId) {
-      await Taro.removeTabBarBadge({ index: 2 })
+      useAppStore.getState().setUnreadCount(0)
       return
     }
     const res = await notificationApi.unreadCount(userRoleId)
     const count = res?.data?.count ?? 0
-    if (count > 0) {
-      await Taro.setTabBarBadge({ index: 2, text: String(count) })
-    } else {
-      await Taro.removeTabBarBadge({ index: 2 })
-    }
+    useAppStore.getState().setUnreadCount(count)
   } catch (err) {
     console.error('[refreshUnreadBadge] error:', err)
   }

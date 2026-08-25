@@ -40,6 +40,9 @@ interface AppStore {
   currentRole: UserRole | null
   currentRoleIndex: number
 
+  // 消息未读数（custom tabBar 角标用）
+  unreadCount: number
+
   // 孩子信息（家长端）
   children: ChildInfo[]
   currentChildIndex: number
@@ -59,6 +62,7 @@ interface AppStore {
     children: ChildInfo[]
   }) => void
   setCurrentRole: (index: number) => void
+  setUnreadCount: (count: number) => void
   setCurrentChild: (index: number) => void
   setChildren: (children: ChildInfo[]) => void
   setNeedRoleSelection: (need: boolean) => void
@@ -123,6 +127,7 @@ export const useAppStore = create<AppStore>()(
   roles: [],
   currentRole: null,
   currentRoleIndex: 0,
+  unreadCount: 0,
   children: [],
   currentChildIndex: 0,
   isLoggedIn: false,
@@ -152,6 +157,10 @@ export const useAppStore = create<AppStore>()(
     if (index >= 0 && index < roles.length) {
       set({ currentRole: roles[index], currentRoleIndex: index })
     }
+  },
+
+  setUnreadCount: (count) => {
+    set({ unreadCount: count })
   },
 
   setCurrentChild: (index) => {
@@ -404,6 +413,7 @@ export const useAppStore = create<AppStore>()(
         roles: state.roles,
         currentRole: state.currentRole,
         currentRoleIndex: state.currentRoleIndex,
+        unreadCount: state.unreadCount,
         children: state.children,
         currentChildIndex: state.currentChildIndex,
         isLoggedIn: state.isLoggedIn,

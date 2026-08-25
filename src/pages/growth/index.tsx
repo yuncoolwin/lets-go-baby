@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { View, Text, Image } from '@tarojs/components'
+import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
 import { Camera } from 'lucide-react-taro'
-import BackButton from '@/components/back-button'
 
 interface GrowthRecord {
   id: string
@@ -18,18 +19,24 @@ interface GrowthRecord {
 }
 
 export default function GrowthPage() {
+  const currentRole = useAppStore((s) => s.currentRole)
   const [records, setRecords] = useState<GrowthRecord[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadRecords()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentRole?.id])
 
   const loadRecords = async () => {
+    if (!currentRole?.id) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     try {
       const res = await Network.request({
-        url: '/api/parent/growth-records',
+        url: `/api/parent/growth-records?parent_role_id=${currentRole.id}`,
         method: 'GET',
       })
       console.log('[Growth] records:', res.data)
@@ -42,27 +49,20 @@ export default function GrowthPage() {
     setLoading(false)
   }
 
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'milestone': return '里程碑'
-      case 'photo': return '照片'
-      case 'assessment': return '评估'
-      default: return '记录'
-    }
+  const formatDate = (iso: string) => {
+    const d = new Date(iso)
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    return `${d.getFullYear()}-${mm}-${dd}`
   }
 
-  const getTypeBadgeClass = (type: string) => {
-    switch (type) {
-      case 'milestone': return 'bg-purple-100 text-purple-700'
-      case 'photo': return 'bg-blue-100 text-blue-700'
-      case 'assessment': return 'bg-green-100 text-green-700'
-      default: return 'bg-gray-100 text-gray-700'
-    }
+  const previewImage = (urls: string[], current: string) => {
+    Taro.previewImage({ urls, current })
   }
 
   if (loading) {
     return (
-      <View className="min-h-screen bg-background p-4">
+      <View className="min-h-screen bg-background p-4 pb-24">
         <Skeleton className="h-6 w-32 mb-4 rounded" />
         <Skeleton className="h-40 w-full mb-3 rounded-xl" />
         <Skeleton className="h-40 w-full rounded-xl" />
@@ -71,11 +71,9 @@ export default function GrowthPage() {
   }
 
   return (
-    <View className="min-h-screen bg-background p-4">
-      <BackButton title="成长档案" />
-
+    <View className="min-h-screen bg-background p-4 pb-24">
       {records.length === 0 ? (
-        <View className="flex flex-col items-center py-16">
+        <View className="flex flex-col items-center py-20">
           <Camera size={48} color="#999999" />
           <Text className="block text-sm text-muted-foreground mt-3">暂无成长记录</Text>
         </View>
@@ -85,35 +83,34 @@ export default function GrowthPage() {
             <Card key={record.id} className="bg-white rounded-xl border-0 shadow-sm">
               <CardContent className="p-4">
                 <View className="flex items-center justify-between mb-2">
-                  <Badge className={`${getTypeBadgeClass(record.record_type)} text-xs`}>
-                    <Text className="text-xs">{getTypeLabel(record.record_type)}</Text>
+                  <Badge className="bg-orange-100 text-orange-700 text-xs">
+                    <Text className="text-xs">日常记录</Text>
                   </Badge>
-                  <Text className="text-xs text-muted-foreground">
-                    {new Date(record.created_at).toLocaleDateString('zh-CN')}
-                  </Text>
+                  <Text className="text-xs text-muted-foreground">{formatDate(record.created_at)}</Text>
                 </View>
-                <Text className="block text-base font-semibold text-foreground mb-1">
-                  {record.title}
-                </Text>
+
+                <Text className="block text-base font-semibold text-foreground mb-1">{record.title}</Text>
+
                 {record.content && (
-                  <Text className="block text-sm text-muted-foreground mb-2">
-                    {record.content}
-                  </Text>
+                  <Text className="block text-sm text-muted-foreground">{record.content}</Text>
                 )}
+
                 {record.photo_urls && record.photo_urls.length > 0 && (
-                  <View className="flex gap-2 mt-2 flex-wrap">
+                  <View className="flex flex-wrap gap-2 mt-3">
                     {record.photo_urls.map((url, idx) => (
                       <Image
                         key={idx}
                         src={url}
-                        className="w-20 h-20 rounded-lg"
+                        className="w-24 h-24 rounded-lg"
                         mode="aspectFill"
+                        onClick={() => previewImage(record.photo_urls as string[], url)}
                       />
                     ))}
                   </View>
                 )}
-                <Text className="block text-xs text-muted-foreground mt-2">
-                  — {record.teacher_name}
+
+                <Text className="block text-xs text-muted-foreground mt-3">
+                  — {record.teacher_name || '老师'}
                 </Text>
               </CardContent>
             </Card>

@@ -260,26 +260,60 @@ export class ParentService {
   }
 
   async getGrowthRecords(parentRoleId?: string) {
-    return [
-      {
-        id: '1',
-        record_type: 'milestone',
-        title: '第一次独立完成拼图',
-        content: '今天宝宝第一次独立完成了20块的拼图，展现了很好的专注力和动手能力',
-        photo_urls: null,
-        created_at: new Date(Date.now() - 86400000).toISOString(),
-        teacher_name: '王老师',
-      },
-      {
-        id: '2',
-        record_type: 'photo',
-        title: '户外活动精彩瞬间',
-        content: '今天天气很好，带小朋友们去户外做了游戏',
-        photo_urls: null,
-        created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
-        teacher_name: '李老师',
-      },
-    ];
+    if (!parentRoleId) return [];
+
+    // 查询当前家长绑定的在读幼儿
+    const { data: relations } = await this.client
+      .from('parent_child_relations')
+      .select('child_id')
+      .eq('parent_role_id', parentRoleId)
+      .eq('status', 'active');
+    const childIds = [...new Set((relations || []).map((r) => r.child_id).filter(Boolean))];
+    if (!childIds.length) return [];
+
+    const { data: records, error } = await this.client
+      .from('growth_records')
+      .select('*')
+      .in('child_id', childIds)
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(`查询失败: ${error.message}`);
+
+    const list = records || [];
+
+    // 反查 teacher_name（user_roles.real_name，空则 users.nickname）
+    const teacherIds = [...new Set(list.map((r) => r.teacher_id).filter(Boolean))];
+    const roleMap = new Map<string, any>();
+    const nickMap = new Map<string, string>();
+    if (teacherIds.length) {
+      const { data: roles } = await this.client
+        .from('user_roles')
+        .select('id, real_name, user_id')
+        .in('id', teacherIds);
+      (roles || []).forEach((r) => roleMap.set(r.id, r));
+      const userIds = [...new Set((roles || []).map((r) => r.user_id).filter(Boolean))];
+      if (userIds.length) {
+        const { data: users } = await this.client
+          .from('users')
+          .select('id, nickname')
+          .in('id', userIds);
+        (users || []).forEach((u) => nickMap.set(u.id, u.nickname || ''));
+      }
+    }
+
+    return list.map((r) => {
+      const role = roleMap.get(r.teacher_id);
+      let teacherName = role?.real_name || '';
+      if (!teacherName && role?.user_id) teacherName = nickMap.get(role.user_id) || '';
+      return {
+        id: r.id,
+        record_type: r.record_type,
+        title: r.title,
+        content: r.content,
+        photo_urls: r.photo_urls,
+        created_at: r.created_at,
+        teacher_name: teacherName,
+      };
+    });
   }
 
   async searchChildren(keyword: string) {

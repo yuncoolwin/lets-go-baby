@@ -284,3 +284,31 @@ export const courseApi = {
   remove: (id: string, operator?: { operator_user_id?: string; operator_role_id?: string }) =>
     request({ url: `/api/courses/${id}`, method: 'DELETE', data: { ...operator } }),
 }
+
+// ============ 成长记录 API ============
+
+export const growthApi = {
+  // 图片上传（base64 + 文件名，后端 sharp 压缩转 webp）
+  uploadImage: (data: { image: string; name?: string }) =>
+    request({ url: '/api/growth-records/upload', method: 'POST', data }),
+
+  // 新建记录（role_id 为当前角色 id，用于权限校验与 teacher_id 落库）
+  create: (data: { child_id: string; title: string; content?: string; photo_urls?: string[] }, roleId?: string) =>
+    request({ url: roleId ? `/api/growth-records?role_id=${roleId}` : '/api/growth-records', method: 'POST', data }),
+
+  // 记录列表（child_id 筛选 + 分页 + 角色权限）
+  list: (params?: { child_id?: string; page?: number; page_size?: number; role_id?: string }) =>
+    request({ url: '/api/growth-records', method: 'GET', data: params }),
+
+  // 记录详情
+  detail: (id: string, roleId?: string) =>
+    request({ url: roleId ? `/api/growth-records/${id}?role_id=${roleId}` : `/api/growth-records/${id}`, method: 'GET' }),
+
+  // 编辑记录
+  update: (id: string, data: { title?: string; content?: string; photo_urls?: string[] }, roleId?: string) =>
+    request({ url: roleId ? `/api/growth-records/${id}?role_id=${roleId}` : `/api/growth-records/${id}`, method: 'PUT', data }),
+
+  // 删除记录（后端同步删除 Supabase Storage 图片）
+  remove: (id: string, roleId?: string) =>
+    request({ url: roleId ? `/api/growth-records/${id}?role_id=${roleId}` : `/api/growth-records/${id}`, method: 'DELETE' }),
+}

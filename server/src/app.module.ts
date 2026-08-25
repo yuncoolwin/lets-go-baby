@@ -28,6 +28,8 @@ import { CoursesController } from '@/courses/courses.controller';
 import { CoursesService } from '@/courses/courses.service';
 import { StatutoryHolidaysController } from '@/statutory-holidays/statutory-holidays.controller';
 import { StatutoryHolidaysService } from '@/statutory-holidays/statutory-holidays.service';
+import { GrowthController } from '@/growth/growth.controller';
+import { GrowthService } from '@/growth/growth.service';
 
 @Module({
   imports: [],
@@ -46,6 +48,7 @@ import { StatutoryHolidaysService } from '@/statutory-holidays/statutory-holiday
     EnrollmentsController,
     CoursesController,
     StatutoryHolidaysController,
+    GrowthController,
   ],
   providers: [
     AppService,
@@ -63,6 +66,7 @@ import { StatutoryHolidaysService } from '@/statutory-holidays/statutory-holiday
     EnrollmentsService,
     CoursesService,
     StatutoryHolidaysService,
+    GrowthService,
   ],
 })
 export class AppModule {}

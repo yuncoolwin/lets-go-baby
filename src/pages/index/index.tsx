@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { Bus, Users, Camera, GraduationCap, Plus, ChevronDown, ChevronUp, BookOpen, Calendar, X, Info, Sun, User, Baby, Bell } from 'lucide-react-taro'
+import { Bus, Users, Camera, GraduationCap, Plus, ChevronDown, ChevronUp, BookOpen, Calendar, X, Info, Sun, User, Baby, Bell, Sprout } from 'lucide-react-taro'
 import { getRelationshipLabel } from '@/utils/helpers'
 import { courseApi } from '@/utils/api'
 import rabbitLogo from '@/assets/rabbit-logo.png'
@@ -732,7 +732,7 @@ export default function IndexPage() {
 
           <Card
             className="bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => Taro.navigateTo({ url: '/pages/growth/index' })}
+            onClick={() => Taro.switchTab({ url: '/pages/growth/index' })}
           >
             <CardContent className="p-4 flex flex-col items-center">
               <View className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center mb-2">
@@ -936,7 +936,7 @@ export default function IndexPage() {
         )}
 
         {/* 快捷入口 */}
-        <View className="grid grid-cols-2 gap-3">
+        <View className="grid grid-cols-3 gap-3">
           <Card
             className="bg-white rounded-xl border-0 shadow-sm"
             onClick={() => Taro.navigateTo({ url: '/pages/records/index' })}
@@ -958,6 +958,18 @@ export default function IndexPage() {
                 <Bell size={24} color="#3B82F6" />
               </View>
               <Text className="text-xs text-foreground">发布通知</Text>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="bg-white rounded-xl border-0 shadow-sm"
+            onClick={() => Taro.navigateTo({ url: '/pages/growth-manage/index' })}
+          >
+            <CardContent className="p-4 flex flex-col items-center">
+              <View className="w-12 h-12 rounded-lg bg-amber-50 flex items-center justify-center mb-2">
+                <Sprout size={24} color="#F59E0B" />
+              </View>
+              <Text className="text-xs text-foreground">成长记录</Text>
             </CardContent>
           </Card>
         </View>  {/* end of p-4 content wrapper */}
@@ -1329,6 +1341,18 @@ export default function IndexPage() {
                 <Bell size={24} color="#8B5CF6" />
               </View>
               <Text className="text-sm text-foreground">通知管理</Text>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="bg-white rounded-xl border-0 shadow-sm"
+            onClick={() => Taro.navigateTo({ url: '/pages/growth-manage/index' })}
+          >
+            <CardContent className="p-4 flex flex-col items-center">
+              <View className="w-12 h-12 rounded-lg bg-amber-50 flex items-center justify-center mb-2">
+                <Sprout size={24} color="#F59E0B" />
+              </View>
+              <Text className="text-sm text-foreground">成长记录</Text>
             </CardContent>
           </Card>
         </View>
