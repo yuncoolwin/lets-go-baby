@@ -13,6 +13,7 @@ import { getRelationshipLabel } from '@/utils/helpers'
 import { courseApi } from '@/utils/api'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge, formatTime } from '@/utils/format'
+import TabBar from '@/components/tab-bar'
 
 interface BabyStatus {
   child_id: string
@@ -382,6 +383,7 @@ export default function IndexPage() {
         <Text className="block text-xs text-muted-foreground mt-4">
           登录即表示同意《用户协议》和《隐私政策》
         </Text>
+        <TabBar />
       </View>
     )
   }
@@ -389,13 +391,14 @@ export default function IndexPage() {
   // 加载中
   if (pageLoading || isLoading) {
     return (
-      <View className="min-h-screen bg-background p-4">
+      <View className="min-h-screen bg-background p-4 pb-24">
         <Skeleton className="h-8 w-48 mb-4 rounded-lg" />
         <Skeleton className="h-40 w-full mb-4 rounded-xl" />
         <View className="flex gap-3">
           <Skeleton className="h-24 flex-1 rounded-xl" />
           <Skeleton className="h-24 flex-1 rounded-xl" />
         </View>
+        <TabBar />
       </View>
     )
   }
@@ -403,7 +406,7 @@ export default function IndexPage() {
   // 家长端首页
   if (currentRole?.role_type === 'parent') {
     return (
-      <View className="min-h-screen bg-background p-4">
+      <View className="min-h-screen bg-background p-4 pb-24">
         {/* 欢迎区域 */}
         <View className="mb-4">
           <Text className="block text-xl font-bold text-foreground">
@@ -743,6 +746,7 @@ export default function IndexPage() {
           </Card>
         </View>
         )}
+        <TabBar />
       </View>
     )
   }
@@ -750,7 +754,7 @@ export default function IndexPage() {
   // 教师端首页
   if (currentRole?.role_type === 'teacher') {
     return (
-      <View className="min-h-screen bg-background p-4">
+      <View className="min-h-screen bg-background p-4 pb-24">
         <View className="mb-4">
           <Text className="block text-xl font-bold text-foreground">
             您好，{nickname || currentRole?.real_name || '老师'} 💕
@@ -1226,6 +1230,7 @@ export default function IndexPage() {
               </View>
               </Portal>
             )}
+        <TabBar />
       </View>
     )
   }
@@ -1233,7 +1238,7 @@ export default function IndexPage() {
   // 管理员端首页（管理员与超管共用）
   if (currentRole?.role_type === 'admin' || currentRole?.role_type === 'superadmin') {
     return (
-      <View className="min-h-screen bg-background p-4">
+      <View className="min-h-screen bg-background p-4 pb-24">
         <View className="mb-4">
           <Text className="block text-xl font-bold text-foreground">管理后台</Text>
           <Text className="block text-sm text-muted-foreground mt-1">
@@ -1356,6 +1361,7 @@ export default function IndexPage() {
             </CardContent>
           </Card>
         </View>
+        <TabBar />
       </View>
     )
   }
@@ -1370,6 +1376,7 @@ export default function IndexPage() {
       >
         <Text>申请绑定幼儿</Text>
       </Button>
+      <TabBar />
     </View>
   )
 }

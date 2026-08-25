@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/app'
 import { ChevronDown, ChevronUp } from 'lucide-react-taro'
 import { Network } from '@/network'
-import { IS_H5_ENV } from '@/presets/env'
+import TabBar from '@/components/tab-bar'
 
 
 interface ChildItem {
@@ -410,7 +410,7 @@ export default function RollCallPage() {
         </View>
       )}
 
-      <ScrollView scrollY style={{ flex: 1, height: 0 }}>
+      <ScrollView scrollY style={{ flex: 1, height: 0, paddingBottom: '100rpx' }}>
         {/* 班级信息 */}
         {className && (
           <View className="px-4 pt-4 pb-2">
@@ -658,7 +658,7 @@ export default function RollCallPage() {
       <View
         style={{
           position: 'fixed', left: 0, right: 0,
-          bottom: IS_H5_ENV ? 50 : 0,
+          bottom: 50,
           display: 'flex', flexDirection: 'row', gap: '12px',
           padding: '12px 16px', backgroundColor: '#fff',
           borderTop: '1px solid #f3f4f6', zIndex: 100,
@@ -710,6 +710,7 @@ export default function RollCallPage() {
           </>
         )}
       </View>
+      <TabBar />
     </View>
   )
 }

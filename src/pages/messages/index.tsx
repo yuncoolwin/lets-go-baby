@@ -11,6 +11,7 @@ import { notificationApi } from '@/utils/api'
 import { useAppStore } from '@/store/app'
 import { refreshUnreadBadge } from '@/utils/unread-badge'
 import { Bell } from 'lucide-react-taro'
+import TabBar from '@/components/tab-bar'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 
 interface NotificationItem {
@@ -145,7 +146,7 @@ export default function MessagesPage() {
   const currentList = activeTab === 'received' ? receivedList : sentList
 
   return (
-    <View className="min-h-screen bg-background p-4">
+    <View className="min-h-screen bg-background p-4 pb-24">
       {/* tab 切换：parent 仅「收到的」，teacher/admin 显示两个 */}
       {!isParent && (
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
@@ -291,6 +292,7 @@ export default function MessagesPage() {
           </View>
         </DialogContent>
       </Dialog>
+      <TabBar />
     </View>
   )
 }

@@ -8,6 +8,7 @@ import { useAppStore, type RoleType } from '@/store/app'
 import { getRelationshipLabel } from '@/utils/helpers'
 import { User, ChevronRight, LogOut, Users, Shield, ShieldCheck } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
+import TabBar from '@/components/tab-bar'
 
 export default function ProfilePage() {
   const {
@@ -96,12 +97,13 @@ export default function ProfilePage() {
         >
           <Text>去登录</Text>
         </Button>
+        <TabBar />
       </View>
     )
   }
 
   return (
-    <View className="min-h-screen bg-background p-4">
+    <View className="min-h-screen bg-background p-4 pb-24">
       {/* 用户信息 */}
       <View className="flex items-center gap-4 mb-6">
         <Image src={rabbitLogo} className="w-16 h-16 rounded-full" mode="aspectFit" />
@@ -221,6 +223,7 @@ export default function ProfilePage() {
         <LogOut size={16} className="mr-2" color="#666" />
         <Text>退出登录</Text>
       </Button>
+      <TabBar />
     </View>
   )
 }

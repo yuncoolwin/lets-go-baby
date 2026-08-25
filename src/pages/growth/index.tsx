@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
 import { Camera } from 'lucide-react-taro'
+import TabBar from '@/components/tab-bar'
 
 interface GrowthRecord {
   id: string
@@ -66,6 +67,7 @@ export default function GrowthPage() {
         <Skeleton className="h-6 w-32 mb-4 rounded" />
         <Skeleton className="h-40 w-full mb-3 rounded-xl" />
         <Skeleton className="h-40 w-full rounded-xl" />
+        <TabBar />
       </View>
     )
   }
@@ -117,6 +119,7 @@ export default function GrowthPage() {
           ))}
         </View>
       )}
+      <TabBar />
     </View>
   )
 }

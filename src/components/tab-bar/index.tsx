@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect } from 'react'
 import { View, Text, Image } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro from '@tarojs/taro'
 import { useAppStore } from '@/store/app'
 import { refreshUnreadBadge } from '@/utils/unread-badge'
 import house from '@/assets/tabbar/house.png'
@@ -33,16 +33,17 @@ interface TabItem {
   showBadge?: boolean
 }
 
-export default function CustomTabBar() {
+export default function TabBar() {
   const currentRole = useAppStore((s) => s.currentRole)
   const unreadCount = useAppStore((s) => s.unreadCount)
-  const [current, setCurrent] = useState(getCurrentPath())
+  const current = useAppStore((s) => s.currentTabPath)
 
-  useDidShow(() => {
-    setCurrent(getCurrentPath())
+  useEffect(() => {
+    const path = getCurrentPath()
+    useAppStore.getState().setCurrentTabPath(path)
     const role = useAppStore.getState().currentRole
     if (role?.id) refreshUnreadBadge(role.id)
-  })
+  }, [])
 
   const isParent = currentRole?.role_type === 'parent'
 
@@ -56,7 +57,7 @@ export default function CustomTabBar() {
   ]
 
   const handleTap = (path: string) => {
-    setCurrent(path)
+    useAppStore.getState().setCurrentTabPath(path)
     Taro.switchTab({ url: path })
   }
 
