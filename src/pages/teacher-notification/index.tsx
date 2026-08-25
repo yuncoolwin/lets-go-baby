@@ -10,7 +10,6 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { notificationApi, classApi, childrenApi, teacherApi, courseApi } from '@/utils/api'
 import { useAppStore } from '@/store/app'
-import BackButton from '@/components/back-button'
 import { Send, Save, Inbox, Users, User, Bell, BookOpen, Megaphone, ChevronRight } from 'lucide-react-taro'
 
 type NotificationType = 'all' | 'course' | 'class' | 'personal' | 'teacher'
@@ -277,9 +276,14 @@ export default function TeacherNotificationPage() {
 
   return (
     <View className="min-h-screen bg-background p-4 pb-28">
-      {/* 顶部：返回 + 草稿箱 */}
+      {/* 顶部：标题 + 草稿箱 */}
       <View className="flex items-center justify-between mb-4">
-        <BackButton className="mb-0" />
+        <View className="flex-1">
+          <Text className="block text-lg font-bold text-foreground">发布通知</Text>
+          <Text className="block text-sm text-muted-foreground mt-1">
+            {isAdmin ? '向全园、课程、班级、个人或教师发送通知' : '向家长发送通知'}
+          </Text>
+        </View>
         <View
           className="flex items-center gap-2 px-3 py-2 rounded-full bg-white shadow-sm"
           onClick={() => {
@@ -290,13 +294,6 @@ export default function TeacherNotificationPage() {
           <Inbox size={16} color="#E8651A" />
           <Text className="text-sm text-foreground">草稿箱</Text>
         </View>
-      </View>
-
-      <View className="mb-4">
-        <Text className="block text-lg font-bold text-foreground">发布通知</Text>
-        <Text className="block text-sm text-muted-foreground mt-1">
-          {isAdmin ? '向全园、课程、班级、个人或教师发送通知' : '向家长发送通知'}
-        </Text>
       </View>
 
       <Card className="bg-white rounded-xl border-0 shadow-sm mb-4">

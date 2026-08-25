@@ -140,8 +140,6 @@ export default function MessagesPage() {
 
   return (
     <View className="min-h-screen bg-background p-4">
-      <Text className="block text-lg font-bold text-foreground mb-4">消息通知</Text>
-
       {/* tab 切换：parent 仅「收到的」，teacher/admin 显示两个 */}
       {!isParent && (
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
@@ -192,20 +190,19 @@ export default function MessagesPage() {
                 onClick={isReceived ? () => handleReceivedCardClick(item) : undefined}
               >
                 <CardContent className="p-4">
-                  <View className="flex items-center justify-between mb-2">
-                    <Badge className={`${typeBadge.className} text-xs`}>
-                      <Text className="text-xs">{typeBadge.label}</Text>
-                    </Badge>
-                    <Text className="text-xs text-muted-foreground">
+                  <View className="flex items-center justify-between mb-1">
+                    <View className="flex items-center gap-2 flex-1 min-w-0">
+                      <Badge className={`${typeBadge.className} text-xs flex-shrink-0`}>
+                        <Text className="text-xs">{typeBadge.label}</Text>
+                      </Badge>
+                      {isReceived && !item.is_read && (
+                        <View className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+                      )}
+                      <Text className="text-base font-semibold text-foreground truncate">{item.title}</Text>
+                    </View>
+                    <Text className="text-xs text-muted-foreground flex-shrink-0 ml-2">
                       {formatTime(item.created_at)}
                     </Text>
-                  </View>
-
-                  <View className="flex items-center gap-2 mb-1">
-                    {isReceived && !item.is_read && (
-                      <View className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
-                    )}
-                    <Text className="text-base font-semibold text-foreground">{item.title}</Text>
                   </View>
 
                   <Text className="block text-sm text-muted-foreground line-clamp-2">
