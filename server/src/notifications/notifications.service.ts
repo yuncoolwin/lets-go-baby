@@ -389,9 +389,14 @@ export class NotificationsService {
     let builder = this.client
       .from('notifications')
       .select('*', { count: 'exact' })
-      .eq('author_id', authorId)
-      .eq('status', isDraft ? 'draft' : 'published')
-      .order('created_at', { ascending: false });
+      .eq('author_id', authorId);
+
+    if (isDraft) {
+      builder = builder.eq('status', 'draft');
+    } else {
+      builder = builder.in('status', ['published', 'revoked']);
+    }
+    builder = builder.order('created_at', { ascending: false });
 
     if (query.type) builder = builder.eq('type', query.type);
     if (query.keyword) builder = builder.ilike('title', `%${query.keyword}%`);
@@ -418,10 +423,18 @@ export class NotificationsService {
       });
     }
 
-    const listWithStats = list.map((n: any) => {
-      const stats = statsMap.get(n.id) || { recipient_count: 0, read_count: 0 };
-      return { ...n, recipient_count: stats.recipient_count, read_count: stats.read_count };
-    });
+    const listWithStats = await Promise.all(
+      list.map(async (n: any) => {
+        const stats = statsMap.get(n.id) || { recipient_count: 0, read_count: 0 };
+        const targetLabels = await this.getTargetLabels(n.type, n.target_ids || []);
+        return {
+          ...n,
+          recipient_count: stats.recipient_count,
+          read_count: stats.read_count,
+          target_labels: targetLabels,
+        };
+      }),
+    );
 
     return {
       list: listWithStats,
@@ -473,8 +486,8 @@ export class NotificationsService {
       .maybeSingle();
 
     if (!existing) return { error: true, code: 404, msg: '通知不存在' };
-    if (existing.status !== 'draft') {
-      return { error: true, code: 400, msg: '仅草稿可编辑' };
+    if (existing.status !== 'draft' && existing.status !== 'revoked') {
+      return { error: true, code: 400, msg: '仅草稿或已撤回的通知可编辑' };
     }
 
     const nextType = dto.type ?? existing.type;

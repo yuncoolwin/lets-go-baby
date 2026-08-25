@@ -5,7 +5,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { notificationApi } from '@/utils/api'
 import { useAppStore } from '@/store/app'
@@ -23,21 +22,14 @@ interface NotificationItem {
   created_at: string
   is_read?: boolean
   read_at?: string
-  read_count?: number
-  recipient_count?: number
-  status?: string
   sender_name?: string
 }
-
-type TabValue = 'received' | 'sent'
 
 export default function MessagesPage() {
   const { currentRole, children } = useAppStore()
   const isParent = currentRole?.role_type === 'parent'
-  const [activeTab, setActiveTab] = useState<TabValue>('received')
 
   const [receivedList, setReceivedList] = useState<NotificationItem[]>([])
-  const [sentList, setSentList] = useState<NotificationItem[]>([])
   const [loading, setLoading] = useState(true)
 
   const [detailItem, setDetailItem] = useState<NotificationItem | null>(null)
@@ -48,23 +40,11 @@ export default function MessagesPage() {
   })
 
   useEffect(() => {
-    loadData()
-  }, [currentRole, activeTab])
-
-  const loadData = async () => {
-    setLoading(true)
-    try {
-      if (activeTab === 'received') {
-        await loadReceived()
-      } else {
-        await loadSent()
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
+    loadReceived()
+  }, [currentRole])
 
   const loadReceived = async () => {
+    setLoading(true)
     try {
       const res = await notificationApi.list({ scope: 'received', user_role_id: currentRole?.id })
       console.log('[Messages] received:', res)
@@ -72,17 +52,8 @@ export default function MessagesPage() {
     } catch (err) {
       console.error('[Messages] loadReceived error:', err)
       setReceivedList([])
-    }
-  }
-
-  const loadSent = async () => {
-    try {
-      const res = await notificationApi.list({ scope: 'sent', author_id: currentRole?.id })
-      console.log('[Messages] sent:', res)
-      setSentList(res?.data?.list || [])
-    } catch (err) {
-      console.error('[Messages] loadSent error:', err)
-      setSentList([])
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -127,40 +98,10 @@ export default function MessagesPage() {
     }
   }
 
-  const handleRevoke = async (item: NotificationItem) => {
-    try {
-      const res = await notificationApi.revoke(item.id)
-      if (res?.code === 200) {
-        Taro.showToast({ title: '已撤回', icon: 'success' })
-        loadSent()
-      } else {
-        Taro.showToast({ title: res?.msg || '撤回失败', icon: 'none' })
-      }
-    } catch (err) {
-      console.error('[Messages] revoke error:', err)
-      Taro.showToast({ title: '撤回失败', icon: 'none' })
-    }
-  }
-
   const showUnboundTip = isParent && children.length === 0
-  const currentList = activeTab === 'received' ? receivedList : sentList
 
   return (
     <View className="min-h-screen bg-background p-4 pb-24">
-      {/* tab 切换：parent 仅「收到的」，teacher/admin 显示两个 */}
-      {!isParent && (
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
-          <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="received">
-              <Text>收到的</Text>
-            </TabsTrigger>
-            <TabsTrigger value="sent">
-              <Text>发出的</Text>
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      )}
-
       {loading ? (
         <View>
           <Skeleton className="h-24 w-full mb-3 rounded-xl" />
@@ -180,21 +121,20 @@ export default function MessagesPage() {
             <Text>立即绑定</Text>
           </Button>
         </View>
-      ) : currentList.length === 0 ? (
+      ) : receivedList.length === 0 ? (
         <View className="flex flex-col items-center py-16">
           <Bell size={48} color="#999999" />
           <Text className="block text-sm text-muted-foreground mt-3">暂无消息</Text>
         </View>
       ) : (
         <View className="space-y-3">
-          {currentList.map((item) => {
+          {receivedList.map((item) => {
             const typeBadge = getTypeBadge(item.type)
-            const isReceived = activeTab === 'received'
             return (
               <Card
                 key={item.id}
                 className="bg-white rounded-xl border-0 shadow-sm"
-                onClick={isReceived ? () => handleReceivedCardClick(item) : undefined}
+                onClick={() => handleReceivedCardClick(item)}
               >
                 <CardContent className="p-4">
                   <View className="flex items-center justify-between mb-1">
@@ -202,7 +142,7 @@ export default function MessagesPage() {
                       <Badge className={`${typeBadge.className} text-xs flex-shrink-0`}>
                         <Text className="text-xs">{typeBadge.label}</Text>
                       </Badge>
-                      {isReceived && !item.is_read && (
+                      {!item.is_read && (
                         <View className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
                       )}
                       <Text className="text-base font-semibold text-foreground truncate">{item.title}</Text>
@@ -223,28 +163,6 @@ export default function MessagesPage() {
                   >
                     {item.content}
                   </Text>
-
-                  {/* 发出的：已读回执 + 撤回 */}
-                  {!isReceived && item.status === 'published' && (
-                    <View className="flex items-center justify-between mt-3">
-                      <Text className="text-xs text-muted-foreground">
-                        已读 {item.read_count ?? 0}/{item.recipient_count ?? 0}
-                      </Text>
-                      <Button variant="secondary" size="sm" onClick={() => handleRevoke(item)}>
-                        <Text className="text-xs">撤回</Text>
-                      </Button>
-                    </View>
-                  )}
-                  {!isReceived && item.status === 'revoked' && (
-                    <View className="flex items-center justify-between mt-3">
-                      <Text className="text-xs text-muted-foreground">
-                        已读 {item.read_count ?? 0}/{item.recipient_count ?? 0}
-                      </Text>
-                      <Badge className="bg-gray-200 text-gray-500 text-xs">
-                        <Text className="text-xs">已撤回</Text>
-                      </Badge>
-                    </View>
-                  )}
 
                   {item.sender_name && (
                     <Text className="block text-xs text-muted-foreground mt-2">

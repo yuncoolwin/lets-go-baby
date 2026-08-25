@@ -1,18 +1,21 @@
 import { useState, useEffect, useRef } from 'react'
 import { View, Text, Image } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { notificationApi, classApi, childrenApi, teacherApi, courseApi } from '@/utils/api'
 import { useAppStore } from '@/store/app'
-import { Send, Save, Inbox, Users, User, Bell, BookOpen, Megaphone, ChevronRight } from 'lucide-react-taro'
+import { Send, Save, Inbox, Users, User, Bell, BookOpen, Megaphone, ChevronRight, RefreshCw } from 'lucide-react-taro'
 
 type NotificationType = 'all' | 'course' | 'class' | 'personal' | 'teacher'
+type MainTab = 'compose' | 'sent'
 
 interface TargetOption {
   id: string
@@ -26,6 +29,20 @@ interface DraftItem {
   type: string
   target_ids: string[]
   images?: string[]
+  created_at: string
+}
+
+interface SentItem {
+  id: string
+  title: string
+  content: string
+  type: string
+  target_ids?: string[]
+  target_labels?: string[]
+  images?: string[]
+  status: string
+  read_count?: number
+  recipient_count?: number
   created_at: string
 }
 
@@ -74,10 +91,14 @@ const formatTime = (dateStr: string) => {
 export default function TeacherNotificationPage() {
   const currentRole = useAppStore((s) => s.currentRole)
   const isAdmin = currentRole?.role_type === 'admin' || currentRole?.role_type === 'superadmin'
+  const router = useRouter()
+  const editIdFromUrl = router.params?.id || ''
 
   const visibleTypeOptions = isAdmin
     ? TYPE_OPTIONS
     : TYPE_OPTIONS.filter((opt) => TEACHER_ALLOWED_TYPES.includes(opt.value))
+
+  const [mainTab, setMainTab] = useState<MainTab>('compose')
 
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -89,6 +110,7 @@ export default function TeacherNotificationPage() {
   const [teacherList, setTeacherList] = useState<any[]>([])
 
   const [draftId, setDraftId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [draftOpen, setDraftOpen] = useState(false)
   const [draftList, setDraftList] = useState<DraftItem[]>([])
   const [draftLoading, setDraftLoading] = useState(false)
@@ -98,15 +120,21 @@ export default function TeacherNotificationPage() {
   const [images, setImages] = useState<string[]>([])
   const [uploadingImage, setUploadingImage] = useState(false)
 
+  const [sentList, setSentList] = useState<SentItem[]>([])
+  const [sentLoading, setSentLoading] = useState(false)
+
   const isFirstRender = useRef(true)
 
   useEffect(() => {
     if (isFirstRender.current) {
+      isFirstRender.current = false
       loadClasses()
       loadCourses()
       loadChildren()
       if (isAdmin) loadTeachers()
-      isFirstRender.current = false
+      if (editIdFromUrl) {
+        loadNotificationForEdit(editIdFromUrl)
+      }
     }
   }, [])
 
@@ -170,6 +198,42 @@ export default function TeacherNotificationPage() {
     }
   }
 
+  const loadSent = async () => {
+    setSentLoading(true)
+    try {
+      const res = await notificationApi.list({ scope: 'sent', author_id: currentRole?.id })
+      console.log('[TeacherNotification] sent:', res)
+      setSentList(extractList(res))
+    } catch (err) {
+      console.error('[TeacherNotification] loadSent error:', err)
+      Taro.showToast({ title: '已发出列表加载失败', icon: 'none' })
+    } finally {
+      setSentLoading(false)
+    }
+  }
+
+  const loadNotificationForEdit = async (id: string) => {
+    try {
+      const res = await notificationApi.detail(id)
+      console.log('[TeacherNotification] detail:', res)
+      const detail = res?.data
+      if (res?.code === 200 && detail) {
+        setTitle(detail.title || '')
+        setContent(detail.content || '')
+        setType((detail.type as NotificationType) || 'class')
+        setSelectedTargetIds(Array.isArray(detail.target_ids) ? detail.target_ids : [])
+        setImages(Array.isArray(detail.images) ? detail.images : [])
+        setEditingId(detail.id)
+        setDraftId(null)
+      } else {
+        Taro.showToast({ title: res?.msg || '通知加载失败', icon: 'none' })
+      }
+    } catch (err) {
+      console.error('[TeacherNotification] loadNotificationForEdit error:', err)
+      Taro.showToast({ title: '通知加载失败', icon: 'none' })
+    }
+  }
+
   const getTargetOptions = (): TargetOption[] => {
     switch (type) {
       case 'course':
@@ -206,7 +270,19 @@ export default function TeacherNotificationPage() {
     setSelectedTargetIds(Array.isArray(draft.target_ids) ? draft.target_ids : [])
     setImages(Array.isArray(draft.images) ? draft.images : [])
     setDraftId(draft.id)
+    setEditingId(null)
     setDraftOpen(false)
+  }
+
+  const handleEditSent = (item: SentItem) => {
+    setTitle(item.title || '')
+    setContent(item.content || '')
+    setType((item.type as NotificationType) || 'class')
+    setSelectedTargetIds(Array.isArray(item.target_ids) ? item.target_ids : [])
+    setImages(Array.isArray(item.images) ? item.images : [])
+    setEditingId(item.id)
+    setDraftId(null)
+    setMainTab('compose')
   }
 
   const handleDeleteDraft = async (id: string) => {
@@ -221,6 +297,36 @@ export default function TeacherNotificationPage() {
     } catch (err) {
       console.error('[TeacherNotification] delete draft error:', err)
       Taro.showToast({ title: '删除失败', icon: 'none' })
+    }
+  }
+
+  const handleRevoke = async (id: string) => {
+    try {
+      const res = await notificationApi.revoke(id)
+      if (res?.code === 200) {
+        Taro.showToast({ title: '已撤回', icon: 'success' })
+        loadSent()
+      } else {
+        Taro.showToast({ title: res?.msg || '撤回失败', icon: 'none' })
+      }
+    } catch (err) {
+      console.error('[TeacherNotification] revoke error:', err)
+      Taro.showToast({ title: '撤回失败', icon: 'none' })
+    }
+  }
+
+  const handleRepublish = async (id: string) => {
+    try {
+      const res = await notificationApi.update(id, { status: 'published' })
+      if (res?.code === 200) {
+        Taro.showToast({ title: '已重新发布', icon: 'success' })
+        loadSent()
+      } else {
+        Taro.showToast({ title: res?.msg || '发布失败', icon: 'none' })
+      }
+    } catch (err) {
+      console.error('[TeacherNotification] republish error:', err)
+      Taro.showToast({ title: '发布失败', icon: 'none' })
     }
   }
 
@@ -302,8 +408,9 @@ export default function TeacherNotificationPage() {
     setSubmitting(true)
     try {
       let res: any
-      if (draftId) {
-        res = await notificationApi.update(draftId, payload)
+      const targetId = draftId || editingId
+      if (targetId) {
+        res = await notificationApi.update(targetId, payload)
       } else {
         res = await notificationApi.create(payload, currentRole?.id)
       }
@@ -312,11 +419,18 @@ export default function TeacherNotificationPage() {
       if (res?.code === 200) {
         if (status === 'draft') {
           // 新建草稿后记录 id，后续保存走 update
-          if (!draftId && res.data?.id) setDraftId(res.data.id)
+          if (!targetId && res.data?.id) setDraftId(res.data.id)
           Taro.showToast({ title: '已保存到草稿箱', icon: 'success' })
         } else {
-          Taro.showToast({ title: '发布成功', icon: 'success' })
-          setTimeout(() => Taro.navigateBack(), 1500)
+          Taro.showToast({ title: editingId ? '重新发布成功' : '发布成功', icon: 'success' })
+          if (editingId) {
+            setEditingId(null)
+            setDraftId(null)
+            setMainTab('sent')
+            loadSent()
+          } else {
+            setTimeout(() => Taro.navigateBack(), 1500)
+          }
         }
       } else {
         Taro.showToast({ title: res?.msg || '操作失败', icon: 'none' })
@@ -329,208 +443,326 @@ export default function TeacherNotificationPage() {
     }
   }
 
+  const handleTabChange = (v: MainTab) => {
+    setMainTab(v)
+    if (v === 'sent') loadSent()
+  }
+
+  const isEditingRevoked = !!editingId
   const targetOptions = getTargetOptions()
 
   return (
     <View className="min-h-screen bg-background p-4 pb-28">
-      {/* 顶部：标题 + 草稿箱 */}
-      <View className="flex items-center justify-between mb-4">
-        <View className="flex-1">
-          <Text className="block text-lg font-bold text-foreground">发布通知</Text>
-          <Text className="block text-sm text-muted-foreground mt-1">
-            {isAdmin ? '向全园、课程、班级、个人或教师发送通知' : '向家长发送通知'}
-          </Text>
-        </View>
-        <View
-          className="flex items-center gap-2 px-3 py-2 rounded-full bg-white shadow-sm"
-          onClick={() => {
-            setDraftOpen(true)
-            loadDrafts()
-          }}
-        >
-          <Inbox size={16} color="#E8651A" />
-          <Text className="text-sm text-foreground">草稿箱</Text>
-        </View>
-      </View>
+      {/* 顶部 tab */}
+      <Tabs value={mainTab} onValueChange={(v) => handleTabChange(v as MainTab)}>
+        <TabsList className="grid w-full grid-cols-2 mb-4">
+          <TabsTrigger value="compose">
+            <Text>发布</Text>
+          </TabsTrigger>
+          <TabsTrigger value="sent">
+            <Text>已发出</Text>
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-      <Card className="bg-white rounded-xl border-0 shadow-sm mb-4">
-        <CardContent className="p-4 space-y-4">
-          {/* 通知类型 */}
-          <View>
-            <Label className="text-sm text-foreground mb-2">
-              <Text>通知类型</Text>
-            </Label>
-            <View className="flex flex-wrap gap-2 mt-2">
-              {visibleTypeOptions.map((opt) => {
-                const Icon = TYPE_ICONS[opt.value]
-                const active = type === opt.value
-                return (
-                  <View
-                    key={opt.value}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full ${
-                      active ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'
-                    }`}
-                    onClick={() => handleTypeChange(opt.value)}
-                  >
-                    <Icon size={14} color={active ? '#ffffff' : '#666666'} />
-                    <Text className={`text-sm ${active ? 'text-white' : 'text-gray-600'}`}>
-                      {opt.label}
-                    </Text>
-                  </View>
-                )
-              })}
+      {mainTab === 'compose' ? (
+        <>
+          {/* 顶部：标题 + 草稿箱 */}
+          <View className="flex items-center justify-between mb-4">
+            <View className="flex-1">
+              <Text className="block text-lg font-bold text-foreground">
+                {isEditingRevoked ? '重新发布通知' : '发布通知'}
+              </Text>
+              <Text className="block text-sm text-muted-foreground mt-1">
+                {isAdmin ? '向全园、课程、班级、个人或教师发送通知' : '向家长发送通知'}
+              </Text>
+            </View>
+            <View
+              className="flex items-center gap-2 px-3 py-2 rounded-full bg-white shadow-sm"
+              onClick={() => {
+                setDraftOpen(true)
+                loadDrafts()
+              }}
+            >
+              <Inbox size={16} color="#E8651A" />
+              <Text className="text-sm text-foreground">草稿箱</Text>
             </View>
           </View>
 
-          {/* 通知对象（全园类型不显示） */}
-          {type !== 'all' && (
-            <View>
-              <Label className="text-sm text-foreground mb-2">
-                <Text>选择{TYPE_LABEL[type]}</Text>
-                {targetOptions.length > 0 && selectedTargetIds.length > 0 && (
-                  <Text className="text-xs text-primary ml-2">已选 {selectedTargetIds.length} 个</Text>
-                )}
-              </Label>
-              <View className="flex flex-wrap gap-2 mt-2">
-                {type === 'personal' ? (
-                  <View
-                    className="bg-gray-50 rounded-xl px-4 py-3 flex items-center justify-between w-full"
-                    onClick={() => setChildPickerOpen(true)}
-                  >
-                    <Text className="text-sm text-gray-600">
-                      {selectedTargetIds.length > 0
-                        ? `已选 ${selectedTargetIds.length} 个幼儿`
-                        : '点击选择幼儿'}
-                    </Text>
-                    <ChevronRight size={16} color="#9CA3AF" />
-                  </View>
-                ) : targetOptions.length > 0 ? targetOptions.map((opt) => {
-                  const active = selectedTargetIds.includes(opt.id)
-                  return (
-                    <Badge
-                      key={opt.id}
-                      className={`cursor-pointer px-4 py-2 ${
-                        active ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'
-                      }`}
-                      onClick={() => handleToggle(opt.id)}
-                    >
-                      <Text className="text-sm">{opt.label}</Text>
-                    </Badge>
-                  )
-                }) : (
-                  <Text className="block text-sm text-muted-foreground">
-                    {type === 'course' && '暂无课程'}
-                    {type === 'class' && '暂无班级，请先在班级管理中添加班级'}
-                    {type === 'teacher' && '暂无教师'}
-                  </Text>
-                )}
+          <Card className="bg-white rounded-xl border-0 shadow-sm mb-4">
+            <CardContent className="p-4 space-y-4">
+              {/* 通知类型 */}
+              <View>
+                <Label className="text-sm text-foreground mb-2">
+                  <Text>通知类型</Text>
+                </Label>
+                <View className="flex flex-wrap gap-2 mt-2">
+                  {visibleTypeOptions.map((opt) => {
+                    const Icon = TYPE_ICONS[opt.value]
+                    const active = type === opt.value
+                    return (
+                      <View
+                        key={opt.value}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full ${
+                          active ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'
+                        }`}
+                        onClick={() => handleTypeChange(opt.value)}
+                      >
+                        <Icon size={14} color={active ? '#ffffff' : '#666666'} />
+                        <Text className={`text-sm ${active ? 'text-white' : 'text-gray-600'}`}>
+                          {opt.label}
+                        </Text>
+                      </View>
+                    )
+                  })}
+                </View>
               </View>
-              {targetOptions.length > 0 && selectedTargetIds.length === 0 && (
-                <Text className="block text-xs text-gray-400 mt-2">请选择通知对象</Text>
+
+              {/* 通知对象（全园类型不显示） */}
+              {type !== 'all' && (
+                <View>
+                  <Label className="text-sm text-foreground mb-2">
+                    <Text>选择{TYPE_LABEL[type]}</Text>
+                    {targetOptions.length > 0 && selectedTargetIds.length > 0 && (
+                      <Text className="text-xs text-primary ml-2">已选 {selectedTargetIds.length} 个</Text>
+                    )}
+                  </Label>
+                  <View className="flex flex-wrap gap-2 mt-2">
+                    {type === 'personal' ? (
+                      <View
+                        className="bg-gray-50 rounded-xl px-4 py-3 flex items-center justify-between w-full"
+                        onClick={() => setChildPickerOpen(true)}
+                      >
+                        <Text className="text-sm text-gray-600">
+                          {selectedTargetIds.length > 0
+                            ? `已选 ${selectedTargetIds.length} 个幼儿`
+                            : '点击选择幼儿'}
+                        </Text>
+                        <ChevronRight size={16} color="#9CA3AF" />
+                      </View>
+                    ) : targetOptions.length > 0 ? targetOptions.map((opt) => {
+                      const active = selectedTargetIds.includes(opt.id)
+                      return (
+                        <Badge
+                          key={opt.id}
+                          className={`cursor-pointer px-4 py-2 ${
+                            active ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'
+                          }`}
+                          onClick={() => handleToggle(opt.id)}
+                        >
+                          <Text className="text-sm">{opt.label}</Text>
+                        </Badge>
+                      )
+                    }) : (
+                      <Text className="block text-sm text-muted-foreground">
+                        {type === 'course' && '暂无课程'}
+                        {type === 'class' && '暂无班级，请先在班级管理中添加班级'}
+                        {type === 'teacher' && '暂无教师'}
+                      </Text>
+                    )}
+                  </View>
+                  {targetOptions.length > 0 && selectedTargetIds.length === 0 && (
+                    <Text className="block text-xs text-gray-400 mt-2">请选择通知对象</Text>
+                  )}
+                </View>
               )}
+
+              {/* 标题 */}
+              <View>
+                <Label className="text-sm text-foreground mb-2">
+                  <Text>通知标题 *</Text>
+                </Label>
+                <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
+                  <Input
+                    className="w-full bg-transparent"
+                    placeholder="请输入通知标题"
+                    value={title}
+                    maxlength={128}
+                    onInput={(e) => setTitle(e.detail.value)}
+                  />
+                </View>
+              </View>
+
+              {/* 内容 */}
+              <View>
+                <Label className="text-sm text-foreground mb-2">
+                  <Text>通知内容 *</Text>
+                </Label>
+                <View className="bg-gray-50 rounded-xl mt-2 p-4">
+                  <Textarea
+                    className="w-full bg-transparent border-transparent min-h-80"
+                    placeholder="请输入通知内容..."
+                    value={content}
+                    onInput={(e) => setContent(e.detail.value)}
+                    maxlength={2000}
+                  />
+                </View>
+                <Text className="block text-xs text-muted-foreground mt-1 text-right">
+                  {content.length}/2000
+                </Text>
+              </View>
+
+              {/* 通知图片 */}
+              <View>
+                <Label className="text-sm text-foreground mb-2">
+                  <Text>通知图片</Text>
+                </Label>
+                <View className="flex flex-wrap gap-2 mt-2">
+                  {images.map((url, idx) => (
+                    <View key={idx} className="relative">
+                      <Image src={url} className="w-16 h-16 rounded-lg" mode="aspectFill" />
+                      <View
+                        className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center"
+                        onClick={() => handleRemoveImage(idx)}
+                      >
+                        <Text className="text-white text-xs">×</Text>
+                      </View>
+                    </View>
+                  ))}
+                  {images.length < 9 && (
+                    <View
+                      className="w-16 h-16 rounded-lg bg-gray-50 flex items-center justify-center"
+                      onClick={handleChooseImage}
+                    >
+                      <Text className={uploadingImage ? 'text-xs text-gray-400' : 'text-2xl text-gray-400'}>
+                        {uploadingImage ? '上传中' : '+'}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            </CardContent>
+          </Card>
+        </>
+      ) : (
+        <View>
+          {sentLoading ? (
+            <View>
+              <Skeleton className="h-24 w-full mb-3 rounded-xl" />
+              <Skeleton className="h-24 w-full mb-3 rounded-xl" />
+              <Skeleton className="h-24 w-full rounded-xl" />
+            </View>
+          ) : sentList.length === 0 ? (
+            <View className="flex flex-col items-center py-16">
+              <Send size={48} color="#999999" />
+              <Text className="block text-sm text-muted-foreground mt-3">暂无已发出的通知</Text>
+            </View>
+          ) : (
+            <View className="space-y-3">
+              {sentList.map((item) => (
+                <Card key={item.id} className="bg-white rounded-xl border-0 shadow-sm">
+                  <CardContent className="p-4">
+                    <View className="flex items-center justify-between mb-1">
+                      <View className="flex items-center gap-2 flex-1 min-w-0">
+                        <Text className="text-base font-semibold text-foreground truncate">{item.title}</Text>
+                        {(item.target_labels || []).length > 0 && (
+                          <Text className="text-xs text-muted-foreground truncate">
+                            {(item.target_labels || []).join('、')}
+                          </Text>
+                        )}
+                      </View>
+                      <Text className="text-xs text-muted-foreground flex-shrink-0 ml-2">
+                        {formatTime(item.created_at)}
+                      </Text>
+                    </View>
+
+                    <Text
+                      className="block text-sm text-muted-foreground"
+                      style={{
+                        display: '-webkit-box',
+                        WebkitBoxOrient: 'vertical',
+                        WebkitLineClamp: 2,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {item.content}
+                    </Text>
+
+                    {item.status === 'published' ? (
+                      <View className="flex items-center justify-between mt-3">
+                        <Text className="text-xs text-muted-foreground">
+                          已读 {item.read_count ?? 0}/{item.recipient_count ?? 0}
+                        </Text>
+                        <Button variant="secondary" size="sm" onClick={() => handleRevoke(item.id)}>
+                          <Text className="text-xs">撤回</Text>
+                        </Button>
+                      </View>
+                    ) : (
+                      <View className="flex items-center justify-between mt-3">
+                        <Text className="text-xs text-muted-foreground">
+                          已读 {item.read_count ?? 0}/{item.recipient_count ?? 0}
+                        </Text>
+                        <View className="flex items-center gap-2">
+                          <Badge className="bg-gray-200 text-gray-500 text-xs">
+                            <Text className="text-xs">已撤回</Text>
+                          </Badge>
+                          <Button variant="outline" size="sm" onClick={() => handleEditSent(item)}>
+                            <Text className="text-xs">编辑</Text>
+                          </Button>
+                          <Button variant="secondary" size="sm" onClick={() => handleRepublish(item.id)}>
+                            <Text className="text-xs">再次发送</Text>
+                          </Button>
+                        </View>
+                      </View>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
             </View>
           )}
+        </View>
+      )}
 
-          {/* 标题 */}
-          <View>
-            <Label className="text-sm text-foreground mb-2">
-              <Text>通知标题 *</Text>
-            </Label>
-            <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
-              <Input
-                className="w-full bg-transparent"
-                placeholder="请输入通知标题"
-                value={title}
-                maxlength={128}
-                onInput={(e) => setTitle(e.detail.value)}
-              />
+      {/* 底部按钮：仅发布 tab 显示；编辑已撤回时只显示重新发布 */}
+      {mainTab === 'compose' && (
+        <View
+          style={{
+            position: 'fixed', bottom: 0, left: 0, right: 0,
+            display: 'flex', flexDirection: 'row', gap: '12px',
+            padding: '12px 16px',
+            backgroundColor: '#fff',
+            borderTop: '1px solid #f0f0f0',
+            zIndex: 100
+          }}
+        >
+          {isEditingRevoked ? (
+            <View style={{ flex: 1 }}>
+              <Button
+                className="w-full bg-primary text-white rounded-xl py-3 gap-2"
+                disabled={submitting}
+                onClick={() => handleSubmit('published')}
+              >
+                <RefreshCw size={18} color="#ffffff" />
+                <Text>{submitting ? '发布中...' : '重新发布'}</Text>
+              </Button>
             </View>
-          </View>
-
-          {/* 内容 */}
-          <View>
-            <Label className="text-sm text-foreground mb-2">
-              <Text>通知内容 *</Text>
-            </Label>
-            <View className="bg-gray-50 rounded-xl mt-2 p-4">
-              <Textarea
-                className="w-full bg-transparent border-transparent min-h-80"
-                placeholder="请输入通知内容..."
-                value={content}
-                onInput={(e) => setContent(e.detail.value)}
-                maxlength={2000}
-              />
-            </View>
-            <Text className="block text-xs text-muted-foreground mt-1 text-right">
-              {content.length}/2000
-            </Text>
-          </View>
-
-          {/* 通知图片 */}
-          <View>
-            <Label className="text-sm text-foreground mb-2">
-              <Text>通知图片</Text>
-            </Label>
-            <View className="flex flex-wrap gap-2 mt-2">
-              {images.map((url, idx) => (
-                <View key={idx} className="relative">
-                  <Image src={url} className="w-16 h-16 rounded-lg" mode="aspectFill" />
-                  <View
-                    className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center"
-                    onClick={() => handleRemoveImage(idx)}
-                  >
-                    <Text className="text-white text-xs">×</Text>
-                  </View>
-                </View>
-              ))}
-              {images.length < 9 && (
-                <View
-                  className="w-16 h-16 rounded-lg bg-gray-50 flex items-center justify-center"
-                  onClick={handleChooseImage}
+          ) : (
+            <>
+              <View style={{ flex: 1 }}>
+                <Button
+                  variant="secondary"
+                  className="w-full rounded-xl py-3 gap-2"
+                  disabled={submitting}
+                  onClick={() => handleSubmit('draft')}
                 >
-                  <Text className={uploadingImage ? 'text-xs text-gray-400' : 'text-2xl text-gray-400'}>
-                    {uploadingImage ? '上传中' : '+'}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </CardContent>
-      </Card>
-
-      {/* 底部双按钮 */}
-      <View
-        style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0,
-          display: 'flex', flexDirection: 'row', gap: '12px',
-          padding: '12px 16px',
-          backgroundColor: '#fff',
-          borderTop: '1px solid #f0f0f0',
-          zIndex: 100
-        }}
-      >
-        <View style={{ flex: 1 }}>
-          <Button
-            variant="secondary"
-            className="w-full rounded-xl py-3 gap-2"
-            disabled={submitting}
-            onClick={() => handleSubmit('draft')}
-          >
-            <Save size={18} color="#4B5563" />
-            <Text>保存草稿</Text>
-          </Button>
+                  <Save size={18} color="#4B5563" />
+                  <Text>保存草稿</Text>
+                </Button>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button
+                  className="w-full bg-primary text-white rounded-xl py-3 gap-2"
+                  disabled={submitting}
+                  onClick={() => handleSubmit('published')}
+                >
+                  <Send size={18} color="#ffffff" />
+                  <Text>{submitting ? '发布中...' : '发布通知'}</Text>
+                </Button>
+              </View>
+            </>
+          )}
         </View>
-        <View style={{ flex: 1 }}>
-          <Button
-            className="w-full bg-primary text-white rounded-xl py-3 gap-2"
-            disabled={submitting}
-            onClick={() => handleSubmit('published')}
-          >
-            <Send size={18} color="#ffffff" />
-            <Text>{submitting ? '发布中...' : '发布通知'}</Text>
-          </Button>
-        </View>
-      </View>
+      )}
 
       {/* 草稿箱半屏弹窗 */}
       <Dialog open={draftOpen} onOpenChange={setDraftOpen}>
