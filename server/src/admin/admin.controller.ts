@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, HttpCode } from '@nestjs/common';
 import { AdminService } from './admin.service';
 
 @Controller('admin')
@@ -77,5 +77,23 @@ export class AdminController {
   @HttpCode(200)
   async revokeRole(@Body() body: { operator_user_id: string; user_role_id: string }) {
     return this.adminService.revokeRole(body.operator_user_id, body.user_role_id);
+  }
+
+  @Post('permission/user')
+  @HttpCode(200)
+  async createPermissionUser(@Body() body: { operator_user_id: string; nickname: string; phone: string }) {
+    return this.adminService.createPermissionUser(body.operator_user_id, body.nickname, body.phone);
+  }
+
+  @Put('permission/user/:id')
+  @HttpCode(200)
+  async updatePermissionUser(@Param('id') id: string, @Body() body: { operator_user_id: string; nickname: string; phone: string }) {
+    return this.adminService.updatePermissionUser(body.operator_user_id, id, body.nickname, body.phone);
+  }
+
+  @Delete('permission/user/:id')
+  @HttpCode(200)
+  async deletePermissionUser(@Param('id') id: string, @Body() body: { operator_user_id: string }) {
+    return this.adminService.deletePermissionUser(body.operator_user_id, id);
   }
 }

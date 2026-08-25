@@ -563,4 +563,136 @@ export class AdminService {
 
     return { code: 200, msg: 'success', data: { success: true } };
   }
+
+  // 新增用户
+  async createPermissionUser(operatorUserId: string, nickname: string, phone: string) {
+    const isSuperAdmin = await this.getActiveSuperAdmin(operatorUserId);
+    if (!isSuperAdmin) {
+      return { code: 403, msg: '无权限', data: null };
+    }
+
+    const { data: created, error } = await this.client
+      .from('users')
+      .insert({
+        nickname: nickname || '',
+        phone: phone || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select('id, nickname, phone, avatar_url')
+      .single();
+
+    if (error) throw new Error(`新增用户失败: ${error.message}`);
+
+    return { code: 200, msg: 'success', data: created };
+  }
+
+  // 编辑用户
+  async updatePermissionUser(operatorUserId: string, userId: string, nickname: string, phone: string) {
+    const isSuperAdmin = await this.getActiveSuperAdmin(operatorUserId);
+    if (!isSuperAdmin) {
+      return { code: 403, msg: '无权限', data: null };
+    }
+
+    const { data: user, error: userError } = await this.client
+      .from('users')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (userError) throw new Error(`查询用户失败: ${userError.message}`);
+    if (!user) {
+      return { code: 400, msg: '用户不存在', data: null };
+    }
+
+    const { data: updated, error: updateError } = await this.client
+      .from('users')
+      .update({
+        nickname: nickname || '',
+        phone: phone || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+      .select('id, nickname, phone, avatar_url')
+      .single();
+
+    if (updateError) throw new Error(`更新用户失败: ${updateError.message}`);
+
+    return { code: 200, msg: 'success', data: updated };
+  }
+
+  // 删除用户（含保护检查）
+  async deletePermissionUser(operatorUserId: string, userId: string) {
+    const isSuperAdmin = await this.getActiveSuperAdmin(operatorUserId);
+    if (!isSuperAdmin) {
+      return { code: 403, msg: '无权限', data: null };
+    }
+
+    // 1. 家长绑定关系保护
+    const { data: pcr, error: pcrError } = await this.client
+      .from('parent_child_relations')
+      .select('id')
+      .eq('user_id', userId)
+      .limit(1)
+      .maybeSingle();
+
+    if (pcrError) throw new Error(`查询家长绑定失败: ${pcrError.message}`);
+    if (pcr) {
+      return { code: 400, msg: '该用户存在家长绑定关系，无法删除', data: null };
+    }
+
+    // 2. 教师表保护
+    const { data: teacher, error: teacherError } = await this.client
+      .from('teachers')
+      .select('id')
+      .eq('user_id', userId)
+      .limit(1)
+      .maybeSingle();
+
+    if (teacherError) throw new Error(`查询教师失败: ${teacherError.message}`);
+    if (teacher) {
+      return { code: 400, msg: '该用户是教师，无法删除', data: null };
+    }
+
+    // 3. 教师角色的成长记录引用保护
+    const { data: teacherRoles, error: teacherRolesError } = await this.client
+      .from('user_roles')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('role_type', 'teacher');
+
+    if (teacherRolesError) throw new Error(`查询教师角色失败: ${teacherRolesError.message}`);
+
+    const teacherRoleIds = (teacherRoles || []).map((r: any) => r.id);
+    if (teacherRoleIds.length > 0) {
+      const { data: growth, error: growthError } = await this.client
+        .from('growth_records')
+        .select('id')
+        .in('teacher_id', teacherRoleIds)
+        .limit(1)
+        .maybeSingle();
+
+      if (growthError) throw new Error(`查询成长记录失败: ${growthError.message}`);
+      if (growth) {
+        return { code: 400, msg: '该教师存在成长记录，无法删除', data: null };
+      }
+    }
+
+    // 4. 删除 user_roles 再删除 users
+    const { error: deleteRolesError } = await this.client
+      .from('user_roles')
+      .delete()
+      .eq('user_id', userId);
+
+    if (deleteRolesError) throw new Error(`删除角色失败: ${deleteRolesError.message}`);
+
+    const { error: deleteUserError } = await this.client
+      .from('users')
+      .delete()
+      .eq('id', userId);
+
+    if (deleteUserError) throw new Error(`删除用户失败: ${deleteUserError.message}`);
+
+    return { code: 200, msg: 'success', data: { success: true } };
+  }
 }

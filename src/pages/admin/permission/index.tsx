@@ -4,6 +4,7 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
 import { ShieldCheck } from 'lucide-react-taro'
@@ -49,12 +50,31 @@ const getRoleColor = (roleType: string) => {
   }
 }
 
+const getRoleWeight = (roleType: string) => {
+  switch (roleType) {
+    case 'superadmin': return 4
+    case 'admin': return 3
+    case 'teacher': return 2
+    case 'parent': return 1
+    default: return 0
+  }
+}
+
+const sortRoles = (roles: RoleItem[]) =>
+  [...roles].sort((a, b) => getRoleWeight(b.role_type) - getRoleWeight(a.role_type))
+
 export default function PermissionPage() {
   const userId = useAppStore((s) => s.userId)
   const currentRole = useAppStore((s) => s.currentRole)
 
   const [users, setUsers] = useState<UserItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const [showDialog, setShowDialog] = useState(false)
+  const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
+  const [dialogUserId, setDialogUserId] = useState<string | null>(null)
+  const [dialogNickname, setDialogNickname] = useState('')
+  const [dialogPhone, setDialogPhone] = useState('')
 
   const loadUsers = useCallback(async () => {
     if (!userId) return
@@ -92,12 +112,13 @@ export default function PermissionPage() {
   const handleAssign = async (targetUserId: string, roleType: string) => {
     if (!userId) return
     try {
+      const url = '/api/admin/permission/assign'
       const res = await Network.request({
-        url: '/api/admin/permission/assign',
+        url,
         method: 'POST',
         data: { operator_user_id: userId, user_id: targetUserId, role_type: roleType },
       })
-      console.log('[权限管理] POST /api/admin/permission/assign', { operator_user_id: userId, user_id: targetUserId, role_type: roleType }, '->', res.data)
+      console.log('[权限管理] POST', url, { operator_user_id: userId, user_id: targetUserId, role_type: roleType }, '->', res.data)
       if (res.data?.code === 200) {
         Taro.showToast({ title: '已分配', icon: 'success' })
         loadUsers()
@@ -113,12 +134,13 @@ export default function PermissionPage() {
   const handleRevoke = async (roleId: string) => {
     if (!userId) return
     try {
+      const url = '/api/admin/permission/revoke'
       const res = await Network.request({
-        url: '/api/admin/permission/revoke',
+        url,
         method: 'POST',
         data: { operator_user_id: userId, user_role_id: roleId },
       })
-      console.log('[权限管理] POST /api/admin/permission/revoke', { operator_user_id: userId, user_role_id: roleId }, '->', res.data)
+      console.log('[权限管理] POST', url, { operator_user_id: userId, user_role_id: roleId }, '->', res.data)
       if (res.data?.code === 200) {
         Taro.showToast({ title: '已撤销', icon: 'success' })
         loadUsers()
@@ -131,36 +153,133 @@ export default function PermissionPage() {
     }
   }
 
+  const openCreateDialog = () => {
+    setDialogMode('create')
+    setDialogUserId(null)
+    setDialogNickname('')
+    setDialogPhone('')
+    setShowDialog(true)
+  }
+
+  const openEditDialog = (user: UserItem) => {
+    setDialogMode('edit')
+    setDialogUserId(user.id)
+    setDialogNickname(user.nickname || '')
+    setDialogPhone(user.phone || '')
+    setShowDialog(true)
+  }
+
+  const handleDialogConfirm = async () => {
+    if (!userId) return
+    if (!dialogNickname.trim()) {
+      Taro.showToast({ title: '请输入昵称', icon: 'none' })
+      return
+    }
+    const isEdit = dialogMode === 'edit' && dialogUserId
+    const url = isEdit ? `/api/admin/permission/user/${dialogUserId}` : '/api/admin/permission/user'
+    const method = isEdit ? 'PUT' : 'POST'
+    try {
+      const res = await Network.request({
+        url,
+        method,
+        data: { operator_user_id: userId, nickname: dialogNickname.trim(), phone: dialogPhone.trim() },
+      })
+      console.log('[权限管理]', method, url, { operator_user_id: userId, nickname: dialogNickname, phone: dialogPhone }, '->', res.data)
+      if (res.data?.code === 200) {
+        Taro.showToast({ title: isEdit ? '已更新' : '已新增', icon: 'success' })
+        setShowDialog(false)
+        loadUsers()
+      } else {
+        Taro.showToast({ title: res.data?.msg || '操作失败', icon: 'none' })
+      }
+    } catch (err) {
+      console.error('[权限管理] 保存失败:', err)
+      Taro.showToast({ title: '操作失败', icon: 'none' })
+    }
+  }
+
+  const handleDelete = (user: UserItem) => {
+    if (!userId) return
+    Taro.showModal({
+      title: '确认删除',
+      content: `确认删除用户「${user.nickname || '未命名'}」？`,
+      confirmText: '删除',
+      confirmColor: '#ef4444',
+      success: async (res) => {
+        if (!res.confirm) return
+        try {
+          const url = `/api/admin/permission/user/${user.id}`
+          const r = await Network.request({ url, method: 'DELETE', data: { operator_user_id: userId } })
+          console.log('[权限管理] DELETE', url, { operator_user_id: userId }, '->', r.data)
+          if (r.data?.code === 200) {
+            Taro.showToast({ title: '已删除', icon: 'success' })
+            loadUsers()
+          } else {
+            Taro.showToast({ title: r.data?.msg || '删除失败', icon: 'none' })
+          }
+        } catch (err) {
+          console.error('[权限管理] 删除失败:', err)
+          Taro.showToast({ title: '删除失败', icon: 'none' })
+        }
+      },
+    })
+  }
+
+  const filteredUsers = users.filter((user) => {
+    const kw = searchKeyword.trim().toLowerCase()
+    if (!kw) return true
+    const name = (user.nickname || '').toLowerCase()
+    const phone = user.phone || ''
+    return name.includes(kw) || phone.includes(kw)
+  })
+
   return (
     <View className="min-h-screen bg-background">
       <ScrollView className="h-screen" scrollY>
         <View className="px-4 pt-4 pb-6 space-y-3">
-          <Text className="block text-lg font-bold text-foreground">权限管理</Text>
+          <View className="flex items-center justify-between">
+            <Text className="block text-lg font-bold text-foreground">权限管理</Text>
+            <Button size="sm" className="h-8 px-3" onClick={openCreateDialog}>新增用户</Button>
+          </View>
+
+          <View className="bg-gray-50 rounded-xl px-4 py-3">
+            <Input
+              className="w-full bg-transparent"
+              placeholder="搜索昵称/手机号"
+              value={searchKeyword}
+              onInput={(e) => setSearchKeyword(e.detail.value)}
+            />
+          </View>
+
           <Text className="block text-sm text-muted-foreground">
-            共 {users.length} 位用户，可为用户分配或撤销角色
+            共 {filteredUsers.length} 位用户
           </Text>
 
           {loading ? (
             <View className="flex items-center justify-center py-20">
               <Text className="block text-sm text-gray-400">加载中...</Text>
             </View>
-          ) : users.length === 0 ? (
+          ) : filteredUsers.length === 0 ? (
             <View className="flex flex-col items-center justify-center py-20">
               <ShieldCheck size={48} color="#d1d5db" />
-              <Text className="block text-sm text-gray-400 mt-3">暂无用户</Text>
+              <Text className="block text-sm text-gray-400 mt-3">{users.length === 0 ? '暂无用户' : '无匹配用户'}</Text>
             </View>
           ) : (
-            users.map((user) => (
+            filteredUsers.map((user) => (
               <Card key={user.id} className="bg-white rounded-xl border-0 shadow-sm">
                 <CardContent className="p-4">
                   <View className="flex items-start justify-between mb-2">
-                    <View className="flex-1 min-w-0">
-                      <Text className="block text-base font-medium text-foreground">
+                    <View className="flex-1 min-w-0 mr-2">
+                      <Text className="block text-base font-medium text-foreground truncate">
                         {user.nickname || '未命名'}
                       </Text>
                       <Text className="block text-sm text-muted-foreground mt-1">
                         {user.phone || '未绑定手机号'}
                       </Text>
+                    </View>
+                    <View className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => openEditDialog(user)}>编辑</Button>
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-red-500" onClick={() => handleDelete(user)}>删除</Button>
                     </View>
                   </View>
 
@@ -169,11 +288,10 @@ export default function PermissionPage() {
                     {user.roles.length === 0 ? (
                       <Text className="block text-xs text-gray-400">暂无角色</Text>
                     ) : (
-                      user.roles.map((role) => (
+                      sortRoles(user.roles).map((role) => (
                         <View key={role.id} className="flex items-center gap-1">
                           <Badge className={`${getRoleColor(role.role_type)} border-transparent`}>
                             {getRoleLabel(role.role_type)}
-                            {role.real_name ? ` · ${role.real_name}` : ''}
                           </Badge>
                           <Text
                             className="block text-xs text-red-500 px-1"
@@ -207,6 +325,56 @@ export default function PermissionPage() {
           )}
         </View>
       </ScrollView>
+
+      {/* 新增/编辑用户弹窗 */}
+      {showDialog && (
+        <View
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.5)',
+          }}
+          onClick={() => setShowDialog(false)}
+        >
+          <View
+            className="w-4/5 max-w-sm bg-white rounded-xl p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Text className="block text-base font-semibold text-foreground mb-4">
+              {dialogMode === 'edit' ? '编辑用户' : '新增用户'}
+            </Text>
+            <View className="bg-gray-50 rounded-xl px-4 py-3 mb-3">
+              <Input
+                className="w-full bg-transparent"
+                placeholder="昵称"
+                value={dialogNickname}
+                onInput={(e) => setDialogNickname(e.detail.value)}
+              />
+            </View>
+            <View className="bg-gray-50 rounded-xl px-4 py-3 mb-5">
+              <Input
+                className="w-full bg-transparent"
+                placeholder="手机号"
+                type="number"
+                maxlength={11}
+                value={dialogPhone}
+                onInput={(e) => setDialogPhone(e.detail.value)}
+              />
+            </View>
+            <View className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setShowDialog(false)}>取消</Button>
+              <Button className="flex-1" onClick={handleDialogConfirm}>确认</Button>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   )
 }
