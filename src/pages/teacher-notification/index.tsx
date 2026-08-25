@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { notificationApi, classApi, childrenApi, teacherApi, courseApi } from '@/utils/api'
 import { useAppStore } from '@/store/app'
 import BackButton from '@/components/back-button'
-import { Send, Save, Inbox, Users, User, Bell, BookOpen, Megaphone } from 'lucide-react-taro'
+import { Send, Save, Inbox, Users, User, Bell, BookOpen, Megaphone, ChevronRight } from 'lucide-react-taro'
 
 type NotificationType = 'all' | 'course' | 'class' | 'personal' | 'teacher'
 
@@ -73,7 +73,7 @@ const formatTime = (dateStr: string) => {
 
 export default function TeacherNotificationPage() {
   const currentRole = useAppStore((s) => s.currentRole)
-  const isAdmin = currentRole?.role_type === 'admin'
+  const isAdmin = currentRole?.role_type === 'admin' || currentRole?.role_type === 'superadmin'
 
   const visibleTypeOptions = isAdmin
     ? TYPE_OPTIONS
@@ -93,6 +93,8 @@ export default function TeacherNotificationPage() {
   const [draftList, setDraftList] = useState<DraftItem[]>([])
   const [draftLoading, setDraftLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [childPickerOpen, setChildPickerOpen] = useState(false)
+  const [childSearch, setChildSearch] = useState('')
 
   const isFirstRender = useRef(true)
 
@@ -166,11 +168,6 @@ export default function TeacherNotificationPage() {
     }
   }
 
-  const classMap = classList.reduce((m, c) => {
-    m[c.id] = c.name
-    return m
-  }, {} as Record<string, string>)
-
   const getTargetOptions = (): TargetOption[] => {
     switch (type) {
       case 'course':
@@ -180,7 +177,7 @@ export default function TeacherNotificationPage() {
       case 'personal':
         return childrenList.map((c) => ({
           id: c.id,
-          label: `${c.name}（${classMap[c.class_id] || c.class_name || '未知班级'}）`,
+          label: c.name,
         }))
       case 'teacher':
         return teacherList.map((t) => ({ id: t.id, label: t.real_name || t.nickname || t.name || '未命名教师' }))
@@ -341,7 +338,19 @@ export default function TeacherNotificationPage() {
                 )}
               </Label>
               <View className="flex flex-wrap gap-2 mt-2">
-                {targetOptions.length > 0 ? targetOptions.map((opt) => {
+                {type === 'personal' ? (
+                  <View
+                    className="bg-gray-50 rounded-xl px-4 py-3 flex items-center justify-between w-full"
+                    onClick={() => setChildPickerOpen(true)}
+                  >
+                    <Text className="text-sm text-gray-600">
+                      {selectedTargetIds.length > 0
+                        ? `已选 ${selectedTargetIds.length} 个幼儿`
+                        : '点击选择幼儿'}
+                    </Text>
+                    <ChevronRight size={16} color="#9CA3AF" />
+                  </View>
+                ) : targetOptions.length > 0 ? targetOptions.map((opt) => {
                   const active = selectedTargetIds.includes(opt.id)
                   return (
                     <Badge
@@ -358,7 +367,6 @@ export default function TeacherNotificationPage() {
                   <Text className="block text-sm text-muted-foreground">
                     {type === 'course' && '暂无课程'}
                     {type === 'class' && '暂无班级，请先在班级管理中添加班级'}
-                    {type === 'personal' && '暂无在读幼儿'}
                     {type === 'teacher' && '暂无教师'}
                   </Text>
                 )}
@@ -471,6 +479,55 @@ export default function TeacherNotificationPage() {
                 </View>
               ))
             )}
+          </View>
+        </DialogContent>
+      </Dialog>
+
+      {/* 幼儿选择弹窗 */}
+      <Dialog open={childPickerOpen} onOpenChange={setChildPickerOpen}>
+        <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+          <DialogHeader>
+            <DialogTitle>
+              <Text className="block text-lg font-semibold text-foreground">选择幼儿</Text>
+            </DialogTitle>
+          </DialogHeader>
+          <View className="mt-4 space-y-3">
+            <View className="bg-gray-50 rounded-xl px-4 py-3">
+              <Input
+                className="w-full bg-transparent"
+                placeholder="搜索幼儿姓名"
+                value={childSearch}
+                onInput={(e) => setChildSearch(e.detail.value)}
+              />
+            </View>
+            <View className="flex flex-wrap gap-2">
+              {childrenList.filter((c) => (c.name || '').includes(childSearch.trim())).length > 0 ? (
+                childrenList
+                  .filter((c) => (c.name || '').includes(childSearch.trim()))
+                  .map((c) => {
+                    const active = selectedTargetIds.includes(c.id)
+                    return (
+                      <Badge
+                        key={c.id}
+                        className={`cursor-pointer px-4 py-2 ${
+                          active ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'
+                        }`}
+                        onClick={() => handleToggle(c.id)}
+                      >
+                        <Text className="text-sm">{c.name}</Text>
+                      </Badge>
+                    )
+                  })
+              ) : (
+                <Text className="block text-sm text-muted-foreground py-4">未找到匹配幼儿</Text>
+              )}
+            </View>
+            <Button
+              className="w-full bg-primary text-white rounded-xl"
+              onClick={() => setChildPickerOpen(false)}
+            >
+              <Text>确定（已选 {selectedTargetIds.length} 个）</Text>
+            </Button>
           </View>
         </DialogContent>
       </Dialog>
