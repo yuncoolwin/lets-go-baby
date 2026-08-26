@@ -181,17 +181,17 @@ export default function MessagesPage() {
         <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '85vh' }}>
           <DialogHeader>
             <DialogTitle>
-              <View className="flex items-center gap-2 flex-wrap">
+              <View className="flex items-center gap-2 flex-wrap pr-10">
                 {detailItem && (
                   <Badge className={`${getTypeBadge(detailItem.type).className} text-xs flex-shrink-0`}>
                     <Text className="text-xs">{getTypeBadge(detailItem.type).label}</Text>
                   </Badge>
                 )}
-                <Text className="text-lg font-semibold text-foreground flex-1 min-w-0">
+                <Text className="text-lg font-semibold text-foreground">
                   {detailItem?.title || '通知详情'}
                 </Text>
                 {detailItem && (
-                  <Text className="text-xs text-muted-foreground flex-shrink-0">
+                  <Text className="text-xs text-muted-foreground">
                     {formatTime(detailItem.created_at)}
                   </Text>
                 )}
