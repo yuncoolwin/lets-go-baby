@@ -635,6 +635,32 @@ export class EnrollmentsService {
     return data || [];
   }
 
+  async findByCourse(courseId: string): Promise<{ child_id: string; child_name: string }[]> {
+    await this.syncExpiredStatus();
+    const { data: enrollments, error } = await this.client
+      .from('enrollments')
+      .select('child_id')
+      .eq('course_id', courseId)
+      .eq('status', '进行中');
+
+    if (error) throw new Error(`查询课程报读失败: ${error.message}`);
+
+    const childIds = Array.from(new Set((enrollments || []).map((e: any) => e.child_id as string).filter(Boolean)));
+    if (childIds.length === 0) return [];
+
+    const { data: children, error: childError } = await this.client
+      .from('children')
+      .select('id, name')
+      .in('id', childIds);
+
+    if (childError) throw new Error(`查询幼儿失败: ${childError.message}`);
+
+    const nameMap = new Map<string, string>();
+    (children || []).forEach((c: any) => nameMap.set(c.id, c.name));
+
+    return childIds.map((id) => ({ child_id: id, child_name: nameMap.get(id) || '' }));
+  }
+
   async create(dto: CreateEnrollmentDto): Promise<Enrollment> {
     const { class_id, course_id, ...rest } = dto;
 

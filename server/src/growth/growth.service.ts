@@ -220,6 +220,7 @@ export class GrowthService {
 
   async findAll(query: {
     child_id?: string;
+    child_ids?: string;
     page?: number | string;
     page_size?: number | string;
     role_id?: string;
@@ -231,7 +232,12 @@ export class GrowthService {
     const to = from + pageSize - 1;
 
     let q = this.client.from('growth_records').select('*', { count: 'exact' });
-    if (query.child_id) q = q.eq('child_id', query.child_id);
+    if (query.child_id) {
+      q = q.eq('child_id', query.child_id);
+    } else if (query.child_ids) {
+      const ids = query.child_ids.split(',').map((s) => s.trim()).filter(Boolean);
+      if (ids.length > 0) q = q.in('child_id', ids);
+    }
     // 教师只返回自己创建的记录，admin/superadmin 返回全部
     if (role?.role_type === 'teacher') {
       q = q.eq('teacher_id', query.role_id);

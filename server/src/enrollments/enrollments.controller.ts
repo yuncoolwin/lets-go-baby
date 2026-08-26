@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, HttpCode } from '@nestjs/common';
 import { EnrollmentsService, CreateEnrollmentDto, UpdateEnrollmentDto } from './enrollments.service';
 
 @Controller('enrollments')
@@ -9,6 +9,16 @@ export class EnrollmentsController {
   async findByChild(@Param('childId') childId: string) {
     try {
       const data = await this.enrollmentsService.findByChild(childId);
+      return { code: 200, msg: 'success', data };
+    } catch (e: any) {
+      return { code: 500, msg: e.message || '查询失败' };
+    }
+  }
+
+  @Get('by-course')
+  async findByCourse(@Query('course_id') courseId: string) {
+    try {
+      const data = await this.enrollmentsService.findByCourse(courseId || '');
       return { code: 200, msg: 'success', data };
     } catch (e: any) {
       return { code: 500, msg: e.message || '查询失败' };

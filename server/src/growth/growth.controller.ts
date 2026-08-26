@@ -33,7 +33,7 @@ export class GrowthController {
   @HttpCode(200)
   async findAll(
     @Query()
-    query: { child_id?: string; page?: string; page_size?: string; role_id?: string },
+    query: { child_id?: string; child_ids?: string; page?: string; page_size?: string; role_id?: string },
   ) {
     const data = await this.growthService.findAll(query);
     if (data?.error) {

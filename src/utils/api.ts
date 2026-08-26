@@ -297,7 +297,7 @@ export const growthApi = {
     request({ url: roleId ? `/api/growth-records?role_id=${roleId}` : '/api/growth-records', method: 'POST', data }),
 
   // 记录列表（child_id 筛选 + 分页 + 角色权限）
-  list: (params?: { child_id?: string; page?: number; page_size?: number; role_id?: string }) =>
+  list: (params?: { child_id?: string; child_ids?: string; page?: number; page_size?: number; role_id?: string }) =>
     request({ url: '/api/growth-records', method: 'GET', data: params }),
 
   // 记录详情
