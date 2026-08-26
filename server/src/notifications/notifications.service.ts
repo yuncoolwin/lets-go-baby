@@ -297,6 +297,9 @@ export class NotificationsService {
       });
     }
 
+    const authorIds = [...new Set(list.map((n: any) => n.author_id).filter(Boolean))];
+    const senderNames = await this.getSenderNames(authorIds);
+
     // 反查发送对象名称
     const listWithMeta = await Promise.all(
       list.map(async (n: any) => {
@@ -307,6 +310,7 @@ export class NotificationsService {
           read_count: stats.read_count,
           recipient_count: stats.recipient_count,
           target_labels: targetLabels,
+          sender_name: senderNames.get(n.author_id) || '',
         };
       }),
     );
@@ -344,9 +348,22 @@ export class NotificationsService {
       (users || []).forEach((u: any) => nickMap.set(u.id, u.nickname || ''));
     }
 
+    const teacherNickMap = new Map<string, string>();
+    if (userIds.length) {
+      const { data: teacherRows } = await this.client
+        .from('teachers')
+        .select('user_id, nickname')
+        .in('user_id', userIds);
+      (teacherRows || []).forEach((t: any) => {
+        if (t.user_id && t.nickname) teacherNickMap.set(t.user_id, t.nickname);
+      });
+    }
+
     ids.forEach((aid) => {
       const role = roleMap.get(aid);
-      let name = role?.user_id ? nickMap.get(role.user_id) || '' : '';
+      let name = role?.user_id
+        ? teacherNickMap.get(role.user_id) || nickMap.get(role.user_id) || ''
+        : '';
       if (!name) name = role?.real_name || '';
       map.set(aid, name);
     });

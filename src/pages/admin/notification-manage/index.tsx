@@ -262,11 +262,9 @@ export default function NotificationManagePage() {
                         <Text className="text-xs">{typeBadge.label}</Text>
                       </Badge>
                       <Text className="text-base font-semibold text-foreground truncate">{item.title}</Text>
-                      {mainTab !== 'all' && (item.target_labels || []).length > 0 && (
-                        <Text className="text-xs text-muted-foreground truncate">
-                          {(item.target_labels || []).join('、')}
-                        </Text>
-                      )}
+                      {item.sender_name ? (
+                        <Text className="text-xs text-muted-foreground truncate">{item.sender_name}</Text>
+                      ) : null}
                       {mainTab === 'all' && item.is_pinned && (
                         <Badge className="bg-red-100 text-red-700 text-xs shrink-0">
                           <Text className="text-xs">置顶</Text>
@@ -290,18 +288,15 @@ export default function NotificationManagePage() {
                       >
                         {item.content}
                       </Text>
-                      {item.sender_name && (
-                        <Text className="block text-xs text-muted-foreground mt-2">
-                          来自: {item.sender_name}
-                        </Text>
-                      )}
                     </>
                   )}
 
                   {/* 全部：已读回执 */}
                   {mainTab === 'all' && (
                     <View className="flex items-center justify-between mt-2">
-                      <Text className="text-xs text-muted-foreground" />
+                      <Text className="text-xs text-muted-foreground truncate flex-1">
+                        {(item.target_labels || []).join('、')}
+                      </Text>
                       <Text className="text-xs text-muted-foreground">
                         已读 {item.read_count ?? 0}/{item.recipient_count ?? 0}
                       </Text>
@@ -312,7 +307,7 @@ export default function NotificationManagePage() {
                   {mainTab === 'sent' && item.status === 'published' && (
                     <View className="flex items-center justify-between mt-3">
                       <Text className="text-xs text-muted-foreground">
-                        已读 {item.read_count ?? 0}/{item.recipient_count ?? 0}
+                        {(item.target_labels || []).join('、')} 已读 {item.read_count ?? 0}/{item.recipient_count ?? 0}
                       </Text>
                       <Button variant="secondary" size="sm" onClick={() => handleRevoke(item.id)}>
                         <Text className="text-xs">撤回</Text>
@@ -322,7 +317,7 @@ export default function NotificationManagePage() {
                   {mainTab === 'sent' && item.status === 'revoked' && (
                     <View className="flex items-center justify-between mt-3">
                       <Text className="text-xs text-muted-foreground">
-                        已读 {item.read_count ?? 0}/{item.recipient_count ?? 0}
+                        {(item.target_labels || []).join('、')} 已读 {item.read_count ?? 0}/{item.recipient_count ?? 0}
                       </Text>
                       <View className="flex items-center gap-2">
                         <Badge className="bg-gray-200 text-gray-500 text-xs">

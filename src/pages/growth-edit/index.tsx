@@ -361,14 +361,15 @@ export default function GrowthEditPage() {
         {/* 正文 */}
         <View>
           <Text className="block text-sm text-muted-foreground mb-2">正文</Text>
-          <Textarea
-            className="w-full bg-gray-50 rounded-xl border-0 p-4"
-            style={{ minHeight: '120px', height: 'auto' }}
-            placeholder="记录孩子的成长点滴..."
-            value={content}
-            onInput={(e) => setContent(e.detail.value)}
-            maxlength={1000}
-          />
+          <View className="bg-gray-50 rounded-xl p-4">
+            <Textarea
+              className="w-full bg-transparent border-transparent min-h-80"
+              placeholder="记录孩子的成长点滴..."
+              value={content}
+              onInput={(e) => setContent(e.detail.value)}
+              maxlength={1000}
+            />
+          </View>
         </View>
 
         {/* 图片 */}

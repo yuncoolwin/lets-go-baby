@@ -77,9 +77,22 @@ export class GrowthService {
       (users || []).forEach((u) => nickMap.set(u.id, u.nickname || ''));
     }
 
+    const teacherNickMap = new Map<string, string>();
+    if (userIds.length) {
+      const { data: teacherRows } = await this.client
+        .from('teachers')
+        .select('user_id, nickname')
+        .in('user_id', userIds);
+      (teacherRows || []).forEach((t) => {
+        if (t.user_id && t.nickname) teacherNickMap.set(t.user_id, t.nickname);
+      });
+    }
+
     teacherIds.forEach((tid) => {
       const role = roleMap.get(tid);
-      let name = role?.user_id ? nickMap.get(role.user_id) || '' : '';
+      let name = role?.user_id
+        ? teacherNickMap.get(role.user_id) || nickMap.get(role.user_id) || ''
+        : '';
       if (!name) name = role?.real_name || '';
       map.set(tid, name);
     });
