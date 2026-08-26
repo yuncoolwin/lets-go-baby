@@ -55,6 +55,20 @@ export class AttendanceController {
     return { code: 200, msg: 'success', data };
   }
 
+  @Post('check-out')
+  @HttpCode(200)
+  async checkOut(
+    @Body() body: { childId: string; classId: string; date: string; courseType?: string },
+  ) {
+    const data = await this.attendanceService.checkOut({
+      childId: body.childId,
+      classId: body.classId,
+      date: body.date,
+      courseType: body.courseType,
+    });
+    return { code: 200, msg: 'success', data };
+  }
+
   @Post('clear')
   @HttpCode(200)
   async clearByClassAndDate(

@@ -24,8 +24,11 @@ export class ParentController {
 
   @Get('attendance')
   @HttpCode(200)
-  async getAttendance(@Query('parent_role_id') parentRoleId?: string) {
-    const data = await this.parentService.getAttendance(parentRoleId);
+  async getAttendance(
+    @Query('parent_role_id') parentRoleId?: string,
+    @Query('course_type') courseType?: string,
+  ) {
+    const data = await this.parentService.getAttendance(parentRoleId, courseType);
     return { code: 200, msg: 'success', data };
   }
 

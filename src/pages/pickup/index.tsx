@@ -30,6 +30,15 @@ export default function PickupPage() {
     }
   })()
 
+  const courseType = (() => {
+    try {
+      const raw = Taro.getCurrentInstance()?.router?.params?.course_type
+      return raw ? decodeURIComponent(raw) : ''
+    } catch {
+      return ''
+    }
+  })()
+
   useEffect(() => {
     loadRecords()
   }, [])
@@ -40,7 +49,7 @@ export default function PickupPage() {
       const res = await Network.request({
         url: '/api/parent/attendance',
         method: 'GET',
-        data: { course_name: courseName },
+        data: { course_type: courseType },
       })
       console.log('[Pickup] records:', res.data)
       if (res.data?.data) {
@@ -52,18 +61,17 @@ export default function PickupPage() {
     setLoading(false)
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'present': return { label: '已入园', className: 'bg-green-100 text-green-700' }
-      case 'absent': return { label: '未入园', className: 'bg-red-100 text-red-700' }
-      case 'leave': return { label: '请假', className: 'bg-yellow-100 text-yellow-700' }
-      default: return { label: '未知', className: 'bg-gray-100 text-gray-700' }
-    }
+  const getStatusBadge = (status: string, check_in_time: string | null, check_out_time: string | null) => {
+    if (status === 'leave') return { label: '请假', className: 'bg-yellow-100 text-yellow-700' }
+    if (status === 'absent') return { label: '缺席', className: 'bg-red-100 text-red-700' }
+    if (check_out_time) return { label: '已离园', className: 'bg-gray-100 text-gray-700' }
+    if (check_in_time) return { label: '已入园', className: 'bg-green-100 text-green-700' }
+    return { label: '未记录', className: 'bg-gray-100 text-gray-500' }
   }
 
   const formatTime = (time: string | null) => {
     if (!time) return '—'
-    return new Date(time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    return time.split('T')[1]?.slice(0, 5) || '—'
   }
 
   if (loading) {
@@ -88,7 +96,7 @@ export default function PickupPage() {
       ) : (
         <View className="space-y-3">
           {records.map((record) => {
-            const badge = getStatusBadge(record.status)
+            const badge = getStatusBadge(record.status, record.check_in_time, record.check_out_time)
             return (
               <Card key={record.id} className="bg-white rounded-xl border-0 shadow-sm">
                 <CardContent className="p-4">
@@ -108,9 +116,7 @@ export default function PickupPage() {
                       <Text className="block text-sm text-foreground">{formatTime(record.check_out_time)}</Text>
                     </View>
                   </View>
-                  {record.notes && (
-                    <Text className="block text-xs text-muted-foreground mt-2">备注: {record.notes}</Text>
-                  )}
+                  
                 </CardContent>
               </Card>
             )

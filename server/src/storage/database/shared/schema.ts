@@ -193,6 +193,7 @@ export const attendanceRecords = pgTable("attendance_records", {
 	childId: varchar("child_id", { length: 36 }).notNull(),
 	classId: varchar("class_id", { length: 36 }).notNull(),
 	recordDate: date("record_date").notNull(),
+	courseType: varchar("course_type", { length: 50 }),
 	checkInTime: timestamp("check_in_time", { withTimezone: true, mode: 'string' }),
 	checkOutTime: timestamp("check_out_time", { withTimezone: true, mode: 'string' }),
 	checkInBy: varchar("check_in_by", { length: 36 }),

@@ -38,6 +38,7 @@ interface DailyFeedbackRecord {
   class_id: string | null
   course_id: string | null
   course_name: string | null
+  course_type?: string | null
   class_name?: string | null
 }
 
@@ -530,7 +531,7 @@ export default function IndexPage() {
                               className="text-xs rounded-full px-2 bg-orange-50 text-orange-600"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                Taro.navigateTo({ url: '/pages/pickup/index?course_name=' + encodeURIComponent(record.course_name || '') })
+                                Taro.navigateTo({ url: '/pages/pickup/index?course_name=' + encodeURIComponent(record.course_name || '') + '&course_type=' + encodeURIComponent(record.course_type || '') })
                               }}
                             >
                               接送记录

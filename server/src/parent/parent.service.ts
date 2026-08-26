@@ -229,34 +229,49 @@ export class ParentService {
         class_id: f.class_id,
         course_id: f.course_id,
         course_name: f.course_name,
+        course_type: f.group_id ? (f.group_id.split('__')[1] || '') : '',
         class_name: cid ? (classMap[cid] || null) : null,
       };
     });
   }
 
-  async getAttendance(parentRoleId?: string) {
-    // Demo data
-    const records: Array<{
-      id: string;
-      record_date: string;
-      status: string;
-      check_in_time: string | null;
-      check_out_time: string | null;
-      notes: string | null;
-    }> = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(Date.now() - i * 86400000);
-      const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-      records.push({
-        id: `att_${i}`,
-        record_date: date.toISOString().split('T')[0],
-        status: isWeekend ? 'leave' : 'present',
-        check_in_time: isWeekend ? null : new Date(date.setHours(8, 30, 0, 0)).toISOString(),
-        check_out_time: isWeekend ? null : new Date(date.setHours(17, 0, 0, 0)).toISOString(),
-        notes: isWeekend ? '周末' : null,
-      });
+  async getAttendance(parentRoleId?: string, courseType?: string) {
+    if (!parentRoleId) return [];
+
+    // 查询当前家长绑定的在读幼儿
+    const { data: relations } = await this.client
+      .from('parent_child_relations')
+      .select('child_id')
+      .eq('parent_role_id', parentRoleId)
+      .eq('status', 'active');
+    const childIds = [...new Set((relations || []).map(r => r.child_id).filter(Boolean))];
+    if (!childIds.length) return [];
+
+    let query = this.client
+      .from('attendance_records')
+      .select('id, record_date, status, check_in_time, check_out_time, notes, course_type')
+      .in('child_id', childIds)
+      .order('record_date', { ascending: false });
+
+    if (courseType) {
+      query = query.eq('course_type', courseType);
     }
-    return records;
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('[ParentService] getAttendance error:', error);
+      return [];
+    }
+
+    return (data || []).map(r => ({
+      id: r.id,
+      record_date: r.record_date,
+      status: r.status,
+      check_in_time: r.check_in_time,
+      check_out_time: r.check_out_time,
+      notes: r.notes,
+      course_type: r.course_type,
+    }));
   }
 
   async getGrowthRecords(parentRoleId?: string) {

@@ -20,6 +20,9 @@ interface ChildItem {
   avatar_url?: string
   attendance_status?: string | null
   course_type?: string | null
+  check_in_time?: string | null
+  check_out_time?: string | null
+  record_status?: string | null
 }
 
 const COURSE_TYPE_COLORS: Record<string, string> = {
@@ -128,6 +131,9 @@ export default function RollCallPage() {
               gender: s.gender,
               course_type: g.course_type,
               attendance_status: s.attendance_status || null,
+              check_in_time: s.check_in_time || null,
+              check_out_time: s.check_out_time || null,
+              record_status: s.status || null,
             })
             const status = s.attendance_status
             if (status === 'present' || status === 'absent' || status === 'leave' || status === 'full_day' || status === 'half_day') {
@@ -210,6 +216,9 @@ export default function RollCallPage() {
             gender: s.gender,
             course_type: g.course_type,
             attendance_status: s.attendance_status || null,
+            check_in_time: s.check_in_time || null,
+            check_out_time: s.check_out_time || null,
+            record_status: s.status || null,
           })
           const status = s.attendance_status
           if (status === 'present' || status === 'absent' || status === 'leave' || status === 'full_day' || status === 'half_day') {
@@ -257,6 +266,26 @@ export default function RollCallPage() {
     if (prev === status) return
     setTempAttendance(prevAtt => ({ ...prevAtt, [childId]: status }))
     setHasUnsaved(true)
+  }
+
+  const handleCheckOut = async (child: ChildItem) => {
+    try {
+      await Network.request({
+        url: '/api/attendance/check-out',
+        method: 'POST',
+        data: {
+          childId: child.id,
+          classId,
+          date: selectedDate,
+          courseType: child.course_type || '',
+        },
+      })
+      Taro.showToast({ title: '已离园', icon: 'success' })
+      loadData()
+    } catch (err) {
+      console.error('[RollCall] check-out error:', err)
+      Taro.showToast({ title: '离园操作失败', icon: 'none' })
+    }
   }
 
   const handleSave = async () => {
@@ -589,6 +618,16 @@ export default function RollCallPage() {
                                         {child.name.charAt(0)}
                                       </View>
                                       <Text className="block text-base font-medium text-gray-900 flex-1">{child.name}</Text>
+                                      {child.check_out_time ? (
+                                        <Text className="block text-xs text-gray-400 flex-shrink-0">已离园</Text>
+                                      ) : child.check_in_time && child.record_status !== 'leave' && child.record_status !== 'absent' ? (
+                                        <View
+                                          className="px-2 py-1 rounded-lg bg-orange-100 flex-shrink-0"
+                                          onClick={() => handleCheckOut(child)}
+                                        >
+                                          <Text className="block text-xs text-orange-600">离园</Text>
+                                        </View>
+                                      ) : null}
                                     </View>
 
                                     <View className="flex gap-2">

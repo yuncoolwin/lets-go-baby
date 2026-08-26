@@ -118,6 +118,13 @@ export class AttendanceService {
     const queryDate = date || getShanghaiToday();
     console.log(`[AdminOverview] classId=${classId}, date=${queryDate}`);
 
+    // 假期：全园/班级/法定假期时，不显示在读幼儿
+    const holidayStatus = await this.getHolidayStatus(classId, queryDate);
+    if (holidayStatus.is_class_holiday) {
+      console.log(`[AdminOverview] Class holiday, return empty`);
+      return [];
+    }
+
     // 查询班级信息
     const { data: cls } = await this.client
       .from('classes')
@@ -202,6 +209,18 @@ export class AttendanceService {
       attendanceMap.set(key, a.status === 'present' ? 'present' : a.status === 'absent' ? 'absent' : a.status === 'leave' ? 'leave' : a.status === 'full_day' ? 'full_day' : a.status === 'half_day' ? 'half_day' : 'unknown');
     });
 
+    // 查询当天接送记录（check_in_time / check_out_time / status）
+    const { data: attendanceRecords } = await this.client
+      .from('attendance_records')
+      .select('child_id, course_type, check_in_time, check_out_time, status')
+      .eq('record_date', queryDate)
+      .in('child_id', childIds);
+    const recordMap = new Map<string, any>();
+    attendanceRecords?.forEach(r => {
+      const key = r.course_type ? `${r.child_id}__${r.course_type}` : r.child_id;
+      recordMap.set(key, r);
+    });
+
     const sortOrder = ['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日'];
     const groups: Array<{
       group_id: string;
@@ -217,6 +236,9 @@ export class AttendanceService {
         gender: string;
         course_type: string;
         attendance_status: string;
+        check_in_time: string | null;
+        check_out_time: string | null;
+        status: string | null;
         start_date: string | null;
         end_date: string | null;
         extended_end_date: string | null;
@@ -238,12 +260,16 @@ export class AttendanceService {
         if (attStatus === 'present' || attStatus === 'full_day' || attStatus === 'half_day') present++;
         else if (attStatus === 'absent') absent++;
         else if (attStatus === 'leave') leave++;
+        const rec = recordMap.get(attKey);
         return {
           id: s.child_id,
           name: s.name,
           gender: s.gender,
           course_type: ct,
           attendance_status: attStatus,
+          check_in_time: rec?.check_in_time || null,
+          check_out_time: rec?.check_out_time || null,
+          status: rec?.status || null,
           start_date: s.start_date,
           end_date: s.end_date,
           extended_end_date: s.extended_end_date || s.end_date,
@@ -331,6 +357,9 @@ export class AttendanceService {
       .single();
     if (error) throw error;
 
+    // 同步维护接送记录（按 child_id + record_date + course_type）
+    await this.syncAttendanceRecord(dto.child_id, dto.class_id, dto.date, courseType, dto.status);
+
     if (data) {
       const { error: logErr } = await this.client.from('audit_logs').insert({
         user_id: dto.operator_user_id || null,
@@ -346,6 +375,103 @@ export class AttendanceService {
     }
 
     return data;
+  }
+
+  /**
+   * 按 child_id + record_date + course_type 同步维护接送记录
+   */
+  private async syncAttendanceRecord(
+    childId: string,
+    classId: string,
+    date: string,
+    courseType: string,
+    status: string,
+  ) {
+    const { data: existing } = await this.client
+      .from('attendance_records')
+      .select('id, check_in_time, check_out_time')
+      .eq('child_id', childId)
+      .eq('record_date', date)
+      .eq('course_type', courseType)
+      .maybeSingle();
+
+    const now = new Date().toISOString();
+    const isPresent = status === 'present' || status === 'full_day' || status === 'half_day';
+    const isLeave = status === 'leave';
+    const isAbsent = status === 'absent';
+
+    if (isPresent) {
+      if (!existing || !existing.check_in_time) {
+        if (existing) {
+          await this.client
+            .from('attendance_records')
+            .update({ check_in_time: now, status: 'present', check_out_time: null, course_type: courseType })
+            .eq('id', existing.id);
+        } else {
+          await this.client
+            .from('attendance_records')
+            .insert({ child_id: childId, class_id: classId, record_date: date, course_type: courseType, check_in_time: now, status: 'present' });
+        }
+      }
+      // 已有 check_in_time -> 不覆盖
+    } else if (isLeave) {
+      if (existing) {
+        await this.client
+          .from('attendance_records')
+          .update({ status: 'leave', check_out_time: null, course_type: courseType })
+          .eq('id', existing.id);
+      } else {
+        await this.client
+          .from('attendance_records')
+          .insert({ child_id: childId, class_id: classId, record_date: date, course_type: courseType, status: 'leave' });
+      }
+    } else if (isAbsent) {
+      if (existing) {
+        await this.client
+          .from('attendance_records')
+          .update({ status: 'absent', check_out_time: null, course_type: courseType })
+          .eq('id', existing.id);
+      } else {
+        await this.client
+          .from('attendance_records')
+          .insert({ child_id: childId, class_id: classId, record_date: date, course_type: courseType, status: 'absent' });
+      }
+    }
+  }
+
+  /**
+   * 离园：将该幼儿当天该课程接送记录 check_out_time=now()、status 清空为正常
+   */
+  async checkOut(dto: {
+    childId: string;
+    classId: string;
+    date: string;
+    courseType?: string;
+  }) {
+    const courseType = dto.courseType || '';
+    const { data: existing } = await this.client
+      .from('attendance_records')
+      .select('id')
+      .eq('child_id', dto.childId)
+      .eq('record_date', dto.date)
+      .eq('course_type', courseType)
+      .maybeSingle();
+
+    const now = new Date().toISOString();
+    if (existing) {
+      const { error } = await this.client
+        .from('attendance_records')
+        .update({ check_out_time: now, status: 'present' })
+        .eq('id', existing.id);
+      if (error) throw error;
+    } else {
+      const { error } = await this.client
+        .from('attendance_records')
+        .insert({ child_id: dto.childId, class_id: dto.classId, record_date: dto.date, course_type: courseType, check_in_time: now, check_out_time: now, status: 'present' });
+      if (error) throw error;
+    }
+
+    return { success: true, child_id: dto.childId };
   }
 
   async clearByClassAndDate(
