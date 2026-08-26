@@ -161,6 +161,11 @@ export default function GrowthEditPage() {
         setSelectedChildId(data.child_id || '')
         setSelectedChildName(data.child_name || '')
         setRecordDate(data.record_date || formatToday())
+        if (data.course_name) {
+          const courseList = extractList(await courseApi.list())
+          const matched = courseList.find((c) => c.name === data.course_name)
+          if (matched) setSelectedCourseId(matched.id)
+        }
       }
     } catch (err) {
       console.error('[GrowthEdit] load record error:', err)
@@ -292,15 +297,17 @@ export default function GrowthEditPage() {
     }
     setSaving(true)
     try {
+      const selectedCourse = courses.find((c) => c.id === selectedCourseId)
+      const courseName = selectedCourse?.name || ''
       if (recordId) {
         await growthApi.update(
           recordId,
-          { title, content, photo_urls: images, record_date: recordDate },
+          { title, content, photo_urls: images, record_date: recordDate, course_name: courseName },
           currentRole?.id,
         )
       } else {
         await growthApi.create(
-          { child_id: selectedChildId, title, content, photo_urls: images, record_date: recordDate },
+          { child_id: selectedChildId, title, content, photo_urls: images, record_date: recordDate, course_name: courseName },
           currentRole?.id,
         )
         if (draftId) removeDraftById(draftId)

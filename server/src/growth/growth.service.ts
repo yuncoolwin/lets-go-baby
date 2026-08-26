@@ -307,7 +307,7 @@ export class GrowthService {
 
   async update(
     id: string,
-    dto: { title?: string; content?: string; photo_urls?: string[]; record_date?: string },
+    dto: { title?: string; content?: string; photo_urls?: string[]; record_date?: string; course_name?: string },
     roleId?: string,
   ) {
     const { data: existing } = await this.client
@@ -328,6 +328,7 @@ export class GrowthService {
     if (dto.content !== undefined) updateData.content = dto.content;
     if (dto.photo_urls !== undefined) updateData.photo_urls = dto.photo_urls;
     if (dto.record_date !== undefined) updateData.record_date = dto.record_date;
+    if (dto.course_name !== undefined) updateData.course_name = dto.course_name;
 
     const { data: updated, error } = await this.client
       .from('growth_records')
