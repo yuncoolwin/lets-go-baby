@@ -359,11 +359,24 @@ export class NotificationsService {
       });
     }
 
+    const realNameNickMap = new Map<string, string>();
+    const realNames = [...new Set((roles || []).map((r: any) => r.real_name).filter(Boolean))];
+    if (realNames.length) {
+      const { data: teacherByName } = await this.client
+        .from('teachers')
+        .select('real_name, nickname')
+        .in('real_name', realNames);
+      (teacherByName || []).forEach((t: any) => {
+        if (t.real_name && t.nickname) realNameNickMap.set(t.real_name, t.nickname);
+      });
+    }
+
     ids.forEach((aid) => {
       const role = roleMap.get(aid);
       let name = role?.user_id
         ? teacherNickMap.get(role.user_id) || nickMap.get(role.user_id) || ''
         : '';
+      if (!name && role?.real_name) name = realNameNickMap.get(role.real_name) || '';
       if (!name) name = role?.real_name || '';
       map.set(aid, name);
     });

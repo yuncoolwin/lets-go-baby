@@ -74,7 +74,7 @@ export default function RollCallPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const isAdminUser = currentRole?.role_type === 'admin'
+      const isAdminUser = currentRole?.role_type === 'admin' || currentRole?.role_type === 'superadmin'
       setIsAdmin(isAdminUser)
 
       if (isAdminUser) {

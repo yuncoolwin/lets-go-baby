@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text, Image, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -178,24 +178,30 @@ export default function MessagesPage() {
 
       {/* 详情半屏弹窗 */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+        <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '85vh' }}>
           <DialogHeader>
             <DialogTitle>
-              <Text className="block text-lg font-semibold text-foreground">{detailItem?.title || '通知详情'}</Text>
-            </DialogTitle>
-          </DialogHeader>
-          <View className="mt-4 space-y-3">
-            {detailItem && (
-              <>
-                <View className="flex items-center gap-2">
-                  <Badge className={`${getTypeBadge(detailItem.type).className} text-xs`}>
+              <View className="flex items-center gap-2 flex-wrap">
+                {detailItem && (
+                  <Badge className={`${getTypeBadge(detailItem.type).className} text-xs flex-shrink-0`}>
                     <Text className="text-xs">{getTypeBadge(detailItem.type).label}</Text>
                   </Badge>
-                  <Text className="text-xs text-muted-foreground">
+                )}
+                <Text className="text-lg font-semibold text-foreground flex-1 min-w-0">
+                  {detailItem?.title || '通知详情'}
+                </Text>
+                {detailItem && (
+                  <Text className="text-xs text-muted-foreground flex-shrink-0">
                     {formatTime(detailItem.created_at)}
                   </Text>
-                </View>
-                <Text className="block text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                )}
+              </View>
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollView scrollY className="mt-4" style={{ maxHeight: '60vh' }}>
+            {detailItem && (
+              <View className="space-y-3">
+                <Text className="block text-base text-foreground leading-relaxed whitespace-pre-wrap">
                   {detailItem.content}
                 </Text>
                 {Array.isArray(detailItem.images) && detailItem.images.length > 0 && (
@@ -205,9 +211,9 @@ export default function MessagesPage() {
                     ))}
                   </View>
                 )}
-              </>
+              </View>
             )}
-          </View>
+          </ScrollView>
         </DialogContent>
       </Dialog>
       <TabBar />

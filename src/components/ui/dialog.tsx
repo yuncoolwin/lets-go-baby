@@ -142,6 +142,7 @@ const DialogContent = React.forwardRef<
         <DialogPortal>
             <View
               className="fixed inset-0 z-50"
+              catchMove
               onClick={() => context?.onOpenChange?.(false)}
             >
               <DialogOverlay />
@@ -149,12 +150,13 @@ const DialogContent = React.forwardRef<
                 ref={ref}
                 data-state={state}
                 className={cn(
-                      "fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-lg gap-4 border bg-background p-6 shadow-lg rounded-xl",
+                      "fixed z-50 grid w-[calc(100%-2rem)] max-w-lg gap-4 border bg-background p-6 shadow-lg rounded-xl",
                       className
                   )}
                 style={{
                   ...(style as object),
-                  top: offset > 0 ? `calc(50% - ${offset / 2}px)` : undefined,
+                  left: '50%',
+                  top: offset > 0 ? `calc(50% - ${offset / 2}px)` : '50%',
                   transform: `translate(-50%, -50%) ${animating === 'open' ? 'scale(1)' : 'scale(0.3)'}`,
                   opacity: animating === 'idle' ? 0 : 1,
                   transition: animating === 'open'

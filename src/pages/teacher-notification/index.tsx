@@ -495,9 +495,9 @@ export default function TeacherNotificationPage() {
               <Text className="block text-lg font-bold text-foreground">
                 {isEditingRevoked ? '重新发布通知' : '发布通知'}
               </Text>
-              <Text className="block text-sm text-muted-foreground mt-1">
-                {isAdmin ? '向全园、课程、班级、个人或教师发送通知' : '向家长发送通知'}
-              </Text>
+              {!isAdmin && (
+                <Text className="block text-sm text-muted-foreground mt-1">向家长发送通知</Text>
+              )}
             </View>
             <View
               className="flex items-center gap-2 px-3 py-2 rounded-full bg-white shadow-sm"
