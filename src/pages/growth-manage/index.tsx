@@ -7,7 +7,7 @@ import { CalendarOverlay } from '@/components/ui/calendar-overlay'
 import { useAppStore } from '@/store/app'
 import { childrenApi, growthApi, courseApi, teacherApi } from '@/utils/api'
 import { Network } from '@/network'
-import { Pencil, Trash2 } from 'lucide-react-taro'
+import { Pencil, Trash2, Copy } from 'lucide-react-taro'
 
 interface GrowthRecord {
   id: string
@@ -19,6 +19,7 @@ interface GrowthRecord {
   created_at: string
   record_date: string | null
   teacher_name: string
+  course_name?: string
 }
 
 const DRAFT_KEY = 'growth_drafts'
@@ -232,6 +233,31 @@ export default function GrowthManagePage() {
     })
   }
 
+  const handleCopy = (record: GrowthRecord) => {
+    try {
+      const drafts = Taro.getStorageSync(DRAFT_KEY)
+      const list: any[] = Array.isArray(drafts) ? drafts : []
+      const newDraft = {
+        id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        child_id: record.child_id,
+        child_name: record.child_name,
+        course_name: record.course_name,
+        title: record.title,
+        content: record.content,
+        photo_urls: record.photo_urls || [],
+        record_date: record.record_date,
+        updated_at: new Date().toISOString(),
+      }
+      list.unshift(newDraft)
+      Taro.setStorageSync(DRAFT_KEY, list)
+      setDraftCount(list.length)
+      Taro.showToast({ title: '已复制到草稿箱', icon: 'success' })
+    } catch (err) {
+      console.error('[GrowthManage] copy error:', err)
+      Taro.showToast({ title: '复制失败', icon: 'none' })
+    }
+  }
+
   const courseRange = ['全部课程', ...courses.map((c) => c.name)]
   const courseIdx = courses.findIndex((c) => c.id === filterCourseId)
   const courseIndex = courseIdx >= 0 ? courseIdx + 1 : 0
@@ -244,6 +270,22 @@ export default function GrowthManagePage() {
   return (
     <View className="min-h-screen bg-background pb-28">
       <View className="px-4 pt-3 space-y-2">
+        {/* 日期筛选 */}
+        <View className="flex items-center gap-3">
+          <Text className="block text-sm text-muted-foreground shrink-0">日期</Text>
+          <View
+            className="flex-1 bg-gray-50 rounded-lg px-3 py-2"
+            onClick={() => setDateOverlayVisible(true)}
+          >
+            <Text className="block text-sm text-foreground">{filterDate || '全部'}</Text>
+          </View>
+          {filterDate && (
+            <Text className="text-sm text-primary shrink-0" onClick={() => handleDateChange('')}>
+              清除
+            </Text>
+          )}
+        </View>
+
         {/* 课程 + 幼儿 同行并排 */}
         <View className="flex gap-2">
           <View className="flex-1">
@@ -283,22 +325,6 @@ export default function GrowthManagePage() {
             </View>
           </View>
         </View>
-
-        {/* 日期筛选 */}
-        <View className="flex items-center gap-3">
-          <Text className="block text-sm text-muted-foreground shrink-0">日期</Text>
-          <View
-            className="flex-1 bg-gray-50 rounded-lg px-3 py-2"
-            onClick={() => setDateOverlayVisible(true)}
-          >
-            <Text className="block text-sm text-foreground">{filterDate || '全部'}</Text>
-          </View>
-          {filterDate && (
-            <Text className="text-sm text-primary shrink-0" onClick={() => handleDateChange('')}>
-              清除
-            </Text>
-          )}
-        </View>
       </View>
 
       <View className="p-4">
@@ -314,31 +340,43 @@ export default function GrowthManagePage() {
               <Card key={record.id}>
                 <CardContent className="p-4">
                   <View className="flex items-center justify-between mb-2">
-                    <View className="flex items-center gap-2">
-                      <Text className="text-sm font-medium text-primary">
-                        {record.child_name || '幼儿'}
-                      </Text>
-                      {record.teacher_name && (
-                        <Text className="text-xs text-muted-foreground">{record.teacher_name}</Text>
-                      )}
-                    </View>
+                    <Text className="text-sm font-medium text-primary">
+                      {record.child_name || '幼儿'}
+                    </Text>
                     <Text className="text-xs text-muted-foreground">
                       {record.record_date || formatDate(record.created_at)}
                     </Text>
                   </View>
-                  <Text className="block text-base font-semibold text-foreground mb-1">
-                    {record.title}
-                  </Text>
+                  <View className="flex items-center justify-between mb-1">
+                    <Text className="text-base font-semibold text-foreground flex-1 min-w-0">
+                      {record.title}
+                    </Text>
+                    {record.teacher_name && (
+                      <Text className="text-xs text-muted-foreground ml-auto flex-shrink-0">
+                        {record.teacher_name}
+                      </Text>
+                    )}
+                  </View>
                   {record.content && (
-                    <Text className="block text-sm text-gray-600 mb-2">{record.content}</Text>
+                    <Text
+                      className="block text-sm text-gray-600 mb-2"
+                      style={{
+                        display: '-webkit-box',
+                        WebkitBoxOrient: 'vertical',
+                        WebkitLineClamp: 2,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {record.content}
+                    </Text>
                   )}
                   {record.photo_urls && record.photo_urls.length > 0 && (
-                    <View className="flex flex-wrap gap-2 mt-2">
+                    <View className="flex gap-2 mt-2 overflow-x-auto">
                       {record.photo_urls.map((url, idx) => (
                         <Image
                           key={idx}
                           src={url}
-                          className="w-20 h-20 rounded-lg"
+                          className="w-20 h-20 rounded-lg flex-shrink-0"
                           mode="aspectFill"
                           onClick={() =>
                             Taro.previewImage({
@@ -351,6 +389,10 @@ export default function GrowthManagePage() {
                     </View>
                   )}
                   <View className="flex justify-end gap-2 mt-3">
+                    <Button variant="ghost" size="sm" onClick={() => handleCopy(record)}>
+                      <Copy size={14} color="#E8651A" />
+                      <Text className="text-primary text-sm">复制</Text>
+                    </Button>
                     <Button variant="ghost" size="sm" onClick={() => goEdit(record.id)}>
                       <Pencil size={14} color="#E8651A" />
                       <Text className="text-primary text-sm">编辑</Text>

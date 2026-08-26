@@ -321,6 +321,39 @@ export class NotificationsService {
   }
 
   /**
+   * 反查 author_id 姓名：users.nickname 优先，空则 user_roles.real_name
+   */
+  private async getSenderNames(authorIds: string[]) {
+    const map = new Map<string, string>();
+    const ids = [...new Set(authorIds.filter(Boolean))];
+    if (!ids.length) return map;
+
+    const { data: roles } = await this.client
+      .from('user_roles')
+      .select('id, real_name, user_id')
+      .in('id', ids);
+    const roleMap = new Map((roles || []).map((r: any) => [r.id, r]));
+
+    const userIds = [...new Set((roles || []).map((r: any) => r.user_id).filter(Boolean))];
+    const nickMap = new Map<string, string>();
+    if (userIds.length) {
+      const { data: users } = await this.client
+        .from('users')
+        .select('id, nickname')
+        .in('id', userIds);
+      (users || []).forEach((u: any) => nickMap.set(u.id, u.nickname || ''));
+    }
+
+    ids.forEach((aid) => {
+      const role = roleMap.get(aid);
+      let name = role?.user_id ? nickMap.get(role.user_id) || '' : '';
+      if (!name) name = role?.real_name || '';
+      map.set(aid, name);
+    });
+    return map;
+  }
+
+  /**
    * 我收到的通知（仅 published，过滤已撤回/草稿）
    */
   private async findReceived(
@@ -352,6 +385,15 @@ export class NotificationsService {
       (notifications || []).forEach((n) => publishedMap.set(n.id, n));
     }
 
+    const authorIds = [
+      ...new Set(
+        (recipients || [])
+          .map((r) => publishedMap.get(r.notification_id)?.author_id)
+          .filter(Boolean),
+      ),
+    ];
+    const senderNames = await this.getSenderNames(authorIds);
+
     const merged = (recipients || [])
       .map((r) => {
         const notification = publishedMap.get(r.notification_id);
@@ -360,6 +402,7 @@ export class NotificationsService {
           ...notification,
           is_read: r.is_read,
           read_at: r.read_at,
+          sender_name: senderNames.get(notification.author_id) || '',
         };
       })
       .filter(Boolean);
@@ -425,6 +468,9 @@ export class NotificationsService {
       });
     }
 
+    const authorIds = [...new Set(list.map((n: any) => n.author_id).filter(Boolean))];
+    const senderNames = await this.getSenderNames(authorIds);
+
     const listWithStats = await Promise.all(
       list.map(async (n: any) => {
         const stats = statsMap.get(n.id) || { recipient_count: 0, read_count: 0 };
@@ -434,6 +480,7 @@ export class NotificationsService {
           recipient_count: stats.recipient_count,
           read_count: stats.read_count,
           target_labels: targetLabels,
+          sender_name: senderNames.get(n.author_id) || '',
         };
       }),
     );
@@ -662,15 +709,41 @@ export class NotificationsService {
     const unreadNotificationIds = [
       ...new Set((unreadRecipients || []).map((r: any) => r.notification_id).filter(Boolean)),
     ];
-    if (!unreadNotificationIds.length) return { count: 0 };
+    let notificationUnread = 0;
+    if (unreadNotificationIds.length) {
+      const { count } = await this.client
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .in('id', unreadNotificationIds)
+        .eq('status', 'published');
+      notificationUnread = count || 0;
+    }
 
-    const { count } = await this.client
-      .from('notifications')
-      .select('id', { count: 'exact', head: true })
-      .in('id', unreadNotificationIds)
-      .eq('status', 'published');
+    // 家长角色：追加成长记录未读数
+    let growthUnread = 0;
+    const { data: role } = await this.client
+      .from('user_roles')
+      .select('role_type')
+      .eq('id', userRoleId)
+      .maybeSingle();
+    if (role?.role_type === 'parent') {
+      const { data: relations } = await this.client
+        .from('parent_child_relations')
+        .select('child_id')
+        .eq('parent_role_id', userRoleId)
+        .eq('status', 'active');
+      const childIds = [...new Set((relations || []).map((r: any) => r.child_id).filter(Boolean))];
+      if (childIds.length) {
+        const { count } = await this.client
+          .from('growth_records')
+          .select('id', { count: 'exact', head: true })
+          .in('child_id', childIds)
+          .is('parent_read_at', null);
+        growthUnread = count || 0;
+      }
+    }
 
-    return { count: count || 0 };
+    return { count: notificationUnread + growthUnread };
   }
 
   /**

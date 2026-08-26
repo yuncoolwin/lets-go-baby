@@ -25,6 +25,7 @@ interface ManageNotification {
   is_read?: boolean
   status?: string
   images?: string[]
+  sender_name?: string
 }
 
 type MainTab = 'all' | 'received' | 'sent'
@@ -257,6 +258,9 @@ export default function NotificationManagePage() {
                       {mainTab === 'received' && !item.is_read && (
                         <View className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
                       )}
+                      <Badge className={`${typeBadge.className} text-xs flex-shrink-0`}>
+                        <Text className="text-xs">{typeBadge.label}</Text>
+                      </Badge>
                       <Text className="text-base font-semibold text-foreground truncate">{item.title}</Text>
                       {mainTab !== 'all' && (item.target_labels || []).length > 0 && (
                         <Text className="text-xs text-muted-foreground truncate">
@@ -269,27 +273,29 @@ export default function NotificationManagePage() {
                         </Badge>
                       )}
                     </View>
-                    <View className="flex items-center gap-2 flex-shrink-0 ml-2">
-                      <Badge className={`${typeBadge.className} text-xs`}>
-                        <Text className="text-xs">{typeBadge.label}</Text>
-                      </Badge>
-                      <Text className="text-xs text-muted-foreground">{formatTime(item.created_at)}</Text>
-                    </View>
+                    <Text className="text-xs text-muted-foreground flex-shrink-0 ml-2">{formatTime(item.created_at)}</Text>
                   </View>
 
                   {/* 全部/收到的：展示内容两行截断 */}
                   {mainTab !== 'sent' && (
-                    <Text
-                      className="block text-sm text-muted-foreground"
-                      style={{
-                        display: '-webkit-box',
-                        WebkitBoxOrient: 'vertical',
-                        WebkitLineClamp: 2,
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {item.content}
-                    </Text>
+                    <>
+                      <Text
+                        className="block text-sm text-muted-foreground"
+                        style={{
+                          display: '-webkit-box',
+                          WebkitBoxOrient: 'vertical',
+                          WebkitLineClamp: 2,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {item.content}
+                      </Text>
+                      {item.sender_name && (
+                        <Text className="block text-xs text-muted-foreground mt-2">
+                          来自: {item.sender_name}
+                        </Text>
+                      )}
+                    </>
                   )}
 
                   {/* 全部：已读回执 */}

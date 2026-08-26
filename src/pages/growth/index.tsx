@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { View, Text, Image } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
+import { refreshUnreadBadge } from '@/utils/unread-badge'
 import { Camera } from 'lucide-react-taro'
 import TabBar from '@/components/tab-bar'
 
@@ -17,6 +18,8 @@ interface GrowthRecord {
   photo_urls: string[] | null
   created_at: string
   teacher_name: string
+  course_name?: string
+  parent_read_at?: string | null
 }
 
 export default function GrowthPage() {
@@ -24,10 +27,11 @@ export default function GrowthPage() {
   const [records, setRecords] = useState<GrowthRecord[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  useDidShow(() => {
     loadRecords()
+    markGrowthRead()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentRole?.id])
+  })
 
   const loadRecords = async () => {
     if (!currentRole?.id) {
@@ -48,6 +52,20 @@ export default function GrowthPage() {
       console.error('[Growth] error:', err)
     }
     setLoading(false)
+  }
+
+  const markGrowthRead = async () => {
+    if (!currentRole?.id) return
+    try {
+      await Network.request({
+        url: '/api/parent/growth-records/read',
+        method: 'POST',
+        data: { parent_role_id: currentRole.id },
+      })
+      refreshUnreadBadge(currentRole.id)
+    } catch (err) {
+      console.error('[Growth] mark read error:', err)
+    }
   }
 
   const formatDate = (iso: string) => {
@@ -85,9 +103,16 @@ export default function GrowthPage() {
             <Card key={record.id} className="bg-white rounded-xl border-0 shadow-sm">
               <CardContent className="p-4">
                 <View className="flex items-center justify-between mb-2">
-                  <Badge className="bg-orange-100 text-orange-700 text-xs">
-                    <Text className="text-xs">日常记录</Text>
-                  </Badge>
+                  <View className="flex items-center gap-2">
+                    {record.course_name ? (
+                      <Badge className="bg-orange-100 text-orange-700 text-xs">
+                        <Text className="text-xs">{record.course_name}</Text>
+                      </Badge>
+                    ) : null}
+                    {!record.parent_read_at && (
+                      <View className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+                    )}
+                  </View>
                   <Text className="text-xs text-muted-foreground">{formatDate(record.created_at)}</Text>
                 </View>
 
@@ -111,9 +136,11 @@ export default function GrowthPage() {
                   </View>
                 )}
 
-                <Text className="block text-xs text-muted-foreground mt-3">
-                  — {record.teacher_name || '老师'}
-                </Text>
+                <View className="flex justify-end mt-3">
+                  <Text className="text-xs text-muted-foreground">
+                    {record.teacher_name || '老师'}
+                  </Text>
+                </View>
               </CardContent>
             </Card>
           ))}

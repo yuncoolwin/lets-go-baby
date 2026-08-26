@@ -19,7 +19,7 @@ export class GrowthController {
   @HttpCode(200)
   async create(
     @Body()
-    dto: { child_id: string; title: string; content?: string; photo_urls?: string[]; record_date?: string },
+    dto: { child_id: string; title: string; content?: string; photo_urls?: string[]; record_date?: string; course_name?: string },
     @Query('role_id') roleId?: string,
   ) {
     const data = await this.growthService.create(dto, roleId);

@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
-import { Trash2 } from 'lucide-react-taro'
+import { Button } from '@/components/ui/button'
+import { Trash2, Copy } from 'lucide-react-taro'
 
 const DRAFT_KEY = 'growth_drafts'
 
@@ -75,6 +76,17 @@ export default function GrowthDraftsPage() {
     Taro.navigateTo({ url: `/pages/growth-edit/index?draft_id=${draft.id}` })
   }
 
+  const handleCopy = (draft: GrowthDraft) => {
+    const newDraft: GrowthDraft = {
+      ...draft,
+      id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      updated_at: new Date().toISOString(),
+    }
+    saveDrafts([newDraft, ...loadDrafts()])
+    refresh()
+    Taro.showToast({ title: '已复制草稿', icon: 'success' })
+  }
+
   return (
     <View className="min-h-screen bg-background">
       <View className="px-4 pt-3 flex items-center justify-between mb-2">
@@ -103,21 +115,64 @@ export default function GrowthDraftsPage() {
                     {formatTime(draft.updated_at)}
                   </Text>
                 </View>
-                {draft.course_name ? (
-                  <Text className="block text-xs text-gray-500 mb-2">{draft.course_name}</Text>
-                ) : null}
-                <View className="flex items-center justify-between">
-                  <Text className="block text-base font-semibold text-foreground flex-1 mr-2">
+                <View className="flex items-center justify-between mb-1">
+                  <Text className="text-base font-semibold text-foreground flex-1 min-w-0">
                     {draft.title || '（无标题）'}
                   </Text>
-                  <View
+                  {draft.course_name ? (
+                    <Text className="text-xs text-muted-foreground ml-auto flex-shrink-0">
+                      {draft.course_name}
+                    </Text>
+                  ) : null}
+                </View>
+                {draft.content ? (
+                  <Text
+                    className="block text-sm text-gray-600 mb-2"
+                    style={{
+                      display: '-webkit-box',
+                      WebkitBoxOrient: 'vertical',
+                      WebkitLineClamp: 2,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {draft.content}
+                  </Text>
+                ) : null}
+                {draft.photo_urls && draft.photo_urls.length > 0 && (
+                  <View className="flex gap-2 mt-2 overflow-x-auto">
+                    {draft.photo_urls.map((url, idx) => (
+                      <Image
+                        key={idx}
+                        src={url}
+                        className="w-20 h-20 rounded-lg flex-shrink-0"
+                        mode="aspectFill"
+                      />
+                    ))}
+                  </View>
+                )}
+                <View className="flex justify-end gap-2 mt-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleCopy(draft)
+                    }}
+                  >
+                    <Copy size={14} color="#E8651A" />
+                    <Text className="text-primary text-sm">复制</Text>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={(e) => {
                       e.stopPropagation()
                       handleDelete(draft.id)
                     }}
                   >
-                    <Trash2 size={16} color="#ef4444" />
-                  </View>
+                    <Trash2 size={14} color="#ef4444" />
+                    <Text className="text-red-500 text-sm">删除</Text>
+                  </Button>
                 </View>
               </CardContent>
             </Card>

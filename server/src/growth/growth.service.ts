@@ -79,8 +79,8 @@ export class GrowthService {
 
     teacherIds.forEach((tid) => {
       const role = roleMap.get(tid);
-      let name = role?.real_name || '';
-      if (!name && role?.user_id) name = nickMap.get(role.user_id) || '';
+      let name = role?.user_id ? nickMap.get(role.user_id) || '' : '';
+      if (!name) name = role?.real_name || '';
       map.set(tid, name);
     });
     return map;
@@ -173,7 +173,7 @@ export class GrowthService {
   }
 
   async create(
-    dto: { child_id: string; title: string; content?: string; photo_urls?: string[]; record_date?: string },
+    dto: { child_id: string; title: string; content?: string; photo_urls?: string[]; record_date?: string; course_name?: string },
     roleId?: string,
   ) {
     if (!dto.child_id || !dto.title) {
@@ -216,6 +216,7 @@ export class GrowthService {
         content: dto.content || null,
         photo_urls: dto.photo_urls || [],
         record_date: dto.record_date || this.shanghaiToday(),
+        course_name: dto.course_name || null,
       })
       .select()
       .single();

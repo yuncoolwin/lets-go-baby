@@ -302,8 +302,8 @@ export class ParentService {
 
     return list.map((r) => {
       const role = roleMap.get(r.teacher_id);
-      let teacherName = role?.real_name || '';
-      if (!teacherName && role?.user_id) teacherName = nickMap.get(role.user_id) || '';
+      let teacherName = role?.user_id ? nickMap.get(role.user_id) || '' : '';
+      if (!teacherName) teacherName = role?.real_name || '';
       return {
         id: r.id,
         record_type: r.record_type,
@@ -312,8 +312,51 @@ export class ParentService {
         photo_urls: r.photo_urls,
         created_at: r.created_at,
         teacher_name: teacherName,
+        course_name: r.course_name,
+        parent_read_at: r.parent_read_at,
       };
     });
+  }
+
+  async markGrowthRead(parentRoleId?: string) {
+    if (!parentRoleId) return { updated: 0 };
+
+    const { data: relations } = await this.client
+      .from('parent_child_relations')
+      .select('child_id')
+      .eq('parent_role_id', parentRoleId)
+      .eq('status', 'active');
+    const childIds = [...new Set((relations || []).map((r) => r.child_id).filter(Boolean))];
+    if (!childIds.length) return { updated: 0 };
+
+    const { data, error } = await this.client
+      .from('growth_records')
+      .update({ parent_read_at: new Date().toISOString() })
+      .in('child_id', childIds)
+      .is('parent_read_at', null)
+      .select('id');
+    if (error) throw new Error(`标记已读失败: ${error.message}`);
+    return { updated: (data || []).length };
+  }
+
+  async getGrowthUnreadCount(parentRoleId?: string) {
+    if (!parentRoleId) return 0;
+
+    const { data: relations } = await this.client
+      .from('parent_child_relations')
+      .select('child_id')
+      .eq('parent_role_id', parentRoleId)
+      .eq('status', 'active');
+    const childIds = [...new Set((relations || []).map((r) => r.child_id).filter(Boolean))];
+    if (!childIds.length) return 0;
+
+    const { count, error } = await this.client
+      .from('growth_records')
+      .select('id', { count: 'exact', head: true })
+      .in('child_id', childIds)
+      .is('parent_read_at', null);
+    if (error) throw new Error(`未读统计失败: ${error.message}`);
+    return count || 0;
   }
 
   async searchChildren(keyword: string) {

@@ -36,6 +36,20 @@ export class ParentController {
     return { code: 200, msg: 'success', data };
   }
 
+  @Post('growth-records/read')
+  @HttpCode(200)
+  async markGrowthRead(@Body() body: { parent_role_id?: string }) {
+    const data = await this.parentService.markGrowthRead(body?.parent_role_id);
+    return { code: 200, msg: 'success', data };
+  }
+
+  @Get('growth-records/unread-count')
+  @HttpCode(200)
+  async getGrowthUnreadCount(@Query('parent_role_id') parentRoleId?: string) {
+    const data = await this.parentService.getGrowthUnreadCount(parentRoleId);
+    return { code: 200, msg: 'success', data };
+  }
+
   @Get('search-children')
   @HttpCode(200)
   async searchChildren(@Query('keyword') keyword: string) {
