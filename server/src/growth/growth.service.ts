@@ -25,6 +25,11 @@ export class GrowthService {
     return roleType === 'admin' || roleType === 'superadmin';
   }
 
+  /** 上海时区当天（UTC+8，无夏令时） */
+  private shanghaiToday(): string {
+    return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  }
+
   /**
    * 教师角色 -> 负责班级 id（teachers.user_id 优先，real_name 兜底）
    */
@@ -168,7 +173,7 @@ export class GrowthService {
   }
 
   async create(
-    dto: { child_id: string; title: string; content?: string; photo_urls?: string[] },
+    dto: { child_id: string; title: string; content?: string; photo_urls?: string[]; record_date?: string },
     roleId?: string,
   ) {
     if (!dto.child_id || !dto.title) {
@@ -210,6 +215,7 @@ export class GrowthService {
         title: dto.title,
         content: dto.content || null,
         photo_urls: dto.photo_urls || [],
+        record_date: dto.record_date || this.shanghaiToday(),
       })
       .select()
       .single();
@@ -221,6 +227,7 @@ export class GrowthService {
   async findAll(query: {
     child_id?: string;
     child_ids?: string;
+    record_date?: string;
     page?: number | string;
     page_size?: number | string;
     role_id?: string;
@@ -238,11 +245,17 @@ export class GrowthService {
       const ids = query.child_ids.split(',').map((s) => s.trim()).filter(Boolean);
       if (ids.length > 0) q = q.in('child_id', ids);
     }
+    if (query.record_date) {
+      q = q.eq('record_date', query.record_date);
+    }
     // 教师只返回自己创建的记录，admin/superadmin 返回全部
     if (role?.role_type === 'teacher') {
       q = q.eq('teacher_id', query.role_id);
     }
-    q = q.order('created_at', { ascending: false }).range(from, to);
+    q = q
+      .order('record_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .range(from, to);
 
     const { data, error, count } = await q;
     if (error) return { error: true, code: 500, msg: `查询失败: ${error.message}` };
@@ -293,7 +306,7 @@ export class GrowthService {
 
   async update(
     id: string,
-    dto: { title?: string; content?: string; photo_urls?: string[] },
+    dto: { title?: string; content?: string; photo_urls?: string[]; record_date?: string },
     roleId?: string,
   ) {
     const { data: existing } = await this.client
@@ -313,6 +326,7 @@ export class GrowthService {
     if (dto.title !== undefined) updateData.title = dto.title;
     if (dto.content !== undefined) updateData.content = dto.content;
     if (dto.photo_urls !== undefined) updateData.photo_urls = dto.photo_urls;
+    if (dto.record_date !== undefined) updateData.record_date = dto.record_date;
 
     const { data: updated, error } = await this.client
       .from('growth_records')

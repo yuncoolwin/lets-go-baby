@@ -19,7 +19,7 @@ export class GrowthController {
   @HttpCode(200)
   async create(
     @Body()
-    dto: { child_id: string; title: string; content?: string; photo_urls?: string[] },
+    dto: { child_id: string; title: string; content?: string; photo_urls?: string[]; record_date?: string },
     @Query('role_id') roleId?: string,
   ) {
     const data = await this.growthService.create(dto, roleId);
@@ -33,7 +33,7 @@ export class GrowthController {
   @HttpCode(200)
   async findAll(
     @Query()
-    query: { child_id?: string; child_ids?: string; page?: string; page_size?: string; role_id?: string },
+    query: { child_id?: string; child_ids?: string; record_date?: string; page?: string; page_size?: string; role_id?: string },
   ) {
     const data = await this.growthService.findAll(query);
     if (data?.error) {
@@ -56,7 +56,7 @@ export class GrowthController {
   @HttpCode(200)
   async update(
     @Param('id') id: string,
-    @Body() dto: { title?: string; content?: string; photo_urls?: string[] },
+    @Body() dto: { title?: string; content?: string; photo_urls?: string[]; record_date?: string },
     @Query('role_id') roleId?: string,
   ) {
     const data = await this.growthService.update(id, dto, roleId);

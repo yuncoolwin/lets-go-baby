@@ -32,6 +32,7 @@ export default typeof defineAppConfig === 'function'
       'pages/admin/holiday-mgmt/index',
       'pages/admin/permission/index',
       'pages/admin/audit-logs/index',
+      'pages/growth-drafts/index',
     ],
     tabBar: {
       color: '#999999',
@@ -111,6 +112,7 @@ export default typeof defineAppConfig === 'function'
       'pages/admin/holiday-mgmt/index',
       'pages/admin/permission/index',
       'pages/admin/audit-logs/index',
+      'pages/growth-drafts/index',
     ],
     tabBar: {
       color: '#999999',

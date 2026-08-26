@@ -128,6 +128,7 @@ export const growthRecords = pgTable("growth_records", {
 	title: varchar({ length: 128 }).notNull(),
 	content: text(),
 	photoUrls: jsonb("photo_urls"),
+	recordDate: date("record_date"),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("growth_child_id_idx").using("btree", table.childId.asc().nullsLast().op("text_ops")),
