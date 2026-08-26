@@ -10,6 +10,7 @@ import { CalendarOverlay } from '@/components/ui/calendar-overlay'
 import { useAppStore } from '@/store/app'
 import { childrenApi, teacherApi, growthApi, courseApi } from '@/utils/api'
 import { Network } from '@/network'
+import { isH5 } from '@/lib/platform'
 import { X, ImagePlus } from 'lucide-react-taro'
 
 const DRAFT_KEY = 'growth_drafts'
@@ -41,6 +42,31 @@ const loadDrafts = (): any[] => {
 
 const saveDrafts = (drafts: any[]) => {
   Taro.setStorageSync(DRAFT_KEY, drafts)
+}
+
+const readFileAsBase64 = (filePath: string, fileObj?: File): Promise<string> => {
+  if (isH5()) {
+    const readBlob = (blob: Blob) =>
+      new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = reader.result as string
+          resolve(result.split(',')[1] || '')
+        }
+        reader.onerror = () => reject(reader.error)
+        reader.readAsDataURL(blob)
+      })
+    if (fileObj) return readBlob(fileObj)
+    return fetch(filePath).then((r) => r.blob()).then(readBlob)
+  }
+  return new Promise((resolve, reject) => {
+    Taro.getFileSystemManager().readFile({
+      filePath,
+      encoding: 'base64',
+      success: (r) => resolve(r.data as string),
+      fail: reject,
+    })
+  })
 }
 
 const removeDraftById = (id: string) => {
@@ -203,11 +229,13 @@ export default function GrowthEditPage() {
       sourceType: ['album', 'camera'],
       success: async (res) => {
         const paths = res.tempFilePaths || []
+        const tempFiles = res.tempFiles || []
         setUploading(true)
-        for (const path of paths) {
+        for (let i = 0; i < paths.length; i++) {
+          const path = paths[i]
+          const fileObj = tempFiles[i]?.originalFileObj
           try {
-            const fs = Taro.getFileSystemManager()
-            const base64 = fs.readFileSync(path, 'base64') as any
+            const base64 = await readFileAsBase64(path, fileObj)
             const upload = await growthApi.uploadImage({ image: base64, name: 'growth.jpg' })
             const url = upload?.data?.url
             if (url) {

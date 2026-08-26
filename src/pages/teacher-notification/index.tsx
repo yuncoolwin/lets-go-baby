@@ -13,6 +13,32 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { notificationApi, classApi, childrenApi, teacherApi, courseApi } from '@/utils/api'
 import { useAppStore } from '@/store/app'
 import { Send, Save, Inbox, Users, User, Bell, BookOpen, Megaphone, ChevronRight, RefreshCw } from 'lucide-react-taro'
+import { isH5 } from '@/lib/platform'
+
+const readFileAsBase64 = (filePath: string, fileObj?: File): Promise<string> => {
+  if (isH5()) {
+    const readBlob = (blob: Blob) =>
+      new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = reader.result as string
+          resolve(result.split(',')[1] || '')
+        }
+        reader.onerror = () => reject(reader.error)
+        reader.readAsDataURL(blob)
+      })
+    if (fileObj) return readBlob(fileObj)
+    return fetch(filePath).then((r) => r.blob()).then(readBlob)
+  }
+  return new Promise((resolve, reject) => {
+    Taro.getFileSystemManager().readFile({
+      filePath,
+      encoding: 'base64',
+      success: (r) => resolve(r.data as string),
+      fail: reject,
+    })
+  })
+}
 
 type NotificationType = 'all' | 'course' | 'class' | 'personal' | 'teacher'
 type MainTab = 'compose' | 'sent'
@@ -343,19 +369,15 @@ export default function TeacherNotificationPage() {
       })
       const tempFilePaths = res?.tempFilePaths || []
       if (!tempFilePaths.length) return
+      const tempFiles = res?.tempFiles || []
 
       setUploadingImage(true)
       const uploadedUrls: string[] = []
-      for (const filePath of tempFilePaths) {
+      for (let i = 0; i < tempFilePaths.length; i++) {
+        const filePath = tempFilePaths[i]
+        const fileObj = tempFiles[i]?.originalFileObj
         try {
-          const base64 = await new Promise<string>((resolve, reject) => {
-            Taro.getFileSystemManager().readFile({
-              filePath,
-              encoding: 'base64',
-              success: (r) => resolve(r.data as string),
-              fail: reject,
-            })
-          })
+          const base64 = await readFileAsBase64(filePath, fileObj)
           const name = filePath.split('/').pop() || 'image.png'
           const upRes = await notificationApi.uploadImage({ image: base64, name })
           const url = upRes?.data?.url
