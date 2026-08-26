@@ -280,10 +280,12 @@ export class ParentService {
 
     const list = records || [];
 
-    // 反查 teacher_name（user_roles.real_name，空则 users.nickname）
+    // 反查 teacher_name（teachers.nickname → users.nickname → user_roles.real_name）
     const teacherIds = [...new Set(list.map((r) => r.teacher_id).filter(Boolean))];
     const roleMap = new Map<string, any>();
     const nickMap = new Map<string, string>();
+    const teacherNickMap = new Map<string, string>();
+    const realNameNickMap = new Map<string, string>();
     if (teacherIds.length) {
       const { data: roles } = await this.client
         .from('user_roles')
@@ -297,12 +299,33 @@ export class ParentService {
           .select('id, nickname')
           .in('id', userIds);
         (users || []).forEach((u) => nickMap.set(u.id, u.nickname || ''));
+
+        const { data: teacherRows } = await this.client
+          .from('teachers')
+          .select('user_id, nickname')
+          .in('user_id', userIds);
+        (teacherRows || []).forEach((t) => {
+          if (t.user_id && t.nickname) teacherNickMap.set(t.user_id, t.nickname);
+        });
+      }
+      const realNames = [...new Set((roles || []).map((r) => r.real_name).filter(Boolean))];
+      if (realNames.length) {
+        const { data: teacherByName } = await this.client
+          .from('teachers')
+          .select('real_name, nickname')
+          .in('real_name', realNames);
+        (teacherByName || []).forEach((t) => {
+          if (t.real_name && t.nickname) realNameNickMap.set(t.real_name, t.nickname);
+        });
       }
     }
 
     return list.map((r) => {
       const role = roleMap.get(r.teacher_id);
-      let teacherName = role?.user_id ? nickMap.get(role.user_id) || '' : '';
+      let teacherName = role?.user_id
+        ? teacherNickMap.get(role.user_id) || nickMap.get(role.user_id) || ''
+        : '';
+      if (!teacherName && role?.real_name) teacherName = realNameNickMap.get(role.real_name) || '';
       if (!teacherName) teacherName = role?.real_name || '';
       return {
         id: r.id,
