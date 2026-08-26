@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import Taro from '@tarojs/taro'
 import { View, Text } from '@tarojs/components'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -20,6 +21,15 @@ export default function PickupPage() {
   const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [loading, setLoading] = useState(true)
 
+  const courseName = (() => {
+    try {
+      const raw = Taro.getCurrentInstance()?.router?.params?.course_name
+      return raw ? decodeURIComponent(raw) : ''
+    } catch {
+      return ''
+    }
+  })()
+
   useEffect(() => {
     loadRecords()
   }, [])
@@ -30,6 +40,7 @@ export default function PickupPage() {
       const res = await Network.request({
         url: '/api/parent/attendance',
         method: 'GET',
+        data: { course_name: courseName },
       })
       console.log('[Pickup] records:', res.data)
       if (res.data?.data) {
@@ -67,7 +78,7 @@ export default function PickupPage() {
 
   return (
     <View className="min-h-screen bg-background p-4">
-      <BackButton title="接送记录" />
+      <BackButton title={courseName ? `接送记录 · ${courseName}` : '接送记录'} />
 
       {records.length === 0 ? (
         <View className="flex flex-col items-center py-16">

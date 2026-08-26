@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { Bus, Users, Camera, GraduationCap, Plus, ChevronDown, ChevronUp, BookOpen, Calendar, X, Info, Sun, User, Baby, Bell, Sprout } from 'lucide-react-taro'
+import { Users, Camera, GraduationCap, Plus, ChevronDown, ChevronUp, BookOpen, Calendar, X, Info, Sun, User, Baby, Bell, Sprout } from 'lucide-react-taro'
 import { getRelationshipLabel } from '@/utils/helpers'
 import { courseApi } from '@/utils/api'
 import rabbitLogo from '@/assets/rabbit-logo.png'
@@ -522,44 +522,55 @@ export default function IndexPage() {
                       }
                       return (
                         <View key={record.id || idx} className="py-1">
-                          <Text className="block text-xs text-muted-foreground mb-1">
-                            {record.class_name || ''}{record.class_name && record.course_name ? ' · ' : ''}{record.course_name || ''}
-                          </Text>
-                          <View style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '16px' }}>
+                          <View className="flex items-center justify-between mb-1">
+                            <Text className="text-xs text-muted-foreground">
+                              {record.class_name || ''}{record.class_name && record.course_name ? ' · ' : ''}{record.course_name || ''}
+                            </Text>
+                            <Text
+                              className="text-xs rounded-full px-2 bg-orange-50 text-orange-600"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                Taro.navigateTo({ url: '/pages/pickup/index?course_name=' + encodeURIComponent(record.course_name || '') })
+                              }}
+                            >
+                              接送记录
+                            </Text>
+                          </View>
+                          <View style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             {record.mood_status && parseInt(record.mood_status, 10) > 0 && (
-                              <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                              <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                                 <Text className="text-xs text-gray-500">情绪</Text>
-                                <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.mood_status)}</Text>
                                 <View
+                                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                   onClick={(e) => { e.stopPropagation(); setParentMoodInfoOpen(true) }}
-                                  style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                 >
-                                  <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>i</Text>
+                                  <Info size={14} color="#9ca3af" />
                                 </View>
+                                <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.mood_status)}</Text>
                               </View>
                             )}
                             {record.meal_status && parseInt(record.meal_status, 10) > 0 && (
-                              <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                              <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                                 <Text className="text-xs text-gray-500">餐食</Text>
-                                <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.meal_status)}</Text>
                                 <View
+                                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                   onClick={(e) => { e.stopPropagation(); setParentMealInfoOpen(true) }}
-                                  style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                 >
-                                  <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>i</Text>
+                                  <Info size={14} color="#9ca3af" />
                                 </View>
+                                <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.meal_status)}</Text>
                               </View>
                             )}
                             {record.sleep_status && parseInt(record.sleep_status, 10) > 0 && (
-                              <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                              <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                                 <Text className="text-xs text-gray-500">午睡</Text>
-                                <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.sleep_status)}</Text>
                                 <View
+                                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                   onClick={(e) => { e.stopPropagation(); setParentNapInfoOpen(true) }}
-                                  style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                 >
-                                  <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>i</Text>
+                                  <Info size={14} color="#9ca3af" />
                                 </View>
+                                <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.sleep_status)}</Text>
                               </View>
                             )}
                           </View>
@@ -708,19 +719,7 @@ export default function IndexPage() {
 
         {/* 快捷入口 - 已绑定幼儿后才显示 */}
         {children.length > 0 && (
-        <View className="grid grid-cols-3 gap-3">
-          <Card
-            className="bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => Taro.navigateTo({ url: '/pages/pickup/index' })}
-          >
-            <CardContent className="p-4 flex flex-col items-center">
-              <View className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center mb-2">
-                <Bus size={24} color="#3B82F6" />
-              </View>
-              <Text className="text-xs text-foreground">接送记录</Text>
-            </CardContent>
-          </Card>
-
+        <View className="grid grid-cols-2 gap-3">
           <Card
             className="bg-white rounded-xl border-0 shadow-sm"
             onClick={() => Taro.navigateTo({ url: '/pages/records/index' })}
