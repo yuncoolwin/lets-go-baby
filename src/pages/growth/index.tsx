@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text, Image, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
 import { refreshUnreadBadge } from '@/utils/unread-badge'
@@ -26,6 +27,8 @@ export default function GrowthPage() {
   const currentRole = useAppStore((s) => s.currentRole)
   const [records, setRecords] = useState<GrowthRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [detailRecord, setDetailRecord] = useState<GrowthRecord | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
 
   useDidShow(() => {
     loadRecords()
@@ -95,7 +98,7 @@ export default function GrowthPage() {
       {records.length === 0 ? (
         <View className="flex flex-col items-center py-20">
           <Camera size={48} color="#999999" />
-          <Text className="block text-sm text-muted-foreground mt-3">暂无成长记录</Text>
+          <Text className="block text-sm text-muted-foreground mt-3">暂无成长档案</Text>
         </View>
       ) : (
         <View className="space-y-3">
@@ -116,11 +119,27 @@ export default function GrowthPage() {
                   <Text className="text-xs text-muted-foreground">{formatDate(record.created_at)}</Text>
                 </View>
 
-                <Text className="block text-base font-semibold text-foreground mb-1">{record.title}</Text>
-
-                {record.content && (
-                  <Text className="block text-sm text-muted-foreground">{record.content}</Text>
-                )}
+                <View
+                  onClick={() => {
+                    setDetailRecord(record)
+                    setDetailOpen(true)
+                  }}
+                >
+                  <Text className="block text-base font-semibold text-foreground mb-1">{record.title}</Text>
+                  {record.content && (
+                    <Text
+                      className="block text-sm text-muted-foreground"
+                      style={{
+                        display: '-webkit-box',
+                        WebkitBoxOrient: 'vertical',
+                        WebkitLineClamp: 2,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {record.content}
+                    </Text>
+                  )}
+                </View>
 
                 {record.photo_urls && record.photo_urls.length > 0 && (
                   <View className="flex flex-wrap gap-2 mt-3">
@@ -146,6 +165,41 @@ export default function GrowthPage() {
           ))}
         </View>
       )}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '85vh' }}>
+          <DialogHeader>
+            <DialogTitle>
+              <View className="flex items-center gap-2 flex-wrap pr-10">
+                {detailRecord?.course_name && (
+                  <Badge className="bg-orange-100 text-orange-700 text-xs">
+                    <Text className="text-xs">{detailRecord.course_name}</Text>
+                  </Badge>
+                )}
+                <Text className="text-lg font-semibold text-foreground">{detailRecord?.title || '成长档案'}</Text>
+                {detailRecord && (
+                  <Text className="text-xs text-muted-foreground">{formatDate(detailRecord.created_at)}</Text>
+                )}
+              </View>
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollView scrollY className="mt-4" style={{ maxHeight: '60vh' }}>
+            {detailRecord && (
+              <View className="space-y-3">
+                <Text className="block text-base text-foreground leading-relaxed whitespace-pre-wrap">
+                  {detailRecord.content}
+                </Text>
+                {detailRecord.photo_urls && detailRecord.photo_urls.length > 0 && (
+                  <View className="space-y-2">
+                    {detailRecord.photo_urls.map((url, idx) => (
+                      <Image key={idx} src={url} className="w-full rounded-lg" mode="widthFix" />
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+          </ScrollView>
+        </DialogContent>
+      </Dialog>
       <TabBar />
     </View>
   )

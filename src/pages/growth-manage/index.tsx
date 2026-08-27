@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
-import { View, Text, Image, Picker } from '@tarojs/components'
+import { View, Text, Image, Picker, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/app'
 import { childrenApi, growthApi, courseApi, teacherApi } from '@/utils/api'
 import { Network } from '@/network'
@@ -68,6 +70,8 @@ export default function GrowthManagePage() {
   const [loading, setLoading] = useState(true)
   const [draftCount, setDraftCount] = useState(0)
   const [dateOverlayVisible, setDateOverlayVisible] = useState(false)
+  const [detailRecord, setDetailRecord] = useState<GrowthRecord | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
 
   const children = teacherClassId
     ? allChildren.filter((c) => String(c.class_id) === String(teacherClassId))
@@ -270,59 +274,49 @@ export default function GrowthManagePage() {
   return (
     <View className="min-h-screen bg-background pb-28">
       <View className="px-4 pt-3 space-y-2">
-        {/* 日期筛选 */}
-        <View className="flex items-center gap-3">
-          <Text className="block text-sm text-muted-foreground shrink-0">日期</Text>
+        {/* 筛选标题行 */}
+        <View className="flex gap-2">
+          <Text className="block text-sm text-foreground flex-1">日期</Text>
+          <Text className="block text-sm text-foreground flex-1">课程</Text>
+          <Text className="block text-sm text-foreground flex-1">幼儿</Text>
+        </View>
+        {/* 筛选框行 */}
+        <View className="flex gap-2">
           <View
             className="flex-1 bg-gray-50 rounded-lg px-3 py-2"
             onClick={() => setDateOverlayVisible(true)}
           >
             <Text className="block text-sm text-foreground">{filterDate || '全部'}</Text>
           </View>
-          {filterDate && (
-            <Text className="text-sm text-primary shrink-0" onClick={() => handleDateChange('')}>
-              清除
-            </Text>
-          )}
-        </View>
-
-        {/* 课程 + 幼儿 同行并排 */}
-        <View className="flex gap-2">
-          <View className="flex-1">
-            <Text className="block text-sm text-muted-foreground mb-1">课程</Text>
-            <View className="bg-gray-50 rounded-lg px-3 py-2">
-              <Picker
-                mode="selector"
-                range={courseRange}
-                value={courseIndex}
-                onChange={(e) => {
-                  const idx = Number(e.detail.value)
-                  handleCourseChange(idx === 0 ? '' : (courses[idx - 1]?.id || ''))
-                }}
-              >
-                <Text className="block text-sm text-foreground">
-                  {courseRange[courseIndex] || '全部课程'}
-                </Text>
-              </Picker>
-            </View>
+          <View className="flex-1 bg-gray-50 rounded-lg px-3 py-2">
+            <Picker
+              mode="selector"
+              range={courseRange}
+              value={courseIndex}
+              onChange={(e) => {
+                const idx = Number(e.detail.value)
+                handleCourseChange(idx === 0 ? '' : (courses[idx - 1]?.id || ''))
+              }}
+            >
+              <Text className="block text-sm text-foreground">
+                {courseRange[courseIndex] || '全部课程'}
+              </Text>
+            </Picker>
           </View>
-          <View className="flex-1">
-            <Text className="block text-sm text-muted-foreground mb-1">幼儿</Text>
-            <View className="bg-gray-50 rounded-lg px-3 py-2">
-              <Picker
-                mode="selector"
-                range={childRange}
-                value={childIndex}
-                onChange={(e) => {
-                  const idx = Number(e.detail.value)
-                  handleChildChange(idx === 0 ? '' : (childList[idx - 1]?.id || ''))
-                }}
-              >
-                <Text className="block text-sm text-foreground">
-                  {childRange[childIndex] || '全部'}
-                </Text>
-              </Picker>
-            </View>
+          <View className="flex-1 bg-gray-50 rounded-lg px-3 py-2">
+            <Picker
+              mode="selector"
+              range={childRange}
+              value={childIndex}
+              onChange={(e) => {
+                const idx = Number(e.detail.value)
+                handleChildChange(idx === 0 ? '' : (childList[idx - 1]?.id || ''))
+              }}
+            >
+              <Text className="block text-sm text-foreground">
+                {childRange[childIndex] || '全部'}
+              </Text>
+            </Picker>
           </View>
         </View>
       </View>
@@ -332,7 +326,7 @@ export default function GrowthManagePage() {
           <Text className="block text-sm text-muted-foreground text-center py-12">加载中...</Text>
         ) : records.length === 0 ? (
           <View className="flex flex-col items-center justify-center py-20">
-            <Text className="block text-base text-muted-foreground">暂无成长记录</Text>
+            <Text className="block text-base text-muted-foreground">暂无成长档案</Text>
           </View>
         ) : (
           <View className="space-y-3">
@@ -365,6 +359,10 @@ export default function GrowthManagePage() {
                         WebkitBoxOrient: 'vertical',
                         WebkitLineClamp: 2,
                         overflow: 'hidden',
+                      }}
+                      onClick={() => {
+                        setDetailRecord(record)
+                        setDetailOpen(true)
                       }}
                     >
                       {record.content}
@@ -446,6 +444,45 @@ export default function GrowthManagePage() {
         onChange={handleDateChange}
         onClose={() => setDateOverlayVisible(false)}
       />
+
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '85vh' }}>
+          <DialogHeader>
+            <DialogTitle>
+              <View className="flex items-center gap-2 flex-wrap pr-10">
+                {detailRecord?.course_name && (
+                  <Badge className="bg-orange-100 text-orange-700 text-xs">
+                    <Text className="text-xs">{detailRecord.course_name}</Text>
+                  </Badge>
+                )}
+                <Text className="text-lg font-semibold text-foreground">{detailRecord?.title || '成长档案'}</Text>
+                {detailRecord && (
+                  <Text className="text-xs text-muted-foreground">{detailRecord.record_date || formatDate(detailRecord.created_at)}</Text>
+                )}
+              </View>
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollView scrollY className="mt-4" style={{ maxHeight: '60vh' }}>
+            {detailRecord && (
+              <View className="space-y-3">
+                {detailRecord.child_name && (
+                  <Text className="block text-sm text-muted-foreground">{detailRecord.child_name}</Text>
+                )}
+                <Text className="block text-base text-foreground leading-relaxed whitespace-pre-wrap">
+                  {detailRecord.content}
+                </Text>
+                {detailRecord.photo_urls && detailRecord.photo_urls.length > 0 && (
+                  <View className="space-y-2">
+                    {detailRecord.photo_urls.map((url, idx) => (
+                      <Image key={idx} src={url} className="w-full rounded-lg" mode="widthFix" />
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+          </ScrollView>
+        </DialogContent>
+      </Dialog>
     </View>
   )
 }

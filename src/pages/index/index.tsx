@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { Users, Camera, GraduationCap, Plus, ChevronDown, ChevronUp, BookOpen, Calendar, X, Info, Sun, User, Baby, Bell, Sprout } from 'lucide-react-taro'
+import { Users, GraduationCap, Plus, ChevronDown, ChevronUp, BookOpen, X, Info, Sun, User, Baby, Bell, Sprout } from 'lucide-react-taro'
 import { getRelationshipLabel } from '@/utils/helpers'
 import { courseApi } from '@/utils/api'
 import rabbitLogo from '@/assets/rabbit-logo.png'
@@ -718,34 +718,6 @@ export default function IndexPage() {
           </Card>
         )}
 
-        {/* 快捷入口 - 已绑定幼儿后才显示 */}
-        {children.length > 0 && (
-        <View className="grid grid-cols-2 gap-3">
-          <Card
-            className="bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => Taro.navigateTo({ url: '/pages/records/index' })}
-          >
-            <CardContent className="p-4 flex flex-col items-center">
-              <View className="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center mb-2">
-                <BookOpen size={24} color="#22C55E" />
-              </View>
-              <Text className="text-xs text-foreground">每日反馈</Text>
-            </CardContent>
-          </Card>
-
-          <Card
-            className="bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => Taro.switchTab({ url: '/pages/growth/index' })}
-          >
-            <CardContent className="p-4 flex flex-col items-center">
-              <View className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center mb-2">
-                <Camera size={24} color="#8B5CF6" />
-              </View>
-              <Text className="text-xs text-foreground">成长档案</Text>
-            </CardContent>
-          </Card>
-        </View>
-        )}
         <TabBar />
       </View>
     )
@@ -973,7 +945,7 @@ export default function IndexPage() {
               <View className="w-12 h-12 rounded-lg bg-amber-50 flex items-center justify-center mb-2">
                 <Sprout size={24} color="#F59E0B" />
               </View>
-              <Text className="text-xs text-foreground">成长记录</Text>
+              <Text className="text-xs text-foreground">成长档案</Text>
             </CardContent>
           </Card>
         </View>  {/* end of p-4 content wrapper */}
@@ -1244,7 +1216,7 @@ export default function IndexPage() {
             您好，{currentRole?.real_name || nickname || '管理员'}
           </Text>
           <Text className="block text-sm text-muted-foreground mt-1">
-            {currentRole?.role_type === 'superadmin' ? '超级管理员' : '管理员'}
+            {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
           </Text>
         </View>
 
@@ -1264,18 +1236,6 @@ export default function IndexPage() {
                   <Text className="text-xs text-white">{pendingCount > 99 ? '99+' : pendingCount}</Text>
                 </View>
               )}
-            </CardContent>
-          </Card>
-
-          <Card
-            className="bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => Taro.switchTab({ url: '/pages/roll-call/index' })}
-          >
-            <CardContent className="p-4 flex flex-col items-center">
-              <View className="w-12 h-12 rounded-lg bg-teal-50 flex items-center justify-center mb-2">
-                <Calendar size={24} color="#14B8A6" />
-              </View>
-              <Text className="text-sm text-foreground">考勤管理</Text>
             </CardContent>
           </Card>
 
@@ -1359,7 +1319,7 @@ export default function IndexPage() {
               <View className="w-12 h-12 rounded-lg bg-amber-50 flex items-center justify-center mb-2">
                 <Sprout size={24} color="#F59E0B" />
               </View>
-              <Text className="text-sm text-foreground">成长记录</Text>
+              <Text className="text-sm text-foreground">成长档案</Text>
             </CardContent>
           </Card>
         </View>

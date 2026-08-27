@@ -223,6 +223,26 @@ export class TeacherService {
     const teacherClassId = teacherData?.class_id || null;
     if (!teacherClassId) return [];
 
+    const targetDate = date || new Date().toISOString().split('T')[0];
+
+    // 全园假期（holidays type='all'）
+    const { data: allHolidays } = await this.client
+      .from('holidays')
+      .select('name')
+      .eq('type', 'all')
+      .lte('start_date', targetDate)
+      .gte('end_date', targetDate);
+    if ((allHolidays || []).length > 0) return [];
+
+    // 法定节假日（holidays_old type='holiday'）
+    const holidayYear = parseInt(targetDate.substring(0, 4));
+    const { data: statutory } = await this.client
+      .from('holidays_old')
+      .select('date, name')
+      .eq('year', holidayYear)
+      .eq('type', 'holiday');
+    if ((statutory || []).some(h => h.date?.substring(0, 10) === targetDate)) return [];
+
     // 查询班级信息（含教室 room）
     const { data: cls, error: clsError } = await this.client
       .from('classes')
@@ -387,6 +407,27 @@ export class TeacherService {
 
   async getGroupedOverviewByClass(classId: string, date?: string) {
     if (!classId) return [];
+
+    const targetDate = date || new Date().toISOString().split('T')[0];
+
+    // 班级假期（holidays type='class' 且 target_id=当前班级 id）
+    const { data: classHolidays } = await this.client
+      .from('holidays')
+      .select('name')
+      .eq('type', 'class')
+      .eq('target_id', classId)
+      .lte('start_date', targetDate)
+      .gte('end_date', targetDate);
+    if ((classHolidays || []).length > 0) return [];
+
+    // 法定节假日（holidays_old type='holiday'）
+    const holidayYear = parseInt(targetDate.substring(0, 4));
+    const { data: statutory } = await this.client
+      .from('holidays_old')
+      .select('date, name')
+      .eq('year', holidayYear)
+      .eq('type', 'holiday');
+    if ((statutory || []).some(h => h.date?.substring(0, 10) === targetDate)) return [];
 
     // 查询班级信息
     const { data: cls, error: clsError } = await this.client
