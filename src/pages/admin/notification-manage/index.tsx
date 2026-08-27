@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { notificationApi } from '@/utils/api'
 import { useDialogBack } from '@/utils/use-dialog-back'
@@ -55,6 +56,7 @@ const formatTime = (dateStr: string) => {
 
 export default function NotificationManagePage() {
   const currentRole = useAppStore((s) => s.currentRole)
+  const isAdmin = currentRole?.role_type === 'admin' || currentRole?.role_type === 'superadmin'
 
   const [mainTab, setMainTab] = useState<MainTab>('all')
 
@@ -66,6 +68,7 @@ export default function NotificationManagePage() {
   const [detailItem, setDetailItem] = useState<ManageNotification | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   useDialogBack(detailOpen, () => setDetailOpen(false))
+  const [deleteNotifyTarget, setDeleteNotifyTarget] = useState<ManageNotification | null>(null)
 
   const loadAll = useCallback(async (showSkeleton = true) => {
     if (showSkeleton) setLoading(true)
@@ -194,6 +197,25 @@ export default function NotificationManagePage() {
   const handleCopyContent = (item: ManageNotification) => {
     Taro.setClipboardData({ data: item.content || '' })
     Taro.showToast({ title: '已复制', icon: 'success' })
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await notificationApi.remove(id, currentRole?.id)
+      if (res?.code === 200) {
+        Taro.showToast({ title: '已删除', icon: 'success' })
+        setDetailOpen(false)
+        setDetailItem(null)
+        if (mainTab === 'all') loadAll(false)
+        else if (mainTab === 'received') loadReceived()
+        else loadSent()
+      } else {
+        Taro.showToast({ title: res?.msg || '删除失败', icon: 'none' })
+      }
+    } catch (err) {
+      console.error('[NotificationManage] delete error:', err)
+      Taro.showToast({ title: '删除失败', icon: 'none' })
+    }
   }
 
   const currentList =
@@ -356,7 +378,7 @@ export default function NotificationManagePage() {
 
       {/* 详情弹窗 */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+        <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '85vh' }}>
           <DialogHeader>
             <DialogTitle>
               <View className="flex items-center gap-2 flex-wrap pr-10">
@@ -374,37 +396,45 @@ export default function NotificationManagePage() {
               </View>
             </DialogTitle>
           </DialogHeader>
-          <View className="mt-4 space-y-3">
-            {detailItem && (
-              <>
-                {(detailItem.target_labels || []).length > 0 && (
-                  <Text className="block text-xs text-muted-foreground">
-                    {(detailItem.target_labels || []).join('、')}
+          <ScrollView scrollY className="mt-4" style={{ maxHeight: '50vh' }}>
+            <View className="space-y-3 pr-3">
+              {detailItem && (
+                <>
+                  {(detailItem.target_labels || []).length > 0 && (
+                    <Text className="block text-xs text-muted-foreground">
+                      {(detailItem.target_labels || []).join('、')}
+                    </Text>
+                  )}
+                  <Text className="block text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                    {detailItem.content}
                   </Text>
-                )}
-                <Text className="block text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                  {detailItem.content}
-                </Text>
-                <View className="flex items-center justify-between">
-                  <Text className="text-xs text-muted-foreground">
-                    {mainTab !== 'received' ? `已读 ${detailItem.read_count ?? 0}/${detailItem.recipient_count ?? 0}` : ''}
-                  </Text>
-                  <Text className="text-xs text-muted-foreground">
-                    {detailItem.sender_name ? `${detailItem.sender_name} · ` : ''}{formatTime(detailItem.created_at)}
-                  </Text>
-                </View>
-              </>
-            )}
-          </View>
+                  <View className="flex items-center justify-between">
+                    <Text className="text-xs text-muted-foreground">
+                      {mainTab !== 'received' ? `已读 ${detailItem.read_count ?? 0}/${detailItem.recipient_count ?? 0}` : ''}
+                    </Text>
+                    <Text className="text-xs text-muted-foreground">
+                      {detailItem.sender_name ? `${detailItem.sender_name} · ` : ''}{formatTime(detailItem.created_at)}
+                    </Text>
+                  </View>
+                </>
+              )}
+            </View>
+          </ScrollView>
           <View className="flex justify-end gap-2 mt-4 border-t border-gray-100 pt-4">
             <Button variant="ghost" size="sm" onClick={() => detailItem && handleCopyContent(detailItem)}>
               <Copy size={14} color="#E8651A" />
               <Text className="text-primary text-sm">复制</Text>
             </Button>
-            {mainTab === 'sent' && (
+            {(mainTab === 'sent' || isAdmin) && (
               <Button variant="ghost" size="sm" onClick={() => detailItem && handleEditSent(detailItem.id)}>
                 <Pencil size={14} color="#E8651A" />
                 <Text className="text-primary text-sm">编辑</Text>
+              </Button>
+            )}
+            {isAdmin && (
+              <Button variant="ghost" size="sm" onClick={() => detailItem && setDeleteNotifyTarget(detailItem)}>
+                <Trash2 size={14} color="#ef4444" />
+                <Text className="text-red-500 text-sm">删除</Text>
               </Button>
             )}
             {mainTab === 'sent' && detailItem?.status === 'published' && (
@@ -416,6 +446,31 @@ export default function NotificationManagePage() {
           </View>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteNotifyTarget} onOpenChange={(open) => !open && setDeleteNotifyTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              删除后该通知及其接收记录将不可恢复，确认删除？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 text-white"
+              onClick={() => {
+                if (deleteNotifyTarget) {
+                  handleDelete(deleteNotifyTarget.id)
+                }
+                setDeleteNotifyTarget(null)
+              }}
+            >
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </View>
   )
 }

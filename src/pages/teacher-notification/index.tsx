@@ -432,7 +432,7 @@ export default function TeacherNotificationPage() {
       let res: any
       const targetId = draftId || editingId
       if (targetId) {
-        res = await notificationApi.update(targetId, payload)
+        res = await notificationApi.update(targetId, payload, isAdmin ? currentRole?.id : undefined)
       } else {
         res = await notificationApi.create(payload, currentRole?.id)
       }

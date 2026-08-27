@@ -165,11 +165,11 @@ export const notificationApi = {
   detail: (id: string) =>
     request({ url: `/api/notifications/${id}`, method: 'GET' }),
 
-  update: (id: string, data: Record<string, any>) =>
-    request({ url: `/api/notifications/${id}`, method: 'PATCH', data }),
+  update: (id: string, data: Record<string, any>, operatorRoleId?: string) =>
+    request({ url: `/api/notifications/${id}`, method: 'PATCH', data: operatorRoleId ? { ...data, operator_role_id: operatorRoleId } : data }),
 
-  remove: (id: string) =>
-    request({ url: `/api/notifications/${id}`, method: 'DELETE' }),
+  remove: (id: string, operatorRoleId?: string) =>
+    request({ url: `/api/notifications/${id}`, method: 'DELETE', data: operatorRoleId ? { operator_role_id: operatorRoleId } : undefined }),
 
   markRead: (id: string, userRoleId: string) =>
     request({ url: `/api/notifications/${id}/read`, method: 'POST', data: { user_role_id: userRoleId } }),

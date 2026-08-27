@@ -46,6 +46,9 @@ export default function ReviewPage() {
   useDialogBack(detailOpen, () => setDetailOpen(false))
   const [editRelationship, setEditRelationship] = useState('')
   const [editCustomRelationship, setEditCustomRelationship] = useState('')
+  const [editStatus, setEditStatus] = useState('')
+  const [saveConfirmOpen, setSaveConfirmOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<BindingRequest | null>(null)
 
@@ -159,13 +162,17 @@ export default function ReviewPage() {
     setDetailItem(req)
     setEditRelationship(req.relationship || '')
     setEditCustomRelationship(req.custom_relationship || '')
+    setEditStatus(req.status === 'approved' ? 'approved' : req.status === 'rejected' ? 'rejected' : '')
     setDetailOpen(true)
   }
 
-  const handleSaveEdit = async () => {
-    if (!detailItem) return
+  const handleConfirmSave = async () => {
+    if (!detailItem || saving) return
+    const targetStatus = editStatus
+    setSaving(true)
     try {
-      const res = await Network.request({
+      // 1. 保存关系
+      const saveRes = await Network.request({
         url: '/api/admin/binding-requests/update',
         method: 'POST',
         data: {
@@ -174,41 +181,38 @@ export default function ReviewPage() {
           custom_relationship: editRelationship === 'other' ? editCustomRelationship : '',
         },
       })
-      if (res.data?.code === 200) {
-        Taro.showToast({ title: '已保存', icon: 'success' })
-        setDetailOpen(false)
-        await loadRequests(false)
-      } else {
-        Taro.showToast({ title: res.data?.msg || '保存失败', icon: 'none' })
+      if (saveRes.data?.code !== 200) {
+        Taro.showToast({ title: saveRes.data?.msg || '保存关系失败', icon: 'none' })
+        return
       }
-    } catch (err) {
-      console.error('[Review] save edit error:', err)
-      Taro.showToast({ title: '保存失败', icon: 'none' })
-    }
-  }
-
-  const handleSetStatus = async (requestId: string, status: string) => {
-    try {
-      const res = await Network.request({
-        url: '/api/admin/binding-requests/set-status',
-        method: 'POST',
-        data: {
-          request_id: requestId,
-          status,
-          operator_user_id: userId ?? undefined,
-        },
-      })
-      if (res.data?.code === 200) {
-        Taro.showToast({ title: '已更新', icon: 'success' })
-        setDetailOpen(false)
-        await loadRequests(false)
+      // 2. 状态切换（仅 approved/rejected 且目标状态发生变化时）
+      if (targetStatus && targetStatus !== detailItem.status) {
+        const statusRes = await Network.request({
+          url: '/api/admin/binding-requests/set-status',
+          method: 'POST',
+          data: {
+            request_id: detailItem.id,
+            status: targetStatus,
+            operator_user_id: userId ?? undefined,
+          },
+        })
+        if (statusRes.data?.code !== 200) {
+          Taro.showToast({ title: statusRes.data?.msg || '状态更新失败', icon: 'none' })
+          return
+        }
+      }
+      Taro.showToast({ title: '已保存', icon: 'success' })
+      setDetailOpen(false)
+      setSaveConfirmOpen(false)
+      await loadRequests(false)
+      if (targetStatus && targetStatus !== detailItem.status) {
         Taro.eventCenter.trigger('refreshPendingCount')
-      } else {
-        Taro.showToast({ title: res.data?.msg || '操作失败', icon: 'none' })
       }
     } catch (err) {
-      console.error('[Review] set-status error:', err)
-      Taro.showToast({ title: '操作失败', icon: 'none' })
+      console.error('[Review] confirm save error:', err)
+      Taro.showToast({ title: '保存失败', icon: 'none' })
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -362,6 +366,28 @@ export default function ReviewPage() {
                   </View>
                 </View>
               )}
+              {detailItem.status !== 'pending' && (
+                <View className="space-y-2">
+                  <Text className="block text-sm text-foreground">审核状态</Text>
+                  <View className="flex flex-wrap gap-2">
+                    {[
+                      { value: 'approved', label: '通过' },
+                      { value: 'rejected', label: '拒绝' },
+                    ].map((opt) => {
+                      const active = editStatus === opt.value
+                      return (
+                        <View
+                          key={opt.value}
+                          className={`px-4 py-2 rounded-lg ${active ? 'bg-primary' : 'bg-gray-100'}`}
+                          onClick={() => setEditStatus(opt.value)}
+                        >
+                          <Text className={`text-sm ${active ? 'text-white' : 'text-foreground'}`}>{opt.label}</Text>
+                        </View>
+                      )
+                    })}
+                  </View>
+                </View>
+              )}
               {detailItem.status === 'pending' && (
                 <Button
                   className="w-full bg-green-500 text-white"
@@ -375,29 +401,28 @@ export default function ReviewPage() {
                   </Text>
                 </Button>
               )}
-              {detailItem.status === 'approved' && (
-                <Button
-                  className="w-full bg-red-500 text-white"
-                  onClick={() => handleSetStatus(detailItem.id, 'rejected')}
-                >
-                  <Text className="text-white">改为拒绝</Text>
-                </Button>
-              )}
-              {detailItem.status === 'rejected' && (
-                <Button
-                  className="w-full bg-green-500 text-white"
-                  onClick={() => handleSetStatus(detailItem.id, 'approved')}
-                >
-                  <Text className="text-white">改为通过</Text>
-                </Button>
-              )}
-              <Button className="w-full bg-primary text-white" onClick={handleSaveEdit}>
-                保存
+              <Button className="w-full bg-primary text-white" disabled={saving} onClick={() => setSaveConfirmOpen(true)}>
+                {saving ? '保存中...' : '保存'}
               </Button>
             </View>
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={saveConfirmOpen} onOpenChange={setSaveConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认保存</AlertDialogTitle>
+            <AlertDialogDescription>
+              将保存关系与状态变更，确认提交？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmSave}>确认保存</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text, Image, Picker } from '@tarojs/components'
+import { View, Text, Image, Picker, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -451,7 +451,7 @@ export default function GrowthManagePage() {
               </View>
             </DialogTitle>
           </DialogHeader>
-          <View className="mt-4" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+          <ScrollView scrollY className="mt-4" style={{ maxHeight: '60vh' }}>
             {detailRecord && (
               <View className="pr-3 space-y-3">
                 {detailRecord.child_name && (
@@ -481,7 +481,7 @@ export default function GrowthManagePage() {
                 </View>
               </View>
             )}
-          </View>
+          </ScrollView>
           <View className="flex justify-end gap-2 mt-4 border-t border-gray-100 pt-4">
             <Button variant="ghost" size="sm" onClick={() => detailRecord && handleCopy(detailRecord)}>
               <Copy size={14} color="#E8651A" />

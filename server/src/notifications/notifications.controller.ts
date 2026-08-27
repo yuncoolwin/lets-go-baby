@@ -79,8 +79,9 @@ export class NotificationsController {
 
   @Patch(':id')
   @HttpCode(200)
-  async update(@Param('id') id: string, @Body() dto: Partial<CreateNotificationDto>) {
-    const data = await this.notificationsService.update(id, dto);
+  async update(@Param('id') id: string, @Body() dto: Partial<CreateNotificationDto> & { operator_role_id?: string }) {
+    const { operator_role_id, ...rest } = dto;
+    const data = await this.notificationsService.update(id, rest, operator_role_id);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -89,8 +90,12 @@ export class NotificationsController {
 
   @Delete(':id')
   @HttpCode(200)
-  async remove(@Param('id') id: string) {
-    const data = await this.notificationsService.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @Body() body?: { operator_role_id?: string },
+    @Query('operator_role_id') operatorRoleId?: string,
+  ) {
+    const data = await this.notificationsService.remove(id, body?.operator_role_id || operatorRoleId);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }

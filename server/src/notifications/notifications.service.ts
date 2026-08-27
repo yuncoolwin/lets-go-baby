@@ -25,6 +25,15 @@ export class NotificationsService {
   }
 
   /**
+   * 判断角色是否为管理员或超管
+   */
+  private async isAdminRole(roleId?: string) {
+    if (!roleId) return false;
+    const role = await this.getRole(roleId);
+    return role?.role_type === 'admin' || role?.role_type === 'superadmin';
+  }
+
+  /**
    * 根据幼儿 id 数组查所有家长的角色 id（parent_role_id）
    * 口径：parent_child_relations.status = 'active'
    */
@@ -560,6 +569,7 @@ export class NotificationsService {
       status?: string;
       images?: string[];
     },
+    operatorRoleId?: string,
   ) {
     const { data: existing } = await this.client
       .from('notifications')
@@ -568,7 +578,8 @@ export class NotificationsService {
       .maybeSingle();
 
     if (!existing) return { error: true, code: 404, msg: '通知不存在' };
-    if (existing.status !== 'draft' && existing.status !== 'revoked') {
+    const isAdminOperator = await this.isAdminRole(operatorRoleId);
+    if (!isAdminOperator && existing.status !== 'draft' && existing.status !== 'revoked') {
       return { error: true, code: 400, msg: '仅草稿或已撤回的通知可编辑' };
     }
 
@@ -589,14 +600,18 @@ export class NotificationsService {
       }
     }
 
-    const becomingPublished = dto.status === 'published';
+    // 仅当从草稿/撤回转为发布时才重建接收人；管理员就地编辑已发布通知不重建、不重置已读、不重新群发
+    const becomingPublished = dto.status === 'published' && existing.status !== 'published';
+    const isEditingPublished = isAdminOperator && existing.status === 'published';
     const updateData: Record<string, any> = { updated_at: new Date().toISOString() };
     if (dto.title !== undefined) updateData.title = dto.title;
     if (dto.content !== undefined) updateData.content = dto.content;
-    if (dto.type !== undefined) updateData.type = dto.type;
-    if (dto.target_ids !== undefined) updateData.target_ids = dto.target_ids;
     if (dto.images !== undefined) updateData.images = dto.images;
-    if (becomingPublished) updateData.status = 'published';
+    if (!isEditingPublished) {
+      if (dto.type !== undefined) updateData.type = dto.type;
+      if (dto.target_ids !== undefined) updateData.target_ids = dto.target_ids;
+      if (becomingPublished) updateData.status = 'published';
+    }
 
     const { data: updated, error } = await this.client
       .from('notifications')
@@ -621,7 +636,7 @@ export class NotificationsService {
   /**
    * 删除：仅草稿可物理删除
    */
-  async remove(id: string) {
+  async remove(id: string, operatorRoleId?: string) {
     const { data: existing } = await this.client
       .from('notifications')
       .select('status')
@@ -629,7 +644,8 @@ export class NotificationsService {
       .maybeSingle();
 
     if (!existing) return { error: true, code: 404, msg: '通知不存在' };
-    if (existing.status !== 'draft') {
+    const isAdminOperator = await this.isAdminRole(operatorRoleId);
+    if (!isAdminOperator && existing.status !== 'draft') {
       return { error: true, code: 400, msg: '仅草稿可删除，已发布通知请使用撤回' };
     }
 
