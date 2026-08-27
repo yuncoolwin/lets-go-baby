@@ -81,14 +81,13 @@ export class NotificationsService {
   }
 
   /**
-   * 查所有管理员角色 id
-   * 口径：user_roles.role_type = 'admin'
+   * 查所有管理员角色 id（含超级管理员）
    */
   private async getAdminRoleIds(): Promise<string[]> {
     const { data } = await this.client
       .from('user_roles')
       .select('id')
-      .eq('role_type', 'admin');
+      .in('role_type', ['admin', 'superadmin']);
     return (data || []).map((r) => r.id).filter(Boolean);
   }
 
@@ -108,6 +107,7 @@ export class NotificationsService {
       const childIds = [...new Set((enrollments || []).map((e) => e.child_id).filter(Boolean))];
       (await this.getParentRoleIdsByChildIds(childIds)).forEach((id) => roleIds.add(id));
       (await this.getActiveTeacherRoleIds()).forEach((id) => roleIds.add(id));
+      (await this.getAdminRoleIds()).forEach((id) => roleIds.add(id));
     } else if (type === 'course') {
       // 该课程下所有在读幼儿的家长 + 该课程老师 + 所有管理员
       if (ids.length) {
@@ -137,9 +137,11 @@ export class NotificationsService {
 
         (await this.getTeacherRoleIdsByClassIds(ids)).forEach((id) => roleIds.add(id));
       }
+      (await this.getAdminRoleIds()).forEach((id) => roleIds.add(id));
     } else if (type === 'personal') {
       // 所选幼儿的所有家长（不看是否在读）
       (await this.getParentRoleIdsByChildIds(ids)).forEach((id) => roleIds.add(id));
+      (await this.getAdminRoleIds()).forEach((id) => roleIds.add(id));
     } else if (type === 'teacher') {
       // 所选教师的教师端角色
       if (ids.length) {
@@ -150,6 +152,7 @@ export class NotificationsService {
         const userIds = [...new Set((teachers || []).map((t) => t.user_id).filter(Boolean))];
         (await this.getTeacherRoleIdsByUserIds(userIds)).forEach((id) => roleIds.add(id));
       }
+      (await this.getAdminRoleIds()).forEach((id) => roleIds.add(id));
     }
 
     return [...roleIds];

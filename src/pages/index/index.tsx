@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
 import { Users, GraduationCap, Plus, ChevronDown, ChevronUp, BookOpen, X, Info, Sun, User, Baby, Bell, Sprout } from 'lucide-react-taro'
-import { getRelationshipLabel } from '@/utils/helpers'
+import { formatChineseDate, getRelationshipLabel } from '@/utils/helpers'
 import { courseApi } from '@/utils/api'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge, formatTime } from '@/utils/format'
@@ -429,7 +429,7 @@ export default function IndexPage() {
             }` : '新用户'}
           </Text>
           <Text className="block text-sm text-muted-foreground mt-1">
-            {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
+            {formatChineseDate(new Date())}
           </Text>
         </View>
 
@@ -743,7 +743,7 @@ export default function IndexPage() {
             您好，{nickname || currentRole?.real_name || '老师'} 💕
           </Text>
           <Text className="block text-sm text-muted-foreground mt-1">
-            {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
+            {formatChineseDate(new Date())}
           </Text>
         </View>
 
@@ -1229,7 +1229,7 @@ export default function IndexPage() {
             您好，{currentRole?.real_name || nickname || '管理员'}
           </Text>
           <Text className="block text-sm text-muted-foreground mt-1">
-            {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
+            {formatChineseDate(new Date())}
           </Text>
         </View>
 

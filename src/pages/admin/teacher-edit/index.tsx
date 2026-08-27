@@ -199,7 +199,19 @@ export default function TeacherEditPage() {
       <View className="p-4 space-y-4">
         <Card>
           <CardHeader>
-            <CardTitle>基本信息</CardTitle>
+            <View className="flex items-center justify-between">
+              <CardTitle>基本信息</CardTitle>
+              {!isCreate && (
+                <Button
+                  variant="ghost"
+                  className="h-8 px-2"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 size={16} color="#EF4444" />
+                  <Text className="text-red-500 text-sm">删除</Text>
+                </Button>
+              )}
+            </View>
           </CardHeader>
           <CardContent className="space-y-4">
             <View>
@@ -342,28 +354,14 @@ export default function TeacherEditPage() {
       </View>
 
       {/* 底部保存按钮 */}
-      <View style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, padding: '16px', backgroundColor: '#fff', borderTop: '1px solid #e5e7eb', display: 'flex', flexDirection: 'row', gap: '12px' }}>
-        {!isCreate && (
-          <View style={{ flexShrink: 0 }}>
-            <Button
-              variant="destructive"
-              className="h-11 px-4"
-              onClick={() => setDeleteOpen(true)}
-            >
-              <Trash2 size={18} color="#ffffff" />
-              <Text className="text-white">删除</Text>
-            </Button>
-          </View>
-        )}
-        <View style={{ flex: 1 }}>
-          <Button
-            className="w-full bg-primary text-white"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? '保存中...' : '保存'}
-          </Button>
-        </View>
+      <View style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, padding: '16px', backgroundColor: '#fff', borderTop: '1px solid #e5e7eb' }}>
+        <Button
+          className="w-full bg-primary text-white"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? '保存中...' : '保存'}
+        </Button>
       </View>
 
       {/* 删除确认弹窗 */}

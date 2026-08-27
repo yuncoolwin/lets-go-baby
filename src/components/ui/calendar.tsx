@@ -32,6 +32,8 @@ type CommonProps = {
   captionLayout?: "label" | "dropdown"
   fromYear?: number
   toYear?: number
+  showAllDates?: boolean
+  onClearDate?: () => void
 }
 
 type SingleProps = CommonProps & {
@@ -81,6 +83,8 @@ function Calendar({
   captionLayout = "dropdown",
   fromYear,
   toYear,
+  showAllDates,
+  onClearDate,
   ...props
 }: CalendarProps) {
   const singleSelected = getSingleSelected({ month, defaultMonth, onMonthChange, showOutsideDays, weekStartsOn, disabled, className, ...props } as CalendarProps)
@@ -353,8 +357,8 @@ function Calendar({
         ))}
       </View>
 
-      {/* 今天按钮 */}
-      <View className="flex justify-center pt-1">
+      {/* 今天按钮 + 全部日期按钮 */}
+      <View className="flex justify-center gap-2 pt-1">
         <Button
           variant="ghost"
           className="h-8 px-4"
@@ -370,6 +374,15 @@ function Calendar({
         >
           <Text className="block text-sm font-medium text-primary">今天</Text>
         </Button>
+        {showAllDates && (
+          <Button
+            variant="ghost"
+            className="h-8 px-4"
+            onClick={() => onClearDate?.()}
+          >
+            <Text className="block text-sm font-medium text-primary">全部日期</Text>
+          </Button>
+        )}
       </View>
     </View>
   )

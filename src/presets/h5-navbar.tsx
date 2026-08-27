@@ -2,6 +2,7 @@ import { View, Text } from '@tarojs/components';
 import Taro, { useDidShow, usePageScroll } from '@tarojs/taro';
 import { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, House } from 'lucide-react-taro';
+import { consumeDialogBack } from '@/utils/dialog-back';
 import { IS_H5_ENV } from './env';
 
 interface NavConfig {
@@ -71,7 +72,9 @@ const computeLeftIcon = (
   const isTabBarPage =
     tabBarPages.has(cleanRoute) || tabBarPages.has(`/${cleanRoute}`);
   const hasHistory = historyLength > 1;
+  const isLoginPage = cleanRoute === 'pages/login/index';
 
+  if (isLoginPage) return LeftIcon.None;
   if (isTabBarPage || isHomePage) return LeftIcon.None;
   if (hasHistory) return LeftIcon.Back;
   return LeftIcon.Home;
@@ -199,7 +202,10 @@ export const H5NavBar = () => {
     return { backgroundColor: navState.bgColor };
   };
 
-  const handleBack = () => Taro.navigateBack();
+  const handleBack = () => {
+    if (consumeDialogBack()) return;
+    Taro.navigateBack();
+  };
   const handleGoHome = () => {
     const homePage = getHomePage();
     Taro.reLaunch({ url: `/${homePage}` });

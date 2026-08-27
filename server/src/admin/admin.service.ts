@@ -492,6 +492,72 @@ export class AdminService {
     return { code: 200, msg: 'success', data: { success: true } };
   }
 
+  // 切换审核申请状态（通过 ↔ 拒绝）
+  async setBindingRequestStatus(requestId: string, status: string, operatorUserId: string) {
+    const isSuperAdmin = await this.getActiveSuperAdmin(operatorUserId);
+    if (!isSuperAdmin) {
+      return { code: 403, msg: '无权限', data: null };
+    }
+
+    if (status === 'approved') {
+      return this.approveBindingRequest(requestId, operatorUserId);
+    }
+
+    if (status === 'rejected') {
+      const { data: request, error: reqError } = await this.client
+        .from('binding_requests')
+        .select('*')
+        .eq('id', requestId)
+        .maybeSingle();
+
+      if (reqError || !request) {
+        return { code: 404, msg: '审核申请不存在', data: null };
+      }
+
+      // 先解析 user_id（与 approve 逻辑一致），再按 user_id + child_id 删除实际绑定关系
+      let userId: string | null = null;
+      if (request.parent_role_id) {
+        const { data: role } = await this.client
+          .from('user_roles')
+          .select('user_id')
+          .eq('id', request.parent_role_id)
+          .maybeSingle();
+        if (role) userId = role.user_id;
+      }
+
+      if (userId && request.child_id) {
+        await this.client
+          .from('parent_child_relations')
+          .delete()
+          .eq('user_id', userId)
+          .eq('child_id', request.child_id);
+      }
+
+      const { error } = await this.client
+        .from('binding_requests')
+        .update({
+          status: 'rejected',
+          approved_at: null,
+        })
+        .eq('id', requestId);
+
+      if (error) throw new Error(`切换状态失败: ${error.message}`);
+
+      await this.writeAuditLog({
+        user_id: operatorUserId,
+        user_role_id: isSuperAdmin.id,
+        action: 'binding_reject',
+        target_type: 'binding_request',
+        target_id: requestId,
+        detail: { status },
+      });
+
+      return { code: 200, msg: 'success', data: { success: true } };
+    }
+
+    return { code: 400, msg: '无效状态', data: null };
+  }
+
   // 校验操作者是否为 active 超管，返回 user_role 记录或 null
   private async getActiveSuperAdmin(operatorUserId: string) {
     const { data, error } = await this.client

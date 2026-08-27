@@ -11,6 +11,8 @@ import { useAppStore } from '@/store/app'
 import { refreshUnreadBadge } from '@/utils/unread-badge'
 import { Bell } from 'lucide-react-taro'
 import TabBar from '@/components/tab-bar'
+import { formatChineseFullDate } from '@/utils/helpers'
+import { useDialogBack } from '@/utils/use-dialog-back'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 
 interface NotificationItem {
@@ -34,6 +36,7 @@ export default function MessagesPage() {
 
   const [detailItem, setDetailItem] = useState<NotificationItem | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  useDialogBack(detailOpen, () => setDetailOpen(false))
 
   useDidShow(() => {
     if (currentRole?.id) refreshUnreadBadge(currentRole.id)
@@ -78,7 +81,7 @@ export default function MessagesPage() {
     if (hours < 24) return `${hours}小时前`
     const days = Math.floor(hours / 24)
     if (days < 7) return `${days}天前`
-    return date.toLocaleDateString('zh-CN')
+    return formatChineseFullDate(date)
   }
 
   const handleReceivedCardClick = async (item: NotificationItem) => {

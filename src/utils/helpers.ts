@@ -37,3 +37,21 @@ export function getRelationshipLabel(value: string): string {
 export function getRelationshipValue(label: string): string {
   return RELATIONSHIP_REVERSE_MAP[label] || label
 }
+
+const WEEKDAY_NAMES = ['日', '一', '二', '三', '四', '五', '六']
+
+/** 中文短日期：X月X日 星期X */
+export function formatChineseDate(date: Date): string {
+  return `${date.getMonth() + 1}月${date.getDate()}日 星期${WEEKDAY_NAMES[date.getDay()]}`
+}
+
+/** 中文完整日期时间：YYYY年M月D日 HH:mm */
+export function formatChineseDateTime(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+/** 中文日期：YYYY年M月D日 */
+export function formatChineseFullDate(date: Date): string {
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`
+}

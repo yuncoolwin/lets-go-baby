@@ -10,6 +10,7 @@ interface CalendarOverlayProps {
   value: string
   onChange: (dateStr: string) => void
   disabled?: (date: Date) => boolean
+  showAllDates?: boolean
 }
 
 export function CalendarOverlay({
@@ -18,6 +19,7 @@ export function CalendarOverlay({
   value,
   onChange,
   disabled,
+  showAllDates,
 }: CalendarOverlayProps) {
   const [show, setShow] = useState(false)
   const [animating, setAnimating] = useState<'open' | 'close' | 'idle'>('idle')
@@ -54,6 +56,11 @@ export function CalendarOverlay({
     }
   }
 
+  const handleClearDate = () => {
+    onChange('')
+    handleClose()
+  }
+
   if (!show) return null
 
   return (
@@ -85,6 +92,8 @@ export function CalendarOverlay({
           selected={value ? new Date(value) : new Date()}
           onSelect={handleSelect}
           disabled={disabled}
+          showAllDates={showAllDates}
+          onClearDate={handleClearDate}
         />
       </View>
     </View>

@@ -10,6 +10,7 @@ import { useAppStore } from '@/store/app'
 import { childrenApi, growthApi, courseApi, teacherApi } from '@/utils/api'
 import { Network } from '@/network'
 import { Pencil, Trash2, Copy } from 'lucide-react-taro'
+import { useDialogBack } from '@/utils/use-dialog-back'
 
 interface GrowthRecord {
   id: string
@@ -73,6 +74,7 @@ export default function GrowthManagePage() {
   const [dateOverlayVisible, setDateOverlayVisible] = useState(false)
   const [detailRecord, setDetailRecord] = useState<GrowthRecord | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  useDialogBack(detailOpen, () => setDetailOpen(false))
 
   const children = teacherClassId
     ? allChildren.filter((c) => String(c.class_id) === String(teacherClassId))
@@ -388,20 +390,6 @@ export default function GrowthManagePage() {
                     <Text className="text-xs text-muted-foreground">
                       {record.parent_read_at ? '已读' : '未读'}
                     </Text>
-                    <View className="flex gap-2">
-                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleCopy(record) }}>
-                        <Copy size={14} color="#E8651A" />
-                        <Text className="text-primary text-sm">复制</Text>
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); goEdit(record.id) }}>
-                        <Pencil size={14} color="#E8651A" />
-                        <Text className="text-primary text-sm">编辑</Text>
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(record.id) }}>
-                        <Trash2 size={14} color="#ef4444" />
-                        <Text className="text-red-500 text-sm">删除</Text>
-                      </Button>
-                    </View>
                   </View>
                 </CardContent>
               </Card>
@@ -446,6 +434,7 @@ export default function GrowthManagePage() {
         value={filterDate || formatToday()}
         onChange={handleDateChange}
         onClose={() => setDateOverlayVisible(false)}
+        showAllDates
       />
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
@@ -492,6 +481,20 @@ export default function GrowthManagePage() {
                 </View>
               </View>
             )}
+          </View>
+          <View className="flex justify-end gap-2 mt-4 border-t border-gray-100 pt-4">
+            <Button variant="ghost" size="sm" onClick={() => detailRecord && handleCopy(detailRecord)}>
+              <Copy size={14} color="#E8651A" />
+              <Text className="text-primary text-sm">复制</Text>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => detailRecord && goEdit(detailRecord.id)}>
+              <Pencil size={14} color="#E8651A" />
+              <Text className="text-primary text-sm">编辑</Text>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => { if (detailRecord) { handleDelete(detailRecord.id); setDetailOpen(false) } }}>
+              <Trash2 size={14} color="#ef4444" />
+              <Text className="text-red-500 text-sm">删除</Text>
+            </Button>
           </View>
         </DialogContent>
       </Dialog>

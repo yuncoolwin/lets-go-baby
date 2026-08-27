@@ -10,6 +10,7 @@ import { Network } from '@/network'
 import { refreshUnreadBadge } from '@/utils/unread-badge'
 import { Camera } from 'lucide-react-taro'
 import TabBar from '@/components/tab-bar'
+import { useDialogBack } from '@/utils/use-dialog-back'
 
 interface GrowthRecord {
   id: string
@@ -32,6 +33,7 @@ export default function GrowthPage() {
   const [loading, setLoading] = useState(true)
   const [detailRecord, setDetailRecord] = useState<GrowthRecord | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  useDialogBack(detailOpen, () => setDetailOpen(false))
 
   useDidShow(() => {
     loadRecords()

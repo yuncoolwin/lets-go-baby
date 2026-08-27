@@ -64,6 +64,12 @@ export class AdminController {
     return this.adminService.updateBindingRequest(body.request_id, body.relationship, body.custom_relationship);
   }
 
+  @Post('binding-requests/set-status')
+  @HttpCode(200)
+  async setBindingRequestStatus(@Body() body: { request_id: string; status: string; operator_user_id: string }) {
+    return this.adminService.setBindingRequestStatus(body.request_id, body.status, body.operator_user_id);
+  }
+
   @Get('user/parent-status')
   @HttpCode(200)
   async getParentStatus(@Query('userId') userId: string) {

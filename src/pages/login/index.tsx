@@ -199,11 +199,26 @@ export default function LoginPage() {
 
   return (
     <View className="min-h-screen bg-gradient-to-b from-orange-50 to-white flex flex-col items-center justify-center px-6">
+      {/* 微信授权登录（右上角小按钮） */}
+      <View
+        className="flex items-center"
+        style={{ position: 'fixed', top: 16, right: 16, zIndex: 10 }}
+      >
+        <Button
+          variant="ghost"
+          className="h-8 px-2"
+          onClick={handleWxLogin}
+          disabled={isLoading}
+        >
+          <Text className="text-xs text-gray-500">微信授权登录</Text>
+        </Button>
+      </View>
+
       {/* Logo 区域 */}
       <View className="mb-12 flex flex-col items-center">
         <Image
           src={logoUrl}
-          className="w-40 h-40 rounded-3xl"
+          className="w-80 h-80 rounded-3xl"
           mode="aspectFit"
         />
       </View>
@@ -217,15 +232,6 @@ export default function LoginPage() {
           disabled={isLoading}
         >
           {isLoading ? '登录中...' : '手机号一键登录'}
-        </Button>
-
-        <Button
-          variant="outline"
-          className="w-full h-12 rounded-xl text-base font-medium"
-          onClick={handleWxLogin}
-          disabled={isLoading}
-        >
-          微信授权登录
         </Button>
 
         {isDev && showMockPanel && (
@@ -316,15 +322,21 @@ export default function LoginPage() {
         <Text className="block text-xs text-gray-400">
           登录即表示同意《用户协议》和《隐私政策》
         </Text>
-        {isDev && (
+      </View>
+
+      {isDev && (
+        <View
+          className="text-center"
+          style={{ position: 'fixed', bottom: 16, left: 0, right: 0 }}
+        >
           <Text
-            className="block text-xs text-gray-300 mt-4 select-none"
+            className="block text-xs text-gray-300 select-none"
             onClick={handleVersionTap}
           >
-            版本 v{APP_VERSION}（点击 5 次打开开发测试面板）
+            版本 v{APP_VERSION}
           </Text>
-        )}
-      </View>
+        </View>
+      )}
     </View>
   )
 }

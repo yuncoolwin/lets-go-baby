@@ -11,7 +11,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Network } from '@/network'
 import { useAppStore } from '@/store/app'
 import { ShieldCheck, Trash2 } from 'lucide-react-taro'
-import { getRelationshipLabel } from '@/utils/helpers'
+import { formatChineseDateTime, getRelationshipLabel } from '@/utils/helpers'
+import { useDialogBack } from '@/utils/use-dialog-back'
 
 interface BindingRequest {
   id: string
@@ -42,6 +43,7 @@ export default function ReviewPage() {
   const [rejectingId, setRejectingId] = useState<string | null>(null)
   const [detailItem, setDetailItem] = useState<BindingRequest | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  useDialogBack(detailOpen, () => setDetailOpen(false))
   const [editRelationship, setEditRelationship] = useState('')
   const [editCustomRelationship, setEditCustomRelationship] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -185,6 +187,31 @@ export default function ReviewPage() {
     }
   }
 
+  const handleSetStatus = async (requestId: string, status: string) => {
+    try {
+      const res = await Network.request({
+        url: '/api/admin/binding-requests/set-status',
+        method: 'POST',
+        data: {
+          request_id: requestId,
+          status,
+          operator_user_id: userId ?? undefined,
+        },
+      })
+      if (res.data?.code === 200) {
+        Taro.showToast({ title: '已更新', icon: 'success' })
+        setDetailOpen(false)
+        await loadRequests(false)
+        Taro.eventCenter.trigger('refreshPendingCount')
+      } else {
+        Taro.showToast({ title: res.data?.msg || '操作失败', icon: 'none' })
+      }
+    } catch (err) {
+      console.error('[Review] set-status error:', err)
+      Taro.showToast({ title: '操作失败', icon: 'none' })
+    }
+  }
+
   if (loading) {
     return (
       <View className="min-h-screen bg-background p-4">
@@ -247,7 +274,7 @@ export default function ReviewPage() {
                       关系: {getRelationLabel(req.relationship, req.custom_relationship)}
                     </Text>
                     <Text className="block text-xs text-muted-foreground">
-                      {new Date(req.created_at).toLocaleString('zh-CN')}
+                      {formatChineseDateTime(new Date(req.created_at))}
                     </Text>
                     {req.reject_reason && (
                       <Text className="block text-xs text-red-500">
@@ -346,6 +373,22 @@ export default function ReviewPage() {
                   <Text className="text-white">
                     {approvingId === detailItem.id ? '处理中...' : '通过'}
                   </Text>
+                </Button>
+              )}
+              {detailItem.status === 'approved' && (
+                <Button
+                  className="w-full bg-red-500 text-white"
+                  onClick={() => handleSetStatus(detailItem.id, 'rejected')}
+                >
+                  <Text className="text-white">改为拒绝</Text>
+                </Button>
+              )}
+              {detailItem.status === 'rejected' && (
+                <Button
+                  className="w-full bg-green-500 text-white"
+                  onClick={() => handleSetStatus(detailItem.id, 'approved')}
+                >
+                  <Text className="text-white">改为通过</Text>
                 </Button>
               )}
               <Button className="w-full bg-primary text-white" onClick={handleSaveEdit}>

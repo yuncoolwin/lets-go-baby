@@ -8,9 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { notificationApi } from '@/utils/api'
+import { useDialogBack } from '@/utils/use-dialog-back'
 import { useAppStore } from '@/store/app'
 import { refreshUnreadBadge } from '@/utils/unread-badge'
-import { Bell } from 'lucide-react-taro'
+import { Bell, Copy, Pencil, Trash2 } from 'lucide-react-taro'
 
 interface ManageNotification {
   id: string
@@ -64,6 +65,7 @@ export default function NotificationManagePage() {
   const [typeFilter, setTypeFilter] = useState('')
   const [detailItem, setDetailItem] = useState<ManageNotification | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  useDialogBack(detailOpen, () => setDetailOpen(false))
 
   const loadAll = useCallback(async (showSkeleton = true) => {
     if (showSkeleton) setLoading(true)
@@ -187,6 +189,11 @@ export default function NotificationManagePage() {
 
   const handleEditSent = (id: string) => {
     Taro.navigateTo({ url: `/pages/teacher-notification/index?id=${id}` })
+  }
+
+  const handleCopyContent = (item: ManageNotification) => {
+    Taro.setClipboardData({ data: item.content || '' })
+    Taro.showToast({ title: '已复制', icon: 'success' })
   }
 
   const currentList =
@@ -387,6 +394,24 @@ export default function NotificationManagePage() {
                   </Text>
                 </View>
               </>
+            )}
+          </View>
+          <View className="flex justify-end gap-2 mt-4 border-t border-gray-100 pt-4">
+            <Button variant="ghost" size="sm" onClick={() => detailItem && handleCopyContent(detailItem)}>
+              <Copy size={14} color="#E8651A" />
+              <Text className="text-primary text-sm">复制</Text>
+            </Button>
+            {mainTab === 'sent' && (
+              <Button variant="ghost" size="sm" onClick={() => detailItem && handleEditSent(detailItem.id)}>
+                <Pencil size={14} color="#E8651A" />
+                <Text className="text-primary text-sm">编辑</Text>
+              </Button>
+            )}
+            {mainTab === 'sent' && detailItem?.status === 'published' && (
+              <Button variant="ghost" size="sm" onClick={() => detailItem && handleRevoke(detailItem.id)}>
+                <Trash2 size={14} color="#ef4444" />
+                <Text className="text-red-500 text-sm">撤回</Text>
+              </Button>
             )}
           </View>
         </DialogContent>
