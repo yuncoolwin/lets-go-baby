@@ -21,6 +21,7 @@ interface GrowthRecord {
   teacher_name: string
   course_name?: string
   parent_read_at?: string | null
+  record_date?: string
 }
 
 export default function GrowthPage() {
@@ -181,9 +182,6 @@ export default function GrowthPage() {
                   </Badge>
                 )}
                 <Text className="text-lg font-semibold text-foreground">{detailRecord?.title || '成长档案'}</Text>
-                {detailRecord && (
-                  <Text className="text-xs text-muted-foreground">{formatDate(detailRecord.created_at)}</Text>
-                )}
               </View>
             </DialogTitle>
           </DialogHeader>
@@ -200,6 +198,16 @@ export default function GrowthPage() {
                     ))}
                   </View>
                 )}
+                <View className="flex justify-end pt-3">
+                  <View className="text-right space-y-1">
+                    <Text className="block text-xs text-muted-foreground">
+                      {detailRecord.teacher_name || '老师'}
+                    </Text>
+                    <Text className="block text-xs text-muted-foreground">
+                      {detailRecord.record_date || formatDate(detailRecord.created_at)}
+                    </Text>
+                  </View>
+                </View>
               </View>
             )}
           </ScrollView>

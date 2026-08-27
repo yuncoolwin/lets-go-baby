@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Network } from '@/network'
 import { useAppStore } from '@/store/app'
 import { ShieldCheck, Trash2 } from 'lucide-react-taro'
@@ -44,6 +45,7 @@ export default function ReviewPage() {
   const [editRelationship, setEditRelationship] = useState('')
   const [editCustomRelationship, setEditCustomRelationship] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<BindingRequest | null>(null)
 
   const loadRequests = useCallback(async (showSkeleton = true) => {
     if (showSkeleton) setLoading(true)
@@ -230,7 +232,7 @@ export default function ReviewPage() {
                         className="w-8 h-8 flex items-center justify-center rounded-full"
                         onClick={(e) => {
                           e.stopPropagation()
-                          handleDelete(req.id)
+                          setDeleteTarget(req)
                         }}
                       >
                         <Trash2 size={16} color="#EF4444" />
@@ -333,6 +335,19 @@ export default function ReviewPage() {
                   </View>
                 </View>
               )}
+              {detailItem.status === 'pending' && (
+                <Button
+                  className="w-full bg-green-500 text-white"
+                  disabled={approvingId === detailItem.id}
+                  onClick={() => {
+                    handleApprove(detailItem.id).then(() => setDetailOpen(false))
+                  }}
+                >
+                  <Text className="text-white">
+                    {approvingId === detailItem.id ? '处理中...' : '通过'}
+                  </Text>
+                </Button>
+              )}
               <Button className="w-full bg-primary text-white" onClick={handleSaveEdit}>
                 保存
               </Button>
@@ -340,6 +355,31 @@ export default function ReviewPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              仅删除审核申请记录，不影响已绑定的家长绑定关系。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 text-white"
+              onClick={() => {
+                if (deleteTarget) {
+                  handleDelete(deleteTarget.id)
+                }
+                setDeleteTarget(null)
+              }}
+            >
+              {deletingId ? '删除中...' : '删除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </View>
   )
 }

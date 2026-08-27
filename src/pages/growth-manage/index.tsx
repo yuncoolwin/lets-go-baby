@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text, Image, Picker, ScrollView } from '@tarojs/components'
+import { View, Text, Image, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -268,28 +268,22 @@ export default function GrowthManagePage() {
   const courseIndex = courseIdx >= 0 ? courseIdx + 1 : 0
 
   const childList = filterCourseId ? courseChildren : children
-  const childRange = ['全部', ...childList.map((c) => c.name)]
+  const childRange = ['全部幼儿', ...childList.map((c) => c.name)]
   const childIdx = childList.findIndex((c) => c.id === filterChildId)
   const childIndex = childIdx >= 0 ? childIdx + 1 : 0
 
   return (
     <View className="min-h-screen bg-background pb-28">
       <View className="px-4 pt-3 space-y-2">
-        {/* 筛选标题行 */}
-        <View className="flex gap-2">
-          <Text className="block text-sm text-foreground flex-1 text-center">日期</Text>
-          <Text className="block text-sm text-foreground flex-1 text-center">课程</Text>
-          <Text className="block text-sm text-foreground flex-1 text-center">幼儿</Text>
-        </View>
         {/* 筛选框行 */}
         <View className="flex gap-2">
           <View
-            className="flex-1 bg-gray-50 rounded-lg px-3 py-2"
+            className="flex-1 bg-gray-50 border border-gray-300 rounded-lg px-3 py-2"
             onClick={() => setDateOverlayVisible(true)}
           >
-            <Text className="block text-sm text-foreground">{filterDate || '全部'}</Text>
+            <Text className="block text-sm text-foreground">{filterDate || '全部日期'}</Text>
           </View>
-          <View className="flex-1 bg-gray-50 rounded-lg px-3 py-2">
+          <View className="flex-1 bg-gray-50 border border-gray-300 rounded-lg px-3 py-2">
             <Picker
               mode="selector"
               range={courseRange}
@@ -304,7 +298,7 @@ export default function GrowthManagePage() {
               </Text>
             </Picker>
           </View>
-          <View className="flex-1 bg-gray-50 rounded-lg px-3 py-2">
+          <View className="flex-1 bg-gray-50 border border-gray-300 rounded-lg px-3 py-2">
             <Picker
               mode="selector"
               range={childRange}
@@ -315,7 +309,7 @@ export default function GrowthManagePage() {
               }}
             >
               <Text className="block text-sm text-foreground">
-                {childRange[childIndex] || '全部'}
+                {childRange[childIndex] || '全部幼儿'}
               </Text>
             </Picker>
           </View>
@@ -468,9 +462,9 @@ export default function GrowthManagePage() {
               </View>
             </DialogTitle>
           </DialogHeader>
-          <ScrollView scrollY className="mt-4" style={{ maxHeight: '60vh' }}>
+          <View className="mt-4" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
             {detailRecord && (
-              <View className="space-y-3">
+              <View className="pr-3 space-y-3">
                 {detailRecord.child_name && (
                   <Text className="block text-sm text-muted-foreground">{detailRecord.child_name}</Text>
                 )}
@@ -498,7 +492,7 @@ export default function GrowthManagePage() {
                 </View>
               </View>
             )}
-          </ScrollView>
+          </View>
         </DialogContent>
       </Dialog>
     </View>
