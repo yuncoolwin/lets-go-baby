@@ -25,6 +25,8 @@ interface GrowthRecord {
 
 export default function GrowthPage() {
   const currentRole = useAppStore((s) => s.currentRole)
+  const children = useAppStore((s) => s.children)
+  const currentChildIndex = useAppStore((s) => s.currentChildIndex)
   const [records, setRecords] = useState<GrowthRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [detailRecord, setDetailRecord] = useState<GrowthRecord | null>(null)
@@ -43,8 +45,11 @@ export default function GrowthPage() {
     }
     setLoading(true)
     try {
+      const currentChild = children[currentChildIndex]
+      const childId = currentChild?.id || currentChild?.child_id
+      const childQuery = childId ? `&child_id=${encodeURIComponent(childId)}` : ''
       const res = await Network.request({
-        url: `/api/parent/growth-records?parent_role_id=${currentRole.id}`,
+        url: `/api/parent/growth-records?parent_role_id=${currentRole.id}${childQuery}`,
         method: 'GET',
       })
       console.log('[Growth] records:', res.data)

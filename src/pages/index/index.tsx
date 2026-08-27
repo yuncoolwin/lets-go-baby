@@ -104,6 +104,7 @@ export default function IndexPage() {
   const { isLoggedIn, currentRole, isLoading, fetchUserInfo, children, currentChildIndex, setCurrentChild, nickname } = useAppStore()
   const [babyStatus, setBabyStatus] = useState<BabyStatus | null>(null)
   const [groupList, setGroupList] = useState<GroupOverview[]>([])
+  const [isClassHoliday, setIsClassHoliday] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
   const [pageLoading, setPageLoading] = useState(true)
   const [storeReady, setStoreReady] = useState(false)
@@ -281,15 +282,25 @@ export default function IndexPage() {
   const loadTeacherData = async () => {
     const teacherId = currentRole?.id
     if (teacherId) {
-      const [groupRes, courseRes] = await Promise.all([
+      const [groupRes, courseRes, holidayRes] = await Promise.all([
         Network.request({
           url: '/api/teachers/grouped-overview',
           method: 'GET',
           data: { teacher_role_id: teacherId },
         }),
         courseApi.list({ weekday: new Date().getDay() }),
+        Network.request({
+          url: '/api/attendance/holiday-status',
+          method: 'GET',
+          data: { date: new Date().toISOString().split('T')[0] },
+        }),
       ])
       console.log('[Index] grouped overview:', groupRes.data)
+      if (holidayRes.data?.data?.is_class_holiday) {
+        setIsClassHoliday(true)
+      } else {
+        setIsClassHoliday(false)
+      }
       if (groupRes.data?.data) {
         setGroupList(groupRes.data.data)
       }
@@ -906,7 +917,9 @@ export default function IndexPage() {
           <Card className="bg-white rounded-xl border-0 shadow-sm mb-4">
             <CardContent className="p-8 flex flex-col items-center">
               <Users size={48} color="#999999" />
-              <Text className="block text-sm text-muted-foreground mt-3">暂无分组</Text>
+              <Text className="block text-sm text-muted-foreground mt-3">
+                {isClassHoliday ? '假期快乐！' : '暂无分组'}
+              </Text>
             </CardContent>
           </Card>
         )}

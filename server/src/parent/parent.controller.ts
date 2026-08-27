@@ -34,8 +34,8 @@ export class ParentController {
 
   @Get('growth-records')
   @HttpCode(200)
-  async getGrowthRecords(@Query('parent_role_id') parentRoleId?: string) {
-    const data = await this.parentService.getGrowthRecords(parentRoleId);
+  async getGrowthRecords(@Query('parent_role_id') parentRoleId?: string, @Query('child_id') childId?: string) {
+    const data = await this.parentService.getGrowthRecords(parentRoleId, childId);
     return { code: 200, msg: 'success', data };
   }
 

@@ -22,6 +22,7 @@ interface GrowthRecord {
   record_date: string | null
   teacher_name: string
   course_name?: string
+  parent_read_at?: string | null
 }
 
 const DRAFT_KEY = 'growth_drafts'
@@ -276,9 +277,9 @@ export default function GrowthManagePage() {
       <View className="px-4 pt-3 space-y-2">
         {/* 筛选标题行 */}
         <View className="flex gap-2">
-          <Text className="block text-sm text-foreground flex-1">日期</Text>
-          <Text className="block text-sm text-foreground flex-1">课程</Text>
-          <Text className="block text-sm text-foreground flex-1">幼儿</Text>
+          <Text className="block text-sm text-foreground flex-1 text-center">日期</Text>
+          <Text className="block text-sm text-foreground flex-1 text-center">课程</Text>
+          <Text className="block text-sm text-foreground flex-1 text-center">幼儿</Text>
         </View>
         {/* 筛选框行 */}
         <View className="flex gap-2">
@@ -331,7 +332,13 @@ export default function GrowthManagePage() {
         ) : (
           <View className="space-y-3">
             {records.map((record) => (
-              <Card key={record.id}>
+              <Card
+                key={record.id}
+                onClick={() => {
+                  setDetailRecord(record)
+                  setDetailOpen(true)
+                }}
+              >
                 <CardContent className="p-4">
                   <View className="flex items-center justify-between mb-2">
                     <Text className="text-sm font-medium text-primary">
@@ -360,10 +367,6 @@ export default function GrowthManagePage() {
                         WebkitLineClamp: 2,
                         overflow: 'hidden',
                       }}
-                      onClick={() => {
-                        setDetailRecord(record)
-                        setDetailOpen(true)
-                      }}
                     >
                       {record.content}
                     </Text>
@@ -376,29 +379,35 @@ export default function GrowthManagePage() {
                           src={url}
                           className="w-20 h-20 rounded-lg flex-shrink-0"
                           mode="aspectFill"
-                          onClick={() =>
+                          onClick={(e) => {
+                            e.stopPropagation()
                             Taro.previewImage({
                               urls: record.photo_urls as string[],
                               current: url,
                             })
-                          }
+                          }}
                         />
                       ))}
                     </View>
                   )}
-                  <View className="flex justify-end gap-2 mt-3">
-                    <Button variant="ghost" size="sm" onClick={() => handleCopy(record)}>
-                      <Copy size={14} color="#E8651A" />
-                      <Text className="text-primary text-sm">复制</Text>
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => goEdit(record.id)}>
-                      <Pencil size={14} color="#E8651A" />
-                      <Text className="text-primary text-sm">编辑</Text>
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(record.id)}>
-                      <Trash2 size={14} color="#ef4444" />
-                      <Text className="text-red-500 text-sm">删除</Text>
-                    </Button>
+                  <View className="flex items-center justify-between mt-3">
+                    <Text className="text-xs text-muted-foreground">
+                      {record.parent_read_at ? '已读' : '未读'}
+                    </Text>
+                    <View className="flex gap-2">
+                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleCopy(record) }}>
+                        <Copy size={14} color="#E8651A" />
+                        <Text className="text-primary text-sm">复制</Text>
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); goEdit(record.id) }}>
+                        <Pencil size={14} color="#E8651A" />
+                        <Text className="text-primary text-sm">编辑</Text>
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(record.id) }}>
+                        <Trash2 size={14} color="#ef4444" />
+                        <Text className="text-red-500 text-sm">删除</Text>
+                      </Button>
+                    </View>
                   </View>
                 </CardContent>
               </Card>
@@ -456,9 +465,6 @@ export default function GrowthManagePage() {
                   </Badge>
                 )}
                 <Text className="text-lg font-semibold text-foreground">{detailRecord?.title || '成长档案'}</Text>
-                {detailRecord && (
-                  <Text className="text-xs text-muted-foreground">{detailRecord.record_date || formatDate(detailRecord.created_at)}</Text>
-                )}
               </View>
             </DialogTitle>
           </DialogHeader>
@@ -478,6 +484,18 @@ export default function GrowthManagePage() {
                     ))}
                   </View>
                 )}
+                <View className="flex justify-end pt-3">
+                  <View className="text-right space-y-1">
+                    {detailRecord.teacher_name && (
+                      <Text className="block text-xs text-muted-foreground">
+                        {detailRecord.teacher_name}
+                      </Text>
+                    )}
+                    <Text className="block text-xs text-muted-foreground">
+                      {detailRecord.record_date || formatDate(detailRecord.created_at)}
+                    </Text>
+                  </View>
+                </View>
               </View>
             )}
           </ScrollView>

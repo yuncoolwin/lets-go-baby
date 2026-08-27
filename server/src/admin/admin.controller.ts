@@ -52,6 +52,18 @@ export class AdminController {
     return this.adminService.rejectBindingRequest(body.request_id, body.reason, body.operator_user_id);
   }
 
+  @Post('binding-requests/delete')
+  @HttpCode(200)
+  async deleteBindingRequest(@Body() body: { request_id: string }) {
+    return this.adminService.deleteBindingRequest(body.request_id);
+  }
+
+  @Post('binding-requests/update')
+  @HttpCode(200)
+  async updateBindingRequest(@Body() body: { request_id: string; relationship?: string; custom_relationship?: string }) {
+    return this.adminService.updateBindingRequest(body.request_id, body.relationship, body.custom_relationship);
+  }
+
   @Get('user/parent-status')
   @HttpCode(200)
   async getParentStatus(@Query('userId') userId: string) {

@@ -18,7 +18,6 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog'
 import { teacherApi, classApi } from '@/utils/api'
-import BackButton from '@/components/back-button'
 import { Trash2 } from 'lucide-react-taro'
 
 const STATUS_OPTIONS = [
@@ -196,24 +195,6 @@ export default function TeacherEditPage() {
 
   return (
     <View className="min-h-screen bg-background pb-24">
-      {/* 头部 */}
-      <View className="bg-white px-4 py-4 flex items-center justify-between border-b border-border">
-        <BackButton />
-        <Text className="text-lg font-semibold text-foreground">
-          {isCreate ? '添加教师' : '编辑教师'}
-        </Text>
-        {isCreate ? (
-          <View className="w-10" />
-        ) : (
-          <View
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-red-50"
-            onClick={() => setDeleteOpen(true)}
-          >
-            <Trash2 size={20} color="#EF4444" />
-          </View>
-        )}
-      </View>
-
       {/* 表单 */}
       <View className="p-4 space-y-4">
         <Card>
@@ -361,14 +342,28 @@ export default function TeacherEditPage() {
       </View>
 
       {/* 底部保存按钮 */}
-      <View style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, padding: '16px', backgroundColor: '#fff', borderTop: '1px solid #e5e7eb' }}>
-        <Button
-          className="w-full bg-primary text-white"
-          onClick={handleSave}
-          disabled={saving}
-        >
-          {saving ? '保存中...' : '保存'}
-        </Button>
+      <View style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, padding: '16px', backgroundColor: '#fff', borderTop: '1px solid #e5e7eb', display: 'flex', flexDirection: 'row', gap: '12px' }}>
+        {!isCreate && (
+          <View style={{ flexShrink: 0 }}>
+            <Button
+              variant="destructive"
+              className="h-11 px-4"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 size={18} color="#ffffff" />
+              <Text className="text-white">删除</Text>
+            </Button>
+          </View>
+        )}
+        <View style={{ flex: 1 }}>
+          <Button
+            className="w-full bg-primary text-white"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? '保存中...' : '保存'}
+          </Button>
+        </View>
       </View>
 
       {/* 删除确认弹窗 */}

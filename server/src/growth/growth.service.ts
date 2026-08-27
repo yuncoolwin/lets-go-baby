@@ -350,6 +350,7 @@ export class GrowthService {
     }
 
     const updateData: Record<string, any> = {};
+    updateData.parent_read_at = null;
     if (dto.title !== undefined) updateData.title = dto.title;
     if (dto.content !== undefined) updateData.content = dto.content;
     if (dto.photo_urls !== undefined) updateData.photo_urls = dto.photo_urls;

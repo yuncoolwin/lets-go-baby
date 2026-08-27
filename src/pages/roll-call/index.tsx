@@ -478,7 +478,9 @@ export default function RollCallPage() {
           </View>
         ) : children.length === 0 ? (
           <View className="text-center py-12">
-            <Text className="block text-gray-400">暂无在读幼儿</Text>
+            <Text className="block text-gray-400">
+              {holidayInfo.is_class_holiday ? '假期快乐！' : '暂无在读幼儿'}
+            </Text>
           </View>
         ) : (
           (() => {

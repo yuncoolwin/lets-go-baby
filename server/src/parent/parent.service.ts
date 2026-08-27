@@ -274,7 +274,7 @@ export class ParentService {
     }));
   }
 
-  async getGrowthRecords(parentRoleId?: string) {
+  async getGrowthRecords(parentRoleId?: string, childId?: string) {
     if (!parentRoleId) return [];
 
     // 查询当前家长绑定的在读幼儿
@@ -286,10 +286,14 @@ export class ParentService {
     const childIds = [...new Set((relations || []).map((r) => r.child_id).filter(Boolean))];
     if (!childIds.length) return [];
 
+    // 指定幼儿时仅保留该幼儿（且需属于当前家长绑定范围）
+    const targetChildIds = childId ? childIds.filter((id) => id === childId) : childIds;
+    if (!targetChildIds.length) return [];
+
     const { data: records, error } = await this.client
       .from('growth_records')
       .select('*')
-      .in('child_id', childIds)
+      .in('child_id', targetChildIds)
       .order('created_at', { ascending: false });
     if (error) throw new Error(`查询失败: ${error.message}`);
 

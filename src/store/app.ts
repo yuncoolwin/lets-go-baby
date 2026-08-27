@@ -372,12 +372,15 @@ export const useAppStore = create<AppStore>()(
           currentRoleIndex = 0
         }
 
+        const { currentChildIndex: existingChildIndex } = get()
+        const currentChildIndex = existingChildIndex < children.length ? existingChildIndex : 0
+
         set({
           roles,
           currentRole,
           currentRoleIndex,
           children,
-          currentChildIndex: 0,
+          currentChildIndex,
           isLoading: false,
         })
       }

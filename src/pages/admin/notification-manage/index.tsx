@@ -254,7 +254,7 @@ export default function NotificationManagePage() {
               >
                 <CardContent className="p-4">
                   <View className="flex items-center justify-between mb-1">
-                    <View className="flex items-center gap-2 flex-1 min-w-0">
+                    <View className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
                       {mainTab === 'received' && !item.is_read && (
                         <View className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
                       )}
@@ -262,9 +262,11 @@ export default function NotificationManagePage() {
                         <Text className="text-xs">{typeBadge.label}</Text>
                       </Badge>
                       <Text className="text-base font-semibold text-foreground truncate">{item.title}</Text>
-                      {item.sender_name ? (
-                        <Text className="text-xs text-muted-foreground truncate">{item.sender_name}</Text>
-                      ) : null}
+                      {(item.target_labels || []).length > 0 && (
+                        <Text className="text-xs text-muted-foreground truncate">
+                          {(item.target_labels || []).join('、')}
+                        </Text>
+                      )}
                       {mainTab === 'all' && item.is_pinned && (
                         <Badge className="bg-red-100 text-red-700 text-xs shrink-0">
                           <Text className="text-xs">置顶</Text>
@@ -291,45 +293,35 @@ export default function NotificationManagePage() {
                     </>
                   )}
 
-                  {/* 全部：已读回执 */}
-                  {mainTab === 'all' && (
-                    <View className="flex items-center justify-between mt-2">
-                      <Text className="text-xs text-muted-foreground truncate flex-1">
-                        {(item.target_labels || []).join('、')}
-                      </Text>
-                      <Text className="text-xs text-muted-foreground">
-                        已读 {item.read_count ?? 0}/{item.recipient_count ?? 0}
-                      </Text>
-                    </View>
-                  )}
+                  {/* 底部行：左下已读，右下发送人 */}
+                  <View className="flex items-center justify-between mt-2">
+                    <Text className="text-xs text-muted-foreground">
+                      {mainTab !== 'received' ? `已读 ${item.read_count ?? 0}/${item.recipient_count ?? 0}` : ''}
+                    </Text>
+                    {item.sender_name ? (
+                      <Text className="text-xs text-muted-foreground">{item.sender_name}</Text>
+                    ) : null}
+                  </View>
 
-                  {/* 发出的：按 status 区分 */}
+                  {/* 发出的：按 status 区分操作按钮 */}
                   {mainTab === 'sent' && item.status === 'published' && (
-                    <View className="flex items-center justify-between mt-3">
-                      <Text className="text-xs text-muted-foreground">
-                        {(item.target_labels || []).join('、')} 已读 {item.read_count ?? 0}/{item.recipient_count ?? 0}
-                      </Text>
+                    <View className="flex justify-end mt-3">
                       <Button variant="secondary" size="sm" onClick={() => handleRevoke(item.id)}>
                         <Text className="text-xs">撤回</Text>
                       </Button>
                     </View>
                   )}
                   {mainTab === 'sent' && item.status === 'revoked' && (
-                    <View className="flex items-center justify-between mt-3">
-                      <Text className="text-xs text-muted-foreground">
-                        {(item.target_labels || []).join('、')} 已读 {item.read_count ?? 0}/{item.recipient_count ?? 0}
-                      </Text>
-                      <View className="flex items-center gap-2">
-                        <Badge className="bg-gray-200 text-gray-500 text-xs">
-                          <Text className="text-xs">已撤回</Text>
-                        </Badge>
-                        <Button variant="outline" size="sm" onClick={() => handleEditSent(item.id)}>
-                          <Text className="text-xs">编辑</Text>
-                        </Button>
-                        <Button variant="secondary" size="sm" onClick={() => handleRepublish(item.id)}>
-                          <Text className="text-xs">再次发送</Text>
-                        </Button>
-                      </View>
+                    <View className="flex items-center justify-end gap-2 mt-3">
+                      <Badge className="bg-gray-200 text-gray-500 text-xs">
+                        <Text className="text-xs">已撤回</Text>
+                      </Badge>
+                      <Button variant="outline" size="sm" onClick={() => handleEditSent(item.id)}>
+                        <Text className="text-xs">编辑</Text>
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => handleRepublish(item.id)}>
+                        <Text className="text-xs">再次发送</Text>
+                      </Button>
                     </View>
                   )}
                 </CardContent>
@@ -360,35 +352,39 @@ export default function NotificationManagePage() {
         <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
           <DialogHeader>
             <DialogTitle>
-              <Text className="block text-lg font-semibold text-foreground">{detailItem?.title || '通知详情'}</Text>
-              {detailItem && (detailItem.target_labels || []).length > 0 && (
-                <Text className="block text-xs text-muted-foreground mt-2">{(detailItem.target_labels || []).join('、')}</Text>
-              )}
+              <View className="flex items-center gap-2 flex-wrap pr-10">
+                {detailItem && (
+                  <Badge className={`${typeMap[detailItem.type]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
+                    <Text className="text-xs">{typeMap[detailItem.type]?.label || detailItem.type}</Text>
+                  </Badge>
+                )}
+                {detailItem?.is_pinned && (
+                  <Badge className="bg-red-100 text-red-700 text-xs">
+                    <Text className="text-xs">置顶</Text>
+                  </Badge>
+                )}
+                <Text className="text-lg font-semibold text-foreground">{detailItem?.title || '通知详情'}</Text>
+              </View>
             </DialogTitle>
           </DialogHeader>
           <View className="mt-4 space-y-3">
             {detailItem && (
               <>
-                <View className="flex items-center gap-2 flex-wrap">
-                  <Badge className={`${typeMap[detailItem.type]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
-                    <Text className="text-xs">{typeMap[detailItem.type]?.label || detailItem.type}</Text>
-                  </Badge>
-                  {detailItem.is_pinned && (
-                    <Badge className="bg-red-100 text-red-700 text-xs">
-                      <Text className="text-xs">置顶</Text>
-                    </Badge>
-                  )}
-                </View>
+                {(detailItem.target_labels || []).length > 0 && (
+                  <Text className="block text-xs text-muted-foreground">
+                    {(detailItem.target_labels || []).join('、')}
+                  </Text>
+                )}
                 <Text className="block text-sm text-foreground leading-relaxed whitespace-pre-wrap">
                   {detailItem.content}
                 </Text>
                 <View className="flex items-center justify-between">
-                  <Text className="text-xs text-muted-foreground">{formatTime(detailItem.created_at)}</Text>
-                  {mainTab !== 'received' && (
-                    <Text className="text-xs text-muted-foreground">
-                      已读 {detailItem.read_count ?? 0}/{detailItem.recipient_count ?? 0}
-                    </Text>
-                  )}
+                  <Text className="text-xs text-muted-foreground">
+                    {mainTab !== 'received' ? `已读 ${detailItem.read_count ?? 0}/${detailItem.recipient_count ?? 0}` : ''}
+                  </Text>
+                  <Text className="text-xs text-muted-foreground">
+                    {detailItem.sender_name ? `${detailItem.sender_name} · ` : ''}{formatTime(detailItem.created_at)}
+                  </Text>
                 </View>
               </>
             )}

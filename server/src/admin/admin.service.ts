@@ -441,6 +441,57 @@ export class AdminService {
     return { code: 200, msg: 'success', data: { success: true } };
   }
 
+  async deleteBindingRequest(requestId: string) {
+    const { data: request } = await this.client
+      .from('binding_requests')
+      .select('id')
+      .eq('id', requestId)
+      .maybeSingle();
+    if (!request) return { code: 404, msg: '申请不存在', data: null };
+
+    const { error } = await this.client.from('binding_requests').delete().eq('id', requestId);
+    if (error) throw new Error(`删除失败: ${error.message}`);
+    return { code: 200, msg: 'success', data: { success: true } };
+  }
+
+  async updateBindingRequest(requestId: string, relationship?: string, customRelationship?: string) {
+    const { data: existing } = await this.client
+      .from('binding_requests')
+      .select('id')
+      .eq('id', requestId)
+      .maybeSingle();
+    if (!existing) return { code: 404, msg: '申请不存在', data: null };
+
+    const updateData: Record<string, any> = {};
+    if (relationship !== undefined) updateData.relationship = relationship;
+    if (customRelationship !== undefined) updateData.custom_relationship = customRelationship;
+
+    const { error } = await this.client
+      .from('binding_requests')
+      .update(updateData)
+      .eq('id', requestId);
+    if (error) throw new Error(`更新失败: ${error.message}`);
+
+    // 同步已建立的家长-幼儿绑定关系（若该申请已审核通过）
+    const { data: request } = await this.client
+      .from('binding_requests')
+      .select('parent_role_id, child_id')
+      .eq('id', requestId)
+      .maybeSingle();
+    if (request?.parent_role_id && request?.child_id) {
+      const relUpdate: Record<string, any> = {};
+      if (relationship !== undefined) relUpdate.relationship = relationship;
+      if (customRelationship !== undefined) relUpdate.custom_relationship = customRelationship;
+      await this.client
+        .from('parent_child_relations')
+        .update(relUpdate)
+        .eq('parent_role_id', request.parent_role_id)
+        .eq('child_id', request.child_id);
+    }
+
+    return { code: 200, msg: 'success', data: { success: true } };
+  }
+
   // 校验操作者是否为 active 超管，返回 user_role 记录或 null
   private async getActiveSuperAdmin(operatorUserId: string) {
     const { data, error } = await this.client

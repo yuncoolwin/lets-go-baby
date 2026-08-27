@@ -770,7 +770,9 @@ export default function ChildDetailPage() {
                   </Text>
                   {enr.attendance_stats && (
                     <Text className="block text-xs text-gray-500 mt-1">
-                      课时记录：{enr.attendance_stats.attended_days}/{enr.attendance_stats.total_days}，请假{enr.attendance_stats.leave_days}天，缺席{enr.attendance_stats.absent_days}天
+                      {currentRole?.role_type === 'parent'
+                        ? `请假${enr.attendance_stats.leave_days}天，缺席${enr.attendance_stats.absent_days}天`
+                        : `课时记录：${enr.attendance_stats.attended_days}/${enr.attendance_stats.total_days}，请假${enr.attendance_stats.leave_days}天，缺席${enr.attendance_stats.absent_days}天`}
                     </Text>
                   )}
                   <Text className="block text-xs text-gray-500 mt-1">
