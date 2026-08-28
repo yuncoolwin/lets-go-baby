@@ -373,33 +373,6 @@ export default function IndexPage() {
     }
   }
 
-  // 未登录状态
-  if (!isLoggedIn && !isLoading) {
-    return (
-      <View className="min-h-screen flex flex-col items-center justify-center px-6 bg-white">
-        <View className="mb-8 flex flex-col items-center">
-          <View className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center mb-4">
-            <Text className="text-white text-3xl font-bold">力高</Text>
-          </View>
-          <Text className="block text-xl font-bold text-foreground">力高稚家</Text>
-          <Text className="block text-sm text-muted-foreground mt-1">专业托育管理平台</Text>
-        </View>
-        <Button
-          className="w-full bg-primary text-primary-foreground rounded-xl py-3"
-          onClick={() => {
-            fetchUserInfo()
-          }}
-        >
-          <Text>微信授权登录</Text>
-        </Button>
-        <Text className="block text-xs text-muted-foreground mt-4">
-          登录即表示同意《用户协议》和《隐私政策》
-        </Text>
-        <TabBar />
-      </View>
-    )
-  }
-
   // 加载中
   if (pageLoading || isLoading) {
     return (
