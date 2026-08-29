@@ -97,11 +97,11 @@ export const childrenApi = {
   detail: (id: string) =>
     request({ url: `/api/children/${id}`, method: 'GET' }),
 
-  update: (id: string, data: Record<string, any>) =>
+  update: (id: string, data: Record<string, any>, operator?: { operator_user_id?: string; operator_role_id?: string }) =>
     request({
       url: `/api/children/${id}`,
       method: 'PATCH',
-      data,
+      data: { ...data, ...operator },
       validateStatus: () => true,
     }),
 

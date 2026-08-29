@@ -288,7 +288,19 @@ export class ChildrenService {
     enrollment_duration?: string;
     start_date?: string;
     end_date?: string;
-  }) {
+  }, operatorRoleId?: string) {
+    // 权限校验：家长无权限编辑幼儿档案
+    if (operatorRoleId) {
+      const { data: roleData } = await this.client
+        .from('user_roles')
+        .select('id, role_type')
+        .eq('id', operatorRoleId)
+        .maybeSingle();
+      if (roleData?.role_type === 'parent') {
+        return { error: true, code: 403, msg: '家长无权限编辑幼儿档案' };
+      }
+    }
+
     // 如果变更了 class_id，检查目标班级容量
     if (dto.class_id !== undefined) {
       const { data: currentChild } = await this.client
@@ -334,6 +346,7 @@ export class ChildrenService {
 
     // 复制所有字段到 updateData（custom_days 已作为数据库字段）
     const updateData = { ...(dto as any) } as any;
+    delete updateData.operator_role_id;
 
     // 如果有报读时长和开始日期但没传结束日期，自动计算
     if (dto.enrollment_duration && dto.start_date && !dto.end_date) {

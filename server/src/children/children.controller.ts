@@ -86,8 +86,8 @@ export class ChildrenController {
 
   @Patch(':id')
   @HttpCode(200)
-  async update(@Param('id') id: string, @Body() body: UpdateChildDto) {
-    const data = await this.childrenService.update(id, body);
+  async update(@Param('id') id: string, @Body() body: UpdateChildDto & { operator_role_id?: string }) {
+    const data = await this.childrenService.update(id, body, body.operator_role_id);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }

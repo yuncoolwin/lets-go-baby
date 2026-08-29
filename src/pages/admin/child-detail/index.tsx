@@ -72,6 +72,7 @@ export default function ChildDetailPage() {
   const userId = useAppStore((s) => s.userId)
   const currentRole = useAppStore((s) => s.currentRole)
   const isSuperadmin = currentRole?.role_type === 'superadmin'
+  const canEdit = !isReadonly && currentRole?.role_type !== 'parent'
   const [child, setChild] = useState<ChildDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [enrollments, setEnrollments] = useState<any[]>([])
@@ -202,7 +203,7 @@ export default function ChildDetailPage() {
         allergies: editAllergies || undefined,
         health_info: editHealthInfo || undefined,
       }
-      const res = await childrenApi.update(id!, payload)
+      const res = await childrenApi.update(id!, payload, { operator_user_id: userId ?? undefined, operator_role_id: currentRole?.id })
       if (res.code === 200) {
         Taro.showToast({ title: '保存成功', icon: 'success' })
         setIsEditingChild(false)
@@ -245,7 +246,7 @@ export default function ChildDetailPage() {
     setFormEndDate(enr.end_date || '')
     setFormStatus(enr.status || '进行中')
     setFormPaymentAmount(enr.payment_amount || '')
-    setFormPaymentChannel(enr.payment_channel || '')
+    setFormPaymentChannel(enr.payment_channel === '现金' ? '' : (enr.payment_channel || ''))
     setFormClassId(enr.class_id || '')
     isStatusAutoRef.current = true
     autoCalculatedStatusRef.current = enr.status || '进行中'
@@ -578,7 +579,7 @@ export default function ChildDetailPage() {
                   <X size={20} color="#666" onClick={cancelEditing} />
                 ) : (
                   <>
-                    {!isReadonly && <Pencil size={18} color="#999" onClick={startEditing} />}
+                    {canEdit && <Pencil size={18} color="#999" onClick={startEditing} />}
                     {isSuperadmin && <Trash2 size={18} color="#E8651A" onClick={handleDelete} />}
                   </>
                 )}
@@ -626,17 +627,17 @@ export default function ChildDetailPage() {
                   {/* 在读状态 */}
                   <View>
                     <Label className="text-sm font-medium text-foreground">在读状态 *</Label>
-                    {isReadonly ? (
-                      <View className="mt-1 px-3 py-2 bg-gray-100 rounded-lg">
-                        <Text className="block text-sm text-foreground">{statusMap[editStatus]?.label || editStatus}</Text>
-                      </View>
-                    ) : (
+                    {canEdit ? (
                       <View className="mt-1 flex gap-2">
                         {statusOptions.map((opt) => (
                           <View key={opt.value} className={`px-4 py-2 rounded-lg text-sm ${editStatus === opt.value ? 'bg-primary text-white' : 'bg-gray-100 text-foreground'}`} onClick={() => setEditStatus(opt.value)}>
                             <Text className="block text-sm">{opt.label}</Text>
                           </View>
                         ))}
+                      </View>
+                    ) : (
+                      <View className="mt-1 px-3 py-2 bg-gray-100 rounded-lg">
+                        <Text className="block text-sm text-foreground">{statusMap[editStatus]?.label || editStatus}</Text>
                       </View>
                     )}
                   </View>
@@ -722,7 +723,7 @@ export default function ChildDetailPage() {
                 <BookOpen size={16} color="#666" />
                 <Text className="text-base font-semibold text-foreground">报读记录</Text>
               </View>
-              {!isReadonly && (
+              {canEdit && (
                 <Button className="h-8 px-3 bg-primary text-white rounded-lg" onClick={openAddEnrollment}>
                   <View className="flex items-center gap-1">
                     <Plus size={14} color="#fff" />
@@ -756,7 +757,7 @@ export default function ChildDetailPage() {
                       </View>
                     </View>
                   </View>
-                  {!isReadonly && (
+                  {canEdit && (
                     <View className="absolute bottom-3 right-3 flex items-center gap-3">
                       <View onClick={() => openEditEnrollment(enr)}>
                         <Pencil size={14} color="#999" />
@@ -786,7 +787,7 @@ export default function ChildDetailPage() {
                   </Text>
                   {(enr.payment_amount || enr.payment_channel) && (
                     <Text className="block text-xs text-gray-500 mt-1">
-                      缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{enr.payment_channel ? `（${enr.payment_channel}）` : ''}
+                      缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{!isReadonly && enr.payment_channel ? `（${enr.payment_channel}）` : ''}
                     </Text>
                   )}
                   {!['一学期', '一学年'].includes(enr.duration_type) && (
@@ -1059,7 +1060,7 @@ export default function ChildDetailPage() {
               <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">缴费渠道</Text>
                 <View className="flex flex-wrap gap-2">
-                  {['微信', '支付宝', '现金'].map((c) => (
+                  {['微信', '支付宝', '公户', '其他'].map((c) => (
                     <View
                       key={c}
                       className={`px-3 py-2 rounded-lg text-sm ${
