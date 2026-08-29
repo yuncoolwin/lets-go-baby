@@ -59,9 +59,12 @@ export class EnrollmentsController {
 
   @Delete(':id')
   @HttpCode(200)
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @Body() body?: { operator_role_id?: string }) {
     try {
-      await this.enrollmentsService.remove(id);
+      const result = await this.enrollmentsService.remove(id, body?.operator_role_id);
+      if ((result as any)?.error) {
+        return { code: (result as any).code, msg: (result as any).msg, data: null };
+      }
       return { code: 200, msg: '删除成功' };
     } catch (e: any) {
       return { code: 500, msg: e.message || '删除失败' };

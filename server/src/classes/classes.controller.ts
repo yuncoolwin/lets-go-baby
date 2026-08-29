@@ -91,8 +91,8 @@ export class ClassesController {
 
   @Delete(':id')
   @HttpCode(200)
-  async remove(@Param('id') id: string) {
-    const data = await this.classesService.remove(id);
+  async remove(@Param('id') id: string, @Body() body?: { operator_role_id?: string }) {
+    const data = await this.classesService.remove(id, body?.operator_role_id);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }

@@ -781,7 +781,21 @@ export class EnrollmentsService {
     return data;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, operatorRoleId?: string): Promise<any> {
+    // 权限校验：仅超管可删除报读记录
+    let operatorRoleType: string | null = null;
+    if (operatorRoleId) {
+      const { data: roleData } = await this.client
+        .from('user_roles')
+        .select('id, role_type')
+        .eq('id', operatorRoleId)
+        .maybeSingle();
+      operatorRoleType = roleData?.role_type || null;
+    }
+    if (operatorRoleType !== 'superadmin') {
+      return { error: true, code: 403, msg: '仅超级管理员可删除报读记录' };
+    }
+
     const { error } = await this.client
       .from('enrollments')
       .delete()

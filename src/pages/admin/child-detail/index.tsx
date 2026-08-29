@@ -71,6 +71,7 @@ export default function ChildDetailPage() {
   const isReadonly = readonly === 'true'
   const userId = useAppStore((s) => s.userId)
   const currentRole = useAppStore((s) => s.currentRole)
+  const isSuperadmin = currentRole?.role_type === 'superadmin'
   const [child, setChild] = useState<ChildDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [enrollments, setEnrollments] = useState<any[]>([])
@@ -341,7 +342,7 @@ export default function ChildDetailPage() {
       success: async (res) => {
         if (res.confirm) {
           try {
-            const result = await enrollmentApi.remove(enr.id)
+            const result = await enrollmentApi.remove(enr.id, currentRole?.id)
             if (result.code === 200) {
               Taro.showToast({ title: '删除成功', icon: 'success' })
               loadData()
@@ -402,7 +403,7 @@ export default function ChildDetailPage() {
       success: async (res) => {
         if (res.confirm) {
           try {
-            const result = await adminApi.removeParentBinding(id!, relationId)
+            const result = await adminApi.removeParentBinding(id!, relationId, currentRole?.id)
             if (result.code === 200) {
               Taro.showToast({ title: '已解除绑定', icon: 'success' })
               loadData()
@@ -578,7 +579,7 @@ export default function ChildDetailPage() {
                 ) : (
                   <>
                     {!isReadonly && <Pencil size={18} color="#999" onClick={startEditing} />}
-                    {!isReadonly && <Trash2 size={18} color="#E8651A" onClick={handleDelete} />}
+                    {isSuperadmin && <Trash2 size={18} color="#E8651A" onClick={handleDelete} />}
                   </>
                 )}
               </View>
@@ -760,9 +761,11 @@ export default function ChildDetailPage() {
                       <View onClick={() => openEditEnrollment(enr)}>
                         <Pencil size={14} color="#999" />
                       </View>
-                      <View onClick={() => handleDeleteEnrollment(enr)}>
-                        <Trash2 size={14} color="#999" />
-                      </View>
+                      {isSuperadmin && (
+                        <View onClick={() => handleDeleteEnrollment(enr)}>
+                          <Trash2 size={14} color="#999" />
+                        </View>
+                      )}
                     </View>
                   )}
                   <Text className="block text-xs text-gray-500">
@@ -821,7 +824,7 @@ export default function ChildDetailPage() {
                   className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2 mb-2"
                 >
                   <Text className="text-sm text-foreground">{parent.relationship}</Text>
-                  {!isReadonly && (
+                  {isSuperadmin && (
                     <View
                       className="ml-2"
                       onClick={() => handleUnbindParent(parent.id)}

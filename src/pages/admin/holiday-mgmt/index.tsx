@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
 import { Network } from '@/network'
 import { classApi } from '@/utils/api'
+import { useAppStore } from '@/store/app'
 import { Calendar, Pencil, Trash2 } from 'lucide-react-taro'
 
 interface HolidayRecord {
@@ -38,6 +39,8 @@ const typeLabels: Record<string, { label: string; color: string }> = {
 }
 
 export default function HolidayManagePage() {
+  const currentRole = useAppStore((s) => s.currentRole)
+  const isSuperadmin = currentRole?.role_type === 'superadmin'
   const [holidays, setHolidays] = useState<HolidayRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [classes, setClasses] = useState<ClassItem[]>([])
@@ -189,7 +192,7 @@ export default function HolidayManagePage() {
       success: async (res) => {
         if (res.confirm) {
           try {
-            const delRes = await Network.request({ url: `/api/holidays/${h.id}`, method: 'DELETE' })
+            const delRes = await Network.request({ url: `/api/holidays/${h.id}`, method: 'DELETE', data: { operator_role_id: currentRole?.id } })
             console.log('[假期管理] 删除结果:', delRes.data)
             if (delRes.data?.code === 200) {
               Taro.showToast({ title: '删除成功', icon: 'success' })
@@ -291,9 +294,11 @@ export default function HolidayManagePage() {
                         <View className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center" onClick={() => openEditDialog(h)}>
                           <Pencil size={14} color="#666" />
                         </View>
-                        <View className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center" onClick={() => handleDelete(h)}>
-                          <Trash2 size={14} color="#ef4444" />
-                        </View>
+                        {isSuperadmin && (
+                          <View className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center" onClick={() => handleDelete(h)}>
+                            <Trash2 size={14} color="#ef4444" />
+                          </View>
+                        )}
                       </View>
                     </View>
 

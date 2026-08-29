@@ -44,6 +44,7 @@ interface Student {
 
 export default function RecordsPage() {
   const { currentRole, children } = useAppStore()
+  const isSuperadmin = currentRole?.role_type === 'superadmin'
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -74,7 +75,8 @@ export default function RecordsPage() {
     const day = String(d.getDate()).padStart(2, '0')
     return `${y}-${m}-${day}`
   }
-  const todayStr = formatDate(new Date())
+  // 上海时区（UTC+8）口径的当天字符串，前后端一致
+  const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const [feedbackDate, setFeedbackDate] = useState(todayStr)
 
   const goPrevDay = () => {
@@ -301,7 +303,7 @@ export default function RecordsPage() {
     })
     if (!confirm) return
     try {
-      const res = await Network.request({ url: `/api/teachers/feedback/${id}`, method: 'DELETE' })
+      const res = await Network.request({ url: `/api/teachers/feedback/${id}`, method: 'DELETE', data: { operator_role_id: currentRole?.id } })
       if (res.data?.code === 200) {
         await loadFeedbacks()
         await loadStudents()
@@ -396,13 +398,15 @@ export default function RecordsPage() {
                       <Text className="block text-xs text-muted-foreground">
                         {item.feedback_date}
                       </Text>
-                      <View className="w-6 h-6 flex items-center justify-center" onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteFeedback(item.id);
-                      }}
-                      >
-                        <Trash2 size={14} color="#ef4444" />
-                      </View>
+                      {(isSuperadmin || (currentRole?.role_type === 'teacher' && item.feedback_date === todayStr)) && (
+                        <View className="w-6 h-6 flex items-center justify-center" onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteFeedback(item.id);
+                        }}
+                        >
+                          <Trash2 size={14} color="#ef4444" />
+                        </View>
+                      )}
                     </View>
                   </View>
                   {(item.class_name || item.course_name) && (

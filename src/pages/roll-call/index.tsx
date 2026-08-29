@@ -68,7 +68,8 @@ export default function RollCallPage() {
   const [selectedClassId, setSelectedClassId] = useState('')
   const [holidayInfo, setHolidayInfo] = useState<{ is_class_holiday: boolean; holiday_label: string | null; personal_holiday_child_ids: string[] }>({ is_class_holiday: false, holiday_label: null, personal_holiday_child_ids: [] })
 
-  const today = new Date().toISOString().split('T')[0]
+  // 上海时区（UTC+8）口径的当天字符串，前后端一致
+  const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
   useEffect(() => {
     loadData()
@@ -106,7 +107,7 @@ export default function RollCallPage() {
             url: `/api/attendance/dates/${currentClassId}`,
           })
           const dates: string[] = dateRes.data?.data || []
-          const todayStr = new Date().toISOString().split('T')[0]
+          const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
           if (!dates.includes(todayStr)) dates.unshift(todayStr)
           setDateList(dates)
         } catch (e) {
@@ -151,12 +152,8 @@ export default function RollCallPage() {
           const s = map[c.id + '__' + c.course_type]
           return s === 'present' || s === 'absent' || s === 'leave' || s === 'full_day' || s === 'half_day'
         })
-        // 如果是管理员模式，始终不锁定（可编辑所有日期）
-      if (isAdminUser) {
-        setIsLocked(false)
-      } else {
-        setIsLocked(hasRecords)
-      }
+        // 统一锁定规则：非当天或有记录即锁定（管理员与教师一致）
+        setIsLocked(selectedDate !== today || hasRecords)
         setLoading(false)
         return
       }
@@ -188,7 +185,7 @@ export default function RollCallPage() {
         })
         const dates: string[] = dateRes.data?.data || []
         // 确保"今天"始终在列表中
-        const todayStr = new Date().toISOString().split('T')[0]
+        const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
         if (!dates.includes(todayStr)) {
           dates.unshift(todayStr)
         }
@@ -237,9 +234,8 @@ export default function RollCallPage() {
         const s = map[c.id + '__' + c.course_type]
         return s === 'present' || s === 'absent' || s === 'leave' || s === 'full_day' || s === 'half_day'
       })
-      if (!isAdminUser) {
-        setIsLocked(hasRecords)
-      }
+      // 统一锁定规则：非当天或有记录即锁定（管理员与教师一致）
+      setIsLocked(selectedDate !== today || hasRecords)
     } catch (e) {
       console.error('[RollCall] load error:', e)
     }
@@ -324,6 +320,7 @@ export default function RollCallPage() {
   }
 
   const handleUnlock = () => {
+    if (selectedDate !== today) return
     if (isLocked) {
       setIsLocked(false)
       setTempAttendance(attendance)
@@ -331,6 +328,7 @@ export default function RollCallPage() {
   }
 
   const handleClear = async () => {
+    if (isLocked || selectedDate !== today) return
     Taro.showModal({
       title: '确认清除',
       content: `确定要清除 ${className} ${selectedDate} 全部考勤记录吗？`,

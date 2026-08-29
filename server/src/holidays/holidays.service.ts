@@ -72,7 +72,21 @@ export class HolidaysService {
     return { code: 200, msg: 'success', data };
   }
 
-  async remove(id: string) {
+  async remove(id: string, operatorRoleId?: string) {
+    // 权限校验：仅超管可删除假期
+    let operatorRoleType: string | null = null;
+    if (operatorRoleId) {
+      const { data: roleData } = await this.supabase
+        .from('user_roles')
+        .select('id, role_type')
+        .eq('id', operatorRoleId)
+        .maybeSingle();
+      operatorRoleType = roleData?.role_type || null;
+    }
+    if (operatorRoleType !== 'superadmin') {
+      return { error: true, code: 403, msg: '仅超级管理员可删除假期' };
+    }
+
     // 先获取旧数据
     const { data: oldData } = await this.supabase
       .from('holidays')

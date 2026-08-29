@@ -37,6 +37,7 @@ const RELATION_OPTIONS = [
 export default function ReviewPage() {
   const userId = useAppStore((s) => s.userId)
   const currentRole = useAppStore((s) => s.currentRole)
+  const isSuperadmin = currentRole?.role_type === 'superadmin'
   const [requests, setRequests] = useState<BindingRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [approvingId, setApprovingId] = useState<string | null>(null)
@@ -141,7 +142,7 @@ export default function ReviewPage() {
       const res = await Network.request({
         url: '/api/admin/binding-requests/delete',
         method: 'POST',
-        data: { request_id: requestId },
+        data: { request_id: requestId, operator_role_id: currentRole?.id },
       })
       if (res.data?.code === 200) {
         Taro.showToast({ title: '已删除', icon: 'success' })
@@ -259,15 +260,17 @@ export default function ReviewPage() {
                           <Text className="text-xs">已拒绝</Text>
                         </Badge>
                       )}
-                      <View
-                        className="w-8 h-8 flex items-center justify-center rounded-full"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setDeleteTarget(req)
-                        }}
-                      >
-                        <Trash2 size={16} color="#EF4444" />
-                      </View>
+                      {isSuperadmin && (
+                        <View
+                          className="w-8 h-8 flex items-center justify-center rounded-full"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setDeleteTarget(req)
+                          }}
+                        >
+                          <Trash2 size={16} color="#EF4444" />
+                        </View>
+                      )}
                     </View>
                   </View>
                   <View className="space-y-1 mb-3">

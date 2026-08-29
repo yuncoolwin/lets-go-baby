@@ -57,6 +57,7 @@ const formatTime = (dateStr: string) => {
 export default function NotificationManagePage() {
   const currentRole = useAppStore((s) => s.currentRole)
   const isAdmin = currentRole?.role_type === 'admin' || currentRole?.role_type === 'superadmin'
+  const isSuperadmin = currentRole?.role_type === 'superadmin'
 
   const [mainTab, setMainTab] = useState<MainTab>('all')
 
@@ -431,7 +432,7 @@ export default function NotificationManagePage() {
                 <Text className="text-primary text-sm">编辑</Text>
               </Button>
             )}
-            {isAdmin && (
+            {isSuperadmin && (
               <Button variant="ghost" size="sm" onClick={() => detailItem && setDeleteNotifyTarget(detailItem)}>
                 <Trash2 size={14} color="#ef4444" />
                 <Text className="text-red-500 text-sm">删除</Text>

@@ -18,8 +18,11 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Trash2 } from 'lucide-react-taro'
 import { classApi } from '@/utils/api'
+import { useAppStore } from '@/store/app'
 
 export default function ClassEditPage() {
+  const currentRole = useAppStore((s) => s.currentRole)
+  const isSuperadmin = currentRole?.role_type === 'superadmin'
   const [isEdit, setIsEdit] = useState(false)
   const [editId, setEditId] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -111,7 +114,7 @@ export default function ClassEditPage() {
     if (!editId) return
     setDeleting(true)
     try {
-      const res = await classApi.remove(editId)
+      const res = await classApi.remove(editId, currentRole?.id)
       if (res.code === 200) {
         Taro.showToast({ title: '已删除', icon: 'success' })
         setTimeout(() => {
@@ -135,7 +138,7 @@ export default function ClassEditPage() {
         <Text className="text-lg font-bold text-foreground block">
           {isEdit ? '编辑班级' : '新建班级'}
         </Text>
-        {isEdit && (
+        {isEdit && isSuperadmin && (
           <View
             className={`px-3 py-1 rounded-lg ${deleting ? 'bg-gray-50' : 'bg-red-50'}`}
             onClick={() => !deleting && setDeleteOpen(true)}

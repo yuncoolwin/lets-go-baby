@@ -43,6 +43,7 @@ const courseTypeColors: Record<string, string> = {
 export default function CourseManagePage() {
   const userId = useAppStore((s) => s.userId)
   const currentRole = useAppStore((s) => s.currentRole)
+  const isSuperadmin = currentRole?.role_type === 'superadmin'
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [classes, setClasses] = useState<ClassItem[]>([])
@@ -249,13 +250,15 @@ export default function CourseManagePage() {
                     >
                       <Pencil size={16} color="#666" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      className="w-8 h-8 p-0"
-                      onClick={() => handleDelete(course)}
-                    >
-                      <Trash2 size={16} color="#ef4444" />
-                    </Button>
+                    {isSuperadmin && (
+                      <Button
+                        variant="ghost"
+                        className="w-8 h-8 p-0"
+                        onClick={() => handleDelete(course)}
+                      >
+                        <Trash2 size={16} color="#ef4444" />
+                      </Button>
+                    )}
                   </View>
                 </View>
               </CardContent>

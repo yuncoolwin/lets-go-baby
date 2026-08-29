@@ -14,8 +14,15 @@ export class AdminController {
 
   @Delete('children/:childId/parents/:relationId')
   @HttpCode(200)
-  async removeParentBinding(@Param('childId') childId: string, @Param('relationId') relationId: string) {
-    const data = await this.adminService.removeParentBinding(childId, relationId);
+  async removeParentBinding(
+    @Param('childId') childId: string,
+    @Param('relationId') relationId: string,
+    @Body() body?: { operator_role_id?: string },
+  ) {
+    const data = await this.adminService.removeParentBinding(childId, relationId, body?.operator_role_id);
+    if ((data as any)?.error || (data as any)?.code !== 200) {
+      return { code: (data as any)?.code || 500, msg: (data as any)?.msg || '解除绑定失败', data: null };
+    }
     return { code: 200, msg: 'success', data };
   }
 
@@ -54,8 +61,12 @@ export class AdminController {
 
   @Post('binding-requests/delete')
   @HttpCode(200)
-  async deleteBindingRequest(@Body() body: { request_id: string }) {
-    return this.adminService.deleteBindingRequest(body.request_id);
+  async deleteBindingRequest(@Body() body: { request_id: string; operator_role_id?: string }) {
+    const data = await this.adminService.deleteBindingRequest(body.request_id, body.operator_role_id);
+    if ((data as any)?.error || (data as any)?.code !== 200) {
+      return { code: (data as any)?.code || 500, msg: (data as any)?.msg || '删除失败', data: null };
+    }
+    return { code: 200, msg: 'success', data: (data as any)?.data };
   }
 
   @Post('binding-requests/update')

@@ -381,6 +381,20 @@ export class ChildrenService {
    * 软删除
    */
   async remove(id: string, operatorUserId?: string, operatorRoleId?: string) {
+    // 权限校验：仅超管可删除幼儿档案
+    let operatorRoleType: string | null = null;
+    if (operatorRoleId) {
+      const { data: roleData } = await this.client
+        .from('user_roles')
+        .select('id, role_type')
+        .eq('id', operatorRoleId)
+        .maybeSingle();
+      operatorRoleType = roleData?.role_type || null;
+    }
+    if (operatorRoleType !== 'superadmin') {
+      return { error: true, code: 403, msg: '仅超级管理员可删除幼儿档案' };
+    }
+
     const { data, error } = await this.client
       .from('children')
       .update({ status: 'archived' })

@@ -481,6 +481,12 @@ export class AttendanceService {
     operatorUserId?: string,
     operatorRoleId?: string,
   ) {
+    // 权限校验：仅允许清空服务器当天（上海时区）的考勤记录
+    const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    if (date !== todayStr) {
+      return { error: true, code: 403, msg: '仅允许清空当天的考勤记录' };
+    }
+
     let query = this.client
       .from('attendance')
       .delete()

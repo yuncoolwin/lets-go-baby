@@ -27,10 +27,10 @@ export class CoursesController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string, @Body() body: { operator_user_id?: string; operator_role_id?: string }) {
-    const result = await this.coursesService.remove(id, body.operator_user_id, body.operator_role_id);
+  async remove(@Param('id') id: string, @Body() body?: { operator_user_id?: string; operator_role_id?: string }) {
+    const result = await this.coursesService.remove(id, body?.operator_user_id, body?.operator_role_id);
     if (result.success === false) {
-      return { code: 400, msg: result.message };
+      return { code: (result as any).code || 400, msg: result.message };
     }
     return { code: 200, msg: 'success' };
   }

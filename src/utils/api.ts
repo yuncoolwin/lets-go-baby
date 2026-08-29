@@ -63,8 +63,8 @@ export const classApi = {
   update: (id: string, data: Record<string, any>) =>
     request({ url: `/api/classes/${id}`, method: 'PATCH', data }),
 
-  remove: (id: string) =>
-    request({ url: `/api/classes/${id}`, method: 'DELETE' }),
+  remove: (id: string, operator_role_id?: string) =>
+    request({ url: `/api/classes/${id}`, method: 'DELETE', data: operator_role_id ? { operator_role_id } : undefined }),
 
   assignTeacher: (classId: string, data: { teacher_id: string; is_lead?: boolean }) =>
     request({ url: `/api/classes/${classId}/teachers`, method: 'POST', data }),
@@ -140,8 +140,8 @@ export const teacherApi = {
   update: (id: string, data: Record<string, any>) =>
     request({ url: `/api/teachers/${id}`, method: 'PATCH', data }),
 
-  remove: (id: string) =>
-    request({ url: `/api/teachers/${id}`, method: 'DELETE' }),
+  remove: (id: string, operator_role_id?: string) =>
+    request({ url: `/api/teachers/${id}`, method: 'DELETE', data: operator_role_id ? { operator_role_id } : undefined }),
 
   stats: () =>
     request({ url: '/api/teachers/stats', method: 'GET' }),
@@ -239,8 +239,8 @@ export const enrollmentApi = {
   update: (id: string, data: Record<string, any>) =>
     request({ url: `/api/enrollments/${id}`, method: 'PATCH', data }),
 
-  remove: (id: string) =>
-    request({ url: `/api/enrollments/${id}`, method: 'DELETE' }),
+  remove: (id: string, operator_role_id?: string) =>
+    request({ url: `/api/enrollments/${id}`, method: 'DELETE', data: operator_role_id ? { operator_role_id } : undefined }),
 
   calcExtendedEndDate: (id: string) =>
     request({ url: `/api/enrollments/${id}/calc-extended-end-date`, method: 'GET' }),
@@ -255,8 +255,8 @@ export const adminApi = {
   getChildParents: (childId: string) =>
     request({ url: `/api/admin/children/${childId}/parents`, method: 'GET' }),
 
-  removeParentBinding: (childId: string, relationId: string) =>
-    request({ url: `/api/admin/children/${childId}/parents/${relationId}`, method: 'DELETE' }),
+  removeParentBinding: (childId: string, relationId: string, operator_role_id?: string) =>
+    request({ url: `/api/admin/children/${childId}/parents/${relationId}`, method: 'DELETE', data: operator_role_id ? { operator_role_id } : undefined }),
 };
 
 // ============ 日常记录 API ============

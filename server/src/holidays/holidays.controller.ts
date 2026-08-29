@@ -21,8 +21,12 @@ export class HolidaysController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.holidaysService.remove(id);
+  async remove(@Param('id') id: string, @Body() body?: { operator_role_id?: string }) {
+    const result = await this.holidaysService.remove(id, body?.operator_role_id);
+    if ((result as any)?.error) {
+      return { code: (result as any).code, msg: (result as any).msg, data: null };
+    }
+    return result;
   }
 
   @Get('child/:childId')

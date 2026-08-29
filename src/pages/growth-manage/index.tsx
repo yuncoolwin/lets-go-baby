@@ -22,6 +22,7 @@ interface GrowthRecord {
   created_at: string
   record_date: string | null
   teacher_name: string
+  teacher_id?: string | null
   course_name?: string
   parent_read_at?: string | null
 }
@@ -60,6 +61,9 @@ const loadDraftCount = (): number => {
 
 export default function GrowthManagePage() {
   const currentRole = useAppStore((s) => s.currentRole)
+  const isSuperadmin = currentRole?.role_type === 'superadmin'
+  // 上海时区（UTC+8）口径的当天字符串，前后端一致
+  const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
   const [allChildren, setAllChildren] = useState<any[]>([])
   const [teacherClassId, setTeacherClassId] = useState('')
@@ -487,14 +491,16 @@ export default function GrowthManagePage() {
               <Copy size={14} color="#E8651A" />
               <Text className="text-primary text-sm">复制</Text>
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => detailRecord && goEdit(detailRecord.id)}>
+            <Button variant="ghost" size="sm" onClick={() => { if (detailRecord) { setDetailOpen(false); goEdit(detailRecord.id) } }}>
               <Pencil size={14} color="#E8651A" />
               <Text className="text-primary text-sm">编辑</Text>
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => { if (detailRecord) { handleDelete(detailRecord.id); setDetailOpen(false) } }}>
-              <Trash2 size={14} color="#ef4444" />
-              <Text className="text-red-500 text-sm">删除</Text>
-            </Button>
+            {(isSuperadmin || ((detailRecord?.record_date || (detailRecord?.created_at || '').slice(0, 10)) === todayStr && detailRecord?.teacher_id === currentRole?.id)) && (
+              <Button variant="ghost" size="sm" onClick={() => { if (detailRecord) { handleDelete(detailRecord.id); setDetailOpen(false) } }}>
+                <Trash2 size={14} color="#ef4444" />
+                <Text className="text-red-500 text-sm">删除</Text>
+              </Button>
+            )}
           </View>
         </DialogContent>
       </Dialog>

@@ -878,7 +878,34 @@ export class TeacherService {
     return { success: true };
   }
 
-  async deleteFeedback(id: string) {
+  async deleteFeedback(id: string, operatorRoleId?: string) {
+    // 权限校验：超管可删任意记录；教师仅可删自己发的当天记录；其他角色不可删
+    const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    let operatorRoleType: string | null = null;
+    if (operatorRoleId) {
+      const { data: roleData } = await this.client
+        .from('user_roles')
+        .select('id, role_type')
+        .eq('id', operatorRoleId)
+        .maybeSingle();
+      operatorRoleType = roleData?.role_type || null;
+    }
+    if (operatorRoleType !== 'superadmin') {
+      // 先查记录再校验
+      const { data: existing, error: fetchErr } = await this.client
+        .from('daily_feedbacks')
+        .select('id, teacher_id, feedback_date')
+        .eq('id', id)
+        .maybeSingle();
+      if (fetchErr) throw new Error(`查询反馈失败: ${fetchErr.message}`);
+      if (!existing) throw new Error('反馈记录不存在');
+      const recordDate = (existing.feedback_date || '').slice(0, 10);
+      const isOwnerToday = operatorRoleType === 'teacher' && existing.teacher_id === operatorRoleId && recordDate === todayStr;
+      if (!isOwnerToday) {
+        return { error: true, code: 403, msg: '无权限删除该反馈：仅超级管理员或教师本人可删除当天记录' };
+      }
+    }
+
     const { error } = await this.client
       .from('daily_feedbacks')
       .delete()

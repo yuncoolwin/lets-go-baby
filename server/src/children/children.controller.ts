@@ -96,8 +96,8 @@ export class ChildrenController {
 
   @Delete(':id')
   @HttpCode(200)
-  async remove(@Param('id') id: string, @Body() body: { operator_user_id?: string; operator_role_id?: string }) {
-    const data = await this.childrenService.remove(id, body.operator_user_id, body.operator_role_id);
+  async remove(@Param('id') id: string, @Body() body?: { operator_user_id?: string; operator_role_id?: string }) {
+    const data = await this.childrenService.remove(id, body?.operator_user_id, body?.operator_role_id);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }

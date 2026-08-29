@@ -351,6 +351,9 @@ export class GrowthService {
 
     const updateData: Record<string, any> = {};
     updateData.parent_read_at = null;
+    if (!isOwner && this.isAdminRole(role?.role_type)) {
+      updateData.teacher_id = roleId;
+    }
     if (dto.title !== undefined) updateData.title = dto.title;
     if (dto.content !== undefined) updateData.content = dto.content;
     if (dto.photo_urls !== undefined) updateData.photo_urls = dto.photo_urls;
@@ -377,8 +380,13 @@ export class GrowthService {
 
     const role = await this.getRole(roleId || '');
     const isOwner = existing.teacher_id === roleId;
-    if (!isOwner && !this.isAdminRole(role?.role_type)) {
-      throw new HttpException({ code: 403, msg: '无权删除该记录', data: null }, HttpStatus.FORBIDDEN);
+    // 放行条件：超级管理员；或教师本人删除自己发的当天记录
+    // （record_date 为空时用 created_at 加 8 小时取前 10 位比较，上海时区口径）
+    const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const recordDate = existing.record_date || (existing.created_at ? new Date(new Date(existing.created_at).getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10) : '');
+    const isTeacherOwnerToday = role?.role_type === 'teacher' && isOwner && recordDate === todayStr;
+    if (role?.role_type !== 'superadmin' && !isTeacherOwnerToday) {
+      throw new HttpException({ code: 403, msg: '无权删除该记录：仅超级管理员或教师本人可删除当天记录', data: null }, HttpStatus.FORBIDDEN);
     }
 
     // 同步删除 Supabase Storage 中的图片，避免孤儿文件

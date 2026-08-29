@@ -333,7 +333,21 @@ export class AdminService {
     return results;
   }
 
-  async removeParentBinding(childId: string, relationId: string) {
+  async removeParentBinding(childId: string, relationId: string, operatorRoleId?: string) {
+    // 权限校验：仅超管可解除绑定
+    let operatorRoleType: string | null = null;
+    if (operatorRoleId) {
+      const { data: roleData } = await this.client
+        .from('user_roles')
+        .select('id, role_type')
+        .eq('id', operatorRoleId)
+        .maybeSingle();
+      operatorRoleType = roleData?.role_type || null;
+    }
+    if (operatorRoleType !== 'superadmin') {
+      return { error: true, code: 403, msg: '仅超级管理员可解除绑定' };
+    }
+
     // 1. 先获取关联记录，找到 parent_role_id
     const { data: relation, error: fetchError } = await this.client
       .from('parent_child_relations')
@@ -441,7 +455,21 @@ export class AdminService {
     return { code: 200, msg: 'success', data: { success: true } };
   }
 
-  async deleteBindingRequest(requestId: string) {
+  async deleteBindingRequest(requestId: string, operatorRoleId?: string) {
+    // 权限校验：仅超管可删除报读申请
+    let operatorRoleType: string | null = null;
+    if (operatorRoleId) {
+      const { data: roleData } = await this.client
+        .from('user_roles')
+        .select('id, role_type')
+        .eq('id', operatorRoleId)
+        .maybeSingle();
+      operatorRoleType = roleData?.role_type || null;
+    }
+    if (operatorRoleType !== 'superadmin') {
+      return { code: 403, msg: '仅超级管理员可删除报读申请', data: null };
+    }
+
     const { data: request } = await this.client
       .from('binding_requests')
       .select('id')

@@ -75,6 +75,9 @@ export class AttendanceController {
     @Body() body: { class_id: string; date: string; operator_user_id?: string; operator_role_id?: string },
   ) {
     const data = await this.attendanceService.clearByClassAndDate(body.class_id, body.date, undefined, body.operator_user_id, body.operator_role_id);
+    if ((data as any)?.error) {
+      return { code: (data as any).code, msg: (data as any).msg, data: null };
+    }
     return { code: 200, msg: 'success', data };
   }
 

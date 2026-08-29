@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { teacherApi, classApi } from '@/utils/api'
 import { Trash2 } from 'lucide-react-taro'
+import { useAppStore } from '@/store/app'
 
 const STATUS_OPTIONS = [
   { label: '在职', value: 'active' },
@@ -35,6 +36,8 @@ const TITLE_OPTIONS = [
 
 export default function TeacherEditPage() {
   const router = useRouter()
+  const currentRole = useAppStore((s) => s.currentRole)
+  const isSuperadmin = currentRole?.role_type === 'superadmin'
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
@@ -168,7 +171,7 @@ export default function TeacherEditPage() {
     if (!teacherId) return
     try {
       setDeleting(true)
-      const res = await teacherApi.remove(teacherId)
+      const res = await teacherApi.remove(teacherId, currentRole?.id)
       console.log('[TeacherEdit] delete response:', res)
       if (res.code === 200) {
         Taro.showToast({ title: '删除成功', icon: 'success' })
@@ -201,7 +204,7 @@ export default function TeacherEditPage() {
           <CardHeader>
             <View className="flex items-center justify-between">
               <CardTitle>基本信息</CardTitle>
-              {!isCreate && (
+              {!isCreate && isSuperadmin && (
                 <Button
                   variant="ghost"
                   className="h-8 px-2"

@@ -80,6 +80,20 @@ export class CoursesService {
   }
 
   async remove(id: string, operatorUserId?: string, operatorRoleId?: string) {
+    // 权限校验：仅超管可删除课程
+    let operatorRoleType: string | null = null;
+    if (operatorRoleId) {
+      const { data: roleData } = await this.supabase
+        .from('user_roles')
+        .select('id, role_type')
+        .eq('id', operatorRoleId)
+        .maybeSingle();
+      operatorRoleType = roleData?.role_type || null;
+    }
+    if (operatorRoleType !== 'superadmin') {
+      return { success: false, code: 403, message: '仅超级管理员可删除课程' };
+    }
+
     // 检查是否有进行中的报读记录
     const { data: activeEnrollments, error: queryError } = await this.supabase
       .from('enrollments')
