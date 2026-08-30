@@ -33,16 +33,6 @@ export class GrowthService {
     );
   }
 
-  private async getRole(roleId: string) {
-    if (!roleId) return null;
-    const { data } = await this.client
-      .from('user_roles')
-      .select('id, user_id, role_type, real_name')
-      .eq('id', roleId)
-      .maybeSingle();
-    return data;
-  }
-
   private isAdminRole(roleType?: string) {
     return roleType === 'admin' || roleType === 'superadmin';
   }
@@ -208,16 +198,12 @@ export class GrowthService {
     const { image } = body || {};
     if (!image) return { error: true, code: 400, msg: 'image 不能为空' };
 
-    // 白名单：仅 png/jpeg/jpg/webp，gif 已禁止
-    let base64 = image;
-    let mime = 'image/png';
-    const match = image.match(/^data:(image\/(?:png|jpeg|jpg|webp));base64,(.*)$/i);
-    if (match) {
-      mime = match[1].toLowerCase();
-      base64 = match[2];
-    } else if (/^data:/i.test(image)) {
+    // 白名单：必须严格匹配 data:image/(png|jpeg|jpg|webp);base64, 前缀，纯 base64（无前缀）与其他格式一律 415
+    const match = image.match(/^data:image\/(?:png|jpeg|jpg|webp);base64,(.*)$/i);
+    if (!match) {
       return { error: true, code: 415, msg: '仅支持 png/jpeg/jpg/webp 格式图片' };
     }
+    const base64 = match[1];
 
     let buffer: Buffer;
     try {

@@ -62,15 +62,6 @@ export class NotificationsService {
   }
 
   /**
-   * 判断角色是否为管理员或超管
-   */
-  private async isAdminRole(roleId?: string) {
-    if (!roleId) return false;
-    const role = await this.getRole(roleId);
-    return role?.role_type === 'admin' || role?.role_type === 'superadmin';
-  }
-
-  /**
    * 根据幼儿 id 数组查所有家长的角色 id（parent_role_id）
    * 口径：parent_child_relations.status = 'active'
    */
@@ -959,14 +950,12 @@ export class NotificationsService {
     const { image } = body || {};
     if (!image) return { error: true, code: 400, msg: 'image 不能为空' };
 
-    // 白名单：仅 png/jpeg/jpg/webp（gif 禁止）
-    let base64 = image;
-    const match = image.match(/^data:(image\/(?:png|jpeg|jpg|webp));base64,(.*)$/i);
-    if (match) {
-      base64 = match[2];
-    } else if (/^data:/i.test(image)) {
+    // 白名单：必须严格匹配 data:image/(png|jpeg|jpg|webp);base64, 前缀，纯 base64（无前缀）与其他格式一律 415
+    const match = image.match(/^data:image\/(?:png|jpeg|jpg|webp);base64,(.*)$/i);
+    if (!match) {
       return { error: true, code: 415, msg: '仅支持 png/jpeg/jpg/webp 格式' };
     }
+    const base64 = match[1];
 
     let buffer: Buffer;
     try {
