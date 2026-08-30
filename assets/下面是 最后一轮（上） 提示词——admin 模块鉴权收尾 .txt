@@ -1,0 +1,31 @@
+下面是**最后一轮（上）**提示词——admin 模块鉴权收尾 + CORS 收紧 + 仓库卫生（M2 upload 鉴权 / RLS 放最后一批单独出，避免一批过重）：
+
+---
+
+- 范围：`server/src/admin/admin.service.ts` + `admin.controller.ts` 鉴权收敛（这是全系统最后一处仍信任前端 `operator_user_id`/`operator_role_id` 的模块）、`server/src/main.ts` CORS 收紧、仓库卫生两处；统一复用 `server/src/auth/authz.service.ts` 的 `getRoleLevel(userId)`（返回 `superadmin`/`admin`/`teacher`/`parent`/`none`）
+
+- admin.service.ts：顶部 `import { AuthzService } from '@/auth/authz.service'` 并注入（constructor 加 `private readonly authz: AuthzService`）
+
+- admin.service.ts `getActiveSuperAdmin(operatorUserId)` 私有方法（约 590-603 行）：整个方法体替换为 `const level = await this.authz.getRoleLevel(operatorUserId); return level === 'superadmin';`，删除原先"查 user_roles 表 role_type"的逻辑；方法名和参数名保留，调用方无需改动（现在 operatorUserId 就是 JWT 传来的真实 userId）
+
+- admin.service.ts `removeParentBinding(childId, relationId, operatorRoleId)`（约 336-347 行）改签名 `removeParentBinding(userId, childId, relationId)`，删除内部"用 operatorRoleId 查 user_roles 的 role_type"判断段，改为开头 `const level = await this.authz.getRoleLevel(userId)`，`level !== 'superadmin'` 即 `return { error: true, code: 403, msg: '仅超级管理员可解除绑定' }`
+
+- admin.service.ts `deleteBindingRequest(requestId, operatorRoleId)`（约 458-469 行）改签名 `deleteBindingRequest(userId, requestId)`，删除内部 operatorRoleId 查 user_roles 判断段，改为开头 getRoleLevel 限 superadmin
+
+- admin.service.ts `updateBindingRequest(requestId, relationship, customRelationship)`（约 485 行）改签名 `updateBindingRequest(userId, requestId, relationship, customRelationship)`，开头加 `const level = await this.authz.getRoleLevel(userId)`，非 `admin`/`superadmin` 即 403（此接口当前无任何鉴权，必须补）
+
+- admin.service.ts 五个读方法加鉴权：`getPendingCount()` 改 `getPendingCount(userId)`、`getBindingRequests()` 改 `getBindingRequests(userId)`、`getPendingBindingRequests()` 改 `getPendingBindingRequests(userId)`、`getChildParents(childId)` 改 `getChildParents(userId, childId)`、`getParentStatus(userId)` 改 `getParentStatus(operatorUserId, userId)`（原 userId 是目标用户，新增 operatorUserId 是操作者）；五个方法开头统一 `const level = await this.authz.getRoleLevel(operatorUserId 或 userId)`，非 `admin`/`superadmin` 即返回 `{ error: true, code: 403, msg: '无权访问' }` 或空列表
+
+- admin.controller.ts：顶部 import 加 `Req` 和 `import type { Request } from 'express'`；下列接口全部加 `@Req() req: Request` 取 `const userId = (req as any).user?.userId` 传给 service，并删除 body/query 里的 operator_user_id/operator_role_id 字段：`approveBindingRequest`（删 body.operator_user_id，改调 `approveBindingRequest(request_id, userId)`）、`rejectBindingRequest`、`setBindingRequestStatus`、`deleteBindingRequest`（删 body.operator_role_id）、`removeParentBinding`（删 body.operator_role_id）、`getPermissionUsers`（删 query.operator_user_id）、`assignRole`、`revokeRole`、`createPermissionUser`、`updatePermissionUser`、`deletePermissionUser`、`getAuditLogs`（删 query.operator_user_id）
+
+- admin.controller.ts：`updateBindingRequest` 加 `@Req() req: Request`，取 userId 作第一个参数传入；`getPendingCount`/`getBindingRequests`/`getPendingBindingRequests`/`getChildParents` 加 @Req 取 userId 传入；`getParentStatus` 加 @Req 取操作者 userId 作为第一个参数、原 `@Query('userId')` 保持作为第二个参数传入
+
+- main.ts（`server/src/main.ts`）：`app.enableCors({ origin: true, credentials: true })`（约 23-26 行）改为读环境变量收紧：先 `const corsOrigins = (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);` 再 `app.enableCors({ origin: corsOrigins.length ? corsOrigins : false, credentials: true });`；微信小程序请求不经过浏览器 CORS 不受影响，H5 若需跨域则在部署环境配置 `CORS_ORIGINS`（逗号分隔的域名列表），未配置时默认关闭跨域
+
+- 仓库卫生 L1：`.gitignore` 中 `# key/` 这一行取消注释，改为 `key/`（确保小程序 CI 私钥目录永不入库）
+
+- 仓库卫生 L2：仓库根目录已提交的构建产物 `project-latest.zip`（约 4.8MB，内含 .env 的 dev 域名）从版本库移除：执行 `git rm --cached project-latest.zip` 并删除该文件，同时在 `.gitignore` 末尾追加一行 `*.zip` 防止后续再误提交
+
+---
+
+说明：本批只做 admin 鉴权收敛 + CORS + 仓库卫生三项，不碰 upload/Storage/RLS。

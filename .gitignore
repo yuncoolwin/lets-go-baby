@@ -37,7 +37,9 @@ pnpm-debug.log*
 .DS_Store
 
 # Key
-# key/
+key/
+
+*.zip
 
 # Preview files
 .preview

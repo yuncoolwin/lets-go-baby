@@ -1,13 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { AuthzService } from '@/auth/authz.service';
 
 @Injectable()
 export class AdminService {
+  constructor(private readonly authz: AuthzService) {}
+
   private get client() {
     return getSupabaseClient();
   }
 
-  async getPendingCount() {
+  async getPendingCount(userId: string) {
+    const level = await this.authz.getRoleLevel(userId);
+    if (!['admin', 'superadmin'].includes(level)) {
+      return { code: 403, msg: '无权限', data: null };
+    }
     const { count, error } = await this.client
       .from('binding_requests')
       .select('*', { count: 'exact', head: true })
@@ -17,7 +24,11 @@ export class AdminService {
     return { count: count || 0 };
   }
 
-  async getBindingRequests() {
+  async getBindingRequests(userId: string) {
+    const level = await this.authz.getRoleLevel(userId);
+    if (!['admin', 'superadmin'].includes(level)) {
+      return { code: 403, msg: '无权限', data: null };
+    }
     // 从数据库查询所有绑定请求（包括 pending、approved、rejected）
     const { data, error } = await this.client
       .from('binding_requests')
@@ -85,7 +96,11 @@ export class AdminService {
     return results;
   }
 
-  async getPendingBindingRequests() {
+  async getPendingBindingRequests(userId: string) {
+    const level = await this.authz.getRoleLevel(userId);
+    if (!['admin', 'superadmin'].includes(level)) {
+      return { code: 403, msg: '无权限', data: null };
+    }
     // 只查询 pending 状态的记录
     const { data, error } = await this.client
       .from('binding_requests')
@@ -283,7 +298,11 @@ export class AdminService {
     return { code: 200, msg: 'success', data: { success: true } };
   }
 
-  async getChildParents(childId: string) {
+  async getChildParents(userId: string, childId: string) {
+    const level = await this.authz.getRoleLevel(userId);
+    if (!['admin', 'superadmin'].includes(level)) {
+      return { code: 403, msg: '无权限', data: null };
+    }
     // 查询该幼儿的所有已绑定家长
     const { data: relations, error } = await this.client
       .from('parent_child_relations')
@@ -333,18 +352,10 @@ export class AdminService {
     return results;
   }
 
-  async removeParentBinding(childId: string, relationId: string, operatorRoleId?: string) {
+  async removeParentBinding(userId: string, childId: string, relationId: string) {
     // 权限校验：仅超管可解除绑定
-    let operatorRoleType: string | null = null;
-    if (operatorRoleId) {
-      const { data: roleData } = await this.client
-        .from('user_roles')
-        .select('id, role_type')
-        .eq('id', operatorRoleId)
-        .maybeSingle();
-      operatorRoleType = roleData?.role_type || null;
-    }
-    if (operatorRoleType !== 'superadmin') {
+    const level = await this.authz.getRoleLevel(userId);
+    if (level !== 'superadmin') {
       return { error: true, code: 403, msg: '仅超级管理员可解除绑定' };
     }
 
@@ -354,10 +365,10 @@ export class AdminService {
       .select('parent_role_id')
       .eq('id', relationId)
       .eq('child_id', childId)
-      .single();
+      .maybeSingle();
 
     if (fetchError || !relation) {
-      throw new Error(`关联记录不存在: ${fetchError?.message || '未找到'}`);
+      return { error: true, code: 404, msg: '关联记录不存在' };
     }
 
     // 2. 删除关联记录
@@ -381,19 +392,23 @@ export class AdminService {
       console.error(`[removeParentBinding] 更新绑定请求状态失败: ${updateError.message}`);
     }
 
-    return { success: true };
+    return { code: 200, msg: 'success', data: { success: true } };
   }
 
-  async getParentStatus(userId: string): Promise<{ hasParentRole: boolean; childCount: number }> {
-    // 1. 查找该用户的 parent 角色
-    console.log('[getParentStatus] userId:', userId);
+  async getParentStatus(operatorUserId: string, userId: string): Promise<{ hasParentRole: boolean; childCount: number }> {
+    // 仅管理员可查询
+    const level = await this.authz.getRoleLevel(operatorUserId);
+    if (!['admin', 'superadmin'].includes(level)) {
+      throw new ForbiddenException('无权限');
+    }
+
+    // 1. 查找目标用户的 parent 角色
     const { data: parentRole, error: parentRoleError } = await this.client
       .from('user_roles')
       .select('id')
       .eq('user_id', userId)
       .eq('role_type', 'parent')
       .maybeSingle();
-    console.log('[getParentStatus] parentRole:', parentRole, 'error:', parentRoleError);
 
     if (!parentRole) {
       return { hasParentRole: false, childCount: 0 };
@@ -455,18 +470,10 @@ export class AdminService {
     return { code: 200, msg: 'success', data: { success: true } };
   }
 
-  async deleteBindingRequest(requestId: string, operatorRoleId?: string) {
+  async deleteBindingRequest(userId: string, requestId: string) {
     // 权限校验：仅超管可删除报读申请
-    let operatorRoleType: string | null = null;
-    if (operatorRoleId) {
-      const { data: roleData } = await this.client
-        .from('user_roles')
-        .select('id, role_type')
-        .eq('id', operatorRoleId)
-        .maybeSingle();
-      operatorRoleType = roleData?.role_type || null;
-    }
-    if (operatorRoleType !== 'superadmin') {
+    const level = await this.authz.getRoleLevel(userId);
+    if (level !== 'superadmin') {
       return { code: 403, msg: '仅超级管理员可删除报读申请', data: null };
     }
 
@@ -482,7 +489,11 @@ export class AdminService {
     return { code: 200, msg: 'success', data: { success: true } };
   }
 
-  async updateBindingRequest(requestId: string, relationship?: string, customRelationship?: string) {
+  async updateBindingRequest(userId: string, requestId: string, relationship?: string, customRelationship?: string) {
+    const level = await this.authz.getRoleLevel(userId);
+    if (!['admin', 'superadmin'].includes(level)) {
+      return { code: 403, msg: '仅管理员可更新报读申请', data: null };
+    }
     const { data: existing } = await this.client
       .from('binding_requests')
       .select('id')
@@ -586,18 +597,10 @@ export class AdminService {
     return { code: 400, msg: '无效状态', data: null };
   }
 
-  // 校验操作者是否为 active 超管，返回 user_role 记录或 null
+  // 校验操作者是否为 active 超管，返回 user_role 记录或 null（统一走 AuthzService）
   private async getActiveSuperAdmin(operatorUserId: string) {
-    const { data, error } = await this.client
-      .from('user_roles')
-      .select('id')
-      .eq('user_id', operatorUserId)
-      .eq('role_type', 'superadmin')
-      .eq('status', 'active')
-      .maybeSingle();
-
-    if (error) throw new Error(`权限校验失败: ${error.message}`);
-    return data || null;
+    const roles = await this.authz.getUserRoles(operatorUserId);
+    return roles.find((r) => r.role_type === 'superadmin') || null;
   }
 
   // 操作日志写入（失败仅告警，不阻断主流程）

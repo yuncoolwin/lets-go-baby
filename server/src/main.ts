@@ -21,7 +21,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: true,
+    // CORS_ORIGINS 配置允许的来源（逗号分隔）；未配置时默认放行同源（小程序端无浏览器同源限制）
+    origin: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()) : false,
     credentials: true,
   });
   app.setGlobalPrefix('api');
