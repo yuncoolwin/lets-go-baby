@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Body, Query, Param, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Query, Param, HttpCode, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { GrowthService } from './growth.service';
 
 @Controller('growth-records')
@@ -7,8 +8,9 @@ export class GrowthController {
 
   @Post('upload')
   @HttpCode(200)
-  async uploadImage(@Body() body: { image: string; name?: string }) {
-    const data = await this.growthService.uploadImage(body);
+  async uploadImage(@Req() req: Request, @Body() body: { image: string; name?: string }) {
+    const userId = (req as any).user?.userId;
+    const data = await this.growthService.uploadImage(userId, body);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -18,11 +20,12 @@ export class GrowthController {
   @Post()
   @HttpCode(200)
   async create(
+    @Req() req: Request,
     @Body()
     dto: { child_id: string; title: string; content?: string; photo_urls?: string[]; record_date?: string; course_name?: string },
-    @Query('role_id') roleId?: string,
   ) {
-    const data = await this.growthService.create(dto, roleId);
+    const userId = (req as any).user?.userId;
+    const data = await this.growthService.create(userId, dto);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -32,10 +35,11 @@ export class GrowthController {
   @Get()
   @HttpCode(200)
   async findAll(
-    @Query()
-    query: { child_id?: string; child_ids?: string; record_date?: string; page?: string; page_size?: string; role_id?: string },
+    @Req() req: Request,
+    @Query() query: { child_id?: string; child_ids?: string; record_date?: string; page?: string; page_size?: string; role_id?: string },
   ) {
-    const data = await this.growthService.findAll(query);
+    const userId = (req as any).user?.userId;
+    const data = await this.growthService.findAll(userId, query);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -44,8 +48,9 @@ export class GrowthController {
 
   @Get(':id')
   @HttpCode(200)
-  async findOne(@Param('id') id: string, @Query('role_id') roleId?: string) {
-    const data = await this.growthService.findOne(id, roleId);
+  async findOne(@Req() req: Request, @Param('id') id: string) {
+    const userId = (req as any).user?.userId;
+    const data = await this.growthService.findOne(userId, id);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -54,12 +59,9 @@ export class GrowthController {
 
   @Put(':id')
   @HttpCode(200)
-  async update(
-    @Param('id') id: string,
-    @Body() dto: { title?: string; content?: string; photo_urls?: string[]; record_date?: string },
-    @Query('role_id') roleId?: string,
-  ) {
-    const data = await this.growthService.update(id, dto, roleId);
+  async update(@Req() req: Request, @Param('id') id: string, @Body() dto: { title?: string; content?: string; photo_urls?: string[]; record_date?: string }) {
+    const userId = (req as any).user?.userId;
+    const data = await this.growthService.update(userId, id, dto);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -68,8 +70,9 @@ export class GrowthController {
 
   @Delete(':id')
   @HttpCode(200)
-  async remove(@Param('id') id: string, @Query('role_id') roleId?: string) {
-    const data = await this.growthService.remove(id, roleId);
+  async remove(@Req() req: Request, @Param('id') id: string) {
+    const userId = (req as any).user?.userId;
+    const data = await this.growthService.remove(userId, id);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }

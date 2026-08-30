@@ -15,11 +15,11 @@ export class AuthzService {
   /**
    * 查询用户所有 active 角色（user_roles）
    */
-  async getUserRoles(userId: string): Promise<Array<{ id: string; role_type: string; status: string }>> {
+  async getUserRoles(userId: string): Promise<Array<{ id: string; user_id: string; role_type: string; status: string }>> {
     if (!userId) return [];
     const { data, error } = await this.client
       .from('user_roles')
-      .select('id, role_type, status')
+      .select('id, user_id, role_type, status')
       .eq('user_id', userId)
       .eq('status', 'active');
 

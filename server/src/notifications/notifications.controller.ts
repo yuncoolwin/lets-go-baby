@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, Query, Param, Patch, Delete, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Param, Patch, Delete, HttpCode, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { NotificationsService } from './notifications.service';
 import type { CreateNotificationDto } from './dto/create-notification.dto';
 
@@ -8,8 +9,9 @@ export class NotificationsController {
 
   @Post()
   @HttpCode(200)
-  async create(@Body() dto: CreateNotificationDto, @Query('author_id') authorId?: string) {
-    const data = await this.notificationsService.create(dto, authorId);
+  async create(@Req() req: Request, @Body() dto: CreateNotificationDto) {
+    const userId = (req as any).user?.userId;
+    const data = await this.notificationsService.create(userId, dto);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -18,8 +20,9 @@ export class NotificationsController {
 
   @Post('upload')
   @HttpCode(200)
-  async uploadImage(@Body() body: { image: string; name?: string }) {
-    const data = await this.notificationsService.uploadImage(body);
+  async uploadImage(@Req() req: Request, @Body() body: { image: string; name?: string }) {
+    const userId = (req as any).user?.userId;
+    const data = await this.notificationsService.uploadImage(userId, body);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -29,6 +32,7 @@ export class NotificationsController {
   @Get()
   @HttpCode(200)
   async findAll(
+    @Req() req: Request,
     @Query()
     query: {
       page?: number | string;
@@ -40,7 +44,8 @@ export class NotificationsController {
       author_id?: string;
     },
   ) {
-    const data = await this.notificationsService.findAll(query);
+    const userId = (req as any).user?.userId;
+    const data = await this.notificationsService.findAll(userId, query);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -49,8 +54,9 @@ export class NotificationsController {
 
   @Get('stats')
   @HttpCode(200)
-  async getStats(@Query('author_id') authorId?: string) {
-    const data = await this.notificationsService.getStats(authorId);
+  async getStats(@Req() req: Request) {
+    const userId = (req as any).user?.userId;
+    const data = await this.notificationsService.getStats(userId);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -59,8 +65,9 @@ export class NotificationsController {
 
   @Get('unread-count')
   @HttpCode(200)
-  async unreadCount(@Query('user_role_id') userRoleId?: string) {
-    const data = await this.notificationsService.getUnreadCount(userRoleId || '');
+  async unreadCount(@Req() req: Request) {
+    const userId = (req as any).user?.userId;
+    const data = await this.notificationsService.getUnreadCount(userId);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -69,8 +76,9 @@ export class NotificationsController {
 
   @Get(':id')
   @HttpCode(200)
-  async findOne(@Param('id') id: string) {
-    const data = await this.notificationsService.findOne(id);
+  async findOne(@Req() req: Request, @Param('id') id: string) {
+    const userId = (req as any).user?.userId;
+    const data = await this.notificationsService.findOne(userId, id);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -79,9 +87,10 @@ export class NotificationsController {
 
   @Patch(':id')
   @HttpCode(200)
-  async update(@Param('id') id: string, @Body() dto: Partial<CreateNotificationDto> & { operator_role_id?: string }) {
-    const { operator_role_id, ...rest } = dto;
-    const data = await this.notificationsService.update(id, rest, operator_role_id);
+  async update(@Req() req: Request, @Param('id') id: string, @Body() dto: Partial<CreateNotificationDto> & { operator_role_id?: string }) {
+    const userId = (req as any).user?.userId;
+    const { operator_role_id: _ignored, ...rest } = dto;
+    const data = await this.notificationsService.update(userId, id, rest);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -90,12 +99,9 @@ export class NotificationsController {
 
   @Delete(':id')
   @HttpCode(200)
-  async remove(
-    @Param('id') id: string,
-    @Body() body?: { operator_role_id?: string },
-    @Query('operator_role_id') operatorRoleId?: string,
-  ) {
-    const data = await this.notificationsService.remove(id, body?.operator_role_id || operatorRoleId);
+  async remove(@Req() req: Request, @Param('id') id: string, @Body() body?: { operator_role_id?: string }) {
+    const userId = (req as any).user?.userId;
+    const data = await this.notificationsService.remove(userId, id);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -104,8 +110,9 @@ export class NotificationsController {
 
   @Post(':id/read')
   @HttpCode(200)
-  async markRead(@Param('id') id: string, @Body() body: { user_role_id?: string; user_id?: string }) {
-    const data = await this.notificationsService.markRead(id, body.user_role_id || body.user_id);
+  async markRead(@Req() req: Request, @Param('id') id: string) {
+    const userId = (req as any).user?.userId;
+    const data = await this.notificationsService.markRead(userId, id);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -114,8 +121,9 @@ export class NotificationsController {
 
   @Post(':id/revoke')
   @HttpCode(200)
-  async revoke(@Param('id') id: string) {
-    const data = await this.notificationsService.revoke(id);
+  async revoke(@Req() req: Request, @Param('id') id: string) {
+    const userId = (req as any).user?.userId;
+    const data = await this.notificationsService.revoke(userId, id);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }

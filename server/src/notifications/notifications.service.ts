@@ -1,14 +1,51 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { AuthzService } from '@/auth/authz.service';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const sharp = require('sharp');
 
 const VALID_TYPES = ['all', 'course', 'class', 'personal', 'teacher'];
 
+/** 图片上传：原始 base64 大小上限（约对应 10MB 原始图） */
+const IMAGE_BASE64_MAX = 10 * 1024 * 1024;
+/** 私有桶签名 URL 有效期：24 小时 */
+const SIGNED_URL_TTL = 60 * 60 * 24;
+
 @Injectable()
 export class NotificationsService {
+  constructor(private readonly authz: AuthzService) {}
+
   private get client() {
     return getSupabaseClient();
+  }
+
+  /**
+   * 从 JWT userId 推导当前身份：teacher 优先，其次 parent，再次首个角色
+   */
+  private async getUserIdentity(userId: string) {
+    const roles = await this.authz.getUserRoles(userId);
+    const identity =
+      roles.find((r) => r.role_type === 'teacher') ||
+      roles.find((r) => r.role_type === 'parent') ||
+      roles[0] ||
+      null;
+    return { roles, identity };
+  }
+
+  /**
+   * 当前登录用户是否为管理员/超管（走 AuthzService，客户端传值无效）
+   */
+  private async isAdminUser(userId: string): Promise<boolean> {
+    const level = await this.authz.getRoleLevel(userId);
+    return level === 'admin' || level === 'superadmin';
+  }
+
+  /**
+   * 当前登录用户的所有 active 角色 id
+   */
+  private async getRoleIdsForUser(userId: string): Promise<string[]> {
+    const roles = await this.authz.getUserRoles(userId);
+    return roles.map((r) => r.id).filter(Boolean);
   }
 
   /**
@@ -190,9 +227,10 @@ export class NotificationsService {
   }
 
   /**
-   * 创建通知
+   * 创建通知：作者身份从 JWT userId 推导，客户端传值无效
    */
   async create(
+    userId: string,
     dto: {
       title: string;
       content: string;
@@ -201,7 +239,6 @@ export class NotificationsService {
       status?: string;
       images?: string[];
     },
-    authorId?: string,
   ) {
     if (!dto.title || !dto.content || !dto.type) {
       return { error: true, code: 400, msg: 'title/content/type 不能为空' };
@@ -210,15 +247,22 @@ export class NotificationsService {
       return { error: true, code: 400, msg: `type 必须是 ${VALID_TYPES.join('/')} 之一` };
     }
 
+    // 权限：仅管理员/教师可创建，家长/未登录 403
+    const level = await this.authz.getRoleLevel(userId);
+    if (level === 'none' || level === 'parent') {
+      return { error: true, code: 403, msg: '家长无权发送通知' };
+    }
+
+    // 作者身份：teacher 优先（客户端传什么都无法伪造）
+    const { identity } = await this.getUserIdentity(userId);
+    const authorId = identity?.id || null;
+
     // 权限校验：教师角色不能发布 all / teacher 类型
-    if (authorId) {
-      const role = await this.getRole(authorId);
-      if (role?.role_type === 'teacher' && (dto.type === 'all' || dto.type === 'teacher')) {
-        throw new HttpException(
-          { code: 403, msg: '教师无权发布全园通知或教师通知', data: null },
-          HttpStatus.FORBIDDEN,
-        );
-      }
+    if (identity?.role_type === 'teacher' && (dto.type === 'all' || dto.type === 'teacher')) {
+      throw new HttpException(
+        { code: 403, msg: '教师无权发布全园通知或教师通知', data: null },
+        HttpStatus.FORBIDDEN,
+      );
     }
 
     const status = dto.status || 'draft';
@@ -252,32 +296,40 @@ export class NotificationsService {
 
   /**
    * 列表查询：支持 scope = received / sent / draft
+   * 身份一律从 JWT userId 推导，客户端传的 user_role_id / author_id 全部忽略
    */
-  async findAll(query: {
-    page?: number | string;
-    page_size?: number | string;
-    type?: string;
-    keyword?: string;
-    scope?: string;
-    user_role_id?: string;
-    author_id?: string;
-  }) {
+  async findAll(
+    userId: string,
+    query: {
+      page?: number | string;
+      page_size?: number | string;
+      type?: string;
+      keyword?: string;
+      scope?: string;
+    },
+  ) {
     const page = Number(query.page) || 1;
     const pageSize = Number(query.page_size) || 20;
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
     if (query.scope === 'received') {
-      return this.findReceived(query.user_role_id, query, page, pageSize, from, to);
+      const roleIds = await this.getRoleIdsForUser(userId);
+      return this.findReceived(roleIds, query, page, pageSize, from, to);
     }
     if (query.scope === 'sent') {
-      return this.findSent(query.author_id, query, page, pageSize, from, to, false);
+      const { identity } = await this.getUserIdentity(userId);
+      return this.findSent(identity?.id, query, page, pageSize, from, to, false);
     }
     if (query.scope === 'draft') {
-      return this.findSent(query.author_id, query, page, pageSize, from, to, true);
+      const { identity } = await this.getUserIdentity(userId);
+      return this.findSent(identity?.id, query, page, pageSize, from, to, true);
     }
 
-    // 默认：管理端全量列表（仅已发布，排除草稿和已撤回）
+    // 默认：管理端全量列表（仅管理员/超管，仅已发布，排除草稿和已撤回）
+    if (!(await this.isAdminUser(userId))) {
+      return { error: true, code: 403, msg: '无权访问管理端通知列表', data: null };
+    }
     let builder = this.client
       .from('notifications')
       .select('*', { count: 'exact' })
@@ -399,19 +451,26 @@ export class NotificationsService {
    * 我收到的通知（仅 published，过滤已撤回/草稿）
    */
   private async findReceived(
-    userRoleId: string | undefined,
+    roleIds: string[],
     _query: any,
     page: number,
     pageSize: number,
     from: number,
     to: number,
   ) {
-    if (!userRoleId) return { error: true, code: 400, msg: '缺少 user_role_id' };
+    // 用户所有 active 角色（teacher+parent 等）都能收到各自身份的通知
+    if (!roleIds.length) {
+      return {
+        code: 200,
+        msg: 'success',
+        data: { list: [], total: 0, page, page_size: pageSize },
+      };
+    }
 
     const { data: recipients, error } = await this.client
       .from('notification_recipients')
       .select('notification_id, is_read, read_at, created_at')
-      .eq('user_role_id', userRoleId)
+      .in('user_role_id', roleIds)
       .order('created_at', { ascending: false });
 
     if (error) return { error: true, code: 500, msg: `查询接收记录失败: ${error.message}` };
@@ -451,7 +510,12 @@ export class NotificationsService {
 
     const total = merged.length;
     return {
-      list: merged.slice(from, to + 1),
+      list: await Promise.all(
+        merged.slice(from, to + 1).map(async (n: any) => ({
+          ...n,
+          images: await this.signImageUrls(n.images || []),
+        })),
+      ),
       total,
       page,
       page_size: pageSize,
@@ -528,7 +592,12 @@ export class NotificationsService {
     );
 
     return {
-      list: listWithStats,
+      list: await Promise.all(
+        listWithStats.map(async (n: any) => ({
+          ...n,
+          images: await this.signImageUrls(n.images || []),
+        })),
+      ),
       total: count || 0,
       page,
       page_size: pageSize,
@@ -539,7 +608,13 @@ export class NotificationsService {
   /**
    * 查询详情
    */
-  async findOne(id: string) {
+  async findOne(userId: string, id: string) {
+    const roles = await this.authz.getUserRoles(userId);
+    const roleIds = roles.map((r) => r.id).filter(Boolean);
+    const { identity } = await this.getUserIdentity(userId);
+    const level = await this.authz.getRoleLevel(userId);
+    const isAdminOperator = level === 'admin' || level === 'superadmin';
+
     const { data: notification } = await this.client
       .from('notifications')
       .select('*')
@@ -548,18 +623,37 @@ export class NotificationsService {
 
     if (!notification) return { error: true, code: 404, msg: '通知不存在' };
 
+    // 管理员 / 作者本人 / 接收人可见
+    let allowed = isAdminOperator;
+    if (!allowed && identity?.id && notification.author_id === identity.id) allowed = true;
+    if (!allowed && roleIds.length) {
+      const { data: recipient } = await this.client
+        .from('notification_recipients')
+        .select('id')
+        .eq('notification_id', id)
+        .in('user_role_id', roleIds)
+        .maybeSingle();
+      if (recipient) allowed = true;
+    }
+    if (!allowed) return { error: true, code: 403, msg: '无权查看该通知' };
+
     const { count } = await this.client
       .from('notification_recipients')
       .select('id', { count: 'exact', head: true })
       .eq('notification_id', id);
 
-    return { ...notification, recipient_count: count || 0 };
+    const detail = { ...notification, recipient_count: count || 0 };
+    if (Array.isArray(detail.images) && detail.images.length) {
+      detail.images = await this.signImageUrls(detail.images);
+    }
+    return detail;
   }
 
   /**
    * 编辑草稿；草稿转发布时按新 target_ids 重建 recipients
    */
   async update(
+    userId: string,
     id: string,
     dto: {
       title?: string;
@@ -569,7 +663,6 @@ export class NotificationsService {
       status?: string;
       images?: string[];
     },
-    operatorRoleId?: string,
   ) {
     const { data: existing } = await this.client
       .from('notifications')
@@ -578,7 +671,12 @@ export class NotificationsService {
       .maybeSingle();
 
     if (!existing) return { error: true, code: 404, msg: '通知不存在' };
-    const isAdminOperator = await this.isAdminRole(operatorRoleId);
+    const isAdminOperator = await this.isAdminUser(userId);
+    const { identity } = await this.getUserIdentity(userId);
+    const isAuthor = !!identity?.id && existing.author_id === identity.id;
+    if (!isAdminOperator && !isAuthor) {
+      return { error: true, code: 403, msg: '仅管理员或作者本人可编辑通知' };
+    }
     if (!isAdminOperator && existing.status !== 'draft' && existing.status !== 'revoked') {
       return { error: true, code: 400, msg: '仅草稿或已撤回的通知可编辑' };
     }
@@ -636,15 +734,20 @@ export class NotificationsService {
   /**
    * 删除：仅草稿可物理删除
    */
-  async remove(id: string, operatorRoleId?: string) {
+  async remove(userId: string, id: string) {
     const { data: existing } = await this.client
       .from('notifications')
-      .select('status')
+      .select('status, author_id')
       .eq('id', id)
       .maybeSingle();
 
     if (!existing) return { error: true, code: 404, msg: '通知不存在' };
-    const isAdminOperator = await this.isAdminRole(operatorRoleId);
+    const isAdminOperator = await this.isAdminUser(userId);
+    const { identity } = await this.getUserIdentity(userId);
+    const isAuthor = !!identity?.id && existing.author_id === identity.id;
+    if (!isAdminOperator && !isAuthor) {
+      return { error: true, code: 403, msg: '仅管理员或作者本人可删除通知' };
+    }
     if (!isAdminOperator && existing.status !== 'draft') {
       return { error: true, code: 400, msg: '仅草稿可删除，已发布通知请使用撤回' };
     }
@@ -659,14 +762,15 @@ export class NotificationsService {
   /**
    * 标记已读
    */
-  async markRead(notificationId: string, userRoleId?: string) {
-    if (!userRoleId) return { error: true, code: 400, msg: '缺少 user_role_id' };
+  async markRead(userId: string, notificationId: string) {
+    const roleIds = await this.getRoleIdsForUser(userId);
+    if (!roleIds.length) return { success: true };
 
     const { error } = await this.client
       .from('notification_recipients')
       .update({ is_read: true, read_at: new Date().toISOString() })
       .eq('notification_id', notificationId)
-      .eq('user_role_id', userRoleId);
+      .in('user_role_id', roleIds);
 
     if (error) return { error: true, code: 500, msg: `标记已读失败: ${error.message}` };
     return { success: true };
@@ -675,14 +779,23 @@ export class NotificationsService {
   /**
    * 撤回：status = revoked
    */
-  async revoke(id: string) {
+  async revoke(userId: string, id: string) {
     const { data: existing } = await this.client
       .from('notifications')
-      .select('status')
+      .select('status, author_id')
       .eq('id', id)
       .maybeSingle();
 
     if (!existing) return { error: true, code: 404, msg: '通知不存在' };
+
+    // 仅管理员或作者本人可撤回
+    const isAdminOperator = await this.isAdminUser(userId);
+    const { identity } = await this.getUserIdentity(userId);
+    const isAuthor = !!identity?.id && existing.author_id === identity.id;
+    if (!isAdminOperator && !isAuthor) {
+      return { error: true, code: 403, msg: '仅管理员或作者本人可撤回通知' };
+    }
+
     if (existing.status === 'revoked') return { error: true, code: 400, msg: '通知已撤回' };
     if (existing.status === 'draft') return { error: true, code: 400, msg: '草稿无需撤回' };
 
@@ -698,7 +811,9 @@ export class NotificationsService {
   /**
    * 统计（按新 status 维度）
    */
-  async getStats(authorId?: string) {
+  async getStats(userId: string) {
+    const { identity } = await this.getUserIdentity(userId);
+    const authorId = identity?.id;
     let builder = this.client.from('notifications').select('status', { count: 'exact' });
     if (authorId) builder = builder.eq('author_id', authorId);
 
@@ -744,13 +859,14 @@ export class NotificationsService {
   /**
    * 未读数：当前角色未读且通知仍为 published 的数量
    */
-  async getUnreadCount(userRoleId: string) {
-    if (!userRoleId) return { error: true, code: 400, msg: '缺少 user_role_id' };
+  async getUnreadCount(userId: string) {
+    const roleIds = await this.getRoleIdsForUser(userId);
+    if (!roleIds.length) return { count: 0 };
 
     const { data: unreadRecipients, error } = await this.client
       .from('notification_recipients')
       .select('notification_id')
-      .eq('user_role_id', userRoleId)
+      .in('user_role_id', roleIds)
       .eq('is_read', false);
 
     if (error) return { error: true, code: 500, msg: `查询未读失败: ${error.message}` };
@@ -768,18 +884,15 @@ export class NotificationsService {
       notificationUnread = count || 0;
     }
 
-    // 家长角色：追加成长记录未读数
+    // 家长角色：追加成长记录未读数（多家长角色累计）
     let growthUnread = 0;
-    const { data: role } = await this.client
-      .from('user_roles')
-      .select('role_type')
-      .eq('id', userRoleId)
-      .maybeSingle();
-    if (role?.role_type === 'parent') {
+    const roles = await this.authz.getUserRoles(userId);
+    const parentRoleIds = roles.filter((r) => r.role_type === 'parent').map((r) => r.id).filter(Boolean);
+    for (const parentRoleId of parentRoleIds) {
       const { data: relations } = await this.client
         .from('parent_child_relations')
         .select('child_id')
-        .eq('parent_role_id', userRoleId)
+        .eq('parent_role_id', parentRoleId)
         .eq('status', 'active');
       const childIds = [...new Set((relations || []).map((r: any) => r.child_id).filter(Boolean))];
       if (childIds.length) {
@@ -788,7 +901,7 @@ export class NotificationsService {
           .select('id', { count: 'exact', head: true })
           .in('child_id', childIds)
           .is('parent_read_at', null);
-        growthUnread = count || 0;
+        growthUnread += count || 0;
       }
     }
 
@@ -796,21 +909,75 @@ export class NotificationsService {
   }
 
   /**
-   * 图片上传：base64 → Buffer → Supabase Storage public bucket notifications
+   * 从存储 URL 提取 storage 路径（兼容 public / sign 两种历史格式）
    */
-  async uploadImage(body: { image: string; name?: string }) {
+  private extractStoragePaths(urls: string[]): string[] {
+    const paths: string[] = [];
+    (urls || []).forEach((url) => {
+      if (!url || typeof url !== 'string') return;
+      const marker = '/object/public/notifications/';
+      const idx = url.indexOf(marker);
+      if (idx >= 0) {
+        paths.push(url.slice(idx + marker.length));
+        return;
+      }
+      const marker2 = '/object/sign/notifications/';
+      const idx2 = url.indexOf(marker2);
+      if (idx2 >= 0) {
+        paths.push(url.slice(idx2 + marker2.length).split('?')[0]);
+      }
+    });
+    return paths.filter(Boolean);
+  }
+
+  /**
+   * 为存储的图片 URL 动态生成签名 URL（bucket 已转为 private，public URL 不再可直接访问）
+   */
+  private async signImageUrls(urls: string[]): Promise<string[]> {
+    const paths = this.extractStoragePaths(urls || []);
+    const signed = new Map<string, string>();
+    for (const p of paths) {
+      const { data } = await this.client.storage.from('notifications').createSignedUrl(p, SIGNED_URL_TTL);
+      if (data?.signedUrl) signed.set(p, data.signedUrl);
+    }
+    return (urls || []).map((url) => {
+      const p = this.extractStoragePaths([url])[0];
+      return (p && signed.get(p)) || url;
+    });
+  }
+
+  /**
+   * 图片上传：base64 → Buffer → Supabase Storage private bucket notifications（动态签名 URL）
+   */
+  async uploadImage(userId: string, body: { image: string; name?: string }) {
+    // 鉴权：家长/未登录直接 403
+    const level = await this.authz.getRoleLevel(userId);
+    if (level === 'none' || level === 'parent') {
+      return { error: true, code: 403, msg: '家长无权上传通知图片' };
+    }
+
     const { image } = body || {};
     if (!image) return { error: true, code: 400, msg: 'image 不能为空' };
 
+    // 白名单：仅 png/jpeg/jpg/webp（gif 禁止）
     let base64 = image;
-    const match = image.match(/^data:(image\/(?:png|jpeg|jpg|gif|webp));base64,(.*)$/i);
-    if (match) base64 = match[2];
+    const match = image.match(/^data:(image\/(?:png|jpeg|jpg|webp));base64,(.*)$/i);
+    if (match) {
+      base64 = match[2];
+    } else if (/^data:/i.test(image)) {
+      return { error: true, code: 415, msg: '仅支持 png/jpeg/jpg/webp 格式' };
+    }
 
     let buffer: Buffer;
     try {
       buffer = Buffer.from(base64, 'base64');
     } catch (e) {
       return { error: true, code: 400, msg: '图片 base64 解析失败' };
+    }
+
+    // base64 原始大小硬上限（对应原始图片约 10MB）
+    if (buffer.length > IMAGE_BASE64_MAX) {
+      return { error: true, code: 413, msg: '图片过大，请控制在 10MB 以内' };
     }
 
     let compressed: Buffer;
@@ -824,11 +991,13 @@ export class NotificationsService {
       return { error: true, code: 400, msg: `图片压缩失败: ${(e as Error).message}` };
     }
 
-    // 确保 bucket 存在（不存在则创建 public bucket）
+    // 确保 bucket 存在（不存在则创建 private bucket；已存在 public 则降级为 private）
     try {
       const { data: existingBucket } = await this.client.storage.getBucket('notifications');
       if (!existingBucket) {
-        await this.client.storage.createBucket('notifications', { public: true });
+        await this.client.storage.createBucket('notifications', { public: false });
+      } else if (existingBucket.public) {
+        await this.client.storage.updateBucket('notifications', { public: false });
       }
     } catch (e) {
       console.warn('[Notifications] ensure bucket error:', (e as Error)?.message);
@@ -844,7 +1013,8 @@ export class NotificationsService {
       return { error: true, code: 500, msg: `上传失败: ${uploadError.message}` };
     }
 
-    const publicUrl = this.client.storage.from('notifications').getPublicUrl(path).data.publicUrl;
-    return { url: publicUrl };
+    // private bucket → 返回签名 URL（24 小时有效）
+    const { data: signed } = await this.client.storage.from('notifications').createSignedUrl(path, SIGNED_URL_TTL);
+    return { url: signed?.signedUrl || null };
   }
 }

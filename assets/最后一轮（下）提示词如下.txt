@@ -1,0 +1,46 @@
+最后一轮（下）提示词如下
+
+---
+
+**成长记录 growth 模块（6 接口）鉴权收敛：**
+
+- `server/src/growth/growth.service.ts` 文件头加 `import { AuthzService } from '@/auth/authz.service'`；`GrowthService` 类加 `constructor(private readonly authz: AuthzService) {}`
+- 删除私有方法 `getRole`；`resolveTeacherClassId` 的查询逻辑删除，教师班级改为 `await this.authz.getTeacherClassIds(userId)`
+- 六个方法 `uploadImage/create/findAll/findOne/update/remove` 的第一个参数从 `roleId` 改为 `userId`（JWT 用户 id），方法内权限判定统一改为：`const level = await this.authz.getRoleLevel(userId)`；superadmin/admin 放行全部；teacher 须 `const classIds = await this.authz.getTeacherClassIds(userId)` 且目标幼儿 `children.class_id` 在 classIds 内，否则返回 `{error:true,code:403,msg:'无权操作该班级幼儿'}`；parent 须 `const childIds = await this.authz.getParentChildIds(userId)` 且目标 `child_id` 在 childIds 内，否则返回 `{error:true,code:403,msg:'无权操作该幼儿'}`；none 直接 `{error:true,code:403,msg:'无权限'}`
+- 教师删除成长记录"仅本人当天"逻辑保留：用 `await this.authz.getUserRoles(userId)` 取 teacher 角色 id 集合，记录 `teacher_id` 不在集合则拒绝；admin/superadmin 不受限
+- `server/src/growth/growth.controller.ts` 加 `import { Req } from '@nestjs/common'` 和 `import type { Request } from 'express'`；六个接口删 `@Query('role_id') roleId`，改 `@Req() req: Request` 取 `(req as any).user?.userId` 后传入 service
+
+**通知 notifications 模块（10 接口）鉴权收敛：**
+
+- `server/src/notifications/notifications.service.ts` 注入 `AuthzService`（同 growth）；删除 `getRole`、`isAdminRole` 私有方法
+- 写操作统一 `const level = await this.authz.getRoleLevel(userId)`：
+- `create` 的参数 `authorId` 改为 `userId`；teacher 角色发布 type 为 `all` 或 `teacher` 时仍返回 403（保留原 214-219 行限制，角色来源改用 level）；none 返回 403
+- `update` 参数 `operatorRoleId` 改为 `userId`，非 admin/superadmin 返回 403
+- `remove` 参数 `operatorRoleId` 改为 `userId`，非 admin/superadmin 返回 403
+- `revoke`（当前无鉴权）新增 `userId` 参数，非 admin/superadmin 返回 403
+- `uploadImage` 新增 `userId` 参数，level 非 admin/superadmin/teacher 返回 403
+- 读操作防越权改从 `userId` 推导：
+- `markRead` 参数 `userRoleId` 改 `userId`，用 `await this.authz.getUserRoles(userId)` 取角色 id 集合，仅当 `notification_reads.user_role_id` 在该集合内才更新
+- `getUnreadCount` 参数 `userRoleId` 改 `userId`，用该用户角色 id 集合统计
+- `findAll` 的 `user_role_id`/`author_id` 筛选改为从 `userId` 推导真实角色 id（收到列表用 `getUserRoles(userId)` 集合，发出列表同），不信任前端传参
+- `getStats` 参数 `authorId` 改 `userId`，用该用户真实角色 id 统计
+- `findOne` 加 `userId` 参数，level 为 none 返回 403
+- `server/src/notifications/notifications.controller.ts` 加 `import { Req } from '@nestjs/common'` 和 `import type { Request } from 'express'`；上述接口删 `@Query('author_id')`、`@Body() operator_role_id`、`@Query('operator_role_id')`、`@Body() user_role_id/user_id`、`@Query('user_role_id')` 等前端传参，改 `@Req() req` 取 `(req as any).user?.userId` 传入 service
+
+**上传白名单 + 大小上限 + private bucket（growth/notifications 两处 uploadImage）：**
+
+- 两处 base64 正则从 `image/(?:png|jpeg|jpg|gif|webp)` 改为 `image/(?:png|jpeg|jpg|webp)`（去 gif）；不带 `data:` 前缀的输入直接返回 400 拒绝，不再当作纯 base64 解码
+- 两处增加大小上限：base64 字符串超约 700 万字符、或解码后 buffer 超 5MB、或 sharp 压缩后仍超 2MB，返回 `{error:true,code:413,msg:'图片过大'}`
+- 两处 `createBucket`（growth 约 131 行、notifications 约 831 行）`{ public: true }` 改为 `{ public: false }`
+- 两处 uploadImage 末尾 `getPublicUrl` 改为 `createSignedUrl(path, 86400)`，返回 `{ url: 签名url, path }`
+- 写端归一化：growth `create/update` 与 notifications `create/update` 写入 `photo_urls`/`images` 前，把每个 url 归一化为 storage path（兼容 `/object/public//`、`/object/sign//...?token=`、纯相对 path 三种；growth 复用现有 `extractStoragePaths`，notifications 补一个同逻辑私有方法），存库存 path
+- 读端动态签名：growth `findAll/findOne` 与 notifications `findAll/findOne` 返回时，把 `photo_urls`/`images` 里的 path 统一 `createSignedUrl(path, 3600)` 后返回（历史 public url 先提取 path 再签名）
+
+---
+
+一点说明：
+
+- 这轮把 growth/notifications 的**全部接口**都收口了，不止 upload，因为核对发现它们整模块还在用 `role_id`/`author_id` 前端传参的老信任链，不一起改就是留后门。
+- **M1 RLS 已单独出 SQL**（存到 `lgb-audit/RLS建表SQL_M1.md`）：18 张业务表 `ENABLE ROW LEVEL SECURITY`。它是纵深防御，当前后端走 service_role 会绕过 RLS，所以**现在执行不影响现有后端**；但要注意前置条件——生产必须已配 `COZE_SUPABASE_SERVICE_ROLE_KEY`，否则后端回退 anon 会被 deny all 导致系统挂。精细 Policy 要等后端切「用户 JWT 上下文」后再逐表设计，这步不放进本轮代码改动里。
+
+这轮改完，P0 应用层鉴权就全部收口了。

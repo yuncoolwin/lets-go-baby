@@ -1,14 +1,36 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { AuthzService } from '@/auth/authz.service';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const sharp = require('sharp');
 
 const RECORD_TYPE = 'daily';
+/** 图片 base64 上限：4MB 原始体积（base64 膨胀约 1.37 倍） */
+/** 原始图片硬上限：10MB（超出返回 413） */
+const IMAGE_BASE64_MAX = 10 * 1024 * 1024;
+/** 签名 URL 有效期：24 小时 */
+const SIGNED_URL_TTL = 60 * 60 * 24;
 
 @Injectable()
 export class GrowthService {
   private get client() {
     return getSupabaseClient();
+  }
+
+  constructor(private readonly authz: AuthzService) {}
+
+  /**
+   * JWT userId -> 当前身份角色（teacher 优先，其次 admin/superadmin，再 parent）
+   */
+  private async getUserIdentity(userId: string) {
+    const roles = await this.authz.getUserRoles(userId);
+    return (
+      roles.find((r) => r.role_type === 'teacher') ||
+      roles.find((r) => this.isAdminRole(r.role_type)) ||
+      roles.find((r) => r.role_type === 'parent') ||
+      roles[0] ||
+      null
+    );
   }
 
   private async getRole(roleId: string) {
@@ -128,7 +150,10 @@ export class GrowthService {
     try {
       const { data: existing } = await this.client.storage.getBucket('growth');
       if (!existing) {
-        await this.client.storage.createBucket('growth', { public: true });
+        await this.client.storage.createBucket('growth', { public: false });
+      } else if (existing.public) {
+        // 历史遗留的 public bucket 收敛为 private
+        await this.client.storage.updateBucket('growth', { public: false });
       }
     } catch (e) {
       console.warn('[Growth] ensure bucket error:', (e as Error)?.message);
@@ -157,19 +182,53 @@ export class GrowthService {
     return paths.filter(Boolean);
   }
 
-  async uploadImage(body: { image: string; name?: string }) {
+  /**
+   * 为存储的图片 URL 动态生成签名 URL（bucket 已转为 private，public URL 不再可直接访问）
+   */
+  private async signPhotoUrls(urls: string[]): Promise<string[]> {
+    const paths = this.extractStoragePaths(urls || []);
+    const signed = new Map<string, string>();
+    for (const p of paths) {
+      const { data } = await this.client.storage.from('growth').createSignedUrl(p, SIGNED_URL_TTL);
+      if (data?.signedUrl) signed.set(p, data.signedUrl);
+    }
+    return (urls || []).map((url) => {
+      const p = this.extractStoragePaths([url])[0];
+      return (p && signed.get(p)) || url;
+    });
+  }
+
+  async uploadImage(userId: string, body: { image: string; name?: string }) {
+    // 鉴权：家长/未登录 403（教师与管理员可传）
+    const identity = await this.getUserIdentity(userId);
+    if (!identity || identity.role_type === 'parent') {
+      return { error: true, code: 403, msg: '家长无权上传成长档案图片' };
+    }
+
     const { image } = body || {};
     if (!image) return { error: true, code: 400, msg: 'image 不能为空' };
 
+    // 白名单：仅 png/jpeg/jpg/webp，gif 已禁止
     let base64 = image;
-    const match = image.match(/^data:(image\/(?:png|jpeg|jpg|gif|webp));base64,(.*)$/i);
-    if (match) base64 = match[2];
+    let mime = 'image/png';
+    const match = image.match(/^data:(image\/(?:png|jpeg|jpg|webp));base64,(.*)$/i);
+    if (match) {
+      mime = match[1].toLowerCase();
+      base64 = match[2];
+    } else if (/^data:/i.test(image)) {
+      return { error: true, code: 415, msg: '仅支持 png/jpeg/jpg/webp 格式图片' };
+    }
 
     let buffer: Buffer;
     try {
       buffer = Buffer.from(base64, 'base64');
     } catch (e) {
       return { error: true, code: 400, msg: '图片 base64 解析失败' };
+    }
+
+    // 原始大小上限：10MB
+    if (buffer.length > IMAGE_BASE64_MAX) {
+      return { error: true, code: 413, msg: '图片过大，请控制在 10MB 以内' };
     }
 
     let compressed: Buffer;
@@ -194,21 +253,21 @@ export class GrowthService {
       return { error: true, code: 500, msg: `上传失败: ${uploadError.message}` };
     }
 
-    const publicUrl = this.client.storage.from('growth').getPublicUrl(path).data.publicUrl;
-    return { url: publicUrl };
+    // private bucket：返回签名 URL（24 小时有效，读端会按需重新签名）
+    const { data: signed } = await this.client.storage.from('growth').createSignedUrl(path, SIGNED_URL_TTL);
+    return { url: signed?.signedUrl || null };
   }
 
-  async create(
-    dto: { child_id: string; title: string; content?: string; photo_urls?: string[]; record_date?: string; course_name?: string },
-    roleId?: string,
-  ) {
+  async create(userId: string, dto: { child_id: string; title: string; content?: string; photo_urls?: string[]; record_date?: string; course_name?: string }) {
     if (!dto.child_id || !dto.title) {
       return { error: true, code: 400, msg: 'child_id/title 不能为空' };
     }
-    if (!roleId) return { error: true, code: 401, msg: '缺少角色身份' };
 
-    const role = await this.getRole(roleId);
-    if (!role) return { error: true, code: 404, msg: '角色不存在' };
+    const role = await this.getUserIdentity(userId);
+    if (!role) return { error: true, code: 401, msg: '缺少角色身份' };
+    if (role.role_type === 'parent' || !this.isAdminRole(role.role_type) && role.role_type !== 'teacher') {
+      return { error: true, code: 403, msg: '家长无权创建成长记录' };
+    }
 
     // 权限校验：教师只能给本人负责班级的幼儿创建
     if (role.role_type === 'teacher') {
@@ -236,7 +295,7 @@ export class GrowthService {
       .from('growth_records')
       .insert({
         child_id: dto.child_id,
-        teacher_id: roleId,
+        teacher_id: role.id,
         record_type: RECORD_TYPE,
         title: dto.title,
         content: dto.content || null,
@@ -251,15 +310,17 @@ export class GrowthService {
     return record;
   }
 
-  async findAll(query: {
+  async findAll(userId: string, query: {
     child_id?: string;
     child_ids?: string;
     record_date?: string;
     page?: number | string;
     page_size?: number | string;
-    role_id?: string;
   }) {
-    const role = await this.getRole(query.role_id || '');
+    const role = await this.getUserIdentity(userId);
+    if (!role || role.role_type === 'parent') {
+      return { error: true, code: 403, msg: '无权查看成长记录列表' };
+    }
     const page = Number(query.page) || 1;
     const pageSize = Number(query.page_size) || 20;
     const from = (page - 1) * pageSize;
@@ -277,7 +338,7 @@ export class GrowthService {
     }
     // 教师只返回自己创建的记录，admin/superadmin 返回全部
     if (role?.role_type === 'teacher') {
-      q = q.eq('teacher_id', query.role_id);
+      q = q.eq('teacher_id', role.id);
     }
     q = q
       .order('record_date', { ascending: false })
@@ -291,11 +352,14 @@ export class GrowthService {
     const teacherNames = await this.getTeacherNames(records);
     const childNames = await this.getChildNames(records);
 
-    const list = records.map((r) => ({
-      ...r,
-      teacher_name: teacherNames.get(r.teacher_id) || '',
-      child_name: childNames.get(r.child_id) || '',
-    }));
+    const list = await Promise.all(
+      records.map(async (r) => ({
+        ...r,
+        teacher_name: teacherNames.get(r.teacher_id) || '',
+        child_name: childNames.get(r.child_id) || '',
+        photo_urls: await this.signPhotoUrls(r.photo_urls),
+      })),
+    );
 
     return {
       list,
@@ -306,7 +370,7 @@ export class GrowthService {
     };
   }
 
-  async findOne(id: string, roleId?: string) {
+  async findOne(userId: string, id: string) {
     const { data: record } = await this.client
       .from('growth_records')
       .select('*')
@@ -314,8 +378,14 @@ export class GrowthService {
       .maybeSingle();
     if (!record) return { error: true, code: 404, msg: '记录不存在' };
 
-    const role = await this.getRole(roleId || '');
-    if (role?.role_type === 'teacher' && record.teacher_id !== roleId) {
+    const role = await this.getUserIdentity(userId);
+    if (!role || role.role_type === 'parent') {
+      throw new HttpException(
+        { code: 403, msg: '无权查看该记录', data: null },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+    if (role.role_type === 'teacher' && record.teacher_id !== role.id) {
       throw new HttpException(
         { code: 403, msg: '无权查看该记录', data: null },
         HttpStatus.FORBIDDEN,
@@ -326,15 +396,16 @@ export class GrowthService {
     const childNames = await this.getChildNames([record]);
     return {
       ...record,
+      photo_urls: await this.signPhotoUrls(record.photo_urls),
       teacher_name: teacherNames.get(record.teacher_id) || '',
       child_name: childNames.get(record.child_id) || '',
     };
   }
 
   async update(
+    userId: string,
     id: string,
     dto: { title?: string; content?: string; photo_urls?: string[]; record_date?: string; course_name?: string },
-    roleId?: string,
   ) {
     const { data: existing } = await this.client
       .from('growth_records')
@@ -343,16 +414,19 @@ export class GrowthService {
       .maybeSingle();
     if (!existing) return { error: true, code: 404, msg: '记录不存在' };
 
-    const role = await this.getRole(roleId || '');
-    const isOwner = existing.teacher_id === roleId;
-    if (!isOwner && !this.isAdminRole(role?.role_type)) {
+    const role = await this.getUserIdentity(userId);
+    if (!role || role.role_type === 'parent') {
+      throw new HttpException({ code: 403, msg: '无权编辑该记录', data: null }, HttpStatus.FORBIDDEN);
+    }
+    const isOwner = existing.teacher_id === role.id;
+    if (!isOwner && !this.isAdminRole(role.role_type)) {
       throw new HttpException({ code: 403, msg: '无权编辑该记录', data: null }, HttpStatus.FORBIDDEN);
     }
 
     const updateData: Record<string, any> = {};
     updateData.parent_read_at = null;
-    if (!isOwner && this.isAdminRole(role?.role_type)) {
-      updateData.teacher_id = roleId;
+    if (!isOwner && this.isAdminRole(role.role_type)) {
+      updateData.teacher_id = role.id;
     }
     if (dto.title !== undefined) updateData.title = dto.title;
     if (dto.content !== undefined) updateData.content = dto.content;
@@ -370,7 +444,7 @@ export class GrowthService {
     return updated;
   }
 
-  async remove(id: string, roleId?: string) {
+  async remove(userId: string, id: string) {
     const { data: existing } = await this.client
       .from('growth_records')
       .select('*')
@@ -378,8 +452,8 @@ export class GrowthService {
       .maybeSingle();
     if (!existing) return { error: true, code: 404, msg: '记录不存在' };
 
-    const role = await this.getRole(roleId || '');
-    const isOwner = existing.teacher_id === roleId;
+    const role = await this.getUserIdentity(userId);
+    const isOwner = existing.teacher_id === role?.id;
     // 放行条件：超级管理员；或教师本人删除自己发的当天记录
     // （record_date 为空时用 created_at 加 8 小时取前 10 位比较，上海时区口径）
     const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
