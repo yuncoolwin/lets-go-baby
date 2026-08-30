@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, HttpCode, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { TeachersService } from './teachers.service';
 import { CreateTeacherDto, UpdateTeacherDto, TeacherQueryDto } from './dto/create-teacher.dto';
 
@@ -8,8 +9,9 @@ export class TeachersController {
 
   @Post()
   @HttpCode(200)
-  async create(@Body() body: CreateTeacherDto) {
-    const data = await this.teachersService.create(body);
+  async create(@Req() req: Request, @Body() body: CreateTeacherDto) {
+    const userId = (req as any).user?.userId;
+    const data = await this.teachersService.create(userId, body);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -18,8 +20,9 @@ export class TeachersController {
 
   @Get()
   @HttpCode(200)
-  async findAll(@Query() query: TeacherQueryDto) {
-    const data = await this.teachersService.findAll(query);
+  async findAll(@Req() req: Request, @Query() query: TeacherQueryDto) {
+    const userId = (req as any).user?.userId;
+    const data = await this.teachersService.findAll(userId, query);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -35,8 +38,9 @@ export class TeachersController {
 
   @Get(':id')
   @HttpCode(200)
-  async findOne(@Param('id') id: string) {
-    const data = await this.teachersService.findOne(id);
+  async findOne(@Req() req: Request, @Param('id') id: string) {
+    const userId = (req as any).user?.userId;
+    const data = await this.teachersService.findOne(userId, id);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -45,8 +49,9 @@ export class TeachersController {
 
   @Patch(':id')
   @HttpCode(200)
-  async update(@Param('id') id: string, @Body() body: UpdateTeacherDto) {
-    const data = await this.teachersService.update(id, body);
+  async update(@Req() req: Request, @Param('id') id: string, @Body() body: UpdateTeacherDto) {
+    const userId = (req as any).user?.userId;
+    const data = await this.teachersService.update(userId, id, body);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -55,8 +60,9 @@ export class TeachersController {
 
   @Delete(':id')
   @HttpCode(200)
-  async remove(@Param('id') id: string, @Body() body?: { operator_role_id?: string }) {
-    const data = await this.teachersService.remove(id, body?.operator_role_id);
+  async remove(@Req() req: Request, @Param('id') id: string) {
+    const userId = (req as any).user?.userId;
+    const data = await this.teachersService.remove(userId, id);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }

@@ -110,16 +110,15 @@ export default function ChildSettingPage() {
     try {
       const genderValue = gender === '男' ? 'male' : gender === '女' ? 'female' : ''
       const res = await Network.request({
-        url: '/api/parent/child/update',
-        method: 'POST',
+        url: `/api/parent/child/${childId}`,
+        method: 'PATCH',
         data: {
-          child_id: childId,
           name: name.trim(),
           gender: genderValue,
           birth_date: birthDate,
           allergies: allergies.trim(),
           relationship,
-          custom_relationship: relationship === '其他' ? customRelationship.trim() : ''
+          custom_relationship: relationship === 'other' ? customRelationship.trim() : ''
         }
       })
       if (res.data.code === 200) {
@@ -228,7 +227,7 @@ export default function ChildSettingPage() {
             <View className="flex justify-between items-center">
               <Text className="text-sm text-muted-foreground">与幼儿关系</Text>
               <Text className="text-sm text-foreground">
-                {child.relationship === '其他' && child.custom_relationship
+                {(child.relationship === 'other' || child.relationship === '其他') && child.custom_relationship
                   ? child.custom_relationship
                   : child.relationship || '未设置'}
               </Text>

@@ -133,12 +133,12 @@ export const teacherApi = {
   detail: (id: string) =>
     request({ url: `/api/teachers/${id}`, method: 'GET' }),
 
+  update: (id: string, data: Record<string, any>) =>
+    request({ url: `/api/teachers/${id}`, method: 'PATCH', data }),
+
   // 根据 teacher_id 获取教师信息（含班级）
   getById: (id: string) =>
     request({ url: `/api/teachers/${id}`, method: 'GET' }),
-
-  update: (id: string, data: Record<string, any>) =>
-    request({ url: `/api/teachers/${id}`, method: 'PATCH', data }),
 
   remove: (id: string, operator_role_id?: string) =>
     request({ url: `/api/teachers/${id}`, method: 'DELETE', data: operator_role_id ? { operator_role_id } : undefined }),

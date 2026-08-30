@@ -917,15 +917,17 @@ export class TeacherService {
   }
 
   async getById(id: string) {
+    // 手机号脱敏：对外不返回 phone 字段
     const { data, error } = await this.client
       .from('teachers')
-      .select('id, real_name, nickname, title, class_id, status, entry_date, leave_date, phone, qualification, specialty, user_id')
+      .select('id, real_name, nickname, title, class_id, status, entry_date, leave_date, qualification, specialty, user_id')
       .eq('id', id)
       .eq('status', 'active')
-      .single();
+      .maybeSingle();
 
-    if (error) throw new Error(`获取教师信息失败: ${error.message}`);
-    if (!data) throw new Error('教师不存在或已离职');
+    if (error || !data) {
+      return { error: true, code: 404, msg: '教师不存在或已离职' };
+    }
 
     // 获取班级信息
     let className = null;

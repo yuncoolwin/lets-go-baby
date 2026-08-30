@@ -1,8 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { AuthzService } from '@/auth/authz.service';
+
+/** 教师列表/详情可见字段（不含手机号） */
+const TEACHER_SAFE_FIELDS = 'id, real_name, nickname, qualification, specialty, status, user_id, class_id, title, entry_date, leave_date, created_at, updated_at';
 
 @Injectable()
 export class TeachersService {
+  constructor(private readonly authz: AuthzService) {}
+
   private get client() {
     return getSupabaseClient();
   }
@@ -10,7 +16,7 @@ export class TeachersService {
   /**
    * 创建教师
    */
-  async create(dto: {
+  async create(userId: string, dto: {
     real_name: string;
     nickname?: string;
     phone?: string;
@@ -22,6 +28,12 @@ export class TeachersService {
     entry_date?: string;
     leave_date?: string;
   }) {
+    // 权限校验：仅管理员/超管可创建教师
+    const level = await this.authz.getRoleLevel(userId);
+    if (!['admin', 'superadmin'].includes(level)) {
+      return { error: true, code: 403, msg: '仅管理员可创建教师' };
+    }
+
     // 检查是否已存在同名教师
     const { data: existing } = await this.client
       .from('teachers')
@@ -60,14 +72,19 @@ export class TeachersService {
   }
 
   /**
-   * 列表查询（分页 + 筛选 + 搜索）
+   * 列表查询（分页 + 筛选 + 搜索，不含手机号）
    */
-  async findAll(query: {
+  async findAll(userId: string, query: {
     page?: number;
     page_size?: number;
     status?: string;
     keyword?: string;
   }) {
+    const level = await this.authz.getRoleLevel(userId);
+    if (level === 'none') {
+      return { error: true, code: 403, msg: '无权访问' };
+    }
+
     const page = query.page || 1;
     const pageSize = query.page_size || 20;
     const from = (page - 1) * pageSize;
@@ -75,7 +92,7 @@ export class TeachersService {
 
     let builder = this.client
       .from('teachers')
-      .select('*', { count: 'exact' })
+      .select(TEACHER_SAFE_FIELDS, { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(from, to);
 
@@ -93,7 +110,7 @@ export class TeachersService {
     }
 
     // 关联查询班级名称
-    const list = data || [];
+    const list: any[] = data || [];
     if (list.length > 0) {
       const classIds = [...new Set(list.map(t => t.class_id).filter(Boolean))];
       if (classIds.length > 0) {
@@ -112,12 +129,17 @@ export class TeachersService {
   }
 
   /**
-   * 详情（含负责班级）
+   * 详情（含负责班级，不含手机号）
    */
-  async findOne(id: string) {
+  async findOne(userId: string, id: string) {
+    const level = await this.authz.getRoleLevel(userId);
+    if (level === 'none') {
+      return { error: true, code: 403, msg: '无权访问' };
+    }
+
     const { data: teacher, error } = await this.client
       .from('teachers')
-      .select('*')
+      .select(TEACHER_SAFE_FIELDS)
       .eq('id', id)
       .single();
 
@@ -147,9 +169,9 @@ export class TeachersService {
   }
 
   /**
-   * 更新教师信息
+   * 更新教师信息（禁止改写 user_id）
    */
-  async update(id: string, dto: {
+  async update(userId: string, id: string, dto: {
     real_name?: string;
     nickname?: string;
     phone?: string;
@@ -162,6 +184,12 @@ export class TeachersService {
     entry_date?: string;
     leave_date?: string;
   }) {
+    // 权限校验：仅管理员/超管可更新教师
+    const level = await this.authz.getRoleLevel(userId);
+    if (!['admin', 'superadmin'].includes(level)) {
+      return { error: true, code: 403, msg: '仅管理员可更新教师' };
+    }
+
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (dto.real_name !== undefined) updateData.real_name = dto.real_name;
     if (dto.nickname !== undefined) updateData.nickname = dto.nickname;
@@ -170,7 +198,6 @@ export class TeachersService {
     if (dto.qualification !== undefined) updateData.qualification = dto.qualification;
     if (dto.specialty !== undefined) updateData.specialty = dto.specialty;
     if (dto.status !== undefined) updateData.status = dto.status;
-    if (dto.user_id !== undefined) updateData.user_id = dto.user_id;
     if (dto.class_id !== undefined) updateData.class_id = dto.class_id;
     if (dto.entry_date !== undefined) updateData.entry_date = dto.entry_date;
     if (dto.leave_date !== undefined) updateData.leave_date = dto.leave_date;
@@ -191,18 +218,10 @@ export class TeachersService {
   /**
    * 软删除（设为 inactive）
    */
-  async remove(id: string, operatorRoleId?: string) {
+  async remove(userId: string, id: string) {
     // 权限校验：仅超管可删除教师
-    let operatorRoleType: string | null = null;
-    if (operatorRoleId) {
-      const { data: roleData } = await this.client
-        .from('user_roles')
-        .select('id, role_type')
-        .eq('id', operatorRoleId)
-        .maybeSingle();
-      operatorRoleType = roleData?.role_type || null;
-    }
-    if (operatorRoleType !== 'superadmin') {
+    const level = await this.authz.getRoleLevel(userId);
+    if (level !== 'superadmin') {
       return { error: true, code: 403, msg: '仅超级管理员可删除教师' };
     }
 

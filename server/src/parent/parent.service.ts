@@ -1,60 +1,53 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { AuthzService } from '@/auth/authz.service';
 
 @Injectable()
 export class ParentService {
+  constructor(private readonly authz: AuthzService) {}
+
   private get client() {
     return getSupabaseClient();
   }
 
-  async getBabyStatus(parentRoleId?: string) {
-    // Get the first child for this parent
-    let childId: string | null = null;
-    let childName = '演示宝宝';
+  /** 获取当前家长（由 JWT 推导）绑定的所有幼儿 ID */
+  private async getChildIds(userId: string): Promise<string[]> {
+    return this.authz.getParentChildIds(userId);
+  }
 
-    if (parentRoleId) {
-      const { data: relation } = await this.client
-        .from('parent_child_relations')
-        .select('child_id')
-        .eq('parent_role_id', parentRoleId)
-        .eq('status', 'active')
-        .maybeSingle();
+  /** 上海时区当天日期 */
+  private today() {
+    return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  }
 
-      if (relation) {
-        childId = relation.child_id;
-        const { data: child } = await this.client
-          .from('children')
-          .select('name')
-          .eq('id', childId)
-          .maybeSingle();
-        if (child) childName = child.name;
-      }
-    }
-
-    // If no child found, use demo data
-    if (!childId) {
+  async getBabyStatus(userId: string) {
+    const childIds = await this.getChildIds(userId);
+    if (!childIds.length) {
       return {
-        child_id: 'demo',
-        child_name: childName,
-        avatar_url: null,
-        attendance_status: 'present',
-        check_in_time: new Date().setHours(8, 30, 0, 0).toString(),
+        child_id: null,
+        child_name: null,
+        attendance_status: null,
+        check_in_time: null,
         check_out_time: null,
-        latest_feedback: {
-          meal_status: 'good',
-          sleep_status: 'good',
-          mood_status: 'happy',
-        },
+        latest_feedback: null,
       };
     }
 
+    // 取绑定的第一个幼儿
+    const childId = childIds[0];
+    const { data: child } = await this.client
+      .from('children')
+      .select('name')
+      .eq('id', childId)
+      .maybeSingle();
+    const childName = child?.name || null;
+
     // Get today's attendance
-    const today = new Date().toISOString().split('T')[0];
     const { data: attendance } = await this.client
       .from('attendance_records')
       .select('status, check_in_time, check_out_time')
       .eq('child_id', childId)
-      .eq('record_date', today)
+      .eq('record_date', this.today())
       .maybeSingle();
 
     // Get latest feedback
@@ -81,24 +74,12 @@ export class ParentService {
     };
   }
 
-  async getFeedbacks(parentRoleId?: string, feedbackDate?: string) {
+  async getFeedbacks(userId: string, feedbackDate?: string) {
     // 默认查询今天的记录
-    const today = new Date().toISOString().split('T')[0];
-    const date = feedbackDate || today;
+    const date = feedbackDate || this.today();
 
     // 获取家长关联的所有幼儿
-    let childIds: string[] = [];
-    if (parentRoleId) {
-      const { data: relations } = await this.client
-        .from('parent_child_relations')
-        .select('child_id')
-        .eq('parent_role_id', parentRoleId)
-        .eq('status', 'active');
-      if (relations && relations.length > 0) {
-        childIds = relations.map(r => r.child_id);
-      }
-    }
-
+    const childIds = await this.getChildIds(userId);
     if (childIds.length === 0) {
       return [];
     }
@@ -177,8 +158,13 @@ export class ParentService {
     });
   }
 
-  async getDailyFeedbacks(childId: string, feedbackDate: string) {
+  async getDailyFeedbacks(userId: string, childId: string, feedbackDate: string) {
+    const childIds = await this.getChildIds(userId);
+    if (!childIds.length) return [];
     if (!childId || !feedbackDate) return [];
+    if (!childIds.includes(childId)) {
+      return { error: true, code: 403, msg: '无权查看' };
+    }
 
     const { data, error } = await this.client
       .from('daily_feedbacks')
@@ -235,16 +221,9 @@ export class ParentService {
     });
   }
 
-  async getAttendance(parentRoleId?: string, courseType?: string) {
-    if (!parentRoleId) return [];
-
+  async getAttendance(userId: string, courseType?: string) {
     // 查询当前家长绑定的在读幼儿
-    const { data: relations } = await this.client
-      .from('parent_child_relations')
-      .select('child_id')
-      .eq('parent_role_id', parentRoleId)
-      .eq('status', 'active');
-    const childIds = [...new Set((relations || []).map(r => r.child_id).filter(Boolean))];
+    const childIds = await this.getChildIds(userId);
     if (!childIds.length) return [];
 
     let query = this.client
@@ -274,21 +253,16 @@ export class ParentService {
     }));
   }
 
-  async getGrowthRecords(parentRoleId?: string, childId?: string) {
-    if (!parentRoleId) return [];
-
+  async getGrowthRecords(userId: string, childId?: string) {
     // 查询当前家长绑定的在读幼儿
-    const { data: relations } = await this.client
-      .from('parent_child_relations')
-      .select('child_id')
-      .eq('parent_role_id', parentRoleId)
-      .eq('status', 'active');
-    const childIds = [...new Set((relations || []).map((r) => r.child_id).filter(Boolean))];
+    const childIds = await this.getChildIds(userId);
     if (!childIds.length) return [];
 
-    // 指定幼儿时仅保留该幼儿（且需属于当前家长绑定范围）
-    const targetChildIds = childId ? childIds.filter((id) => id === childId) : childIds;
-    if (!targetChildIds.length) return [];
+    // 指定幼儿时校验归属
+    if (childId && !childIds.includes(childId)) {
+      return { error: true, code: 403, msg: '无权查看' };
+    }
+    const targetChildIds = childId ? [childId] : childIds;
 
     const { data: records, error } = await this.client
       .from('growth_records')
@@ -360,15 +334,8 @@ export class ParentService {
     });
   }
 
-  async markGrowthRead(parentRoleId?: string) {
-    if (!parentRoleId) return { updated: 0 };
-
-    const { data: relations } = await this.client
-      .from('parent_child_relations')
-      .select('child_id')
-      .eq('parent_role_id', parentRoleId)
-      .eq('status', 'active');
-    const childIds = [...new Set((relations || []).map((r) => r.child_id).filter(Boolean))];
+  async markGrowthRead(userId: string) {
+    const childIds = await this.getChildIds(userId);
     if (!childIds.length) return { updated: 0 };
 
     const { data, error } = await this.client
@@ -381,15 +348,8 @@ export class ParentService {
     return { updated: (data || []).length };
   }
 
-  async getGrowthUnreadCount(parentRoleId?: string) {
-    if (!parentRoleId) return 0;
-
-    const { data: relations } = await this.client
-      .from('parent_child_relations')
-      .select('child_id')
-      .eq('parent_role_id', parentRoleId)
-      .eq('status', 'active');
-    const childIds = [...new Set((relations || []).map((r) => r.child_id).filter(Boolean))];
+  async getGrowthUnreadCount(userId: string) {
+    const childIds = await this.getChildIds(userId);
     if (!childIds.length) return 0;
 
     const { count, error } = await this.client
@@ -401,14 +361,15 @@ export class ParentService {
     return count || 0;
   }
 
-  async searchChildren(keyword: string) {
+  async searchChildren(userId: string, keyword: string) {
+    if (!userId) return [];
     if (!keyword || keyword.trim().length < 1) {
       return [];
     }
-    // 从 children 表中模糊搜索幼儿姓名
+    // 从 children 表中模糊搜索幼儿姓名（仅返回基础字段，不含出生日期/过敏信息）
     const { data, error } = await this.client
       .from('children')
-      .select('id, name, gender, birth_date, allergies')
+      .select('id, name, gender')
       .ilike('name', `%${keyword.trim()}%`)
       .limit(20);
 
@@ -416,55 +377,38 @@ export class ParentService {
     return data || [];
   }
 
-  async submitBindingRequest(data: {
-    user_id?: string;
-    parent_role_id: string;
-    child_name: string;
+  async submitBindingRequest(userId: string, data: {
     child_id?: string;
-    relationship: string;
+    relationship?: string;
     custom_relationship?: string;
-    nickname?: string;
-    gender?: string;
-    birth_date?: string;
-    allergies?: string;
   }) {
-    // 如果传了 child_id，直接使用；否则先在 children 表中查找或创建
-    let childId = data.child_id;
+    // 家长角色由服务端 JWT 推导
+    const parentRole = (await this.authz.getUserRoles(userId)).find(r => r.role_type === 'parent');
+    if (!parentRole) {
+      return { error: true, code: 403, msg: '无家长角色' };
+    }
 
-    if (!childId) {
-      // 先查找是否已存在同名幼儿
-      const { data: existingChildren } = await this.client
-        .from('children')
-        .select('id')
-        .eq('name', data.child_name)
-        .limit(1);
+    // child_id 必传，幼儿必须已存在（不再支持按姓名查找/创建）
+    if (!data.child_id) {
+      return { error: true, code: 400, msg: '请先搜索选择幼儿' };
+    }
 
-      if (existingChildren && existingChildren.length > 0) {
-        childId = existingChildren[0].id;
-      } else {
-        // 创建新的幼儿档案
-        const { data: newChild, error: childError } = await this.client
-          .from('children')
-          .insert({
-            name: data.child_name,
-            nickname: data.nickname || null,
-            gender: data.gender || 'unknown',
-            birth_date: data.birth_date || null,
-          })
-          .select('id')
-          .single();
+    const { data: child } = await this.client
+      .from('children')
+      .select('id, name')
+      .eq('id', data.child_id)
+      .maybeSingle();
 
-        if (childError) throw new Error(`创建幼儿档案失败: ${childError.message}`);
-        childId = newChild.id;
-      }
+    if (!child) {
+      return { error: true, code: 400, msg: '幼儿不存在，请联系园方' };
     }
 
     // 防重复检查：查询是否已存在相同 parent_role_id + child_id 的记录
     const { data: existingRequests } = await this.client
       .from('binding_requests')
       .select('id, status')
-      .eq('parent_role_id', data.parent_role_id)
-      .eq('child_id', childId);
+      .eq('parent_role_id', parentRole.id)
+      .eq('child_id', child.id);
 
     if (existingRequests && existingRequests.length > 0) {
       const pendingReq = existingRequests.find(r => r.status === 'pending');
@@ -477,17 +421,15 @@ export class ParentService {
       }
     }
 
-    // 插入绑定请求，确保 child_id 有值
+    // 插入绑定请求（仅写 schema 中存在的字段）
     const { data: result, error } = await this.client
       .from('binding_requests')
       .insert({
-        parent_role_id: data.parent_role_id,
-        child_id: childId,
-        child_name: data.child_name,
+        parent_role_id: parentRole.id,
+        child_id: child.id,
+        child_name: child.name,
         relationship: data.relationship,
         custom_relationship: data.custom_relationship || null,
-        nickname: data.nickname || null,
-        allergies: data.allergies || null,
         status: 'pending',
       })
       .select()
@@ -497,14 +439,24 @@ export class ParentService {
     return result;
   }
 
-  async getChildById(childId: string) {
-    // 查询 parent_child_relations 获取关联信息
-    const { data: relation, error: relError } = await this.client
-      .from('parent_child_relations')
-      .select('id, child_id, relationship, custom_relationship, status')
-      .eq('child_id', childId)
-      .eq('status', 'active')
-      .maybeSingle();
+  async getChildById(userId: string, childId: string) {
+    const childIds = await this.getChildIds(userId);
+    if (!childIds.includes(childId)) {
+      return { error: true, code: 403, msg: '无权查看该幼儿' };
+    }
+
+    // 查询 parent_child_relations 获取关联信息（限定当前家长自己的关系行，避免同幼儿多家长时 maybeSingle 报错）
+    const roles = await this.authz.getUserRoles(userId);
+    const parentRole = roles.find(r => r.role_type === 'parent');
+    const { data: relation, error: relError } = parentRole
+      ? await this.client
+          .from('parent_child_relations')
+          .select('id, child_id, relationship, custom_relationship, status')
+          .eq('child_id', childId)
+          .eq('parent_role_id', parentRole.id)
+          .eq('status', 'active')
+          .maybeSingle()
+      : { data: null, error: null };
 
     if (relError) throw new Error(`查询关联信息失败: ${relError.message}`);
     if (!relation) return null;
@@ -549,7 +501,7 @@ export class ParentService {
     };
   }
 
-  async updateChild(childId: string, data: {
+  async updateChild(userId: string, childId: string, data: {
     name?: string;
     gender?: string;
     birth_date?: string;
@@ -557,7 +509,12 @@ export class ParentService {
     relationship?: string;
     custom_relationship?: string;
   }) {
-    // 更新 children 表
+    const childIds = await this.getChildIds(userId);
+    if (!childIds.includes(childId)) {
+      return { error: true, code: 403, msg: '无权编辑该幼儿' };
+    }
+
+    // 更新 children 表（仅白名单字段）
     const childUpdate: Record<string, string> = {};
     if (data.name !== undefined) childUpdate.name = data.name;
     if (data.gender !== undefined) childUpdate.gender = data.gender;
@@ -572,17 +529,21 @@ export class ParentService {
       if (childError) throw new Error(`更新幼儿信息失败: ${childError.message}`);
     }
 
-    // 更新 parent_child_relations 表
+    // 更新 parent_child_relations 表（限定为当前家长自己的关联记录）
     const relationUpdate: Record<string, string | null> = {};
     if (data.relationship !== undefined) relationUpdate.relationship = data.relationship;
     if (data.custom_relationship !== undefined) relationUpdate.custom_relationship = data.custom_relationship;
 
     if (Object.keys(relationUpdate).length > 0) {
-      const { error: relError } = await this.client
-        .from('parent_child_relations')
-        .update(relationUpdate)
-        .eq('child_id', childId);
-      if (relError) throw new Error(`更新关联信息失败: ${relError.message}`);
+      const parentRole = (await this.authz.getUserRoles(userId)).find(r => r.role_type === 'parent');
+      if (parentRole) {
+        const { error: relError } = await this.client
+          .from('parent_child_relations')
+          .update(relationUpdate)
+          .eq('child_id', childId)
+          .eq('parent_role_id', parentRole.id);
+        if (relError) throw new Error(`更新关联信息失败: ${relError.message}`);
+      }
     }
 
     return { success: true };

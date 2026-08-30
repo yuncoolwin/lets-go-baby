@@ -134,10 +134,11 @@ export default function TeacherEditPage() {
 
     try {
       setSaving(true)
+      // 编辑模式下后端不返回手机号（脱敏），此时不提交 phone 字段，避免清空原有号码
       const payload = {
         real_name: formData.name.trim(),
         nickname: formData.nickname.trim(),
-        phone: formData.phone.trim(),
+        ...(isCreate ? { phone: formData.phone.trim() } : {}),
         title: getEffectiveTitle(),
         class_id: formData.class_id,
         status: formData.status,
@@ -235,15 +236,22 @@ export default function TeacherEditPage() {
               />
             </View>
 
-            <View>
-              <Label>手机号</Label>
-              <Input
-                value={formData.phone}
-                onInput={(e) => setFormData(prev => ({ ...prev, phone: e.detail.value }))}
-                placeholder="请输入手机号"
-                type="number"
-              />
-            </View>
+            {isCreate ? (
+              <View>
+                <Label>手机号</Label>
+                <Input
+                  value={formData.phone}
+                  onInput={(e) => setFormData(prev => ({ ...prev, phone: e.detail.value }))}
+                  placeholder="请输入手机号"
+                  type="number"
+                />
+              </View>
+            ) : (
+              <View>
+                <Label>手机号</Label>
+                <Text className="block text-sm text-muted-foreground">出于隐私保护，教师手机号不可在此查看或修改</Text>
+              </View>
+            )}
 
             {/* 所在班级 */}
             <View>

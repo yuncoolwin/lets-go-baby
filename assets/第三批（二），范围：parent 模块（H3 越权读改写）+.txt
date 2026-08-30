@@ -1,0 +1,43 @@
+第三批（二），范围：parent 模块（H3 越权读改写）+ teachers 模块（H4 越权写 + 手机号泄露）。两份一起给项目 AI。
+
+---
+
+【parent 模块】家长身份改由服务端 JWT 推导，堵死越权读/改/写
+
+- `server/src/parent/parent.service.ts` 顶部加 `import { AuthzService } from '@/auth/authz.service'`，ParentService 构造函数注入 `private authz: AuthzService`（app.module 已注册，无需重复注册）
+- `server/src/parent/parent.controller.ts` 顶部加 `import { Req } from '@nestjs/common'` 和 `import type { Request } from 'express'`，所有接口方法加 `@Req() req: Request` 形参，方法体开头统一写 `const userId = (req as any).user?.userId` 并把 userId 传给对应 service 方法，删除所有 `@Query('parent_role_id')` 取参逻辑
+- service 内新增私有方法 `private async getChildIds(userId: string)`，返回 `this.authz.getParentChildIds(userId)`
+- getBabyStatus(userId)：childIds = getChildIds；若为空直接返回 `{ child_id: null, child_name: null, attendance_status: null, check_in_time: null, check_out_time: null, latest_feedback: null }`；非空取 childIds[0] 作 childId 走原逻辑；删除原 `if (!childId) return {...}` 里返回"演示宝宝 / demo"的 mock 分支
+- getFeedbacks(userId, feedbackDate)：childIds = getChildIds 替换原 parentRoleId 查 relation 逻辑，childIds 为空返回 `[]`
+- getAttendance(userId, courseType)：同上，childIds 为空返回空
+- getGrowthRecords(userId, childId)：childIds = getChildIds；childIds 为空返回空；若 childId 传入且 `!childIds.includes(childId)` 返回 `{ error: true, code: 403, msg: '无权查看' }`；未传 childId 则用 childIds 过滤
+- markGrowthRead(userId)：childIds = getChildIds 替换 parentRoleId，为空直接返回
+- getGrowthUnreadCount(userId)：childIds = getChildIds 替换 parentRoleId，为空返回 `0`
+- getDailyFeedbacks(userId, childId, feedbackDate)：childIds = getChildIds，`!childIds.includes(childId)` 返回 `{ error: true, code: 403, msg: '无权查看' }`，通过后走原逻辑
+- searchChildren(userId, keyword)：方法加 userId 参数；`select('id, name, gender, birth_date, allergies')` 改为 `select('id, name, gender')`，不再返回 birth_date / allergies
+- getChildById(userId, childId)：childIds = getChildIds，`!childIds.includes(childId)` 返回 `{ error: true, code: 403, msg: '无权查看该幼儿' }`，通过后走原逻辑
+- updateChild(userId, childId, data)：childIds = getChildIds，`!childIds.includes(childId)` 返回 `{ error: true, code: 403, msg: '无权编辑该幼儿' }`；通过后更新 children 表仅白名单 name / gender / birth_date / allergies；更新 parent_child_relations 的 relationship / custom_relationship 时，先 `const parentRole = (await this.authz.getUserRoles(userId)).find(r => r.role_type === 'parent')`，更新条件用 `.eq('child_id', childId).eq('parent_role_id', parentRole.id)`
+- submitBindingRequest 重构，签名改 submitBindingRequest(userId, data)：
+-- `const parentRole = (await this.authz.getUserRoles(userId)).find(r => r.role_type === 'parent')`，取不到返回 `{ error: true, code: 403, msg: '无家长角色' }`
+-- child_id 必传：`if (!data.child_id) return { error: true, code: 400, msg: '请先搜索选择幼儿' }`
+-- 用 data.child_id 查 children 表（select id, name），查不到返回 `{ error: true, code: 400, msg: '幼儿不存在，请联系园方' }`
+-- 删除原来的"child_id 未传时按 child_name 查找或创建新幼儿档案"整段逻辑（含 `insert children` 创建分支）
+-- 防重复检查保持原逻辑（eq parent_role_id + eq child_id）
+-- insert binding_requests 时：parent_role_id 用 parentRole.id，child_name 用上一步查到的 child.name（不再用 data.child_name），字段只写 schema 里存在的 parent_role_id / child_id / child_name / relationship / custom_relationship / status，删除原来 insert 里的 nickname / allergies 字段
+
+【teachers 模块】创建 / 改 / 删教师角色收敛 + 教师手机号脱敏
+
+- `server/src/teachers/teachers.service.ts` 注入 AuthzService；`server/src/teachers/teachers.controller.ts` 的 create / update / remove 加 `@Req()` 取 userId 传 service，findAll / findOne 也加 userId 透传
+- create(userId, dto)：`const level = await this.authz.getRoleLevel(userId)`，非 admin / superadmin 返回 `{ error: true, code: 403, msg: '仅管理员可创建教师' }`
+- update(userId, id, dto)：getRoleLevel 非 admin / superadmin 返回 403；删除 `if (dto.user_id !== undefined) updateData.user_id = dto.user_id` 这一行，禁止此接口改写 user_id
+- findAll(userId, query)：getRoleLevel 为 none 返回 403；`select('*')` 改为显式 `select('id, real_name, nickname, qualification, specialty, status, user_id, class_id, title, entry_date, leave_date, created_at, updated_at')`，唯一去掉 phone
+- findOne(userId, id)：getRoleLevel 为 none 返回 403；`select('*')` 改为上述同样显式字段（去掉 phone）
+- remove(userId, id)：删除原 operatorRoleId 参数及其判断，改为 `const level = await this.authz.getRoleLevel(userId)`，非 superadmin 返回 `{ error: true, code: 403, msg: '仅超级管理员可删除教师' }`
+
+【前端配合】
+- 绑定申请提交页：提交 binding-request 前必须先走 search-children 选中幼儿并把 child_id 一起提交，child_name 不再作为后端创建 / 匹配依据
+- 家长端各页面原传 parent_role_id 的请求参数可保留（后端已忽略），无需强改，确保全局 token 已注入即可（network.ts 已处理）
+
+---
+
+抽空提醒一句：这批改完，`search-children` 返回字段从 5 个减到 3 个、老师列表不再带电话，如果前端有页面直接读 `allergies` 或 `birth_date` 展示，得让项目 AI 一并适配，别漏了。

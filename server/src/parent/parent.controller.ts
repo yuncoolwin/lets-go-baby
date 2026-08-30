@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Patch, Body, Query, Param, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Query, Param, HttpCode, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { ParentService } from './parent.service';
 
 @Controller('parent')
@@ -7,69 +8,77 @@ export class ParentController {
 
   @Get('baby-status')
   @HttpCode(200)
-  async getBabyStatus(@Query('parent_role_id') parentRoleId?: string) {
-    const data = await this.parentService.getBabyStatus(parentRoleId);
+  async getBabyStatus(@Req() req: Request) {
+    const userId = (req as any).user?.userId;
+    const data = await this.parentService.getBabyStatus(userId);
     return { code: 200, msg: 'success', data };
   }
 
   @Get('feedbacks')
   @HttpCode(200)
-  async getFeedbacks(
-    @Query('parent_role_id') parentRoleId?: string,
-    @Query('feedback_date') feedbackDate?: string,
-  ) {
-    const data = await this.parentService.getFeedbacks(parentRoleId, feedbackDate);
+  async getFeedbacks(@Req() req: Request, @Query('feedback_date') feedbackDate?: string) {
+    const userId = (req as any).user?.userId;
+    const data = await this.parentService.getFeedbacks(userId, feedbackDate);
     return { code: 200, msg: 'success', data };
   }
 
   @Get('attendance')
   @HttpCode(200)
-  async getAttendance(
-    @Query('parent_role_id') parentRoleId?: string,
-    @Query('course_type') courseType?: string,
-  ) {
-    const data = await this.parentService.getAttendance(parentRoleId, courseType);
+  async getAttendance(@Req() req: Request, @Query('course_type') courseType?: string) {
+    const userId = (req as any).user?.userId;
+    const data = await this.parentService.getAttendance(userId, courseType);
     return { code: 200, msg: 'success', data };
   }
 
   @Get('growth-records')
   @HttpCode(200)
-  async getGrowthRecords(@Query('parent_role_id') parentRoleId?: string, @Query('child_id') childId?: string) {
-    const data = await this.parentService.getGrowthRecords(parentRoleId, childId);
+  async getGrowthRecords(@Req() req: Request, @Query('child_id') childId?: string) {
+    const userId = (req as any).user?.userId;
+    const data: any = await this.parentService.getGrowthRecords(userId, childId);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
     return { code: 200, msg: 'success', data };
   }
 
   @Post('growth-records/read')
   @HttpCode(200)
-  async markGrowthRead(@Body() body: { parent_role_id?: string }) {
-    const data = await this.parentService.markGrowthRead(body?.parent_role_id);
+  async markGrowthRead(@Req() req: Request) {
+    const userId = (req as any).user?.userId;
+    const data = await this.parentService.markGrowthRead(userId);
     return { code: 200, msg: 'success', data };
   }
 
   @Get('growth-records/unread-count')
   @HttpCode(200)
-  async getGrowthUnreadCount(@Query('parent_role_id') parentRoleId?: string) {
-    const data = await this.parentService.getGrowthUnreadCount(parentRoleId);
+  async getGrowthUnreadCount(@Req() req: Request) {
+    const userId = (req as any).user?.userId;
+    const data = await this.parentService.getGrowthUnreadCount(userId);
     return { code: 200, msg: 'success', data };
   }
 
   @Get('search-children')
   @HttpCode(200)
-  async searchChildren(@Query('keyword') keyword: string) {
-    const data = await this.parentService.searchChildren(keyword);
+  async searchChildren(@Req() req: Request, @Query('keyword') keyword: string) {
+    const userId = (req as any).user?.userId;
+    const data = await this.parentService.searchChildren(userId, keyword);
     return { code: 200, msg: 'success', data };
   }
 
   @Get('child/:id')
   @HttpCode(200)
-  async getChildById(@Param('id') id: string) {
-    const data = await this.parentService.getChildById(id);
+  async getChildById(@Req() req: Request, @Param('id') id: string) {
+    const userId = (req as any).user?.userId;
+    const data: any = await this.parentService.getChildById(userId, id);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
     return { code: 200, msg: 'success', data };
   }
 
   @Patch('child/:id')
   @HttpCode(200)
-  async updateChild(@Param('id') id: string, @Body() body: {
+  async updateChild(@Req() req: Request, @Param('id') id: string, @Body() body: {
     name?: string;
     gender?: string;
     birth_date?: string;
@@ -77,21 +86,38 @@ export class ParentController {
     relationship?: string;
     custom_relationship?: string;
   }) {
-    const data = await this.parentService.updateChild(id, body);
+    const userId = (req as any).user?.userId;
+    const data: any = await this.parentService.updateChild(userId, id, body);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
     return { code: 200, msg: 'success', data };
   }
 
   @Get('daily-feedbacks')
   @HttpCode(200)
-  async getDailyFeedbacks(@Query('child_id') childId: string, @Query('feedback_date') feedbackDate: string) {
-    const data = await this.parentService.getDailyFeedbacks(childId, feedbackDate);
+  async getDailyFeedbacks(
+    @Req() req: Request,
+    @Query('child_id') childId: string,
+    @Query('feedback_date') feedbackDate: string,
+  ) {
+    const userId = (req as any).user?.userId;
+    const data: any = await this.parentService.getDailyFeedbacks(userId, childId, feedbackDate);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
     return { code: 200, msg: 'success', data };
   }
 
   @Post('binding-request')
   @HttpCode(200)
-  async submitBindingRequest(@Body() body: { user_id?: string; parent_role_id: string; child_name: string; child_id?: string; relationship: string; custom_relationship?: string; nickname?: string; gender?: string; birth_date?: string; allergies?: string }) {
-    const data = await this.parentService.submitBindingRequest(body);
+  async submitBindingRequest(@Req() req: Request, @Body() body: {
+    child_id?: string;
+    relationship?: string;
+    custom_relationship?: string;
+  }) {
+    const userId = (req as any).user?.userId;
+    const data: any = await this.parentService.submitBindingRequest(userId, body);
     // 防重复检查返回的错误信息
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };

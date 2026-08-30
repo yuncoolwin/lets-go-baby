@@ -84,7 +84,10 @@ export class TeacherController {
 
   @Get(':id')
   async getById(@Param('id') id: string) {
-    const data = await this.teacherService.getById(id);
+    const data: any = await this.teacherService.getById(id);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
     return { code: 200, msg: 'success', data };
   }
 
