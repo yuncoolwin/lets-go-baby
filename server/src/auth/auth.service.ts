@@ -23,8 +23,8 @@ export class AuthService {
    * 微信登录（Mock模式）
    * 流程：微信授权 → 查users表 → 已注册则查角色 → 未注册则创建user+parent角色
    */
-  async wxLogin(code: string, mockRole?: string) {
-    console.log('[AuthService] wxLogin called:', { code: code?.substring(0, 10) + '...', mockRole });
+  async wxLogin(code: string) {
+    console.log('[AuthService] wxLogin called:', { code: code?.substring(0, 10) + '...' });
 
     // 在真实环境中，这里会调用微信API获取openid
     // Mock模式：使用code作为openid
@@ -100,36 +100,15 @@ export class AuthService {
       }
     }
 
-    const context = await this.getLoginContext(userId, mockRole);
+    const context = await this.getLoginContext(userId);
     return {
       user,
       ...context,
     };
   }
 
-  // 组装登录上下文：mock角色处理 → 查roles → 确定目标角色 → 查绑定孩子
-  private async getLoginContext(userId: string, mockRole?: string) {
-    // 处理 mock 角色（测试用）
-    if (mockRole && mockRole !== 'parent') {
-      // 检查是否已有该角色
-      const { data: existingRole } = await this.client
-        .from('user_roles')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('role_type', mockRole)
-        .maybeSingle();
-
-      if (!existingRole) {
-        // 创建 mock 角色
-        await this.client.from('user_roles').insert({
-          user_id: userId,
-          role_type: mockRole,
-          status: 'active',
-          real_name: `测试${mockRole === 'teacher' ? '教师' : mockRole === 'admin' ? '管理员' : '超级管理员'}`,
-        });
-      }
-    }
-
+  // 组装登录上下文：查roles → 确定目标角色 → 查绑定孩子
+  private async getLoginContext(userId: string) {
     // 获取用户所有角色
     const { data: roles, error: rolesError } = await this.client
       .from('user_roles')
@@ -144,10 +123,7 @@ export class AuthService {
     let targetRole: string | null = null;
     let needRoleSelection = false;
 
-    if (mockRole) {
-      // 指定角色登录（测试用）
-      targetRole = mockRole;
-    } else if (activeRoles.length === 1) {
+    if (activeRoles.length === 1) {
       targetRole = activeRoles[0].role_type;
     } else if (activeRoles.length > 1) {
       // 多角色，需要用户选择
@@ -203,11 +179,10 @@ export class AuthService {
   }
 
   // 手机号登录：微信手机号授权 code + login code
-  async phoneLogin(loginCode: string, phoneCode?: string, mockRole?: string) {
+  async phoneLogin(loginCode: string, phoneCode?: string) {
     console.log('[AuthService] phoneLogin 调用:', {
       loginCode: loginCode ? `${loginCode.slice(0, 10)}...` : loginCode,
       phoneCode: phoneCode ? '***' : undefined,
-      mockRole,
     });
 
     const openid = await this.wechat.getOpenidByCode(loginCode);
@@ -324,7 +299,7 @@ export class AuthService {
       throw new Error('登录参数缺失');
     }
 
-    const context = await this.getLoginContext(userId, mockRole);
+    const context = await this.getLoginContext(userId);
     return {
       user,
       ...context,
@@ -414,87 +389,45 @@ export class AuthService {
   }
 
   /**
-   * Mock教师登录：通过手机号查找教师
+   * 教师手机号登录：仅允许已开通 active 教师角色的用户登录
    */
   async teacherLoginByPhone(phone: string) {
     const supabase = getSupabaseClient();
 
-    // 特殊手机号 13800001111 -> 登录为"秋秋老师"
-    const MOCK_TEACHER_MAP: Record<string, string> = {
-      '13800001111': '黄秋莹', // 昵称: 秋秋老师
-    };
-
-    const teacherRealName = MOCK_TEACHER_MAP[phone];
-    if (!teacherRealName) {
-      throw new Error('无效的教师手机号');
-    }
-
-    // 查找教师
-    const { data: teacher, error: teacherError } = await supabase
-      .from('teachers')
-      .select('id, real_name, nickname, title, class_id')
-      .eq('real_name', teacherRealName)
-      .eq('status', 'active')
-      .single();
-
-    if (teacherError || !teacher) {
-      throw new Error('未找到该教师');
-    }
-
-    // 确保 users 表中有对应用户（通过手机号查找或创建）
-    let { data: user } = await supabase
+    // 按手机号查找用户（不自动创建）
+    const { data: user } = await supabase
       .from('users')
       .select('id, nickname, phone')
       .eq('phone', phone)
       .maybeSingle();
 
     if (!user) {
-      const { data: newUser, error: userError } = await supabase
-        .from('users')
-        .insert({
-          openid: `teacher_${phone}`,
-          nickname: teacherRealName,
-          phone,
-        })
-        .select()
-        .single();
-      if (userError) {
-        console.error('[teacherLoginByPhone] Create user error:', userError);
-        throw new Error(`创建用户失败: ${userError.message}`);
-      }
-      user = newUser;
+      return { error: true, code: 403, msg: '该手机号未绑定教师账号' };
     }
 
-    // 查找或创建对应的 user_role
-    let { data: role } = await supabase
+    // 查找该用户名下 active 的教师角色
+    const { data: role } = await supabase
       .from('user_roles')
-      .select('id, real_name, role_type')
+      .select('id, real_name, role_type, status')
       .eq('role_type', 'teacher')
-      .eq('user_id', user!.id)
+      .eq('user_id', user.id)
+      .eq('status', 'active')
       .maybeSingle();
 
     if (!role) {
-      console.log('[teacherLoginByPhone] Role not found, creating new role for user:', user!.id);
-      const { data: newRole, error: insertError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: user!.id,
-          real_name: teacherRealName,
-          role_type: 'teacher',
-          status: 'active',
-        })
-        .select()
-        .single();
-      if (insertError) {
-        console.error('[teacherLoginByPhone] Insert role error:', insertError);
-        throw new Error(`创建教师角色失败: ${insertError.message}`);
-      }
-      console.log('[teacherLoginByPhone] Created role:', newRole);
-      role = newRole;
+      return { error: true, code: 403, msg: '该手机号下没有已激活的教师角色' };
     }
 
-    if (!role) {
-      throw new Error('无法创建教师角色');
+    // 查找教师档案
+    const { data: teacher, error: teacherError } = await supabase
+      .from('teachers')
+      .select('id, real_name, nickname, title, class_id')
+      .eq('status', 'active')
+      .eq('real_name', role.real_name || user.nickname || '')
+      .maybeSingle();
+
+    if (teacherError || !teacher) {
+      return { error: true, code: 403, msg: '未找到该教师' };
     }
 
     // 生成token
@@ -514,8 +447,8 @@ export class AuthService {
     return {
       token,
       user: {
-        id: user!.id,
-        real_name: teacherRealName,
+        id: user.id,
+        real_name: role.real_name || user.nickname || '',
         nickname: teacher.nickname,
         phone,
         role_type: 'teacher',
@@ -534,12 +467,25 @@ export class AuthService {
   async generateInviteCode(adminRoleId: string) {
     // 生成6位随机邀请码
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7天有效
 
-    // 在实际应用中，应该将邀请码存储到数据库
-    // 这里简化处理，直接返回
+    // 落库，用于教师注册时校验
+    const { data, error } = await this.client
+      .from('teacher_invite_codes')
+      .insert({
+        code,
+        inviter_admin_role_id: adminRoleId,
+        expires_at: expiresAt,
+        used: false,
+      })
+      .select('code, expires_at')
+      .single();
+
+    if (error) throw new Error(`生成邀请码失败: ${error.message}`);
+
     return {
-      invite_code: code,
-      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7天有效
+      invite_code: data.code,
+      expires_at: data.expires_at,
     };
   }
 
@@ -547,8 +493,19 @@ export class AuthService {
    * 使用邀请码注册教师
    */
   async registerTeacher(userId: string, inviteCode: string, realName: string) {
-    // 在实际应用中，应该验证邀请码是否有效
-    // 这里简化处理，直接创建教师角色
+    // 校验邀请码：存在、未使用、未过期
+    const { data: invite, error: inviteError } = await this.client
+      .from('teacher_invite_codes')
+      .select('id, code, expires_at, used')
+      .eq('code', inviteCode)
+      .maybeSingle();
+
+    if (inviteError) throw new Error(`校验邀请码失败: ${inviteError.message}`);
+    if (!invite) return { error: true, code: 400, msg: '邀请码无效' };
+    if (invite.used) return { error: true, code: 400, msg: '邀请码已被使用' };
+    if (new Date(invite.expires_at).getTime() < Date.now()) {
+      return { error: true, code: 400, msg: '邀请码已过期' };
+    }
 
     // 检查是否已有教师角色
     const { data: existingRole } = await this.client
@@ -559,7 +516,7 @@ export class AuthService {
       .maybeSingle();
 
     if (existingRole) {
-      throw new Error('您已经是教师角色');
+      return { error: true, code: 400, msg: '您已经是教师角色' };
     }
 
     // 创建教师角色
@@ -575,6 +532,12 @@ export class AuthService {
       .single();
 
     if (error) throw new Error(`创建教师角色失败: ${error.message}`);
+
+    // 标记邀请码已使用
+    await this.client
+      .from('teacher_invite_codes')
+      .update({ used: true })
+      .eq('id', invite.id);
 
     // 更新用户昵称
     await this.client

@@ -215,7 +215,7 @@ export const authApi = {
       data: { phone },
     });
   },
-  phoneLogin(data: { login_code: string; phone_code?: string; mock_role?: string }) {
+  phoneLogin(data: { login_code: string; phone_code?: string }) {
     return Network.request({
       url: '/api/auth/phone-login',
       method: 'POST',

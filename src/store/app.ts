@@ -72,13 +72,13 @@ interface AppStore {
   setNeedRoleSelection: (need: boolean) => void
   setIsLoading: (loading: boolean) => void
   logout: () => void
-  wxLogin: (code: string, mockRole?: string) => Promise<{
+  wxLogin: (code: string) => Promise<{
     needRoleSelection: boolean
     targetRole: string | null
     hasBoundChildren: boolean
     error?: boolean
   }>
-  phoneLogin: (loginCode: string, phoneCode?: string, mockRole?: string) => Promise<{
+  phoneLogin: (loginCode: string, phoneCode?: string) => Promise<{
     needRoleSelection: boolean
     targetRole: string | null
     hasBoundChildren: boolean
@@ -209,12 +209,10 @@ export const useAppStore = create<AppStore>()(
     })
   },
 
-  wxLogin: async (code, mockRole) => {
+  wxLogin: async (code) => {
     set({ isLoading: true })
-    const url = mockRole
-      ? `/api/auth/wx-login?code=${code}&mock_role=${mockRole}`
-      : `/api/auth/wx-login?code=${code}`
-    console.log('[Auth] wxLogin request:', { url, code, mockRole })
+    const url = `/api/auth/wx-login?code=${code}`
+    console.log('[Auth] wxLogin request:', { url, code })
 
     // 10秒超时处理
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -283,15 +281,14 @@ export const useAppStore = create<AppStore>()(
     }
   },
 
-  phoneLogin: async (loginCode, phoneCode, mockRole) => {
+  phoneLogin: async (loginCode, phoneCode) => {
     set({ isLoading: true })
-    console.log('[Auth] phoneLogin request:', { loginCode, hasPhoneCode: !!phoneCode, mockRole })
+    console.log('[Auth] phoneLogin request:', { loginCode, hasPhoneCode: !!phoneCode })
 
     try {
       const res = await authApi.phoneLogin({
         login_code: loginCode,
         phone_code: phoneCode,
-        mock_role: mockRole,
       })
       console.log('[Auth] phoneLogin response:', { statusCode: res.statusCode, data: res.data })
 

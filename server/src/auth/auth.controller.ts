@@ -7,15 +7,14 @@ export class AuthController {
 
   /**
    * 微信登录（Mock模式）
-   * GET /api/auth/wx-login?code=xxx&mock_role=parent|teacher|admin
+   * GET /api/auth/wx-login?code=xxx
    */
   @Get('wx-login')
   @HttpCode(200)
   async wxLogin(
     @Query('code') code: string,
-    @Query('mock_role') mockRole?: string,
   ) {
-    const data = await this.authService.wxLogin(code || 'demo', mockRole);
+    const data = await this.authService.wxLogin(code || 'demo');
     return { code: 200, msg: 'success', data };
   }
 
@@ -52,6 +51,9 @@ export class AuthController {
   @HttpCode(200)
   async generateInviteCode(@Body() body: { admin_role_id: string }) {
     const data = await this.authService.generateInviteCode(body.admin_role_id);
+    if ((data as any)?.error) {
+      return { code: (data as any).code, msg: (data as any).msg, data: null };
+    }
     return { code: 200, msg: 'success', data };
   }
 
@@ -63,17 +65,23 @@ export class AuthController {
   @HttpCode(200)
   async registerTeacher(@Body() body: { user_id: string; invite_code: string; real_name: string }) {
     const data = await this.authService.registerTeacher(body.user_id, body.invite_code, body.real_name);
+    if ((data as any)?.error) {
+      return { code: (data as any).code, msg: (data as any).msg, data: null };
+    }
     return { code: 200, msg: 'success', data };
   }
 
   /**
-   * Mock教师登录（手机号）
+   * 教师登录（手机号）
    * POST /api/auth/teacher-login
    */
   @Post('teacher-login')
   @HttpCode(200)
   async teacherLogin(@Body() body: { phone: string }) {
     const data = await this.authService.teacherLoginByPhone(body.phone);
+    if ((data as any)?.error) {
+      return { code: (data as any).code, msg: (data as any).msg, data: null };
+    }
     return { code: 200, msg: 'success', data };
   }
 
@@ -84,12 +92,11 @@ export class AuthController {
   @Post('phone-login')
   @HttpCode(200)
   async phoneLogin(
-    @Body() body: { login_code: string; phone_code?: string; mock_role?: string },
+    @Body() body: { login_code: string; phone_code?: string },
   ) {
     const data = await this.authService.phoneLogin(
       body.login_code,
       body.phone_code,
-      body.mock_role,
     );
     return { code: 200, msg: 'success', data };
   }
