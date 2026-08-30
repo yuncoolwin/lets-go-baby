@@ -266,6 +266,10 @@ export const useAppStore = create<AppStore>()(
           needRoleSelection: data.need_role_selection || false,
         })
 
+        if (data.token) {
+          Taro.setStorageSync('token', data.token)
+        }
+
         console.log('[Auth] wxLogin success:', { userId: data.user?.id, roles: roles.length, children: children.length })
 
         return {
@@ -328,6 +332,10 @@ export const useAppStore = create<AppStore>()(
           isLoading: false,
           needRoleSelection: data.need_role_selection || false,
         })
+
+        if (data.token) {
+          Taro.setStorageSync('token', data.token)
+        }
 
         console.log('[Auth] phoneLogin success:', { userId: data.user?.id, roles: roles.length, children: children.length })
 

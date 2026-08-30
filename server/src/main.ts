@@ -1,7 +1,9 @@
 import { NestFactory } from '@nestjs/core';
+import { Reflector } from '@nestjs/core';
 import { AppModule } from '@/app.module';
 import * as express from 'express';
 import { HttpStatusInterceptor } from '@/interceptors/http-status.interceptor';
+import { AuthGuard } from '@/auth/auth.guard';
 
 function parsePort(): number {
   const args = process.argv.slice(2);
@@ -28,6 +30,8 @@ async function bootstrap() {
 
   // 全局拦截器：统一将 POST 请求的 201 状态码改为 200
   app.useGlobalInterceptors(new HttpStatusInterceptor());
+  // 全局鉴权守卫：除 @Public() 标注的接口外，全部要求有效 JWT
+  app.useGlobalGuards(new AuthGuard(new Reflector()));
   // 1. 开启优雅关闭 Hooks (关键!)
   app.enableShutdownHooks();
 

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { WechatService } from './wechat.service';
+import { signToken } from './jwt.util';
 
 @Injectable()
 export class AuthService {
@@ -11,25 +12,28 @@ export class AuthService {
   }
 
   /**
-   * 生成 Mock Token
+   * 生成 JWT（HS256，7 天有效期，payload 携带 userId）
    */
-  private generateToken(roleId: string, roleType: string, phone: string): string {
-    // 使用简单的 Base64 编码作为 Mock Token
-    const payload = `${roleId}:${roleType}:${phone}:${Date.now()}`;
-    return Buffer.from(payload).toString('base64');
+  private generateToken(userId: string): string {
+    return signToken({ userId }, 7 * 24 * 3600);
   }
 
   /**
-   * 微信登录（Mock模式）
-   * 流程：微信授权 → 查users表 → 已注册则查角色 → 未注册则创建user+parent角色
+   * 微信登录
+   * 流程：code 换 openid（MOCK_WECHAT=true 时为 mock）→ 查users表 → 已注册则查角色 → 未注册则创建user+parent角色
    */
   async wxLogin(code: string) {
     console.log('[AuthService] wxLogin called:', { code: code?.substring(0, 10) + '...' });
 
-    // 在真实环境中，这里会调用微信API获取openid
-    // Mock模式：使用code作为openid
-    const openid = `mock_openid_${code}`;
-    console.log('[AuthService] Generated openid:', openid);
+    // 通过微信服务换取 openid（MOCK_WECHAT=true 联调时返回 mock 值；否则要求真实 appid/secret 配置）
+    let openid: string;
+    try {
+      openid = await this.wechat.getOpenidByCode(code);
+    } catch (e: any) {
+      console.log('[AuthService] wxLogin 配置错误:', e?.message);
+      return { error: true, code: 503, msg: e?.message || '微信登录未配置，请联系管理员' };
+    }
+    console.log('[AuthService] Resolved openid:', openid?.substring(0, 8) + '...');
 
     // 1. 查找已有用户
     const { data: existingUser, error: findError } = await this.client
@@ -103,6 +107,7 @@ export class AuthService {
     const context = await this.getLoginContext(userId);
     return {
       user,
+      token: this.generateToken(userId),
       ...context,
     };
   }
@@ -185,8 +190,15 @@ export class AuthService {
       phoneCode: phoneCode ? '***' : undefined,
     });
 
-    const openid = await this.wechat.getOpenidByCode(loginCode);
-    const phone = phoneCode ? await this.wechat.getPhoneByCode(phoneCode) : null;
+    let openid: string;
+    let phone: string | null;
+    try {
+      openid = await this.wechat.getOpenidByCode(loginCode);
+      phone = phoneCode ? await this.wechat.getPhoneByCode(phoneCode) : null;
+    } catch (e: any) {
+      console.log('[AuthService] phoneLogin 配置错误:', e?.message);
+      return { error: true, code: 503, msg: e?.message || '微信登录未配置，请联系管理员' };
+    }
     console.log('[AuthService] phoneLogin 解析:', { openid, phone });
 
     let userId: string;
@@ -302,6 +314,7 @@ export class AuthService {
     const context = await this.getLoginContext(userId);
     return {
       user,
+      token: this.generateToken(userId),
       ...context,
     };
   }
@@ -431,7 +444,7 @@ export class AuthService {
     }
 
     // 生成token
-    const token = this.generateToken(role.id, role.role_type, phone);
+    const token = this.generateToken(user!.id);
 
     // 查找班级名称
     let className = '';
