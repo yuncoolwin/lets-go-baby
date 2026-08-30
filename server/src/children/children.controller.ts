@@ -1,6 +1,8 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, HttpCode } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, HttpCode } from '@nestjs/common';
+import type { Request } from 'express';
 import { ChildrenService } from './children.service';
-import { CreateChildDto, UpdateChildDto, ChildQueryDto } from './dto/create-child.dto';
+import { CreateChildDto } from './dto/create-child.dto';
+import { UpdateChildDto, ChildQueryDto } from './dto/create-child.dto';
 import { createDateCalculator } from './utils/date-calculator';
 import { HolidaysService } from '@/holidays/holidays.service';
 import { parseDate } from '@/utils/date.util';
@@ -13,21 +15,21 @@ export class ChildrenController {
   ) {}
 
   @Post()
-  @HttpCode(200)
-  async create(@Body() body: CreateChildDto) {
-    const data = await this.childrenService.create(body);
-    if (data?.error) {
-      return { code: data.code, msg: data.msg, data: null };
+  async create(@Req() req: Request, @Body() body: CreateChildDto) {
+    const userId = (req as any).user?.userId;
+    const data = await this.childrenService.create(userId, body);
+    if ((data as any)?.error) {
+      return { code: (data as any).code, msg: (data as any).msg, data: null };
     }
     return { code: 200, msg: 'success', data };
   }
 
   @Get()
-  @HttpCode(200)
-  async findAll(@Query() query: ChildQueryDto) {
-    const data = await this.childrenService.findAll(query);
-    if (data?.error) {
-      return { code: data.code, msg: data.msg, data: null };
+  async findAll(@Req() req: Request, @Query() query: any) {
+    const userId = (req as any).user?.userId;
+    const data = await this.childrenService.findAll(userId, query);
+    if ((data as any)?.error) {
+      return { code: (data as any).code, msg: (data as any).msg, data: null };
     }
     return { code: 200, msg: 'success', data };
   }
@@ -75,41 +77,41 @@ export class ChildrenController {
   }
 
   @Get(':id')
-  @HttpCode(200)
-  async findOne(@Param('id') id: string) {
-    const data = await this.childrenService.findOne(id);
-    if (data?.error) {
-      return { code: data.code, msg: data.msg, data: null };
+  async findOne(@Req() req: Request, @Param('id') id: string) {
+    const userId = (req as any).user?.userId;
+    const data = await this.childrenService.findOne(userId, id);
+    if ((data as any)?.error) {
+      return { code: (data as any).code, msg: (data as any).msg, data: null };
     }
     return { code: 200, msg: 'success', data };
   }
 
   @Patch(':id')
-  @HttpCode(200)
-  async update(@Param('id') id: string, @Body() body: UpdateChildDto & { operator_role_id?: string }) {
-    const data = await this.childrenService.update(id, body, body.operator_role_id);
-    if (data?.error) {
-      return { code: data.code, msg: data.msg, data: null };
+  async update(@Req() req: Request, @Param('id') id: string, @Body() body: UpdateChildDto) {
+    const userId = (req as any).user?.userId;
+    const data = await this.childrenService.update(userId, id, body);
+    if ((data as any)?.error) {
+      return { code: (data as any).code, msg: (data as any).msg, data: null };
     }
     return { code: 200, msg: 'success', data };
   }
 
   @Delete(':id')
-  @HttpCode(200)
-  async remove(@Param('id') id: string, @Body() body?: { operator_user_id?: string; operator_role_id?: string }) {
-    const data = await this.childrenService.remove(id, body?.operator_user_id, body?.operator_role_id);
-    if (data?.error) {
-      return { code: data.code, msg: data.msg, data: null };
+  async remove(@Req() req: Request, @Param('id') id: string) {
+    const userId = (req as any).user?.userId;
+    const data = await this.childrenService.remove(userId, id);
+    if ((data as any)?.error) {
+      return { code: (data as any).code, msg: (data as any).msg, data: null };
     }
     return { code: 200, msg: 'success', data };
   }
 
   @Post(':id/assign-class')
-  @HttpCode(200)
-  async assignClass(@Param('id') id: string, @Body() body: { class_id: string }) {
-    const data = await this.childrenService.assignClass(id, body.class_id);
-    if (data?.error) {
-      return { code: data.code, msg: data.msg, data: null };
+  async assignClass(@Req() req: Request, @Param('id') id: string, @Body() body: { class_id: string }) {
+    const userId = (req as any).user?.userId;
+    const data = await this.childrenService.assignClass(userId, id, body?.class_id);
+    if ((data as any)?.error) {
+      return { code: (data as any).code, msg: (data as any).msg, data: null };
     }
     return { code: 200, msg: 'success', data };
   }

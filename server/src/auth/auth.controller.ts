@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Query, Body, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Query,
+  Body,
+  HttpCode,
+  Req,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Public } from './public.decorator';
 
@@ -24,15 +32,15 @@ export class AuthController {
   }
 
   /**
-   * 获取用户信息
-   * GET /api/auth/user-info?user_id=xxx
+   * 获取当前登录用户信息（依赖 JWT 鉴权，不再接受 user_id 查询参数）
+   * GET /api/auth/user-info
    */
-  @Public()
   @Get('user-info')
   @HttpCode(200)
-  async getUserInfo(@Query('user_id') userId: string) {
+  async getUserInfo(@Req() req: any) {
+    const userId = req?.user?.userId;
     if (!userId) {
-      return { code: 400, msg: 'user_id is required', data: null };
+      return { code: 401, msg: '未登录', data: null };
     }
     const data = await this.authService.getUserInfo(userId);
     return { code: 200, msg: 'success', data };

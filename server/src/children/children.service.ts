@@ -3,24 +3,42 @@ import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { createDateCalculator } from './utils/date-calculator';
 import { HolidaysService } from '@/holidays/holidays.service';
 import { parseDate } from '@/utils/date.util';
+import { AuthzService } from '@/auth/authz.service';
 
 @Injectable()
 export class ChildrenService {
   constructor(
     @Inject(forwardRef(() => HolidaysService))
     private holidaysService: HolidaysService,
+    private authz: AuthzService,
   ) {}
 
   private get client() {
     return getSupabaseClient();
   }
 
-  
+  /**
+   * 敏感字段收敛：非超管/管理员不可见缴费金额与缴费渠道
+   */
+  private sanitizeChild(child: any, isFullAccess: boolean) {
+    if (isFullAccess || !child) return child;
+    if (child.enrollments && Array.isArray(child.enrollments)) {
+      child = {
+        ...child,
+        enrollments: child.enrollments.map((e: any) => {
+          const { payment_amount, payment_channel, ...rest } = e || {};
+          return rest;
+        }),
+      };
+    }
+    const { payment_amount, payment_channel, ...rest } = child;
+    return rest;
+  }
 
   /**
-   * 创建幼儿档案
+   * 创建幼儿档案（仅管理员及以上）
    */
-  async create(dto: {
+  async create(userId: string, dto: {
     name: string;
     nickname?: string;
     gender: string;
@@ -37,6 +55,14 @@ export class ChildrenService {
     end_date?: string;
     custom_days?: string;
   }) {
+    const level = await this.authz.getRoleLevel(userId);
+    if (level === 'none') {
+      return { error: true, code: 401, msg: '未登录或无有效角色' };
+    }
+    if (level !== 'admin' && level !== 'superadmin') {
+      return { error: true, code: 403, msg: '仅管理员可创建幼儿档案' };
+    }
+
     // 检查是否已存在同名幼儿
     const { data: existing } = await this.client
       .from('children')
@@ -76,26 +102,53 @@ export class ChildrenService {
   }
 
   /**
-   * 列表查询（分页 + 筛选）
+   * 列表查询（分页 + 筛选 + 按角色归属过滤）
    */
-  async findAll(query: {
+  async findAll(userId: string, query: {
     page?: number;
     page_size?: number;
     class_id?: string;
     status?: string;
     keyword?: string;
   }) {
+    const level = await this.authz.getRoleLevel(userId);
+    if (level === 'none') {
+      return { error: true, code: 401, msg: '未登录或无有效角色' };
+    }
+
+    // 教师仅可见自己带班班级的幼儿；家长仅可见自己孩子的幼儿
+    let teacherClassIds: string[] = [];
+    if (level === 'teacher') {
+      teacherClassIds = await this.authz.getTeacherClassIds(userId);
+      if (teacherClassIds.length === 0) {
+        return { list: [], total: 0, page: Number(query.page) || 1, page_size: Number(query.page_size) || 20, total_pages: 0 };
+      }
+    }
+    let parentChildIds: string[] = [];
+    if (level === 'parent') {
+      parentChildIds = await this.authz.getParentChildIds(userId);
+      if (parentChildIds.length === 0) {
+        return { list: [], total: 0, page: Number(query.page) || 1, page_size: Number(query.page_size) || 20, total_pages: 0 };
+      }
+    }
+
     const page = Number(query.page) || 1;
     const pageSize = Number(query.page_size) || 20;
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    // Step 1: 先获取所有匹配条件的幼儿（不含分页），仅取 id + created_at
+    // Step 1: 先获取所有匹配条件的幼儿（不含分页），仅取 id + created_at（total 为过滤后数量）
     let idBuilder = this.client
       .from('children')
       .select('id, created_at', { count: 'exact' })
       .neq('status', 'archived');
 
+    if (level === 'teacher') {
+      idBuilder = idBuilder.in('class_id', teacherClassIds);
+    }
+    if (level === 'parent') {
+      idBuilder = idBuilder.in('id', parentChildIds);
+    }
     if (query.class_id) {
       idBuilder = idBuilder.eq('class_id', query.class_id);
     }
@@ -149,7 +202,7 @@ export class ChildrenService {
         .from('children')
         .select('*')
         .in('id', pagedIds);
-      
+
       // 保持分页顺序
       const dataMap = new Map((childrenData || []).map(c => [c.id, c]));
       fullData = pagedIds.map(id => dataMap.get(id)).filter(Boolean);
@@ -181,7 +234,7 @@ export class ChildrenService {
         .select('*')
         .in('child_id', pagedIds)
         .eq('status', '进行中');
-      
+
       // 收集所有 enrollments 中的 class_id，批量查询班级名称
       const enrClassIds = [...new Set((enrollments || []).map(e => e.class_id).filter(Boolean))];
       const enrClassMap: Record<string, string> = {};
@@ -194,7 +247,7 @@ export class ChildrenService {
           enrClassMap[cls.id] = cls.room ? `${cls.name}（${cls.room}）` : cls.name;
         }
       }
-      
+
       for (const enr of enrollments || []) {
         if (!enrollmentsMap[enr.child_id]) enrollmentsMap[enr.child_id] = [];
         enrollmentsMap[enr.child_id].push({
@@ -212,6 +265,7 @@ export class ChildrenService {
       }
     }
 
+    const isFullAccess = level === 'admin' || level === 'superadmin';
     const results = await Promise.all(
       (fullData || []).map(async (child: any) => {
         let className = null;
@@ -223,12 +277,15 @@ export class ChildrenService {
             .maybeSingle();
           className = cls?.name || null;
         }
-        return {
-          ...child,
-          class_name: className,
-          teacher_names: teachersMap[child.class_id] || [],
-          enrollments: enrollmentsMap[child.id] || [],
-        };
+        return this.sanitizeChild(
+          {
+            ...child,
+            class_name: className,
+            teacher_names: teachersMap[child.class_id] || [],
+            enrollments: enrollmentsMap[child.id] || [],
+          },
+          isFullAccess,
+        );
       })
     );
 
@@ -242,9 +299,14 @@ export class ChildrenService {
   }
 
   /**
-   * 详情（含班级信息）
+   * 详情（含班级信息，按角色校验归属）
    */
-  async findOne(id: string) {
+  async findOne(userId: string, id: string) {
+    const level = await this.authz.getRoleLevel(userId);
+    if (level === 'none') {
+      return { error: true, code: 401, msg: '未登录或无有效角色' };
+    }
+
     const { data: child, error } = await this.client
       .from('children')
       .select('*')
@@ -253,6 +315,19 @@ export class ChildrenService {
 
     if (error || !child) {
       return { error: true, code: 404, msg: '幼儿档案不存在' };
+    }
+
+    // 归属校验：教师需是该幼儿所在班级的带班教师；家长需是该幼儿的家长
+    if (level === 'teacher') {
+      const teacherClassIds = await this.authz.getTeacherClassIds(userId);
+      if (!child.class_id || !teacherClassIds.includes(child.class_id)) {
+        return { error: true, code: 403, msg: '无权查看该幼儿档案' };
+      }
+    } else if (level === 'parent') {
+      const parentChildIds = await this.authz.getParentChildIds(userId);
+      if (!parentChildIds.includes(id)) {
+        return { error: true, code: 403, msg: '无权查看该幼儿档案' };
+      }
     }
 
     // 获取班级信息
@@ -266,14 +341,15 @@ export class ChildrenService {
       classInfo = cls;
     }
 
-    return { ...child, class_info: classInfo };
+    return this.sanitizeChild({ ...child, class_info: classInfo }, level === 'admin' || level === 'superadmin');
   }
 
   /**
-   * 更新幼儿档案
+   * 更新幼儿档案（家长拒绝；教师仅限本人带班班级且仅限部分字段；管理员及以上全字段）
    */
-  async update(id: string, dto: {
+  async update(userId: string, id: string, dto: {
     name?: string;
+    nickname?: string;
     gender?: string;
     birth_date?: string;
     class_id?: string | null;
@@ -288,35 +364,73 @@ export class ChildrenService {
     enrollment_duration?: string;
     start_date?: string;
     end_date?: string;
-  }, operatorRoleId?: string) {
-    // 权限校验：家长无权限编辑幼儿档案
-    if (operatorRoleId) {
-      const { data: roleData } = await this.client
-        .from('user_roles')
-        .select('id, role_type')
-        .eq('id', operatorRoleId)
-        .maybeSingle();
-      if (roleData?.role_type === 'parent') {
-        return { error: true, code: 403, msg: '家长无权限编辑幼儿档案' };
+    custom_days?: string;
+    date_calc_rule?: string;
+    payment_amount?: number | string | null;
+    payment_channel?: string | null;
+    payment_status?: string | null;
+  }) {
+    const level = await this.authz.getRoleLevel(userId);
+    if (level === 'none' || level === 'parent') {
+      return { error: true, code: 403, msg: level === 'none' ? '未登录或无有效角色' : '家长无权限编辑幼儿档案' };
+    }
+
+    // 教师仅可编辑本人带班班级的幼儿
+    if (level === 'teacher') {
+      const { data: current } = await this.client
+        .from('children')
+        .select('id, class_id')
+        .eq('id', id)
+        .single();
+      if (!current) {
+        return { error: true, code: 404, msg: '幼儿档案不存在' };
+      }
+      const teacherClassIds = await this.authz.getTeacherClassIds(userId);
+      if (!current.class_id || !teacherClassIds.includes(current.class_id)) {
+        return { error: true, code: 403, msg: '无权编辑该幼儿档案' };
       }
     }
 
-    // 如果变更了 class_id，检查目标班级容量
-    if (dto.class_id !== undefined) {
+    // 白名单字段：教师仅允许编辑部分档案字段；管理员及以上可编辑全部
+    const teacherAllowedFields = [
+      'name', 'gender', 'birth_date', 'health_info', 'allergies', 'notes', 'avatar_url',
+    ] as const;
+    const adminAllowedFields = [
+      ...teacherAllowedFields,
+      'nickname', 'class_id', 'parent_name', 'parent_phone', 'status',
+      'course_type', 'enrollment_duration', 'start_date', 'end_date',
+      'custom_days', 'date_calc_rule',
+      'payment_amount', 'payment_channel', 'payment_status',
+    ] as const;
+
+    const allowedFields: readonly string[] = level === 'teacher' ? teacherAllowedFields : adminAllowedFields;
+
+    const updateData: Record<string, any> = {};
+    for (const field of allowedFields) {
+      if ((dto as any)[field] !== undefined) {
+        updateData[field] = (dto as any)[field];
+      }
+    }
+    if (Object.keys(updateData).length === 0) {
+      return { error: true, code: 400, msg: '无可更新的有效字段' };
+    }
+
+    // 如果变更了 class_id，检查目标班级容量（仅管理员可改班级，教师白名单无 class_id）
+    if (updateData.class_id !== undefined) {
       const { data: currentChild } = await this.client
         .from('children')
         .select('class_id')
         .eq('id', id)
         .single();
 
-      const isChangingClass = !currentChild || currentChild.class_id !== dto.class_id;
+      const isChangingClass = !currentChild || currentChild.class_id !== updateData.class_id;
 
-      if (isChangingClass && dto.class_id) {
+      if (isChangingClass && updateData.class_id) {
         // 查询目标班级信息
         const { data: cls } = await this.client
           .from('classes')
           .select('id, name, capacity')
-          .eq('id', dto.class_id)
+          .eq('id', updateData.class_id)
           .single();
 
         if (!cls) {
@@ -328,7 +442,7 @@ export class ChildrenService {
           const { count } = await this.client
             .from('children')
             .select('id', { count: 'exact', head: true })
-            .eq('class_id', dto.class_id)
+            .eq('class_id', updateData.class_id)
             .eq('status', 'active')
             .neq('id', id);
 
@@ -340,13 +454,9 @@ export class ChildrenService {
     }
 
     // 如果状态改为毕业或休学，自动清除班级
-    if (dto.status === 'graduated' || dto.status === 'suspended') {
-      dto.class_id = null;
+    if (updateData.status === 'graduated' || updateData.status === 'suspended') {
+      updateData.class_id = null;
     }
-
-    // 复制所有字段到 updateData（custom_days 已作为数据库字段）
-    const updateData = { ...(dto as any) } as any;
-    delete updateData.operator_role_id;
 
     // 如果有报读时长和开始日期但没传结束日期，自动计算
     if (dto.enrollment_duration && dto.start_date && !dto.end_date) {
@@ -359,16 +469,16 @@ export class ChildrenService {
         dto.start_date as string,
         dto.course_type as string || '',
         dto.enrollment_duration as string,
-        (dto as any).custom_days || '',
-        (dto as any).date_calc_rule || '',
+        dto.custom_days || '',
+        dto.date_calc_rule || '',
       );
       // extended_end_date：顺延结束日期，额外排除假期管理页的节假日
       updateData.extended_end_date = calc.calculateEndDate(
         dto.start_date as string,
         dto.course_type as string || '',
         dto.enrollment_duration as string,
-        (dto as any).custom_days || '',
-        (dto as any).date_calc_rule || '',
+        dto.custom_days || '',
+        dto.date_calc_rule || '',
       );
     }
 
@@ -391,20 +501,11 @@ export class ChildrenService {
   }
 
   /**
-   * 软删除
+   * 软删除（仅超管）
    */
-  async remove(id: string, operatorUserId?: string, operatorRoleId?: string) {
-    // 权限校验：仅超管可删除幼儿档案
-    let operatorRoleType: string | null = null;
-    if (operatorRoleId) {
-      const { data: roleData } = await this.client
-        .from('user_roles')
-        .select('id, role_type')
-        .eq('id', operatorRoleId)
-        .maybeSingle();
-      operatorRoleType = roleData?.role_type || null;
-    }
-    if (operatorRoleType !== 'superadmin') {
+  async remove(userId: string, id: string) {
+    const level = await this.authz.getRoleLevel(userId);
+    if (level !== 'superadmin') {
       return { error: true, code: 403, msg: '仅超级管理员可删除幼儿档案' };
     }
 
@@ -421,8 +522,8 @@ export class ChildrenService {
 
     if (data) {
       const { error: logErr } = await this.client.from('audit_logs').insert({
-        user_id: operatorUserId || null,
-        user_role_id: operatorRoleId || null,
+        user_id: userId,
+        user_role_id: null,
         action: 'child_delete',
         target_type: 'child',
         target_id: id,
@@ -436,9 +537,17 @@ export class ChildrenService {
   }
 
   /**
-   * 分班（检查班级容量）
+   * 分班（仅管理员及以上，检查班级容量）
    */
-  async assignClass(childId: string, classId: string) {
+  async assignClass(userId: string, childId: string, classId: string) {
+    const level = await this.authz.getRoleLevel(userId);
+    if (level === 'none') {
+      return { error: true, code: 401, msg: '未登录或无有效角色' };
+    }
+    if (level !== 'admin' && level !== 'superadmin') {
+      return { error: true, code: 403, msg: '仅管理员可执行分班操作' };
+    }
+
     // 检查幼儿是否存在
     const { data: child } = await this.client
       .from('children')

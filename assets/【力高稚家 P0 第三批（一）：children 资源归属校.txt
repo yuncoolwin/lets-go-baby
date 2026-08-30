@@ -1,0 +1,24 @@
+【力高稚家 P0 第三批（一）：children 资源归属校验 + 敏感字段收敛】
+
+后端：
+
+- 新建 `server/src/auth/authz.service.ts`（`@Injectable`，供全项目后续模块复用；构造注入项目现有 Supabase client，与 ChildrenService 同方式），并注册进 `app.module.ts` 的 providers：
+  - 提供 4 个方法，全部基于 `request.user.userId`（第二批 AuthGuard 已注入）：
+  - `getUserRoles(userId)`：`from('user_roles').select('id, role_type, status').eq('user_id', userId).eq('status','active')` 返回数组。
+  - `getRoleLevel(userId)`：按 `superadmin > admin > teacher > parent` 优先级返回最高角色，无则 `'none'`。
+  - `getParentChildIds(userId)`：先取该 user 的 parent 角色 id 列表，再 `from('parent_child_relations').select('child_id').in('parent_role_id', parentRoleIds)` 去重返回。
+  - `getTeacherClassIds(userId)`：`from('teachers').select('class_id').eq('user_id', userId).eq('status','active')` 去重返回。
+
+- 改 `server/src/children/children.controller.ts`：`create`、`findAll`、`findOne`、`update`、`remove`、`assignClass` 六个接口统一加 `@Req() req`，从 `req.user.userId` 取当前用户 id 传给 service，不再从 body/query 读 `operator_role_id`/`operator_user_id`。例如 `findAll` 改为 `findAll(req.user.userId, query)`、`update` 改为 `update(req.user.userId, id, body)`（body 不再带 `operator_role_id`）。
+
+- 改 `server/src/children/children.service.ts`：
+  - `findAll` 签名加 `userId` 参数，开头先 `getRoleLevel`，`none` 直接返回 401 结构；`superadmin`/`admin` 不过滤；`teacher` 在 Step1 的 `idBuilder` 上加 `.in('class_id', await getTeacherClassIds(userId))`；`parent` 在 Step1 的 `idBuilder` 上加 `.in('id', await getParentChildIds(userId))`（为空则直接返回空 list）。过滤必须加在 Step1（`.select('id, created_at', {count:'exact'})` 之后），保证 `total` 是过滤后的数量。字段收敛：非 `superadmin`/`admin` 时，每个 child 删除 `payment_amount`、`payment_channel` 两个字段，且其 `enrollments` 数组每一项也删除 `payment_amount`、`payment_channel`。
+  - `findOne` 签名加 `userId` 参数，查到 child 后校验归属：`superadmin`/`admin` 放行；`teacher` 校验 `child.class_id ∈ getTeacherClassIds(userId)`；`parent` 校验 `child.id ∈ getParentChildIds(userId)`；不满足返回 403。非 `superadmin`/`admin` 时从返回对象删除 `payment_amount`、`payment_channel`。`health_info`、`allergies` 保留（归属校验已保证只见自己范围内）。
+  - `update` 签名改为 `update(userId, id, dto)`，删掉原 `operatorRoleId` 参数与其 `if (operatorRoleId)` 跳过校验逻辑。改为：先 `getRoleLevel(userId)`，`none`/`parent` 均返回 403；`teacher` 仅在 `child.class_id ∈ getTeacherClassIds(userId)` 且只允许改 `name`、`gender`、`birth_date`、`health_info`、`allergies`、`notes`、`avatar_url` 这几个字段；`admin`/`superadmin` 可改全部白名单字段。关键改动：把 `const updateData = {...(dto as any)}` 的 spread 直写，改成按白名单字段逐个 `if (dto.xxx !== undefined) updateData.xxx = dto.xxx`，禁止 body 里任意字段落库（尤其防 `payment_amount`/`payment_channel` 等）。原有班级容量校验、毕业/休学清班级、end_date 自动计算逻辑保留。
+  - `create`、`assignClass`、`remove` 改为 `userId` 鉴权：`remove` 把原 `operatorRoleType !== 'superadmin'` 的判断改为用 `getRoleLevel(userId)` 判断，仍限 superadmin；`create`、`assignClass` 加 `admin` 以上校验（`getRoleLevel` 为 `admin`/`superadmin` 才放行）。
+
+- 改 `server/src/auth/auth.controller.ts`：`getUserInfo` 去掉 `@Public()`，加 `@Req() req`，改为调用 `getUserInfo(req.user.userId)`，不再信任前端 `@Query('user_id')` 传入的任意 id。
+
+- 改 `server/src/auth/auth.service.ts`：`getUserInfo` 保持返回本人 `nickname`/`avatar_url`/`phone` 等字段不变（现在只查自己，不再泄露他人手机号），参数直接收已鉴权的 `userId`。
+
+数据配合（需你确认/补数，不进本次代码逻辑）：`authz.getTeacherClassIds` 依赖 `teachers` 表的 `user_id` 字段正确关联到对应用户；若现有教师记录的 `user_id` 未填，教师在本次改造后会查不到自己的班级（fail-closed，安全优先）。上线前把 `teachers` 表 active 教师的 `user_id` 按已有 `real_name` 匹配关系补全即可。

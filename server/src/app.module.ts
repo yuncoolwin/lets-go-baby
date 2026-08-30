@@ -4,6 +4,7 @@ import { AppService } from '@/app.service';
 import { AuthController } from '@/auth/auth.controller';
 import { AuthService } from '@/auth/auth.service';
 import { WechatService } from '@/auth/wechat.service';
+import { AuthzService } from '@/auth/authz.service';
 import { ParentController } from '@/parent/parent.controller';
 import { ParentService } from '@/parent/parent.service';
 import { TeacherController } from '@/teacher/teacher.controller';
@@ -54,6 +55,7 @@ import { GrowthService } from '@/growth/growth.service';
     AppService,
     AuthService,
     WechatService,
+    AuthzService,
     ParentService,
     TeacherService,
     AdminService,

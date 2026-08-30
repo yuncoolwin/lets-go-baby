@@ -366,7 +366,7 @@ export const useAppStore = create<AppStore>()(
     set({ isLoading: true })
     try {
       const res = await Network.request({
-        url: `/api/auth/user-info?user_id=${userId}`,
+        url: '/api/auth/user-info',
         method: 'GET',
       })
       console.log('[Auth] fetchUserInfo response:', res.data)
