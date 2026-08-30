@@ -1,4 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req } from '@nestjs/common';
+import type { Request } from 'express';
+import { ForbiddenException } from '@nestjs/common';
 import { CoursesService } from './courses.service';
 
 @Controller('courses')
@@ -12,23 +14,36 @@ export class CoursesController {
   }
 
   @Post()
-  async create(@Body() body: any) {
-    const data = await this.coursesService.create(body);
-    return { code: 200, msg: 'success', data };
+  async create(@Req() req: Request, @Body() body: any) {
+    const userId = (req as any).user?.userId;
+    try {
+      const data = await this.coursesService.create(userId, body);
+      return { code: 200, msg: 'success', data };
+    } catch (err: any) {
+      const code = err instanceof ForbiddenException ? 403 : 500;
+      return { code, msg: err?.message || '创建失败', data: null };
+    }
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() body: any) {
-    const result = await this.coursesService.update(id, body);
-    if (result && result.success === false) {
-      return { code: 400, msg: result.message };
+  async update(@Req() req: Request, @Param('id') id: string, @Body() body: any) {
+    const userId = (req as any).user?.userId;
+    try {
+      const result = await this.coursesService.update(userId, id, body);
+      if (result && result.success === false) {
+        return { code: 400, msg: result.message };
+      }
+      return { code: 200, msg: 'success', data: result };
+    } catch (err: any) {
+      const code = err instanceof ForbiddenException ? 403 : 500;
+      return { code, msg: err?.message || '更新失败', data: null };
     }
-    return { code: 200, msg: 'success', data: result };
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string, @Body() body?: { operator_user_id?: string; operator_role_id?: string }) {
-    const result = await this.coursesService.remove(id, body?.operator_user_id, body?.operator_role_id);
+  async remove(@Req() req: Request, @Param('id') id: string) {
+    const userId = (req as any).user?.userId;
+    const result = await this.coursesService.remove(userId, id);
     if (result.success === false) {
       return { code: (result as any).code || 400, msg: result.message };
     }

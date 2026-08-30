@@ -1,0 +1,39 @@
+下面是第三批（三）提示词：
+
+---
+
+- 范围：四个后端模块写操作鉴权收敛，统一复用已存在的 `server/src/auth/authz.service.ts` 四方法：`getRoleLevel(userId)` 返回 `superadmin`/`admin`/`teacher`/`parent` 或 `none`、`getTeacherClassIds(userId)` 返回该教师负责班级的 class_id 数组、`getParentChildIds(userId)` 返回家长绑定的 child_id 数组、`getUserRoles(userId)`；四个 service 均注入 `AuthzService`，四个 controller 的写接口均加 `@Req() req` 取 `req.user?.userId` 传入 service；前端无需改动（body 里旧的 operator_user_id/operator_role_id 字段后端不再读取，多余字段自动忽略）
+
+- classes 模块 `server/src/classes/classes.service.ts`：注入 AuthzService；`create(dto)` 改签名为 `create(userId, dto)`，方法第一行 `const level = await this.authz.getRoleLevel(userId)`，`level` 非 `admin`/`superadmin` 直接 `return { error: true, code: 403, msg: '仅管理员可创建班级' }`；`update(id, dto)` 改签名 `update(userId, id, dto)`，同样开头加 roleLevel 校验限 admin/superadmin；`assignTeacher(classId, teacherId, isLead)` 改 `assignTeacher(userId, classId, teacherId, isLead)`，开头加 roleLevel 校验限 admin/superadmin；`removeTeacher(classId, teacherId)` 改 `removeTeacher(userId, classId, teacherId)`，开头加 roleLevel 校验限 admin/superadmin
+
+- classes 模块 `remove(id, operatorRoleId)` 改签名 `remove(userId, id)`，删除内部"用 operatorRoleId 查 user_roles 的 role_type"整段逻辑（约 235-246 行），改为开头 `const level = await this.authz.getRoleLevel(userId)`，`level !== 'superadmin'` 即 `return { error: true, code: 403, msg: '仅超级管理员可删除班级' }`
+
+- classes 模块 `server/src/classes/classes.controller.ts`：`create`/`update`/`remove`/`assignTeacher`/`removeTeacher` 五个方法各加 `@Req() req: Request` 参数并 `import type { Request } from 'express'`，取 `const userId = (req as any).user?.userId` 传给 service 对应方法；`remove` 方法去掉 `@Body() body` 的 `operator_role_id` 传参，直接 `this.classesService.remove(userId, id)`；读接口 findAll/findOne/getEnrollmentsByClass/getStats 不动
+
+- courses 模块 `server/src/courses/courses.service.ts`：注入 AuthzService；`create(body)` 改 `create(userId, body)`，开头 roleLevel 校验限 admin/superadmin，非则 `throw new Error('仅管理员可创建课程')`（保持该模块现有 throw 风格）；`update(id, body)` 改 `update(userId, id, body)`，开头同样 roleLevel 校验限 admin/superadmin
+
+- courses 模块 `remove(id, operatorUserId, operatorRoleId)` 改签名 `remove(userId, id)`，删除内部"用 operatorRoleId 查 user_roles 的 role_type"整段逻辑（约 84-93 行），改为开头 `const level = await this.authz.getRoleLevel(userId)`，`level !== 'superadmin'` 即 `return { success: false, code: 403, message: '仅超级管理员可删除课程' }`；下方 audit_logs.insert 的 `user_id` 改填 `userId`，`user_role_id` 这一行删除
+
+- courses 模块 `server/src/courses/courses.controller.ts`：`create`/`update`/`remove` 三个方法各加 `@Req() req: Request`，取 `const userId = (req as any).user?.userId` 传给 service；`remove` 去掉 `@Body() body` 的 operator_user_id/operator_role_id，直接 `this.coursesService.remove(userId, id)`；findAll 不动
+
+- enrollments 模块 `server/src/enrollments/enrollments.service.ts`：注入 AuthzService；新增私有方法 `checkChildAccess(userId, childId)`：`const level = await this.authz.getRoleLevel(userId)`，`admin`/`superadmin` 返回 true，`parent` 时 `return (await this.authz.getParentChildIds(userId)).includes(childId)`，`teacher` 时 `const classIds = await this.authz.getTeacherClassIds(userId)` 为空返回 false，否则查 `children` 表 `select('class_id').eq('id', childId).maybeSingle()`，`return !!child && classIds.includes(child.class_id)`，其余返回 false
+
+- enrollments 模块 `create(dto)` 改 `create(userId, dto)`，开头调 `checkChildAccess` 前先 `const level = await this.authz.getRoleLevel(userId)` 且 `![ 'admin','superadmin'].includes(level)` 即 `throw new Error('仅管理员可创建报读记录')`；`update(id, dto)` 改 `update(userId, id, dto)` 同样开头 roleLevel 校验限 admin/superadmin；`remove(id, operatorRoleId)` 改 `remove(userId, id)`，删除 operatorRoleId 查 user_roles 逻辑，改为 roleLevel 校验限 superadmin
+
+- enrollments 模块 `findByChild(childId)` 改 `findByChild(userId, childId)`，方法开头 `if (!(await this.checkChildAccess(userId, childId))) throw new Error('无权查看该幼儿报读记录')`；`findActiveByChild(childId)` 改 `findActiveByChild(userId, childId)`，同样开头加同一归属校验；`findByCourse`/`getAttendanceCalendar`/`calcExtendedEndDateAndPersist`/`calculateExtendedEndDate` 暂不动
+
+- enrollments 模块 `server/src/enrollments/enrollments.controller.ts`：`create`/`update`/`remove`/`findByChild`/`findActiveByChild` 五个方法各加 `@Req() req: Request`，取 userId 传给 service；`remove` 去掉 body 的 operator_role_id
+
+- attendance 模块 `server/src/attendance/attendance.service.ts`：注入 AuthzService；新增私有方法 `canAccessClass(userId, classId)`：`const level = await this.authz.getRoleLevel(userId)`，`admin`/`superadmin` 返回 true，`teacher` 时 `return (await this.authz.getTeacherClassIds(userId)).includes(classId)`，其余 false
+
+- attendance 模块 `upsert(dto)` 改 `upsert(userId, dto)`，方法开头 `if (!(await this.canAccessClass(userId, dto.class_id))) return { error: true, code: 403, msg: '无权操作该班级考勤' }`（保留 dto 结构，operator_user_id/operator_role_id 字段可留作类型但不再使用）；audit_logs.insert 的 `user_id` 改填 `userId`，`user_role_id` 行删除
+
+- attendance 模块 `checkOut(dto)` 改 `checkOut(userId, dto)`，开头 `if (!(await this.canAccessClass(userId, dto.classId))) return { error: true, code: 403, msg: '无权操作该班级考勤' }`；`clearByClassAndDate(classId, date, courseType, operatorUserId, operatorRoleId)` 改 `clearByClassAndDate(userId, classId, date, courseType)`，开头加 `if (!(await this.canAccessClass(userId, classId))) return { error: true, code: 403, msg: '无权清空该班级考勤' }`（紧接在"仅当天"校验之后），audit_logs.insert 的 `user_id` 改填 `userId`，`user_role_id` 行删除
+
+- attendance 模块 `findByClassAndDate(classId, date)` 改 `findByClassAndDate(userId, classId, date)`，开头 `if (!(await this.canAccessClass(userId, classId))) return []`（越权返回空数组，fail-closed）；`getAdminOverview` 开头加 `const level = await this.authz.getRoleLevel(userId)` → 需改签名 `getAdminOverview(userId, classId, date)` 且非 `admin`/`superadmin` 返回 null 或 403，`getDates`/`getHolidayStatus`/`findByChildAndDate` 暂不动
+
+- attendance 模块 `server/src/attendance/attendance.controller.ts`：`upsert`/`checkOut`/`findByClass`/`getAdminOverview` 四个方法各加 `@Req() req: Request` 取 userId 传给 service；`upsert` 加 `if ((data as any)?.error) return { code: data.code, msg: data.msg, data: null }`（对齐 clear 现有 error 处理）；`clearByClassAndDate` 去掉 body 的 operator_user_id/operator_role_id 透传，直接以 userId 调用 `clearByClassAndDate(userId, body.class_id, body.date, undefined)`，body 里的 operator 字段删除；`upsert`/`checkOut` 的 body 里 operator_user_id/operator_role_id 字段删除
+
+---
+
+改动边界说明：本批只做上面列出的四个模块写操作鉴权 + enrollments 归属校验 + attendance 按班级过滤，其余模块（admin、holidays、growth、notification 等）和 upload/CORS/RLS 一律不动。

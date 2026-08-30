@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, Query, HttpCode, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, HttpCode, Param, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { AttendanceService } from './attendance.service';
 
 @Controller('attendance')
@@ -8,10 +9,15 @@ export class AttendanceController {
   @Get('admin/overview')
   @HttpCode(200)
   async getAdminOverview(
+    @Req() req: Request,
     @Query('class_id') classId: string,
     @Query('date') date?: string,
   ) {
-    const data = await this.attendanceService.getAdminOverview(classId, date);
+    const userId = (req as any).user?.userId;
+    const data = await this.attendanceService.getAdminOverview(userId, classId, date);
+    if ((data as any)?.error) {
+      return { code: (data as any).code, msg: (data as any).msg, data: null };
+    }
     return { code: 200, msg: 'success', data };
   }
 
@@ -28,17 +34,20 @@ export class AttendanceController {
   @Get()
   @HttpCode(200)
   async findByClass(
+    @Req() req: Request,
     @Query('class_id') classId: string,
     @Query('date') date?: string,
   ) {
+    const userId = (req as any).user?.userId;
     const today = new Date().toISOString().split('T')[0];
-    const data = await this.attendanceService.findByClassAndDate(classId, date || today);
+    const data = await this.attendanceService.findByClassAndDate(userId, classId, date || today);
     return { code: 200, msg: 'success', data };
   }
 
   @Post()
   @HttpCode(200)
   async upsert(
+    @Req() req: Request,
     @Body()
     body: {
       child_id: string;
@@ -47,34 +56,43 @@ export class AttendanceController {
       date: string;
       status: string;
       course_type?: string;
-      operator_user_id?: string;
-      operator_role_id?: string;
     },
   ) {
-    const data = await this.attendanceService.upsert(body);
+    const userId = (req as any).user?.userId;
+    const data = await this.attendanceService.upsert(userId, body);
+    if ((data as any)?.error) {
+      return { code: (data as any).code, msg: (data as any).msg, data: null };
+    }
     return { code: 200, msg: 'success', data };
   }
 
   @Post('check-out')
   @HttpCode(200)
   async checkOut(
+    @Req() req: Request,
     @Body() body: { childId: string; classId: string; date: string; courseType?: string },
   ) {
-    const data = await this.attendanceService.checkOut({
+    const userId = (req as any).user?.userId;
+    const data = await this.attendanceService.checkOut(userId, {
       childId: body.childId,
       classId: body.classId,
       date: body.date,
       courseType: body.courseType,
     });
+    if ((data as any)?.error) {
+      return { code: (data as any).code, msg: (data as any).msg, data: null };
+    }
     return { code: 200, msg: 'success', data };
   }
 
   @Post('clear')
   @HttpCode(200)
   async clearByClassAndDate(
-    @Body() body: { class_id: string; date: string; operator_user_id?: string; operator_role_id?: string },
+    @Req() req: Request,
+    @Body() body: { class_id: string; date: string },
   ) {
-    const data = await this.attendanceService.clearByClassAndDate(body.class_id, body.date, undefined, body.operator_user_id, body.operator_role_id);
+    const userId = (req as any).user?.userId;
+    const data = await this.attendanceService.clearByClassAndDate(userId, body.class_id, body.date);
     if ((data as any)?.error) {
       return { code: (data as any).code, msg: (data as any).msg, data: null };
     }

@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { AuthzService } from '@/auth/authz.service';
 import { addDays, isWeekend, isSaturday } from '@/utils/date.util';
 
 export interface HolidayDetail {
@@ -68,8 +69,41 @@ export interface UpdateEnrollmentDto {
 @Injectable()
 export class EnrollmentsService {
 
+  constructor(private readonly authz: AuthzService) {}
+
   private get client() {
     return getSupabaseClient();
+  }
+
+  /**
+   * 幼儿归属校验（家长仅能查看自己绑定幼儿的报读信息）
+   */
+  private async checkChildAccess(userId: string, childId: string): Promise<void> {
+    const level = await this.authz.getRoleLevel(userId);
+    if (level === 'superadmin' || level === 'admin') return;
+    if (level === 'parent') {
+      const childIds = await this.authz.getParentChildIds(userId);
+      if (!childIds.includes(childId)) {
+        throw new ForbiddenException('无权查看该幼儿的报读信息');
+      }
+      return;
+    }
+    if (level === 'teacher') {
+      const classIds = await this.authz.getTeacherClassIds(userId);
+      if (!classIds.length) {
+        throw new ForbiddenException('无权查看该幼儿的报读信息');
+      }
+      const { data: child } = await this.client
+        .from('children')
+        .select('class_id')
+        .eq('id', childId)
+        .maybeSingle();
+      if (!child?.class_id || !classIds.includes(child.class_id)) {
+        throw new ForbiddenException('无权查看该幼儿的报读信息');
+      }
+      return;
+    }
+    throw new ForbiddenException('无权查看该幼儿的报读信息');
   }
 
   private async syncExpiredStatus(): Promise<void> {
@@ -475,7 +509,8 @@ export class EnrollmentsService {
     return { extended_end_date: extendedDate, details };
   }
 
-  async findByChild(childId: string): Promise<Enrollment[]> {
+  async findByChild(userId: string, childId: string): Promise<Enrollment[]> {
+    await this.checkChildAccess(userId, childId);
     await this.syncExpiredStatus();
     const { data, error } = await this.client
       .from('enrollments')
@@ -622,7 +657,8 @@ export class EnrollmentsService {
     };
   }
 
-  async findActiveByChild(childId: string): Promise<Enrollment[]> {
+  async findActiveByChild(userId: string, childId: string): Promise<Enrollment[]> {
+    await this.checkChildAccess(userId, childId);
     await this.syncExpiredStatus();
     const { data, error } = await this.client
       .from('enrollments')
@@ -661,7 +697,11 @@ export class EnrollmentsService {
     return childIds.map((id) => ({ child_id: id, child_name: nameMap.get(id) || '' }));
   }
 
-  async create(dto: CreateEnrollmentDto): Promise<Enrollment> {
+  async create(userId: string, dto: CreateEnrollmentDto): Promise<Enrollment> {
+    const level = await this.authz.getRoleLevel(userId);
+    if (!['admin', 'superadmin'].includes(level)) {
+      throw new ForbiddenException('仅管理员可创建报读记录');
+    }
     const { class_id, course_id, ...rest } = dto;
 
     let finalCourseId = course_id || null;
@@ -722,7 +762,11 @@ export class EnrollmentsService {
     return data;
   }
 
-  async update(id: string, dto: UpdateEnrollmentDto): Promise<Enrollment> {
+  async update(userId: string, id: string, dto: UpdateEnrollmentDto): Promise<Enrollment> {
+    const level = await this.authz.getRoleLevel(userId);
+    if (!['admin', 'superadmin'].includes(level)) {
+      throw new ForbiddenException('仅管理员可更新报读记录');
+    }
     const { class_id, course_id, ...rest } = dto;
     const updateData: Record<string, any> = {};
     if (rest.course_type !== undefined) updateData.course_type = rest.course_type;
@@ -781,18 +825,10 @@ export class EnrollmentsService {
     return data;
   }
 
-  async remove(id: string, operatorRoleId?: string): Promise<any> {
+  async remove(userId: string, id: string): Promise<any> {
     // 权限校验：仅超管可删除报读记录
-    let operatorRoleType: string | null = null;
-    if (operatorRoleId) {
-      const { data: roleData } = await this.client
-        .from('user_roles')
-        .select('id, role_type')
-        .eq('id', operatorRoleId)
-        .maybeSingle();
-      operatorRoleType = roleData?.role_type || null;
-    }
-    if (operatorRoleType !== 'superadmin') {
+    const level = await this.authz.getRoleLevel(userId);
+    if (level !== 'superadmin') {
       return { error: true, code: 403, msg: '仅超级管理员可删除报读记录' };
     }
 

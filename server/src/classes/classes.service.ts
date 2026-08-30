@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { AuthzService } from '@/auth/authz.service';
 import type { CreateClassDto, UpdateClassDto, ClassQueryDto } from './dto/create-class.dto';
 
 @Injectable()
 export class ClassesService {
+  constructor(private readonly authz: AuthzService) {}
+
   private get client() {
     return getSupabaseClient();
   }
@@ -11,7 +14,13 @@ export class ClassesService {
   /**
    * 创建班级
    */
-  async create(dto: CreateClassDto) {
+  async create(userId: string, dto: CreateClassDto) {
+    // 权限校验：仅管理员及以上可创建班级
+    const level = await this.authz.getRoleLevel(userId);
+    if (!['admin', 'superadmin'].includes(level)) {
+      return { error: true, code: 403, msg: '仅管理员可创建班级' };
+    }
+
     // 检查同名班级
     const { data: existing } = await this.client
       .from('classes')
@@ -183,7 +192,13 @@ export class ClassesService {
   /**
    * 更新班级
    */
-  async update(id: string, dto: UpdateClassDto) {
+  async update(userId: string, id: string, dto: UpdateClassDto) {
+    // 权限校验：仅管理员及以上可更新班级
+    const level = await this.authz.getRoleLevel(userId);
+    if (!['admin', 'superadmin'].includes(level)) {
+      return { error: true, code: 403, msg: '仅管理员可更新班级' };
+    }
+
     // 检查同名（排除自身）
     if (dto.name) {
       const { data: existing } = await this.client
@@ -232,18 +247,10 @@ export class ClassesService {
   /**
    * 软删除（设为 archived）
    */
-  async remove(id: string, operatorRoleId?: string) {
+  async remove(userId: string, id: string) {
     // 权限校验：仅超管可删除班级
-    let operatorRoleType: string | null = null;
-    if (operatorRoleId) {
-      const { data: roleData } = await this.client
-        .from('user_roles')
-        .select('id, role_type')
-        .eq('id', operatorRoleId)
-        .maybeSingle();
-      operatorRoleType = roleData?.role_type || null;
-    }
-    if (operatorRoleType !== 'superadmin') {
+    const level = await this.authz.getRoleLevel(userId);
+    if (level !== 'superadmin') {
       return { error: true, code: 403, msg: '仅超级管理员可删除班级' };
     }
 
@@ -263,7 +270,13 @@ export class ClassesService {
   /**
    * 分配教师到班级
    */
-  async assignTeacher(classId: string, teacherId: string, isLead: boolean) {
+  async assignTeacher(userId: string, classId: string, teacherId: string, isLead: boolean) {
+    // 权限校验：仅管理员及以上可分配教师
+    const level = await this.authz.getRoleLevel(userId);
+    if (!['admin', 'superadmin'].includes(level)) {
+      return { error: true, code: 403, msg: '仅管理员可分配教师' };
+    }
+
     // 检查班级是否存在
     const { data: classData } = await this.client
       .from('classes')
@@ -306,7 +319,13 @@ export class ClassesService {
   /**
    * 从班级移除教师
    */
-  async removeTeacher(classId: string, teacherId: string) {
+  async removeTeacher(userId: string, classId: string, teacherId: string) {
+    // 权限校验：仅管理员及以上可移除教师
+    const level = await this.authz.getRoleLevel(userId);
+    if (!['admin', 'superadmin'].includes(level)) {
+      return { error: true, code: 403, msg: '仅管理员可移除教师' };
+    }
+
     const { error } = await this.client
       .from('class_members')
       .delete()

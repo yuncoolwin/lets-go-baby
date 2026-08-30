@@ -8,7 +8,9 @@ import {
   Param,
   Query,
   HttpCode,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { ClassesService } from './classes.service';
 import type { CreateClassDto, UpdateClassDto, ClassQueryDto } from './dto/create-class.dto';
 
@@ -18,8 +20,9 @@ export class ClassesController {
 
   @Post()
   @HttpCode(200)
-  async create(@Body() dto: CreateClassDto) {
-    const data = await this.classesService.create(dto);
+  async create(@Req() req: Request, @Body() dto: CreateClassDto) {
+    const userId = (req as any).user?.userId;
+    const data = await this.classesService.create(userId, dto);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -81,8 +84,9 @@ export class ClassesController {
 
   @Patch(':id')
   @HttpCode(200)
-  async update(@Param('id') id: string, @Body() dto: UpdateClassDto) {
-    const data = await this.classesService.update(id, dto);
+  async update(@Req() req: Request, @Param('id') id: string, @Body() dto: UpdateClassDto) {
+    const userId = (req as any).user?.userId;
+    const data = await this.classesService.update(userId, id, dto);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -91,8 +95,9 @@ export class ClassesController {
 
   @Delete(':id')
   @HttpCode(200)
-  async remove(@Param('id') id: string, @Body() body?: { operator_role_id?: string }) {
-    const data = await this.classesService.remove(id, body?.operator_role_id);
+  async remove(@Req() req: Request, @Param('id') id: string) {
+    const userId = (req as any).user?.userId;
+    const data = await this.classesService.remove(userId, id);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -102,10 +107,12 @@ export class ClassesController {
   @Post(':id/teachers')
   @HttpCode(200)
   async assignTeacher(
+    @Req() req: Request,
     @Param('id') id: string,
     @Body() body: { teacher_id: string; is_lead?: boolean },
   ) {
-    const data = await this.classesService.assignTeacher(id, body.teacher_id, body.is_lead || false);
+    const userId = (req as any).user?.userId;
+    const data = await this.classesService.assignTeacher(userId, id, body.teacher_id, body.is_lead || false);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -115,10 +122,12 @@ export class ClassesController {
   @Delete(':id/teachers/:tid')
   @HttpCode(200)
   async removeTeacher(
+    @Req() req: Request,
     @Param('id') id: string,
     @Param('tid') tid: string,
   ) {
-    const data = await this.classesService.removeTeacher(id, tid);
+    const userId = (req as any).user?.userId;
+    const data = await this.classesService.removeTeacher(userId, id, tid);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }

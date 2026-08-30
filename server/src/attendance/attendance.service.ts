@@ -1,21 +1,54 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { getShanghaiToday, isSaturday, isWeekend } from '@/utils/date.util';
+import { AuthzService } from '@/auth/authz.service';
 
 @Injectable()
 export class AttendanceService {
+  constructor(private readonly authz: AuthzService) {}
+
   private get client() {
     return getSupabaseClient();
   }
 
   /**
+   * 班级访问权限校验：
+   * - admin/superadmin：全部班级
+   * - teacher：仅自己带教的班级
+   * - parent/none：403
+   * @returns 无权限时返回错误文案，有权限返回 null
+   */
+  private async canAccessClass(userId: string, classId: string): Promise<string | null> {
+    const level = await this.authz.getRoleLevel(userId);
+    if (level === 'admin' || level === 'superadmin') return null;
+    if (level === 'teacher') {
+      const classIds = await this.authz.getTeacherClassIds(userId);
+      if (classId && classIds.includes(classId)) return null;
+      return '无权操作该班级考勤';
+    }
+    return '无权操作考勤';
+  }
+
+  /**
    * 批量获取某班级某天的点名记录（含完整幼儿信息和课程类型）
    * 每个幼儿可有多条记录（每个课程类型一条）
+   * @param userId 当前登录用户ID
    * @param classId 班级ID
    * @param date 可选，默认当天
    */
-  async findByClassAndDate(classId: string, date?: string) {
+  async findByClassAndDate(userId: string, classId: string, date?: string) {
     const targetDate = date || getShanghaiToday();
+
+    // 归属校验：教师仅能查看自己带教班级，家长无权查看
+    const level = await this.authz.getRoleLevel(userId);
+    if (level === 'admin' || level === 'superadmin') {
+      // 全部班级
+    } else if (level === 'teacher') {
+      const classIds = await this.authz.getTeacherClassIds(userId);
+      if (!classId || !classIds.includes(classId)) return [];
+    } else {
+      return [];
+    }
 
     // 查询班级在读幼儿
     const { data: children, error: childErr } = await this.client
@@ -110,10 +143,15 @@ export class AttendanceService {
   }
 
   /**
-   * 管理员端：按班级获取考勤分组概览
+   * 管理员端：按班级获取考勤分组概览（仅 admin/superadmin 可访问）
    */
-  async getAdminOverview(classId: string, date?: string) {
+  async getAdminOverview(userId: string, classId: string, date?: string) {
     if (!classId) return [];
+
+    const level = await this.authz.getRoleLevel(userId);
+    if (level !== 'admin' && level !== 'superadmin') {
+      return { error: true, code: 403, msg: '仅管理员可查看考勤概览' };
+    }
 
     const queryDate = date || getShanghaiToday();
     console.log(`[AdminOverview] classId=${classId}, date=${queryDate}`);
@@ -311,16 +349,18 @@ export class AttendanceService {
   /**
    * 记录/更新点名状态（upsert），按 child_id + date + course_type 唯一
    */
-  async upsert(dto: {
+  async upsert(userId: string, dto: {
     child_id: string;
     teacher_id: string;
     class_id: string;
     date: string;
     status: string;
     course_type?: string;
-    operator_user_id?: string;
-    operator_role_id?: string;
   }) {
+    // 归属校验：教师仅能操作自己带教的班级，admin/superadmin 全部班级，家长 403
+    const denied = await this.canAccessClass(userId, dto.class_id);
+    if (denied) return { error: true, code: 403, msg: denied };
+
     // 根据 child_id + course_type 匹配"进行中"的报读记录，取得 enrollment_id
     const courseType = dto.course_type || '';
     let enrollmentId: string | null = null;
@@ -362,8 +402,7 @@ export class AttendanceService {
 
     if (data) {
       const { error: logErr } = await this.client.from('audit_logs').insert({
-        user_id: dto.operator_user_id || null,
-        user_role_id: dto.operator_role_id || null,
+        user_id: userId,
         action: 'attendance_upsert',
         target_type: 'attendance',
         target_id: data.id,
@@ -442,12 +481,16 @@ export class AttendanceService {
   /**
    * 离园：将该幼儿当天该课程接送记录 check_out_time=now()、status 清空为正常
    */
-  async checkOut(dto: {
+  async checkOut(userId: string, dto: {
     childId: string;
     classId: string;
     date: string;
     courseType?: string;
   }) {
+    // 归属校验：教师仅能操作自己带教的班级
+    const denied = await this.canAccessClass(userId, dto.classId);
+    if (denied) return { error: true, code: 403, msg: denied };
+
     const courseType = dto.courseType || '';
     const { data: existing } = await this.client
       .from('attendance_records')
@@ -475,12 +518,15 @@ export class AttendanceService {
   }
 
   async clearByClassAndDate(
+    userId: string,
     classId: string,
     date: string,
     courseType?: string,
-    operatorUserId?: string,
-    operatorRoleId?: string,
   ) {
+    // 班级归属校验：教师仅能清空自己带教班级的考勤
+    const denied = await this.canAccessClass(userId, classId);
+    if (denied) return { error: true, code: 403, msg: denied };
+
     // 权限校验：仅允许清空服务器当天（上海时区）的考勤记录
     const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
     if (date !== todayStr) {
@@ -499,8 +545,7 @@ export class AttendanceService {
     if (error) throw error;
 
     const { error: logErr } = await this.client.from('audit_logs').insert({
-      user_id: operatorUserId || null,
-      user_role_id: operatorRoleId || null,
+      user_id: userId,
       action: 'attendance_clear',
       target_type: 'attendance',
       detail: { class_id: classId, date: date },

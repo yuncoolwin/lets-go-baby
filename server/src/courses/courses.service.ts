@@ -1,8 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { AuthzService } from '@/auth/authz.service';
 
 @Injectable()
 export class CoursesService {
+  constructor(private readonly authz: AuthzService) {}
+
   private supabase = getSupabaseClient();
 
   async findAll(weekday?: string) {
@@ -30,7 +33,13 @@ export class CoursesService {
     return data || [];
   }
 
-  async create(body: { name: string; class_id?: string; duration_options?: string[]; date_calc_rule?: string; status?: string }) {
+  async create(userId: string, body: { name: string; class_id?: string; duration_options?: string[]; date_calc_rule?: string; status?: string }) {
+    // 权限校验：仅管理员及以上可创建课程
+    const level = await this.authz.getRoleLevel(userId);
+    if (!['admin', 'superadmin'].includes(level)) {
+      throw new ForbiddenException('仅管理员可创建课程');
+    }
+
     const { data, error } = await this.supabase
       .from('courses')
       .insert({
@@ -46,7 +55,13 @@ export class CoursesService {
     return data;
   }
 
-  async update(id: string, body: any) {
+  async update(userId: string, id: string, body: any) {
+    // 权限校验：仅管理员及以上可更新课程
+    const level = await this.authz.getRoleLevel(userId);
+    if (!['admin', 'superadmin'].includes(level)) {
+      throw new ForbiddenException('仅管理员可更新课程');
+    }
+
     // 如果尝试停用，检查是否有进行中的报读记录
     if (body.status === '停用') {
       const { data: activeEnrollments, error: queryError } = await this.supabase
@@ -79,18 +94,10 @@ export class CoursesService {
     return data;
   }
 
-  async remove(id: string, operatorUserId?: string, operatorRoleId?: string) {
+  async remove(userId: string, id: string) {
     // 权限校验：仅超管可删除课程
-    let operatorRoleType: string | null = null;
-    if (operatorRoleId) {
-      const { data: roleData } = await this.supabase
-        .from('user_roles')
-        .select('id, role_type')
-        .eq('id', operatorRoleId)
-        .maybeSingle();
-      operatorRoleType = roleData?.role_type || null;
-    }
-    if (operatorRoleType !== 'superadmin') {
+    const level = await this.authz.getRoleLevel(userId);
+    if (level !== 'superadmin') {
       return { success: false, code: 403, message: '仅超级管理员可删除课程' };
     }
 
@@ -115,8 +122,7 @@ export class CoursesService {
     if (error) throw new Error(error.message);
 
     const { error: logErr } = await this.supabase.from('audit_logs').insert({
-      user_id: operatorUserId || null,
-      user_role_id: operatorRoleId || null,
+      user_id: userId || null,
       action: 'course_delete',
       target_type: 'course',
       target_id: id,
