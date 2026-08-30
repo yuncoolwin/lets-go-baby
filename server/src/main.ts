@@ -2,8 +2,29 @@ import { NestFactory } from '@nestjs/core';
 import { Reflector } from '@nestjs/core';
 import { AppModule } from '@/app.module';
 import * as express from 'express';
+import * as path from 'path';
 import { HttpStatusInterceptor } from '@/interceptors/http-status.interceptor';
 import { AuthGuard } from '@/auth/auth.guard';
+
+// nest 进程 cwd 为 server/，dotenv 默认读 server/.env（不存在），项目根 .env 的配置
+// （如 MOCK_WECHAT/CORS_ORIGINS）默认进不了 process.env。此处统一兜底加载：
+// 遍历候选路径找到项目根 .env，仅注入进程尚不存在的变量（部署环境变量优先，override=false）。
+const ENV_CANDIDATE_PATHS = [
+  path.resolve(process.cwd(), '../.env'),
+  path.resolve(__dirname, '../.env'),
+  path.resolve(__dirname, '../../.env'),
+  path.resolve(__dirname, '../../../.env')
+];
+for (const envPath of ENV_CANDIDATE_PATHS) {
+  try {
+    if (require('fs').existsSync(envPath)) {
+      require('dotenv').config({ path: envPath, override: false });
+      break;
+    }
+  } catch {
+    // 忽略单个候选路径的读取异常，继续尝试下一个
+  }
+}
 
 function parsePort(): number {
   const args = process.argv.slice(2);
