@@ -214,27 +214,34 @@ export const useAppStore = create<AppStore>()(
     const url = `/api/auth/wx-login?code=${code}`
     console.log('[Auth] wxLogin request:', { url, code })
 
-    // 10秒超时处理
+    // 15秒超时处理
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('登录超时，请检查网络后重试')), 10000)
+      setTimeout(() => reject(new Error('登录超时，请检查网络后重试')), 15000)
     })
 
     try {
       const res = await Promise.race([
-        Network.request({ url, method: 'GET', timeout: 10000 }),
+        Network.request({ url, method: 'GET', timeout: 15000 }),
         timeoutPromise,
       ])
-      console.log('[Auth] wxLogin response:', { statusCode: res.statusCode, data: res.data })
+      console.log('[Auth] wxLogin response:', JSON.stringify(res).substring(0, 300))
 
       // 检查 HTTP 状态码
       if (res.statusCode !== 200) {
-        console.error('[Auth] wxLogin bad status:', res.statusCode)
+        console.error('[Auth] wxLogin bad status:', res.statusCode, res.data)
         set({ isLoading: false })
         Taro.showToast({ title: `登录失败(${res.statusCode})`, icon: 'none' })
         return { needRoleSelection: false, targetRole: null, hasBoundChildren: false, error: true }
       }
 
       const data = res.data?.data
+      console.log('[Auth] wxLogin data:', JSON.stringify(data).substring(0, 200))
+      if (!data) {
+        console.error('[Auth] wxLogin no data in response:', res.data)
+        set({ isLoading: false })
+        Taro.showToast({ title: '登录失败：响应数据为空', icon: 'none' })
+        return { needRoleSelection: false, targetRole: null, hasBoundChildren: false, error: true }
+      }
       if (data) {
         const roles = (data.roles || []) as UserRole[]
         const children = (data.children || []) as ChildInfo[]
