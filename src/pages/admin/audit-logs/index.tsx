@@ -177,7 +177,7 @@ export default function AuditLogsPage() {
 
   const handleDateChange = (dateStr: string) => {
     setShowCalendar(false)
-    if (!dateStr || dateStr === selectedDate) return
+    if (dateStr === selectedDate) return
     setSelectedDate(dateStr)
     setPage(1)
     setLoading(true)
@@ -279,6 +279,7 @@ export default function AuditLogsPage() {
         disabled={(date) => !logDates.includes(format(date, 'yyyy-MM-dd'))}
         onChange={handleDateChange}
         onClose={() => setShowCalendar(false)}
+        showAllDates
       />
     </View>
   )
