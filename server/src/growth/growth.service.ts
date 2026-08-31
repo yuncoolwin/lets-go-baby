@@ -244,6 +244,31 @@ export class GrowthService {
     return { url: signed?.signedUrl || null };
   }
 
+  /** 写审计日志：失败仅告警，不阻断主流程 */
+  private async logAudit(params: {
+    userId: string | null;
+    action: string;
+    targetType: string;
+    targetId?: string | null;
+    name?: string | null;
+    level?: string;
+  }) {
+    try {
+      const { error } = await this.client.from('audit_logs').insert({
+        user_id: params.userId || null,
+        action: params.action,
+        target_type: params.targetType,
+        target_id: params.targetId || null,
+        detail: { name: params.name || null },
+        level: params.level || 'info',
+        created_at: new Date().toISOString(),
+      });
+      if (error) console.warn('[AuditLog] 写入失败:', error.message);
+    } catch (e) {
+      console.warn('[AuditLog] 写入失败:', (e as Error)?.message);
+    }
+  }
+
   async create(userId: string, dto: { child_id: string; title: string; content?: string; photo_urls?: string[]; record_date?: string; course_name?: string }) {
     if (!dto.child_id || !dto.title) {
       return { error: true, code: 400, msg: 'child_id/title 不能为空' };
@@ -293,6 +318,7 @@ export class GrowthService {
       .single();
 
     if (error) return { error: true, code: 500, msg: `创建失败: ${error.message}` };
+    await this.logAudit({ userId, action: 'growth_create', targetType: 'growth', targetId: record?.id || null, name: record?.title || null });
     return record;
   }
 
@@ -427,6 +453,7 @@ export class GrowthService {
       .select()
       .single();
     if (error) return { error: true, code: 500, msg: `更新失败: ${error.message}` };
+    await this.logAudit({ userId, action: 'growth_update', targetType: 'growth', targetId: id, name: updated?.title || null });
     return updated;
   }
 
@@ -461,6 +488,7 @@ export class GrowthService {
 
     const { error } = await this.client.from('growth_records').delete().eq('id', id);
     if (error) return { error: true, code: 500, msg: `删除失败: ${error.message}` };
+    await this.logAudit({ userId, action: 'growth_delete', targetType: 'growth', targetId: id, name: existing?.title || null, level: 'warn' });
     return { id };
   }
 }

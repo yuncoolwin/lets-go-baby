@@ -18,7 +18,32 @@ export class HolidaysService {
     return { code: 200, msg: 'success', data: data || [] };
   }
 
-  async create(body: { name: string; type: string; target_id?: string; start_date: string; end_date: string }) {
+  /** 写审计日志：失败仅告警，不阻断主流程 */
+  private async logAudit(params: {
+    userId: string | null;
+    action: string;
+    targetType: string;
+    targetId?: string | null;
+    name?: string | null;
+    level?: string;
+  }) {
+    try {
+      const { error } = await this.supabase.from('audit_logs').insert({
+        user_id: params.userId || null,
+        action: params.action,
+        target_type: params.targetType,
+        target_id: params.targetId || null,
+        detail: { name: params.name || null },
+        level: params.level || 'info',
+        created_at: new Date().toISOString(),
+      });
+      if (error) console.warn('[AuditLog] 写入失败:', error.message);
+    } catch (e) {
+      console.warn('[AuditLog] 写入失败:', (e as Error)?.message);
+    }
+  }
+
+  async create(userId: string | null, body: { name: string; type: string; target_id?: string; start_date: string; end_date: string }) {
     const { data, error } = await this.supabase
       .from('holidays')
       .insert({
@@ -35,10 +60,12 @@ export class HolidaysService {
     // 触发受影响报读的顺延日期重算
     await this.recalcAffectedEnrollments(data);
 
+    await this.logAudit({ userId, action: 'holiday_create', targetType: 'holiday', targetId: data?.id || null, name: data?.name || null });
+
     return { code: 200, msg: 'success', data };
   }
 
-  async update(id: string, body: { name?: string; type?: string; target_id?: string; start_date?: string; end_date?: string }) {
+  async update(userId: string | null, id: string, body: { name?: string; type?: string; target_id?: string; start_date?: string; end_date?: string }) {
     // 先获取旧数据
     const { data: oldData } = await this.supabase
       .from('holidays')
@@ -69,21 +96,23 @@ export class HolidaysService {
     if (oldData) await this.recalcAffectedEnrollments(oldData);
     await this.recalcAffectedEnrollments(data);
 
+    await this.logAudit({ userId, action: 'holiday_update', targetType: 'holiday', targetId: id, name: data?.name || oldData?.name || null });
+
     return { code: 200, msg: 'success', data };
   }
 
-  async remove(id: string, operatorRoleId?: string) {
-    // 权限校验：仅超管可删除假期
-    let operatorRoleType: string | null = null;
-    if (operatorRoleId) {
-      const { data: roleData } = await this.supabase
+  async remove(userId: string | null, id: string) {
+    // 权限校验：仅超管可删除假期（从 JWT 身份推导，不信任客户端传参）
+    if (userId) {
+      const { data: roles } = await this.supabase
         .from('user_roles')
-        .select('id, role_type')
-        .eq('id', operatorRoleId)
-        .maybeSingle();
-      operatorRoleType = roleData?.role_type || null;
-    }
-    if (operatorRoleType !== 'superadmin') {
+        .select('role_type, status')
+        .eq('user_id', userId);
+      const isSuperadmin = (roles || []).some((r) => r.role_type === 'superadmin' && r.status === 'active');
+      if (!isSuperadmin) {
+        return { error: true, code: 403, msg: '仅超级管理员可删除假期' };
+      }
+    } else {
       return { error: true, code: 403, msg: '仅超级管理员可删除假期' };
     }
 
@@ -99,6 +128,8 @@ export class HolidaysService {
       .delete()
       .eq('id', id);
     if (error) throw error;
+
+    await this.logAudit({ userId, action: 'holiday_delete', targetType: 'holiday', targetId: id, name: oldData?.name || null, level: 'warn' });
 
     // 触发受影响报读的顺延日期重算
     if (oldData) await this.recalcAffectedEnrollments(oldData);

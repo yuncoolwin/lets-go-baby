@@ -1018,6 +1018,7 @@ export class AdminService {
     pageSize: number,
     action?: string,
     targetType?: string,
+    date?: string,
   ) {
     const isSuperAdmin = await this.getActiveSuperAdmin(operatorUserId);
     if (!isSuperAdmin) {
@@ -1030,6 +1031,12 @@ export class AdminService {
 
     if (action) query = query.eq('action', action);
     if (targetType) query = query.eq('target_type', targetType);
+    // 按天过滤：date 为北京时间 YYYY-MM-DD，audit_logs.created_at 以 UTC 口径存储
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      const dayStart = new Date(`${date}T00:00:00+08:00`).toISOString();
+      const dayEnd = new Date(`${date}T23:59:59.999+08:00`).toISOString();
+      query = query.gte('created_at', dayStart).lt('created_at', dayEnd);
+    }
 
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
@@ -1066,5 +1073,33 @@ export class AdminService {
       msg: 'success',
       data: { list: enriched, total: count || 0 },
     };
+  }
+
+  /**
+   * 审计日志涉及的全部日期（北京时间 YYYY-MM-DD，去重升序），供前端日历置灰
+   */
+  async getAuditLogDates(operatorUserId: string) {
+    const isSuperAdmin = await this.getActiveSuperAdmin(operatorUserId);
+    if (!isSuperAdmin) {
+      return { code: 403, msg: '无权限', data: null };
+    }
+
+    const { data, error } = await this.client
+      .from('audit_logs')
+      .select('created_at');
+    if (error) throw new Error(`查询日志日期失败: ${error.message}`);
+
+    const dates = new Set<string>();
+    for (const row of (data || []) as Array<{ created_at?: string | null }>) {
+      const raw = row?.created_at;
+      if (!raw) continue;
+      // created_at 为 timestamp without time zone，库内值为 UTC 口径；补 Z 解析后 +8h 取北京时间日期
+      const normalized = /Z$|[+-]\d{2}:?\d{2}$/.test(raw) ? raw : `${raw.replace(' ', 'T')}Z`;
+      const d = new Date(normalized);
+      if (Number.isNaN(d.getTime())) continue;
+      dates.add(new Date(d.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10));
+    }
+
+    return { code: 200, msg: 'success', data: Array.from(dates).sort() };
   }
 }

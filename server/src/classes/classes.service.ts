@@ -14,6 +14,31 @@ export class ClassesService {
   /**
    * 创建班级
    */
+  /** 写审计日志：失败仅告警，不阻断主流程 */
+  private async logAudit(params: {
+    userId: string | null;
+    action: string;
+    targetType: string;
+    targetId?: string | null;
+    name?: string | null;
+    level?: string;
+  }) {
+    try {
+      const { error } = await this.client.from('audit_logs').insert({
+        user_id: params.userId || null,
+        action: params.action,
+        target_type: params.targetType,
+        target_id: params.targetId || null,
+        detail: { name: params.name || null },
+        level: params.level || 'info',
+        created_at: new Date().toISOString(),
+      });
+      if (error) console.warn('[AuditLog] 写入失败:', error.message);
+    } catch (e) {
+      console.warn('[AuditLog] 写入失败:', (e as Error)?.message);
+    }
+  }
+
   async create(userId: string, dto: CreateClassDto) {
     // 权限校验：仅管理员及以上可创建班级
     const level = await this.authz.getRoleLevel(userId);
@@ -62,6 +87,7 @@ export class ClassesService {
     if (error) {
       return { error: true, code: 500, msg: `创建失败: ${error.message}` };
     }
+    await this.logAudit({ userId, action: 'class_create', targetType: 'class', targetId: data?.id || null, name: data?.name || null });
     return data;
   }
 
@@ -241,6 +267,7 @@ export class ClassesService {
     if (error) {
       return { error: true, code: 500, msg: `更新失败: ${error.message}` };
     }
+    await this.logAudit({ userId, action: 'class_update', targetType: 'class', targetId: id, name: data?.name || null });
     return data;
   }
 
@@ -254,6 +281,12 @@ export class ClassesService {
       return { error: true, code: 403, msg: '仅超级管理员可删除班级' };
     }
 
+    const { data: oldRow } = await this.client
+      .from('classes')
+      .select('name')
+      .eq('id', id)
+      .maybeSingle();
+
     const { data, error } = await this.client
       .from('classes')
       .update({ status: 'archived' })
@@ -264,6 +297,7 @@ export class ClassesService {
     if (error) {
       return { error: true, code: 500, msg: `删除失败: ${error.message}` };
     }
+    await this.logAudit({ userId, action: 'class_delete', targetType: 'class', targetId: id, name: oldRow?.name || null, level: 'warn' });
     return data;
   }
 

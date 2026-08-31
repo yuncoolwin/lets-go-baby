@@ -33,6 +33,31 @@ export class CoursesService {
     return data || [];
   }
 
+  /** 写审计日志：失败仅告警，不阻断主流程 */
+  private async logAudit(params: {
+    userId: string | null;
+    action: string;
+    targetType: string;
+    targetId?: string | null;
+    name?: string | null;
+    level?: string;
+  }) {
+    try {
+      const { error } = await this.supabase.from('audit_logs').insert({
+        user_id: params.userId || null,
+        action: params.action,
+        target_type: params.targetType,
+        target_id: params.targetId || null,
+        detail: { name: params.name || null },
+        level: params.level || 'info',
+        created_at: new Date().toISOString(),
+      });
+      if (error) console.warn('[AuditLog] 写入失败:', error.message);
+    } catch (e) {
+      console.warn('[AuditLog] 写入失败:', (e as Error)?.message);
+    }
+  }
+
   async create(userId: string, body: { name: string; class_id?: string; duration_options?: string[]; date_calc_rule?: string; status?: string }) {
     // 权限校验：仅管理员及以上可创建课程
     const level = await this.authz.getRoleLevel(userId);
@@ -52,6 +77,7 @@ export class CoursesService {
       .select()
       .single();
     if (error) throw new Error(error.message);
+    await this.logAudit({ userId, action: 'course_create', targetType: 'course', targetId: data?.id || null, name: data?.name || null });
     return data;
   }
 
@@ -91,6 +117,7 @@ export class CoursesService {
       .select()
       .single();
     if (error) throw new Error(error.message);
+    await this.logAudit({ userId, action: 'course_update', targetType: 'course', targetId: id, name: data?.name || null });
     return data;
   }
 

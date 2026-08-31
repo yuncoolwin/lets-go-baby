@@ -157,6 +157,7 @@ export class AdminController {
     @Query('page_size') pageSize?: string,
     @Query('action') action?: string,
     @Query('target_type') targetType?: string,
+    @Query('date') date?: string,
   ) {
     const userId = (req as any).user?.userId;
     return this.adminService.getAuditLogs(
@@ -165,6 +166,14 @@ export class AdminController {
       pageSize ? parseInt(pageSize, 10) || 20 : 20,
       action,
       targetType,
+      date,
     );
+  }
+
+  @Get('audit-logs/dates')
+  @HttpCode(200)
+  async getAuditLogDates(@Req() req: Request) {
+    const userId = (req as any).user?.userId;
+    return this.adminService.getAuditLogDates(userId);
   }
 }

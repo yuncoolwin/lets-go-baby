@@ -220,6 +220,31 @@ export class NotificationsService {
   /**
    * 创建通知：作者身份从 JWT userId 推导，客户端传值无效
    */
+  /** 写审计日志：失败仅告警，不阻断主流程 */
+  private async logAudit(params: {
+    userId: string | null;
+    action: string;
+    targetType: string;
+    targetId?: string | null;
+    name?: string | null;
+    level?: string;
+  }) {
+    try {
+      const { error } = await this.client.from('audit_logs').insert({
+        user_id: params.userId || null,
+        action: params.action,
+        target_type: params.targetType,
+        target_id: params.targetId || null,
+        detail: { name: params.name || null },
+        level: params.level || 'info',
+        created_at: new Date().toISOString(),
+      });
+      if (error) console.warn('[AuditLog] 写入失败:', error.message);
+    } catch (e) {
+      console.warn('[AuditLog] 写入失败:', (e as Error)?.message);
+    }
+  }
+
   async create(
     userId: string,
     dto: {
@@ -274,6 +299,8 @@ export class NotificationsService {
     if (error) {
       return { error: true, code: 500, msg: `创建失败: ${error.message}` };
     }
+
+    await this.logAudit({ userId, action: 'notification_create', targetType: 'notification', targetId: notification?.id || null, name: notification?.title || null });
 
     // 发布时展开接收人
     if (status === 'published') {
@@ -711,6 +738,8 @@ export class NotificationsService {
 
     if (error) return { error: true, code: 500, msg: `更新失败: ${error.message}` };
 
+    await this.logAudit({ userId, action: 'notification_update', targetType: 'notification', targetId: id, name: updated?.title || null });
+
     // 草稿转发布时重建 recipients
     if (becomingPublished) {
       await this.clearRecipients(id);
@@ -728,7 +757,7 @@ export class NotificationsService {
   async remove(userId: string, id: string) {
     const { data: existing } = await this.client
       .from('notifications')
-      .select('status, author_id')
+      .select('status, author_id, title')
       .eq('id', id)
       .maybeSingle();
 
@@ -746,6 +775,8 @@ export class NotificationsService {
     await this.client.from('notification_recipients').delete().eq('notification_id', id);
     const { error } = await this.client.from('notifications').delete().eq('id', id);
     if (error) return { error: true, code: 500, msg: `删除失败: ${error.message}` };
+
+    await this.logAudit({ userId, action: 'notification_delete', targetType: 'notification', targetId: id, name: existing?.title || null, level: 'warn' });
 
     return { success: true };
   }

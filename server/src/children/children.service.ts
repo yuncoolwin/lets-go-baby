@@ -38,6 +38,31 @@ export class ChildrenService {
   /**
    * 创建幼儿档案（仅管理员及以上）
    */
+  /** 写审计日志：失败仅告警，不阻断主流程 */
+  private async logAudit(params: {
+    userId: string | null;
+    action: string;
+    targetType: string;
+    targetId?: string | null;
+    name?: string | null;
+    level?: string;
+  }) {
+    try {
+      const { error } = await this.client.from('audit_logs').insert({
+        user_id: params.userId || null,
+        action: params.action,
+        target_type: params.targetType,
+        target_id: params.targetId || null,
+        detail: { name: params.name || null },
+        level: params.level || 'info',
+        created_at: new Date().toISOString(),
+      });
+      if (error) console.warn('[AuditLog] 写入失败:', error.message);
+    } catch (e) {
+      console.warn('[AuditLog] 写入失败:', (e as Error)?.message);
+    }
+  }
+
   async create(userId: string, dto: {
     name: string;
     nickname?: string;
@@ -98,6 +123,7 @@ export class ChildrenService {
     if (error) {
       return { error: true, code: 500, msg: `创建失败: ${error.message}` };
     }
+    await this.logAudit({ userId, action: 'child_create', targetType: 'child', targetId: data?.id || null, name: data?.name || null });
     return data;
   }
 
@@ -497,6 +523,7 @@ export class ChildrenService {
     if (error) {
       return { error: true, code: 500, msg: `更新失败: ${error.message}` };
     }
+    await this.logAudit({ userId, action: 'child_update', targetType: 'child', targetId: id, name: data?.name || null });
     return data;
   }
 
