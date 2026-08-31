@@ -125,7 +125,7 @@ export default function LoginPage() {
       {/* 微信授权登录（右上角小按钮） */}
       <View
         className="flex items-center"
-        style={{ position: 'fixed', top: 16, right: 16, zIndex: 10 }}
+        style={{ position: 'fixed', top: 60, right: 16, zIndex: 1001 }}
       >
         <Button
           variant="ghost"
