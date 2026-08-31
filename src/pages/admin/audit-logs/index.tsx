@@ -34,6 +34,20 @@ const TARGET_TYPE_LABELS: Record<string, string> = {
   user_role: '角色',
 }
 
+// 模块标签配色：10 类各配不同颜色（不用 orange 系，与「重要」标签的橙色区分）
+const TYPE_COLORS: Record<string, string> = {
+  attendance: 'bg-blue-100 text-blue-700',
+  class: 'bg-indigo-100 text-indigo-700',
+  child: 'bg-pink-100 text-pink-700',
+  course: 'bg-purple-100 text-purple-700',
+  holiday: 'bg-amber-100 text-amber-700',
+  notification: 'bg-cyan-100 text-cyan-700',
+  growth: 'bg-green-100 text-green-700',
+  binding_request: 'bg-teal-100 text-teal-700',
+  user: 'bg-gray-100 text-gray-700',
+  user_role: 'bg-rose-100 text-rose-700',
+}
+
 const ACTION_LABELS: Record<string, string> = {
   attendance_upsert: '更新了考勤',
   attendance_clear: '清除了当天考勤',
@@ -241,7 +255,7 @@ export default function AuditLogsPage() {
               <CardContent className="p-4">
                 <View className="flex items-start justify-between">
                   <View className="flex flex-wrap items-center gap-1.5 flex-1 mr-2">
-                    <Badge className="bg-blue-100 text-blue-700 border-transparent shrink-0">
+                    <Badge className={`${TYPE_COLORS[log.target_type as string] || 'bg-gray-100 text-gray-700'} border-transparent shrink-0`}>
                       {TARGET_TYPE_LABELS[log.target_type as string] || log.target_type || '其他'}
                     </Badge>
                     <Text className="text-xs text-gray-400 shrink-0">
