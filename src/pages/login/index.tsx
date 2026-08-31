@@ -122,6 +122,21 @@ export default function LoginPage() {
 
   return (
     <View className="min-h-screen bg-gradient-to-b from-orange-50 to-white flex flex-col items-center justify-center px-6">
+      {/* 微信授权登录（右上角小按钮） */}
+      <View
+        className="flex items-center"
+        style={{ position: 'fixed', top: 16, right: 16, zIndex: 10 }}
+      >
+        <Button
+          variant="ghost"
+          className="h-8 px-2"
+          onClick={handleWxLogin}
+          disabled={isLoading}
+        >
+          <Text className="text-xs text-gray-500">微信授权登录</Text>
+        </Button>
+      </View>
+
       {/* Logo 区域 */}
       <View className="mb-12 flex flex-col items-center">
         <Image
@@ -135,18 +150,11 @@ export default function LoginPage() {
       <View className="w-full max-w-sm space-y-4">
         <Button
           className="w-full h-12 rounded-xl bg-primary text-white text-base font-medium"
-          onClick={handleWxLogin}
-          disabled={isLoading}
-        >
-          {isLoading ? '登录中...' : '微信授权登录'}
-        </Button>
-        <Button
-          className="w-full h-12 rounded-xl bg-white text-gray-700 text-base font-medium border border-gray-200"
           openType="getPhoneNumber"
           onGetPhoneNumber={handlePhoneLogin}
           disabled={isLoading}
         >
-          手机号一键登录
+          {isLoading ? '登录中...' : '手机号一键登录'}
         </Button>
       </View>
 
