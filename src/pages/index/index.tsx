@@ -152,6 +152,8 @@ export default function IndexPage() {
   const [parentNapInfoOpen, setParentNapInfoOpen] = useState(false)
   const [parentMoodInfoOpen, setParentMoodInfoOpen] = useState(false)
   const currentChild = children[currentChildIndex] || null
+  const todayNow = new Date()
+  const isBirthdayToday = !!currentChild?.birth_date && parseInt(currentChild.birth_date.slice(5, 7), 10) === todayNow.getMonth() + 1 && parseInt(currentChild.birth_date.slice(8, 10), 10) === todayNow.getDate()
 
   // 等待 store 从持久化中恢复
   useEffect(() => {
@@ -472,6 +474,7 @@ export default function IndexPage() {
                   {currentChild?.birth_date && (
                     <Text className="block text-xs text-muted-foreground mt-1">
                       {formatAge(currentChild.birth_date)}
+                      {isBirthdayToday && <Text className="bg-[#FFB800] text-white text-[10px] rounded-full px-1 ml-1">生日快乐！</Text>}
                     </Text>
                   )}
                   {/* 过敏情况 - 紧跟年龄下方 */}
@@ -798,6 +801,25 @@ export default function IndexPage() {
                                   expiryTag = { text: '本月到期', className: 'bg-[#FFE4E1] text-[#D44A5C] text-[10px] rounded-full px-1 ml-1' }
                                 }
                               }
+                              // 生日标签
+                              let birthdayTag: { text: string; className: string } | null = null
+                              if (child.birth_date) {
+                                const month = parseInt(child.birth_date.slice(5, 7), 10)
+                                const day = parseInt(child.birth_date.slice(8, 10), 10)
+                                const today = new Date()
+                                today.setHours(0, 0, 0, 0)
+                                const birthThisYear = new Date(today.getFullYear(), month - 1, day)
+                                const birthNextYear = new Date(today.getFullYear() + 1, month - 1, day)
+                                const nextBirth = birthThisYear.getTime() < today.getTime() ? birthNextYear : birthThisYear
+                                const diffDays = Math.ceil((nextBirth.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+                                if (diffDays === 0) {
+                                  birthdayTag = { text: '生日快乐！', className: 'bg-[#FFB800] text-white text-[10px] rounded-full px-1 ml-1' }
+                                } else if (diffDays >= 1 && diffDays <= 7) {
+                                  birthdayTag = { text: '即将生日', className: 'bg-[#FF4D8F] text-white text-[10px] rounded-full px-1 ml-1' }
+                                } else if (nextBirth.getMonth() === today.getMonth() && nextBirth.getFullYear() === today.getFullYear()) {
+                                  birthdayTag = { text: '本月生日', className: 'bg-[#FFF0F6] text-[#FF4D8F] text-[10px] rounded-full px-1 ml-1' }
+                                }
+                              }
                               const childFeedback = childFeedbacks[child.id + '_' + (group.group_id || '')]
                               const hasMeal = childFeedback?.meal_status && parseInt(childFeedback.meal_status, 10) > 0
                               const hasSleep = childFeedback?.sleep_status && parseInt(childFeedback.sleep_status, 10) > 0
@@ -827,6 +849,7 @@ export default function IndexPage() {
                                       {child.nickname ? <Text className="text-xs text-[#999]">（{child.nickname}）</Text> : null}
                                       <Text className="text-xs text-muted-foreground ml-1">
                                         {child.gender === 'male' ? '男' : '女'} {formatAge(child.birth_date)}
+                                        {birthdayTag && <Text className={birthdayTag.className}>{birthdayTag.text}</Text>}
                                       </Text>
                                     </Text>
                                     {hasAnyStars && (
