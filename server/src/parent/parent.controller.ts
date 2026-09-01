@@ -8,25 +8,25 @@ export class ParentController {
 
   @Get('baby-status')
   @HttpCode(200)
-  async getBabyStatus(@Req() req: Request) {
+  async getBabyStatus(@Req() req: Request, @Query('child_id') agentChildId?: string) {
     const userId = (req as any).user?.userId;
-    const data = await this.parentService.getBabyStatus(userId);
+    const data = await this.parentService.getBabyStatus(userId, agentChildId);
     return { code: 200, msg: 'success', data };
   }
 
   @Get('feedbacks')
   @HttpCode(200)
-  async getFeedbacks(@Req() req: Request, @Query('feedback_date') feedbackDate?: string) {
+  async getFeedbacks(@Req() req: Request, @Query('feedback_date') feedbackDate?: string, @Query('child_id') agentChildId?: string) {
     const userId = (req as any).user?.userId;
-    const data = await this.parentService.getFeedbacks(userId, feedbackDate);
+    const data = await this.parentService.getFeedbacks(userId, feedbackDate, agentChildId);
     return { code: 200, msg: 'success', data };
   }
 
   @Get('attendance')
   @HttpCode(200)
-  async getAttendance(@Req() req: Request, @Query('course_type') courseType?: string) {
+  async getAttendance(@Req() req: Request, @Query('course_type') courseType?: string, @Query('child_id') agentChildId?: string) {
     const userId = (req as any).user?.userId;
-    const data = await this.parentService.getAttendance(userId, courseType);
+    const data = await this.parentService.getAttendance(userId, courseType, agentChildId);
     return { code: 200, msg: 'success', data };
   }
 
@@ -34,7 +34,7 @@ export class ParentController {
   @HttpCode(200)
   async getGrowthRecords(@Req() req: Request, @Query('child_id') childId?: string) {
     const userId = (req as any).user?.userId;
-    const data: any = await this.parentService.getGrowthRecords(userId, childId);
+    const data: any = await this.parentService.getGrowthRecords(userId, childId, childId);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -43,17 +43,17 @@ export class ParentController {
 
   @Post('growth-records/read')
   @HttpCode(200)
-  async markGrowthRead(@Req() req: Request) {
+  async markGrowthRead(@Req() req: Request, @Query('child_id') agentChildId?: string) {
     const userId = (req as any).user?.userId;
-    const data = await this.parentService.markGrowthRead(userId);
+    const data = await this.parentService.markGrowthRead(userId, agentChildId);
     return { code: 200, msg: 'success', data };
   }
 
   @Get('growth-records/unread-count')
   @HttpCode(200)
-  async getGrowthUnreadCount(@Req() req: Request) {
+  async getGrowthUnreadCount(@Req() req: Request, @Query('child_id') agentChildId?: string) {
     const userId = (req as any).user?.userId;
-    const data = await this.parentService.getGrowthUnreadCount(userId);
+    const data = await this.parentService.getGrowthUnreadCount(userId, agentChildId);
     return { code: 200, msg: 'success', data };
   }
 
@@ -67,9 +67,9 @@ export class ParentController {
 
   @Get('child/:id')
   @HttpCode(200)
-  async getChildById(@Req() req: Request, @Param('id') id: string) {
+  async getChildById(@Req() req: Request, @Param('id') id: string, @Query('child_id') agentChildId?: string) {
     const userId = (req as any).user?.userId;
-    const data: any = await this.parentService.getChildById(userId, id);
+    const data: any = await this.parentService.getChildById(userId, id, agentChildId);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -102,7 +102,7 @@ export class ParentController {
     @Query('feedback_date') feedbackDate: string,
   ) {
     const userId = (req as any).user?.userId;
-    const data: any = await this.parentService.getDailyFeedbacks(userId, childId, feedbackDate);
+    const data: any = await this.parentService.getDailyFeedbacks(userId, childId, feedbackDate, childId);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }

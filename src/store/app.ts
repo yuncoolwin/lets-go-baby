@@ -50,6 +50,9 @@ interface AppStore {
   children: ChildInfo[]
   currentChildIndex: number
 
+  // 代理家长模式：超管以某幼儿身份进入家长端时为其幼儿 id，否则为 null
+  agentChildId: string | null
+
   // 登录状态
   isLoggedIn: boolean
   isLoading: boolean
@@ -86,6 +89,8 @@ interface AppStore {
   }>
   fetchUserInfo: () => Promise<void>
   selectRole: (roleType: string) => Promise<void>
+  enterAgentParentMode: (child: ChildInfo) => void
+  exitAgentParentMode: () => Promise<void>
 }
 
 // Taro Storage 适配器（替代 localStorage，兼容小程序环境）
@@ -121,6 +126,10 @@ const taroStorage = {
   },
 }
 
+// 代理家长模式期间保存的真实角色（模块级变量，不持久化）
+let agentSavedRole: UserRole | null = null
+let agentSavedRoleIndex = 0
+
 export const useAppStore = create<AppStore>()(
   persist(
     (set, get) => ({
@@ -135,6 +144,7 @@ export const useAppStore = create<AppStore>()(
   currentTabPath: '',
   children: [],
   currentChildIndex: 0,
+  agentChildId: null,
   isLoggedIn: false,
   isLoading: false,
   needRoleSelection: false,
@@ -400,6 +410,41 @@ export const useAppStore = create<AppStore>()(
       console.error('[Auth] fetchUserInfo error:', err)
       set({ isLoading: false })
     }
+  },
+
+  enterAgentParentMode: (child) => {
+    const { userId, currentRole, currentRoleIndex } = get()
+    // 保存真实角色，退出代理时还原
+    agentSavedRole = currentRole
+    agentSavedRoleIndex = currentRoleIndex
+    const fakeParentRole: UserRole = {
+      id: `agent_${child.id}`,
+      user_id: userId || '',
+      role_type: 'parent',
+      real_name: null,
+      status: 'active',
+    }
+    set({
+      children: [child],
+      currentChildIndex: 0,
+      currentRole: fakeParentRole,
+      currentRoleIndex: 0,
+      agentChildId: child.id,
+    })
+  },
+
+  exitAgentParentMode: async () => {
+    const { agentChildId } = get()
+    if (!agentChildId) return
+    set({
+      agentChildId: null,
+      currentRole: agentSavedRole,
+      currentRoleIndex: agentSavedRoleIndex,
+    })
+    agentSavedRole = null
+    agentSavedRoleIndex = 0
+    // 刷新真实 children 与 roles
+    await get().fetchUserInfo()
   },
 
   selectRole: async (roleType) => {

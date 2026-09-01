@@ -11,6 +11,7 @@ import { Search } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge } from '@/utils/format'
 import { getNameInitial } from '@/utils/helpers'
+import { useAppStore } from '@/store/app'
 
 interface Enrollment {
   id: string
@@ -64,6 +65,8 @@ const courseTypeColors: Record<string, string> = {
 }
 
 export default function ChildrenManagePage() {
+  const currentRole = useAppStore((s) => s.currentRole)
+  const isSuperadmin = currentRole?.role_type === 'superadmin'
   const [children, setChildren] = useState<Child[]>([])
   const [loading, setLoading] = useState(true)
   const [keyword, setKeyword] = useState('')
@@ -187,6 +190,29 @@ export default function ChildrenManagePage() {
                       <Text className="text-xs">{statusMap[child.status]?.label || child.status}</Text>
                     </Badge>
                   </View>
+                  {isSuperadmin && (
+                    <View
+                      className="ml-2 shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const childInfo = {
+                          id: child.id,
+                          name: child.name,
+                          nickname: child.nickname,
+                          gender: child.gender,
+                          birth_date: child.birth_date || null,
+                          avatar_url: null,
+                          relationship: 'other',
+                          custom_relationship: null,
+                          allergies: child.allergies || null,
+                        }
+                        useAppStore.getState().enterAgentParentMode(childInfo as any)
+                        Taro.switchTab({ url: '/pages/index/index' })
+                      }}
+                    >
+                      <Text className="text-xs text-primary">进入家长端</Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* 过敏信息 */}

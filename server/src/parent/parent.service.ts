@@ -10,9 +10,9 @@ export class ParentService {
     return getSupabaseClient();
   }
 
-  /** 获取当前家长（由 JWT 推导）绑定的所有幼儿 ID */
-  private async getChildIds(userId: string): Promise<string[]> {
-    return this.authz.getParentChildIds(userId);
+  /** 获取当前家长（由 JWT 推导）绑定的所有幼儿 ID；agentChildId 为超管代理查看的幼儿 */
+  private async getChildIds(userId: string, agentChildId?: string): Promise<string[]> {
+    return this.authz.getParentChildIdsAsAgent(userId, agentChildId);
   }
 
   /** 上海时区当天日期 */
@@ -20,8 +20,8 @@ export class ParentService {
     return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
   }
 
-  async getBabyStatus(userId: string) {
-    const childIds = await this.getChildIds(userId);
+  async getBabyStatus(userId: string, agentChildId?: string) {
+    const childIds = await this.getChildIds(userId, agentChildId);
     if (!childIds.length) {
       return {
         child_id: null,
@@ -74,12 +74,12 @@ export class ParentService {
     };
   }
 
-  async getFeedbacks(userId: string, feedbackDate?: string) {
+  async getFeedbacks(userId: string, feedbackDate?: string, agentChildId?: string) {
     // 默认查询今天的记录
     const date = feedbackDate || this.today();
 
     // 获取家长关联的所有幼儿
-    const childIds = await this.getChildIds(userId);
+    const childIds = await this.getChildIds(userId, agentChildId);
     if (childIds.length === 0) {
       return [];
     }
@@ -158,8 +158,8 @@ export class ParentService {
     });
   }
 
-  async getDailyFeedbacks(userId: string, childId: string, feedbackDate: string) {
-    const childIds = await this.getChildIds(userId);
+  async getDailyFeedbacks(userId: string, childId: string, feedbackDate: string, agentChildId?: string) {
+    const childIds = await this.getChildIds(userId, agentChildId);
     if (!childIds.length) return [];
     if (!childId || !feedbackDate) return [];
     if (!childIds.includes(childId)) {
@@ -221,9 +221,9 @@ export class ParentService {
     });
   }
 
-  async getAttendance(userId: string, courseType?: string) {
+  async getAttendance(userId: string, courseType?: string, agentChildId?: string) {
     // 查询当前家长绑定的在读幼儿
-    const childIds = await this.getChildIds(userId);
+    const childIds = await this.getChildIds(userId, agentChildId);
     if (!childIds.length) return [];
 
     let query = this.client
@@ -253,9 +253,9 @@ export class ParentService {
     }));
   }
 
-  async getGrowthRecords(userId: string, childId?: string) {
+  async getGrowthRecords(userId: string, childId?: string, agentChildId?: string) {
     // 查询当前家长绑定的在读幼儿
-    const childIds = await this.getChildIds(userId);
+    const childIds = await this.getChildIds(userId, agentChildId);
     if (!childIds.length) return [];
 
     // 指定幼儿时校验归属
@@ -334,8 +334,8 @@ export class ParentService {
     });
   }
 
-  async markGrowthRead(userId: string) {
-    const childIds = await this.getChildIds(userId);
+  async markGrowthRead(userId: string, agentChildId?: string) {
+    const childIds = await this.getChildIds(userId, agentChildId);
     if (!childIds.length) return { updated: 0 };
 
     const { data, error } = await this.client
@@ -348,8 +348,8 @@ export class ParentService {
     return { updated: (data || []).length };
   }
 
-  async getGrowthUnreadCount(userId: string) {
-    const childIds = await this.getChildIds(userId);
+  async getGrowthUnreadCount(userId: string, agentChildId?: string) {
+    const childIds = await this.getChildIds(userId, agentChildId);
     if (!childIds.length) return 0;
 
     const { count, error } = await this.client
@@ -439,26 +439,32 @@ export class ParentService {
     return result;
   }
 
-  async getChildById(userId: string, childId: string) {
-    const childIds = await this.getChildIds(userId);
+  async getChildById(userId: string, childId: string, agentChildId?: string) {
+    const childIds = await this.getChildIds(userId, agentChildId);
     if (!childIds.includes(childId)) {
       return { error: true, code: 403, msg: '无权查看该幼儿' };
     }
 
     // 查询 parent_child_relations 获取关联信息（限定当前家长自己的关系行，避免同幼儿多家长时 maybeSingle 报错）
     const roles = await this.authz.getUserRoles(userId);
-    const parentRole = roles.find(r => r.role_type === 'parent');
-    const { data: relation, error: relError } = parentRole
-      ? await this.client
-          .from('parent_child_relations')
-          .select('id, child_id, relationship, custom_relationship, status')
-          .eq('child_id', childId)
-          .eq('parent_role_id', parentRole.id)
-          .eq('status', 'active')
-          .maybeSingle()
-      : { data: null, error: null };
+    const isAgent = !!agentChildId && roles.some(r => r.role_type === 'superadmin');
+    // 超管代理模式：无真实绑定关系，构造虚拟关系行以返回完整详情
+    const relation = isAgent
+      ? { id: `agent_${childId}`, child_id: childId, relationship: 'other', custom_relationship: null, status: 'active' }
+      : await (async () => {
+          const parentRole = roles.find(r => r.role_type === 'parent');
+          if (!parentRole) return null;
+          const { data, error: relError } = await this.client
+            .from('parent_child_relations')
+            .select('id, child_id, relationship, custom_relationship, status')
+            .eq('child_id', childId)
+            .eq('parent_role_id', parentRole.id)
+            .eq('status', 'active')
+            .maybeSingle();
+          if (relError) throw new Error(`查询关联信息失败: ${relError.message}`);
+          return data;
+        })();
 
-    if (relError) throw new Error(`查询关联信息失败: ${relError.message}`);
     if (!relation) return null;
 
     // 查询 children 表获取幼儿信息

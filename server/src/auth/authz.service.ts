@@ -63,6 +63,15 @@ export class AuthzService {
     return [...new Set((data || []).map(r => r.child_id).filter(Boolean))];
   }
 
+  /** 代理家长模式：超管以指定幼儿身份查看（agentChildId 存在且调用者为超管时直接放行该幼儿） */
+  async getParentChildIdsAsAgent(userId: string, agentChildId?: string): Promise<string[]> {
+    if (agentChildId) {
+      const roles = await this.getUserRoles(userId);
+      if (roles.some(r => r.role_type === 'superadmin')) return [agentChildId];
+    }
+    return this.getParentChildIds(userId);
+  }
+
   /**
    * 教师可见班级 ID 集合：
    * teachers 表按 user_id 查 active 记录 -> class_id（去重）

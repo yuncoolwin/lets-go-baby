@@ -101,7 +101,7 @@ function usePopupAnimation() {
 }
 
 export default function IndexPage() {
-  const { isLoggedIn, currentRole, isLoading, fetchUserInfo, children, currentChildIndex, setCurrentChild, nickname } = useAppStore()
+  const { isLoggedIn, currentRole, isLoading, fetchUserInfo, children, currentChildIndex, setCurrentChild, nickname, agentChildId, exitAgentParentMode } = useAppStore()
   const [babyStatus, setBabyStatus] = useState<BabyStatus | null>(null)
   const [groupList, setGroupList] = useState<GroupOverview[]>([])
   const [isClassHoliday, setIsClassHoliday] = useState(false)
@@ -237,7 +237,7 @@ export default function IndexPage() {
 
   const loadParentData = async () => {
     const currentChildId = currentChild?.id || currentChild?.child_id
-    const url = currentChildId ? `/api/parent/baby-status?childId=${currentChildId}` : '/api/parent/baby-status'
+    const url = currentChildId ? `/api/parent/baby-status?child_id=${currentChildId}` : '/api/parent/baby-status'
     const res = await Network.request({
       url,
       method: 'GET',
@@ -406,6 +406,17 @@ export default function IndexPage() {
           <Text className="block text-sm text-muted-foreground mt-1">
             {formatChineseDate(new Date())}
           </Text>
+          {agentChildId && (
+            <View
+              className="self-start inline-flex items-center bg-gray-100 rounded-full px-3 py-2 mt-2"
+              onClick={async () => {
+                await exitAgentParentMode()
+                loadPageData()
+              }}
+            >
+              <Text className="block text-xs text-primary">退出家长端，返回管理端</Text>
+            </View>
+          )}
         </View>
 
         {/* 多孩切换 + 添加幼儿 */}

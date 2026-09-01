@@ -808,6 +808,33 @@ export default function ChildDetailPage() {
           </CardContent>
         </Card>
 
+        {isSuperadmin && child && (
+          <Card className="bg-white rounded-xl border-0 shadow-sm mb-3">
+            <CardContent className="p-4">
+              <View
+                className="flex items-center justify-center py-2"
+                onClick={() => {
+                  const childInfo = {
+                    id: child.id,
+                    name: child.name,
+                    nickname: child.nickname || null,
+                    gender: child.gender,
+                    birth_date: child.birth_date || null,
+                    avatar_url: null,
+                    relationship: 'other',
+                    custom_relationship: null,
+                    allergies: child.allergies || null,
+                  }
+                  useAppStore.getState().enterAgentParentMode(childInfo as any)
+                  Taro.switchTab({ url: '/pages/index/index' })
+                }}
+              >
+                <Text className="text-sm font-medium text-primary">进入家长端查看该幼儿</Text>
+              </View>
+            </CardContent>
+          </Card>
+        )}
+
         {/* 已绑定家长卡片 */}
         <Card className="bg-white rounded-xl border-0 shadow-sm">
           <CardContent className="p-4">
