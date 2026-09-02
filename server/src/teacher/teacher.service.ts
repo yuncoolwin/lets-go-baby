@@ -789,7 +789,7 @@ export class TeacherService {
     });
   }
 
-  async submitAttendance(data: {
+  async submitAttendance(userId: string | undefined, data: {
     records: Array<{ child_id: string; class_id: string; status: string }>;
     teacher_role_id?: string;
   }) {
@@ -808,12 +808,27 @@ export class TeacherService {
         .insert(insertData);
 
       if (error) throw new Error(`提交考勤失败: ${error.message}`);
+
+      try {
+        await this.client.from('audit_logs').insert({
+          user_id: userId || null,
+          user_role_id: data.teacher_role_id || null,
+          action: 'attendance_upsert',
+          target_type: 'attendance',
+          target_id: null,
+          detail: { source: 'teacher_page', teacher_role_id: data.teacher_role_id || null, records_count: data.records?.length || 0 },
+          level: 'info',
+          created_at: new Date().toISOString(),
+        });
+      } catch (e) {
+        console.warn('[AuditLog] 写入失败:', (e as Error)?.message);
+      }
     }
 
     return { success: true, count: insertData.length };
   }
 
-  async submitFeedback(data: {
+  async submitFeedback(userId: string | undefined, data: {
     child_id: string;
     teacher_role_id?: string;
     group_id?: string;
@@ -829,7 +844,7 @@ export class TeacherService {
     const today = new Date().toISOString().split('T')[0];
     const groupId = data.group_id || '';
     
-    const { error } = await this.client
+    const { data: saved, error } = await this.client
       .from('daily_feedbacks')
       .upsert({
         child_id: data.child_id,
@@ -847,14 +862,31 @@ export class TeacherService {
       }, {
         onConflict: 'child_id, feedback_date, group_id',
         ignoreDuplicates: false,
-      });
+      })
+      .select('id')
+      .single();
 
     if (error) throw new Error(`提交反馈失败: ${error.message}`);
+
+    try {
+      await this.client.from('audit_logs').insert({
+        user_id: userId || null,
+        user_role_id: data.teacher_role_id || null,
+        action: 'feedback_create',
+        target_type: 'daily_feedback',
+        target_id: (saved as any)?.id || null,
+        detail: { child_id: data.child_id, teacher_role_id: data.teacher_role_id || null },
+        level: 'info',
+        created_at: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.warn('[AuditLog] 写入失败:', (e as Error)?.message);
+    }
 
     return { success: true };
   }
 
-  async updateFeedback(data: {
+  async updateFeedback(userId: string | undefined, data: {
     id: string;
     meal_status: string | number;
     sleep_status: string | number;
@@ -875,10 +907,25 @@ export class TeacherService {
 
     if (error) throw new Error(`更新反馈失败: ${error.message}`);
 
+    try {
+      await this.client.from('audit_logs').insert({
+        user_id: userId || null,
+        user_role_id: null,
+        action: 'feedback_update',
+        target_type: 'daily_feedback',
+        target_id: data.id,
+        detail: null,
+        level: 'info',
+        created_at: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.warn('[AuditLog] 写入失败:', (e as Error)?.message);
+    }
+
     return { success: true };
   }
 
-  async deleteFeedback(id: string, operatorRoleId?: string) {
+  async deleteFeedback(userId: string | undefined, id: string, operatorRoleId?: string) {
     // 权限校验：超管可删任意记录；教师仅可删自己发的当天记录；其他角色不可删
     const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
     let operatorRoleType: string | null = null;
@@ -912,6 +959,21 @@ export class TeacherService {
       .eq('id', id);
 
     if (error) throw new Error(`删除反馈失败: ${error.message}`);
+
+    try {
+      await this.client.from('audit_logs').insert({
+        user_id: userId || null,
+        user_role_id: operatorRoleId || null,
+        action: 'feedback_delete',
+        target_type: 'daily_feedback',
+        target_id: id,
+        detail: null,
+        level: 'info',
+        created_at: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.warn('[AuditLog] 写入失败:', (e as Error)?.message);
+    }
 
     return { success: true };
   }

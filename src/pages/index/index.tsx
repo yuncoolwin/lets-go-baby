@@ -101,7 +101,7 @@ function usePopupAnimation() {
 }
 
 export default function IndexPage() {
-  const { isLoggedIn, currentRole, isLoading, fetchUserInfo, children, currentChildIndex, setCurrentChild, nickname, agentChildId, exitAgentParentMode } = useAppStore()
+  const { isLoggedIn, currentRole, isLoading, fetchUserInfo, children, currentChildIndex, setCurrentChild, nickname, agentChildId, agentTeacherId, exitAgentParentMode } = useAppStore()
   const [babyStatus, setBabyStatus] = useState<BabyStatus | null>(null)
   const [groupList, setGroupList] = useState<GroupOverview[]>([])
   const [isClassHoliday, setIsClassHoliday] = useState(false)
@@ -415,6 +415,17 @@ export default function IndexPage() {
               }}
             >
               <Text className="block text-xs text-primary">退出家长端，返回管理端</Text>
+            </View>
+          )}
+          {agentTeacherId && (
+            <View
+              className="self-start inline-flex items-center bg-gray-100 rounded-full px-3 py-2 mt-2"
+              onClick={async () => {
+                await useAppStore.getState().exitAgentTeacherMode()
+                loadPageData()
+              }}
+            >
+              <Text className="block text-xs text-primary">退出教师端，返回管理端</Text>
             </View>
           )}
         </View>

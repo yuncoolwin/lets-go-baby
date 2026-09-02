@@ -123,6 +123,19 @@ export class TeachersService {
           if (t.class_id) t.class_name = classMap.get(t.class_id) || null;
         });
       }
+
+      // 关联教师角色 id（一人多角色时取第一条）
+      const userIds = [...new Set(list.map(t => t.user_id).filter(Boolean))];
+      if (userIds.length > 0) {
+        const { data: tRoles } = await this.client
+          .from('user_roles')
+          .select('id, user_id, class_id')
+          .in('user_id', userIds)
+          .eq('role_type', 'teacher')
+          .eq('status', 'active');
+        const roleMap = new Map((tRoles || []).map(r => [r.user_id, r]));
+        list.forEach(t => { t.teacher_role_id = t.user_id ? (roleMap.get(t.user_id)?.id || null) : null });
+      }
     }
 
     return { list, total: count || 0, page, page_size: pageSize };

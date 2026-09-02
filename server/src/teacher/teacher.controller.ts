@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Body, Query, Param, HttpCode, Headers } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Query, Param, HttpCode, Headers, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { TeacherService } from './teacher.service';
 
 @Controller('teachers')
@@ -77,8 +78,9 @@ export class TeacherController {
 
   @Post('attendance')
   @HttpCode(200)
-  async submitAttendance(@Body() body: { records: Array<{ child_id: string; class_id: string; status: string }>; teacher_role_id?: string }) {
-    const data = await this.teacherService.submitAttendance(body);
+  async submitAttendance(@Req() req: Request, @Body() body: { records: Array<{ child_id: string; class_id: string; status: string }>; teacher_role_id?: string }) {
+    const userId = (req as any).user?.userId;
+    const data = await this.teacherService.submitAttendance(userId, body);
     return { code: 200, msg: 'success', data };
   }
 
@@ -93,7 +95,7 @@ export class TeacherController {
 
   @Post('feedback')
   @HttpCode(200)
-  async submitFeedback(@Body() body: {
+  async submitFeedback(@Req() req: Request, @Body() body: {
     child_id: string;
     teacher_role_id?: string;
     group_id?: string;
@@ -106,13 +108,15 @@ export class TeacherController {
     activities?: string;
     notes?: string;
   }) {
-    const data = await this.teacherService.submitFeedback(body);
+    const userId = (req as any).user?.userId;
+    const data = await this.teacherService.submitFeedback(userId, body);
     return { code: 200, msg: 'success', data };
   }
 
   @Put('feedback/:id')
   @HttpCode(200)
   async updateFeedback(
+    @Req() req: Request,
     @Param('id') id: string,
     @Body() body: {
       meal_status: string | number;
@@ -121,17 +125,20 @@ export class TeacherController {
       activities?: string;
       notes?: string;
     }) {
-    const data = await this.teacherService.updateFeedback({ id, ...body });
+    const userId = (req as any).user?.userId;
+    const data = await this.teacherService.updateFeedback(userId, { id, ...body });
     return { code: 200, msg: 'success', data };
   }
 
   @Delete('feedback/:id')
   @HttpCode(200)
   async deleteFeedback(
+    @Req() req: Request,
     @Param('id') id: string,
     @Body() body?: { operator_role_id?: string },
   ) {
-    const data = await this.teacherService.deleteFeedback(id, body?.operator_role_id);
+    const userId = (req as any).user?.userId;
+    const data = await this.teacherService.deleteFeedback(userId, id, body?.operator_role_id);
     if ((data as any)?.error) {
       return { code: (data as any).code, msg: (data as any).msg, data: null };
     }

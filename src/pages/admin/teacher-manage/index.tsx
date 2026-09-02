@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { teacherApi } from '@/utils/api'
 import { getNameInitial } from '@/utils/helpers'
+import { useAppStore } from '@/store/app'
 import { Search, GraduationCap } from 'lucide-react-taro'
 
 interface Teacher {
@@ -20,6 +21,9 @@ interface Teacher {
   status: string
   entry_date?: string
   created_at: string
+  user_id?: string | null
+  class_id?: string | null
+  teacher_role_id?: string | null
 }
 
 const statusOptions = [
@@ -34,6 +38,7 @@ const statusMap: Record<string, { label: string; className: string }> = {
 }
 
 export default function TeacherManagePage() {
+  const isSuperadmin = useAppStore((s) => s.currentRole?.role_type === 'superadmin')
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [loading, setLoading] = useState(true)
   const [keyword, setKeyword] = useState('')
@@ -165,6 +170,25 @@ export default function TeacherManagePage() {
                   <Badge className={`${statusMap[teacher.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
                     <Text className="text-xs">{statusMap[teacher.status]?.label || teacher.status}</Text>
                   </Badge>
+                  {isSuperadmin && teacher.status === 'active' && !!teacher.teacher_role_id && (
+                    <View
+                      className="ml-2 shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        useAppStore.getState().enterAgentTeacherMode({
+                          id: teacher.teacher_role_id!,
+                          user_id: teacher.user_id || '',
+                          role_type: 'teacher',
+                          real_name: teacher.real_name,
+                          status: 'active',
+                          class_id: teacher.class_id || null,
+                        })
+                        Taro.switchTab({ url: '/pages/index/index' })
+                      }}
+                    >
+                      <Text className="text-xs text-primary">进入教师端</Text>
+                    </View>
+                  )}
                 </View>
                 <View
                   className="flex flex-wrap gap-x-4 gap-y-1"

@@ -52,6 +52,7 @@ interface AppStore {
 
   // 代理家长模式：超管以某幼儿身份进入家长端时为其幼儿 id，否则为 null
   agentChildId: string | null
+  agentTeacherId: string | null
 
   // 登录状态
   isLoggedIn: boolean
@@ -91,6 +92,8 @@ interface AppStore {
   selectRole: (roleType: string) => Promise<void>
   enterAgentParentMode: (child: ChildInfo) => void
   exitAgentParentMode: () => Promise<void>
+  enterAgentTeacherMode: (role: UserRole) => void
+  exitAgentTeacherMode: () => Promise<void>
 }
 
 // Taro Storage 适配器（替代 localStorage，兼容小程序环境）
@@ -145,6 +148,7 @@ export const useAppStore = create<AppStore>()(
   children: [],
   currentChildIndex: 0,
   agentChildId: null,
+  agentTeacherId: null,
   isLoggedIn: false,
   isLoading: false,
   needRoleSelection: false,
@@ -373,6 +377,9 @@ export const useAppStore = create<AppStore>()(
     const { userId } = get()
     if (!userId) return
 
+    // 代理态（家长端/教师端）下不刷新，避免覆盖代理数据
+    if (get().agentChildId || get().agentTeacherId) return
+
     set({ isLoading: true })
     try {
       const res = await Network.request({
@@ -444,6 +451,20 @@ export const useAppStore = create<AppStore>()(
     agentSavedRole = null
     agentSavedRoleIndex = 0
     // 刷新真实 children 与 roles
+    await get().fetchUserInfo()
+  },
+
+  enterAgentTeacherMode: (role: UserRole) => {
+    // 保存当前管理端角色，进入教师端代理态
+    agentSavedRole = get().currentRole
+    agentSavedRoleIndex = get().currentRoleIndex
+    set({ currentRole: role, currentRoleIndex: 0, agentTeacherId: role.id })
+  },
+
+  exitAgentTeacherMode: async () => {
+    set({ agentTeacherId: null, currentRole: agentSavedRole, currentRoleIndex: agentSavedRoleIndex })
+    agentSavedRole = null
+    agentSavedRoleIndex = 0
     await get().fetchUserInfo()
   },
 
