@@ -65,9 +65,9 @@ export class NotificationsController {
 
   @Get('unread-count')
   @HttpCode(200)
-  async unreadCount(@Req() req: Request) {
+  async unreadCount(@Req() req: Request, @Query('user_role_id') userRoleId?: string) {
     const userId = (req as any).user?.userId;
-    const data = await this.notificationsService.getUnreadCount(userId);
+    const data = await this.notificationsService.getUnreadCount(userId, userRoleId);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -110,9 +110,9 @@ export class NotificationsController {
 
   @Post(':id/read')
   @HttpCode(200)
-  async markRead(@Req() req: Request, @Param('id') id: string) {
+  async markRead(@Req() req: Request, @Param('id') id: string, @Body('user_role_id') userRoleId?: string) {
     const userId = (req as any).user?.userId;
-    const data = await this.notificationsService.markRead(userId, id);
+    const data = await this.notificationsService.markRead(userId, id, userRoleId);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }

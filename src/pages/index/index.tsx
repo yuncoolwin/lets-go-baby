@@ -743,6 +743,17 @@ export default function IndexPage() {
           <Text className="block text-sm text-muted-foreground mt-1">
             {formatChineseDate(new Date())}
           </Text>
+          {agentTeacherId && (
+            <View
+              className="self-start inline-flex items-center bg-gray-100 rounded-full px-3 py-2 mt-2"
+              onClick={async () => {
+                await useAppStore.getState().exitAgentTeacherMode()
+                loadPageData()
+              }}
+            >
+              <Text className="block text-xs text-primary">退出教师端，返回管理端</Text>
+            </View>
+          )}
         </View>
 
         {/* 课程类型分组卡片 */}

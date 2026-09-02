@@ -416,6 +416,7 @@ export class TeacherService {
         id: string;
         name: string;
         gender: string;
+        birth_date: string;
         course_type: string;
         attendance_status: string;
         start_date: string | null;
@@ -444,6 +445,7 @@ export class TeacherService {
           id: s.child_id,
           name: s.name,
           gender: s.gender,
+          birth_date: s.birth_date || '',
           course_type: ct,
           attendance_status: attStatus,
           start_date: s.start_date,
@@ -596,6 +598,7 @@ export class TeacherService {
         id: string;
         name: string;
         gender: string;
+        birth_date: string;
         course_type: string;
         attendance_status: string;
         start_date: string | null;
@@ -624,6 +627,7 @@ export class TeacherService {
           id: s.child_id,
           name: s.name,
           gender: s.gender,
+          birth_date: s.birth_date || '',
           course_type: ct,
           attendance_status: attStatus,
           start_date: s.start_date,

@@ -49,6 +49,18 @@ export class NotificationsService {
   }
 
   /**
+   * 解析当前生效的角色 id 集合：
+   * 仅当 JWT 用户确有 superadmin 角色时，才采纳前端传入的 agentRoleId（超管代理教师/家长身份）；其他角色一律忽略
+   */
+  private async resolveRoleIds(userId: string, agentRoleId?: string): Promise<string[]> {
+    const roleIds = await this.getRoleIdsForUser(userId);
+    if (!agentRoleId) return roleIds;
+    const roles = await this.authz.getUserRoles(userId);
+    if (roles.some((r) => r.role_type === 'superadmin')) return [agentRoleId];
+    return roleIds;
+  }
+
+  /**
    * 根据角色 id 查询角色
    */
   private async getRole(roleId: string) {
@@ -343,6 +355,7 @@ export class NotificationsService {
       type?: string;
       keyword?: string;
       scope?: string;
+      user_role_id?: string;
     },
   ) {
     const page = Number(query.page) || 1;
@@ -351,7 +364,7 @@ export class NotificationsService {
     const to = from + pageSize - 1;
 
     if (query.scope === 'received') {
-      const roleIds = await this.getRoleIdsForUser(userId);
+      const roleIds = await this.resolveRoleIds(userId, query.user_role_id);
       return this.findReceived(roleIds, query, page, pageSize, from, to);
     }
     if (query.scope === 'sent') {
@@ -803,8 +816,8 @@ export class NotificationsService {
   /**
    * 标记已读
    */
-  async markRead(userId: string, notificationId: string) {
-    const roleIds = await this.getRoleIdsForUser(userId);
+  async markRead(userId: string, notificationId: string, agentRoleId?: string) {
+    const roleIds = await this.resolveRoleIds(userId, agentRoleId);
     if (!roleIds.length) return { success: true };
 
     const { error } = await this.client
@@ -900,8 +913,11 @@ export class NotificationsService {
   /**
    * 未读数：当前角色未读且通知仍为 published 的数量
    */
-  async getUnreadCount(userId: string) {
-    const roleIds = await this.getRoleIdsForUser(userId);
+  async getUnreadCount(userId: string, agentRoleId?: string) {
+    const roles = await this.authz.getUserRoles(userId);
+    const isSuperadmin = roles.some((r) => r.role_type === 'superadmin');
+    // 代理态（超管指定身份）：仅按目标角色统计，跳过家长成长记录累计
+    const roleIds = agentRoleId && isSuperadmin ? [agentRoleId] : await this.getRoleIdsForUser(userId);
     if (!roleIds.length) return { count: 0 };
 
     const { data: unreadRecipients, error } = await this.client
@@ -925,24 +941,25 @@ export class NotificationsService {
       notificationUnread = count || 0;
     }
 
-    // 家长角色：追加成长记录未读数（多家长角色累计）
+    // 家长角色：追加成长记录未读数（多家长角色累计；代理态下跳过）
     let growthUnread = 0;
-    const roles = await this.authz.getUserRoles(userId);
-    const parentRoleIds = roles.filter((r) => r.role_type === 'parent').map((r) => r.id).filter(Boolean);
-    for (const parentRoleId of parentRoleIds) {
-      const { data: relations } = await this.client
-        .from('parent_child_relations')
-        .select('child_id')
-        .eq('parent_role_id', parentRoleId)
-        .eq('status', 'active');
-      const childIds = [...new Set((relations || []).map((r: any) => r.child_id).filter(Boolean))];
-      if (childIds.length) {
-        const { count } = await this.client
-          .from('growth_records')
-          .select('id', { count: 'exact', head: true })
-          .in('child_id', childIds)
-          .is('parent_read_at', null);
-        growthUnread += count || 0;
+    if (!(agentRoleId && isSuperadmin)) {
+      const parentRoleIds = roles.filter((r) => r.role_type === 'parent').map((r) => r.id).filter(Boolean);
+      for (const parentRoleId of parentRoleIds) {
+        const { data: relations } = await this.client
+          .from('parent_child_relations')
+          .select('child_id')
+          .eq('parent_role_id', parentRoleId)
+          .eq('status', 'active');
+        const childIds = [...new Set((relations || []).map((r: any) => r.child_id).filter(Boolean))];
+        if (childIds.length) {
+          const { count } = await this.client
+            .from('growth_records')
+            .select('id', { count: 'exact', head: true })
+            .in('child_id', childIds)
+            .is('parent_read_at', null);
+          growthUnread += count || 0;
+        }
       }
     }
 

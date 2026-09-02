@@ -15,6 +15,7 @@ interface ChildItem {
   id: string
   name: string
   gender: string
+  class_id?: string
   birth_date?: string
   allergy?: string
   avatar_url?: string
@@ -158,25 +159,25 @@ export default function RollCallPage() {
         return
       }
 
-      // 教师模式：原有逻辑
-      const teacherId = Taro.getStorageSync('teacherId') || currentRole?.id
+      // 教师模式：直接使用 grouped-overview（与教师端首页同源，支持多班）
+      const teacherId = currentRole?.id
       if (!teacherId) {
         setLoading(false)
         return
       }
-      
-      const teacherRes = await Network.request({
-        url: `/api/teachers/${teacherId}`,
+
+      const groupedRes = await Network.request({
+        url: '/api/teachers/grouped-overview',
+        data: { teacher_role_id: teacherId, date: selectedDate },
       })
-      const teacherData = teacherRes.data?.data
-      if (!teacherData?.class_id) {
-        setLoading(false)
-        return
-      }
-      const theClassId = teacherData.class_id
+      const groups: any[] = groupedRes.data?.data || []
+
+      const theClassId = groups[0]?.class_id || ''
       setClassId(theClassId)
-      setClassName(teacherData.class_name || '')
-      await fetchHolidayStatus(theClassId)
+      setClassName([...new Set(groups.map(g => g.class_name).filter(Boolean))].join('、'))
+      if (theClassId) {
+        await fetchHolidayStatus(theClassId)
+      }
 
       // 加载有考勤记录的日期列表
       try {
@@ -194,14 +195,6 @@ export default function RollCallPage() {
         console.error('[RollCall] load dates error:', e)
       }
 
-      // 使用 grouped-overview 接口获取分组数据（与教师端首页一致）
-      const groupedRes = await Network.request({
-        url: '/api/teachers/grouped-overview',
-        data: { teacher_role_id: teacherId, date: selectedDate },
-      })
-      const groups: any[] = groupedRes.data?.data || []
-      setClassName(teacherData.class_name || '')
-
       // 扁平化所有分组的幼儿数据
       const allChildren: ChildItem[] = []
       const map: Record<string, AttendanceItem['status']> = {}
@@ -211,6 +204,8 @@ export default function RollCallPage() {
             id: s.id,
             name: s.name,
             gender: s.gender,
+            class_id: g.class_id,
+            birth_date: s.birth_date || undefined,
             course_type: g.course_type,
             attendance_status: s.attendance_status || null,
             check_in_time: s.check_in_time || null,
@@ -271,7 +266,7 @@ export default function RollCallPage() {
         method: 'POST',
         data: {
           childId: child.id,
-          classId,
+          classId: child.class_id || classId,
           date: selectedDate,
           courseType: child.course_type || '',
         },
@@ -297,7 +292,7 @@ export default function RollCallPage() {
           method: 'POST',
           data: {
             child_id: child.id,
-            class_id: classId,
+            class_id: child.class_id || classId,
             date: selectedDate,
             course_type: child.course_type,
             status,
