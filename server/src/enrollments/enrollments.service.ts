@@ -49,6 +49,7 @@ export interface CreateEnrollmentDto {
   payment_channel?: string;
   status?: string;
   date_calc_rule?: string;
+  notes?: string;
 }
 
 export interface UpdateEnrollmentDto {
@@ -64,6 +65,7 @@ export interface UpdateEnrollmentDto {
   status?: string;
   class_id?: string;
   date_calc_rule?: string;
+  notes?: string;
 }
 
 @Injectable()
@@ -738,6 +740,7 @@ export class EnrollmentsService {
         status: rest.status || '进行中',
         class_id: class_id || null,
         date_calc_rule: rest.date_calc_rule || '工作日',
+        notes: rest.notes || null,
       })
       .select()
       .single();
@@ -780,6 +783,7 @@ export class EnrollmentsService {
     if (rest.payment_channel !== undefined) updateData.payment_channel = rest.payment_channel;
     if (rest.status !== undefined) updateData.status = rest.status;
     if (rest.date_calc_rule !== undefined) updateData.date_calc_rule = rest.date_calc_rule;
+    if (rest.notes !== undefined) updateData.notes = rest.notes;
     if (class_id !== undefined) updateData.class_id = class_id;
     updateData.updated_at = new Date().toISOString();
 

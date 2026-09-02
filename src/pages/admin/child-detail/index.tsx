@@ -3,6 +3,7 @@ import { View, Text, Image, ScrollView } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -89,6 +90,7 @@ export default function ChildDetailPage() {
   const [formPaymentAmount, setFormPaymentAmount] = useState('')
   const [formPaymentChannel, setFormPaymentChannel] = useState('')
   const [formClassId, setFormClassId] = useState('')
+  const [formNotes, setFormNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const isStatusAutoRef = useRef(true) // 状态是否由系统自动设置（未手动改过）
   const autoCalculatedStatusRef = useRef('进行中') // 系统建议的状态
@@ -250,6 +252,7 @@ export default function ChildDetailPage() {
     setFormPaymentAmount(enr.payment_amount || '')
     setFormPaymentChannel(enr.payment_channel === '现金' ? '' : (enr.payment_channel || ''))
     setFormClassId(enr.class_id || '')
+    setFormNotes(enr.notes || '')
     isStatusAutoRef.current = true
     autoCalculatedStatusRef.current = enr.status || '进行中'
     setShowEnrollmentForm(true)
@@ -309,6 +312,7 @@ export default function ChildDetailPage() {
         course_id: (courses.find(c => c.name === formCourseType)?.id) || null,
         duration_type: formDurationType,
         duration_days: formDurationType === '计日' ? (parseInt(formDurationDays) || 0) : 0,
+        notes: formNotes.trim() || undefined,
         start_date: formStartDate,
         end_date: formEndDate || null,
         status: formStatus,
@@ -771,6 +775,9 @@ export default function ChildDetailPage() {
                       </View>
                     </View>
                   </View>
+                  {enr.notes && (
+                    <Text className="block text-xs text-gray-500 mt-1">备注：{enr.notes}</Text>
+                  )}
                   {canEdit && (
                     <View className="absolute bottom-3 right-3 flex items-center gap-3">
                       <View onClick={() => openEditEnrollment(enr)}>
@@ -1030,6 +1037,16 @@ export default function ChildDetailPage() {
                 {formDurationType === '一周体验' && (
                   <Text className="block text-xs text-orange-500 mt-1">一周体验不可选择周末</Text>
                 )}
+              </View>
+              <View>
+                <Text className="block text-sm font-medium text-foreground mb-1">备注</Text>
+                <Textarea
+                  className="bg-gray-50 border-0 rounded-xl px-4 py-3"
+                  placeholder="请输入备注（可留空）"
+                  maxlength={200}
+                  value={formNotes}
+                  onInput={(e) => setFormNotes(e.detail.value)}
+                />
               </View>
               <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">结束日期</Text>

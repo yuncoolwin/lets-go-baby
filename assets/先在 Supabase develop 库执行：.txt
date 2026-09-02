@@ -1,0 +1,71 @@
+先在 Supabase develop 库执行：
+
+```sql
+ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS notes text;
+```
+
+本条与另一条提示词（日历修复+临时来园）都会修改 teacher.service.ts 的同两个函数，行号互相执行后会有偏移，全部以注释和代码内容定位，不冲突
+
+文件 server/src/teacher/teacher.service.ts：
+
+- buildClassOverview 内 attendance 查询的 select 改回 'child_id, course_type, status'，删掉 check_in_time, check_out_time（attendance 表没有这两列，保留会导致整个查询报错返回空，这就是首页全部显示未考勤的根因）
+- attendanceMap 声明改回 `const attendanceMap = new Map();`，其 set 改为 `attendanceMap.set(key, statusLabel);`
+- attendanceMap 的 forEach 之后、sortOrder 之前，新增：
+```ts
+const recordsMap = new Map();
+if (childIds.length > 0) {
+  const { data: attendanceRecords } = await this.client
+    .from('attendance_records')
+    .select('child_id, course_type, check_in_time, check_out_time')
+    .eq('record_date', queryDate)
+    .in('child_id', childIds);
+  attendanceRecords?.forEach(r => {
+    const key = r.course_type ? `${r.child_id}__${r.course_type}` : r.child_id;
+    recordsMap.set(key, { check_in_time: r.check_in_time || null, check_out_time: r.check_out_time || null });
+  });
+}
+```
+- 删掉 `const att = attendanceMap.get(attKey);`，attStatus 改为 `const attStatus = attendanceMap.get(attKey) || 'unknown';`
+- studentList 输出里 check_in_time 和 check_out_time 两行改为 `check_in_time: recordsMap.get(attKey)?.check_in_time || null,` 和 `check_out_time: recordsMap.get(attKey)?.check_out_time || null,`
+- getGroupedOverviewByClass 内同样处理：select 改回 'child_id, course_type, status'，attendanceMap 改回 Map 存 statusLabel，在其后新增一模一样的 recordsMap 查询代码块，attStatus 改为 `const attStatus = attendanceMap.get(attKey) || 'unknown';`，students 输出里 check_in_time/check_out_time 改为 recordsMap.get(attKey) 取值，两处 students 的类型声明里 check_in_time/check_out_time 保留不动
+
+文件 server/src/enrollments/enrollments.service.ts：
+
+- CreateEnrollmentDto 加一行 `notes?: string | null;`
+- UpdateEnrollmentDto 加一行 `notes?: string | null;`
+- create 方法的 insert 对象内 payment_channel 之后加 `notes: rest.notes || null,`
+- update 方法的白名单内 payment_channel 之后加 `if (rest.notes !== undefined) updateData.notes = rest.notes;`
+
+文件 src/pages/admin/child-detail/index.tsx：
+
+- 第2行改为 `import { View, Text, Image, ScrollView, Textarea } from '@tarojs/components'`
+- formPaymentChannel 的 useState 之后新增 `const [formNotes, setFormNotes] = useState('')`
+- openAddEnrollment 内 setFormPaymentChannel('') 之后加 `setFormNotes('')`
+- openEditEnrollment 内 setFormPaymentChannel 之后加 `setFormNotes(enr.notes || '')`
+- handleSubmitEnrollment 的 payload 内 payment_channel 之后加 `notes: formNotes.trim() || null,`
+- 报读表单弹窗内，缴费渠道的 View 结束后、保存 Button 之前，插入：
+```tsx
+
+  备注
+  
+     setFormNotes(e.detail.value)}
+    />
+  </View>
+</View>
+```
+- 报读记录卡片内的缴费 Text 块（条件为 enr.payment_amount || enr.payment_channel 的那个）整体替换为：
+```tsx
+{(enr.payment_amount || enr.payment_channel || enr.notes) && (
+  <View className="flex items-center mt-1">
+    <Text className="text-xs text-gray-500">
+      缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{!isReadonly && enr.payment_channel ? `（${enr.payment_channel}）` : ''}
+    </Text>
+    {enr.notes && (
+      <View className="ml-1" onClick={() => Taro.showModal({ title: '报读备注', content: enr.notes, showCancel: false, confirmText: '知道了' })}>
+        <Info size={12} color="#999" />
+      </View>
+    )}
+  </View>
+)}
+```
+- Info 组件该文件已在用（顺延结束日期行），不需要新增 import
