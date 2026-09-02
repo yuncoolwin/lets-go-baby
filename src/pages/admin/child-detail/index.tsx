@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Label } from '@/components/ui/label'
-import { childrenApi, enrollmentApi, classApi, courseApi, adminApi, dailyApi } from '@/utils/api'
+import { childrenApi, enrollmentApi, classApi, courseApi, adminApi, dailyApi, dropInApi } from '@/utils/api'
 import { format } from 'date-fns'
 
 import { Pencil, Trash2, BookOpen, Plus, X, Info } from 'lucide-react-taro'
@@ -76,6 +76,8 @@ export default function ChildDetailPage() {
   const [child, setChild] = useState<ChildDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [enrollments, setEnrollments] = useState<any[]>([])
+  const [dropIns, setDropIns] = useState<any[]>([])
+  const DROP_IN_STATUS_TEXT: Record<string, string> = { attended: '已到园', absent: '缺勤', leave: '请假' }
   const [classes, setClasses] = useState<any[]>([])
   const [editingEnrollment, setEditingEnrollment] = useState<any | null>(null)
   const [formCourseType, setFormCourseType] = useState('')
@@ -475,6 +477,18 @@ export default function ChildDetailPage() {
         )
         setEnrollments(updated)
       }
+      // 拉取临时来园记录（按 date 倒序）
+      try {
+        const diRes: any = await dropInApi.list(id)
+        const diData = diRes.data || diRes
+        if (diRes.statusCode === 200 && diData?.code === 200 && Array.isArray(diData.data)) {
+          setDropIns(diData.data)
+        } else {
+          setDropIns([])
+        }
+      } catch {
+        setDropIns([])
+      }
       if (clsRes.code === 200 && clsRes.data?.list && Array.isArray(clsRes.data.list)) {
         setClasses(clsRes.data.list)
       }
@@ -807,6 +821,31 @@ export default function ChildDetailPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* 其他课程（临时来园） */}
+        {dropIns.length > 0 && (
+          <Card className="bg-white rounded-xl border-0 shadow-sm">
+            <CardContent className="p-4">
+              <View className="flex items-center gap-2 mb-3">
+                <BookOpen size={16} color="#666" />
+                <Text className="text-base font-semibold text-foreground">其他课程</Text>
+              </View>
+              {dropIns.map((d) => (
+                <View key={d.id} className="bg-gray-50 rounded-xl p-3 mb-2">
+                  <View className="flex items-center justify-between mb-1">
+                    <Text className="text-sm font-semibold text-foreground">{d.course_type}</Text>
+                    <Badge className="bg-orange-100 text-orange-700">
+                      <Text className="text-xs">临时来园</Text>
+                    </Badge>
+                  </View>
+                  <Text className="block text-xs text-gray-500 mt-1">
+                    日期：{d.date || '--'}（考勤：{DROP_IN_STATUS_TEXT[d.status] || '未考勤'}）
+                  </Text>
+                </View>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {isSuperadmin && child && (
           <Card className="bg-white rounded-xl border-0 shadow-sm mb-3">

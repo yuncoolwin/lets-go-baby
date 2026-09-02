@@ -339,6 +339,28 @@ export const teacherClasses = pgTable("teacher_classes", {
 		}),
 ]);
 
+export const dropInRecords = pgTable("drop_in_records", {
+	id: varchar({ length: 36 }).default(sql`gen_random_uuid()`).primaryKey().notNull(),
+	childId: varchar("child_id", { length: 36 }).notNull(),
+	classId: varchar("class_id", { length: 36 }).notNull(),
+	courseType: varchar("course_type", { length: 20 }).notNull(),
+	date: date("date").notNull(),
+	teacherId: varchar("teacher_id", { length: 64 }),
+	status: varchar({ length: 20 }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	foreignKey({
+			columns: [table.childId],
+			foreignColumns: [children.id],
+			name: "drop_in_records_child_id_children_id_fk"
+		}),
+	foreignKey({
+			columns: [table.classId],
+			foreignColumns: [classes.id],
+			name: "drop_in_records_class_id_classes_id_fk"
+		}),
+]);
+
 export const notifications = pgTable("notifications", {
 	id: varchar({ length: 36 }).default(sql`gen_random_uuid()`).primaryKey().notNull(),
 	title: varchar({ length: 128 }).notNull(),

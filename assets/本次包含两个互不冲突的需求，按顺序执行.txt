@@ -1,0 +1,220 @@
+本次包含两个互不冲突的需求，按顺序执行
+需求一：修改 server/src/enrollments/enrollments.service.ts 的 getAttendanceCalendar 方法，解决报读未填结束日期时考勤日历看不到未来假期的问题
+找到约 917 行，注释为 // 上课期间：start_date ~ 顺延结束日期（无顺延取原始结束日期，长期在读取今日） 的下方这一行：const endDate = enr.extended_end_date || enr.end_date || new Date().toISOString().slice(0, 10);
+整行替换为：const endDate = enr.extended_end_date || enr.end_date || new Date(Date.now() + 730 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+同步把上方那行注释改为：// 上课期间：start_date ~ 顺延结束日期（无顺延取原始结束日期，未填结束日期则取今天起往后 2 年，保证未来假期都能返回）
+该方法其余代码全部保持不动，不要改任何其他逻辑
+需求二：新增"临时来园"功能，考勤页添加按钮登记临时来园幼儿，自动出现在对应课程考勤分组和教师端首页，幼儿详情页新增其他课程卡片展示临时来园记录
+修改 server/src/storage/database/shared/schema.ts，文件末尾追加表定义：
+export const dropInRecords = pgTable("drop_in_records", {
+id: varchar({ length: 36 }).default(sqlgen_random_uuid()).primaryKey().notNull(),
+childId: varchar("child_id", { length: 36 }).notNull(),
+classId: varchar("class_id", { length: 36 }).notNull(),
+courseType: varchar("course_type", { length: 20 }).notNull(),
+date: date("date").notNull(),
+teacherId: varchar("teacher_id", { length: 64 }),
+createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+})
+修改 server/src/attendance/attendance.service.ts，在 class 内新增两个方法（放在 upsert 方法之前）：
+async createDropIn(userId: string, dto: { child_id: string; class_id: string; course_type: string; date: string; teacher_id?: string }) {
+const denied = await this.canAccessClass(userId, dto.class_id);
+if (denied) return { error: true, code: 403, msg: denied };
+if (!dto.child_id || !dto.class_id || !dto.course_type || !dto.date) {
+return { error: true, code: 400, msg: '参数不完整' };
+}
+const { data: dup } = await this.client
+.from('drop_in_records')
+.select('id')
+.eq('child_id', dto.child_id)
+.eq('date', dto.date)
+.eq('course_type', dto.course_type)
+.limit(1);
+if (dup && dup.length > 0) {
+return { error: true, code: 409, msg: '该幼儿当天已添加过此课程的临时来园' };
+}
+const { data, error } = await this.client
+.from('drop_in_records')
+.insert({
+child_id: dto.child_id,
+class_id: dto.class_id,
+course_type: dto.course_type,
+date: dto.date,
+teacher_id: dto.teacher_id || null,
+})
+.select()
+.single();
+if (error) throw error;
+return data;
+}
+async getDropIns(childId: string) {
+if (!childId) return [];
+const { data: rows } = await this.client
+.from('drop_in_records')
+.select('id, child_id, class_id, course_type, date, created_at')
+.eq('child_id', childId)
+.order('date', { ascending: false })
+.order('created_at', { ascending: false });
+if (!rows || rows.length === 0) return [];
+const { data: atts } = await this.client
+.from('attendance')
+.select('date, course_type, status')
+.eq('child_id', childId);
+const attMap = new Map<string, string>();
+(atts || []).forEach(a => {
+if (a.course_type) attMap.set(${a.date}__${a.course_type}, a.status);
+});
+return rows.map(r => ({
+id: r.id,
+date: r.date,
+course_type: r.course_type,
+status: attMap.get(${r.date}__${r.course_type}) || null,
+}));
+}
+修改 server/src/attendance/attendance.service.ts 的 getAdminOverview 方法，找到按课程类型分组的 for 循环（循环内有 isSun continue / isSat 过滤）结束后、console.log([AdminOverview] Group map types: 之前，插入：
+// 临时来园登记追加进分组
+const { data: dropIns } = await this.client
+.from('drop_in_records')
+.select('child_id, course_type, date')
+.eq('class_id', classId)
+.eq('date', queryDate);
+if (dropIns && dropIns.length > 0) {
+const dropIds = [...new Set(dropIns.map(d => d.child_id).filter(cid => !childrenMap[cid]))];
+if (dropIds.length > 0) {
+const { data: dropChildren } = await this.client
+.from('children')
+.select('id, name, gender, birth_date')
+.in('id', dropIds);
+dropChildren?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date }; });
+}
+for (const d of dropIns) {
+if (!groupMap.has(d.course_type)) groupMap.set(d.course_type, []);
+const arr = groupMap.get(d.course_type)!;
+if (arr.some(s => s.child_id === d.child_id)) continue;
+arr.push({
+child_id: d.child_id,
+name: childrenMap[d.child_id]?.name || '',
+gender: childrenMap[d.child_id]?.gender || '',
+birth_date: childrenMap[d.child_id]?.birth_date || '',
+start_date: d.date,
+end_date: null,
+extended_end_date: null,
+});
+}
+}
+修改 server/src/teacher/teacher.service.ts 的 buildClassOverview 方法，找到 filteredEnrollments 的 for 分组循环结束后、注释 // 查询当天考勤数据（含 course_type） 之前，插入与上面同款的追加代码块，仅三处差异：class_id 筛选值用 teacherClassId；children 补查的 select 为 'id, name, gender, birth_date, nickname'，childrenMap 赋值为 { name: c.name, gender: c.gender, birth_date: c.birth_date, nickname: c.nickname || "" }；arr.push 对象在 start_date 之后多一行 nickname: childrenMap[d.child_id]?.nickname || '',
+修改 server/src/teacher/teacher.service.ts 的 getGroupedOverviewByClass 方法，同样找到 filteredEnrollments 的 for 分组循环结束后、注释 // 查询当天考勤数据 之前，插入同款追加代码块，差异同上：class_id 筛选值用 classId；补查和 push 均带 nickname 字段
+修改 server/src/attendance/attendance.controller.ts，新增两个路由（放在现有 @Post() 路由之前，userId 获取写法参照同文件现有方法的写法）：
+@Post('drop-in')
+async createDropIn(@Req() req: Request, @Body() body: { child_id: string; class_id: string; course_type: string; date: string; teacher_id?: string }) {
+return this.attendanceService.createDropIn(userId, body);
+}
+@Get('drop-in')
+async getDropIns(@Query('child_id') childId: string) {
+return this.attendanceService.getDropIns(childId);
+}
+修改 src/utils/api.ts，在 adminApi 定义之后新增：
+// ============ 临时来园 API ============
+export const dropInApi = {
+list: (childId: string) =>
+request({ url: /api/attendance/drop-in?child_id=${childId}, method: 'GET' }),
+};
+修改 src/pages/roll-call/index.tsx，在组件内 state 定义区域（holidayInfo state 之后）新增：
+const DROP_IN_COURSES = ['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日']
+const [showDropIn, setShowDropIn] = useState(false)
+const [dropInCandidates, setDropInCandidates] = useState<any[]>([])
+const [dropInChildIdx, setDropInChildIdx] = useState(0)
+const [dropInCourseIdx, setDropInCourseIdx] = useState(0)
+同文件新增两个函数（放在 handleSave 函数之后）：
+const openDropIn = async () => {
+setShowDropIn(true)
+setDropInChildIdx(0)
+setDropInCourseIdx(0)
+try {
+const url = isAdmin ? /api/children?class_id=${selectedClassId || classId} : '/api/children'
+const res = await Network.request({ url })
+setDropInCandidates(res.data?.data?.list || res.data?.data || [])
+} catch (e) {
+setShowDropIn(false)
+Taro.showToast({ title: '加载幼儿失败', icon: 'none' })
+}
+}
+const submitDropIn = async () => {
+const child = dropInCandidates[dropInChildIdx]
+if (!child) {
+Taro.showToast({ title: '请选择幼儿', icon: 'none' })
+return
+}
+try {
+const res = await Network.request({
+url: '/api/attendance/drop-in',
+method: 'POST',
+data: {
+child_id: child.id,
+class_id: child.class_id,
+course_type: DROP_IN_COURSES[dropInCourseIdx],
+date: selectedDate,
+teacher_id: currentRole?.id || '',
+},
+})
+if (res.data?.error) {
+Taro.showToast({ title: res.data?.msg || '添加失败', icon: 'none' })
+return
+}
+setShowDropIn(false)
+Taro.showToast({ title: '已添加', icon: 'success' })
+loadData()
+} catch (e) {
+Taro.showToast({ title: '添加失败', icon: 'none' })
+}
+}
+同文件修改头部信息区：找到右侧"清除"文字按钮（onClick={handleClear} 的 Text），把它和一个新增的"添加"按钮一起包进一个 flex 横排 View，"添加"在前"清除"在后，"添加"仅在 selectedDate === today 时显示，样式 className="block text-sm text-blue-500"，onClick={openDropIn}；"清除"按钮原有显示条件和逻辑保持不变
+同文件在页面根 View 的末尾（最外层 </View> 之前）新增弹窗：
+{showDropIn && (
+<View className="fixed inset-0 z-[300] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }} onClick={() => setShowDropIn(false)}>
+<View className="bg-white rounded-2xl p-6 w-[85%] max-w-sm" onClick={e => e.stopPropagation()}>
+<Text className="block text-base font-semibold text-center mb-1">添加临时来园</Text>
+<Text className="block text-xs text-gray-400 text-center mb-4">日期：{selectedDate === today ? '今天' : selectedDate}</Text>
+<Text className="block text-xs text-gray-500 mb-1">幼儿</Text>
+<Picker mode="selector" range={dropInCandidates.map(c => c.name)} value={dropInChildIdx} onChange={e => setDropInChildIdx(Number(e.detail.value))}>
+<View className="border border-gray-200 rounded-lg px-3 py-2 mb-3"><Text className="text-sm">{dropInCandidates[dropInChildIdx]?.name || '请选择幼儿'}</Text></View>
+</Picker>
+<Text className="block text-xs text-gray-500 mb-1">课程</Text>
+<Picker mode="selector" range={DROP_IN_COURSES} value={dropInCourseIdx} onChange={e => setDropInCourseIdx(Number(e.detail.value))}>
+<View className="border border-gray-200 rounded-lg px-3 py-2 mb-4"><Text className="text-sm">{DROP_IN_COURSES[dropInCourseIdx]}</Text></View>
+</Picker>
+<View className="flex flex-row gap-3">
+<View className="flex-1 py-2 rounded-lg bg-gray-100 text-center" onClick={() => setShowDropIn(false)}><Text className="text-sm text-gray-600">取消</Text></View>
+<View className="flex-1 py-2 rounded-lg bg-blue-500 text-center" onClick={submitDropIn}><Text className="text-sm text-white">确定</Text></View>
+</View>
+</View>
+</View>
+)}
+修改 src/pages/admin/child-detail/index.tsx，import 区域从 '@/utils/api' 增加 dropInApi 导入，在组件内 state 定义区域（enrollments state 之后）新增：
+const [dropIns, setDropIns] = useState<any[]>([])
+const DROP_IN_STATUS_TEXT: Record<string, string> = { full_day: '全天出勤', half_day: '半天出勤', present: '出勤', absent: '缺勤', leave: '请假' }
+同文件 loadData 函数内，现有拉取报读记录（enrollments）的代码之后追加：
+try {
+const dropRes: any = await dropInApi.list(id!)
+setDropIns(dropRes.data?.data || [])
+} catch (e) {}
+同文件在报读记录卡片的 Card 结束标签（注释 {/* 报读记录卡片 */} 对应 Card 的 </Card>）之后，新增卡片：
+<Card className="bg-white rounded-xl border-0 shadow-sm">
+<CardContent className="p-4">
+<View className="flex items-center gap-2 mb-3">
+<Text className="text-base font-semibold text-foreground">其他课程</Text>
+</View>
+{dropIns.length === 0 ? (
+<View className="py-6 flex items-center justify-center">
+<Text className="text-sm text-muted-foreground">暂无临时来园记录</Text>
+</View>
+) : (
+dropIns.map((d) => (
+<View key={d.id} className="bg-gray-50 rounded-xl p-3 mb-2">
+<Text className="block text-sm font-medium text-foreground">{d.date}</Text>
+<Text className="block text-xs text-gray-500 mt-1">课程：{d.course_type}</Text>
+<Text className="block text-xs text-gray-500 mt-1">考勤：{DROP_IN_STATUS_TEXT[d.status || ''] || '未考勤'}</Text>
+</View>
+))
+)}
+</CardContent>
+</Card>

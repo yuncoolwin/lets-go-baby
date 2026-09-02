@@ -912,8 +912,8 @@ export class EnrollmentsService {
 
     const startDate = enr.start_date;
     if (!startDate) return [];
-    // 上课期间：start_date ~ 顺延结束日期（无顺延取原始结束日期，长期在读取今日）
-    const endDate = enr.extended_end_date || enr.end_date || new Date().toISOString().slice(0, 10);
+    // 上课期间：start_date ~ 顺延结束日期（无顺延取原始结束日期，未填结束日期则取今天起往后 2 年，保证未来假期都能返回）
+    const endDate = enr.extended_end_date || enr.end_date || new Date(Date.now() + 730 * 24 * 3600 * 1000).toISOString().slice(0, 10);
 
     // 解析上课日规则（从课程管理动态读取）
     const rule = await this.resolveDateCalcRule(enr);

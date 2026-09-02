@@ -207,6 +207,17 @@ export const attendanceApi = {
     request({ url: '/api/attendance', method: 'POST', data }),
 }
 
+// ============ 临时来园 API ============
+
+export const dropInApi = {
+  // 新增临时来园
+  add: (data: { child_id: string; class_id: string; course_type: string; date: string }) =>
+    request({ url: '/api/attendance/drop-in', method: 'POST', data }),
+
+  // 按幼儿查询临时来园记录（date 倒序）
+  list: (childId: string) => request({ url: `/api/attendance/drop-ins?child_id=${childId}` }),
+}
+
 export const authApi = {
   teacherLogin(phone: string) {
     return Network.request({

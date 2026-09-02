@@ -387,6 +387,44 @@ export class TeacherService {
       });
     }
 
+    // 附加临时来园幼儿（不在报读中，但当天有临时来园记录）
+    try {
+      const { data: dropIns } = await this.client
+        .from('drop_in_records')
+        .select('child_id, course_type')
+        .eq('class_id', teacherClassId)
+        .eq('date', queryDate);
+      if (dropIns && dropIns.length > 0) {
+        // 补齐临时来园幼儿信息（可能未报读，不在 childrenMap 中）
+        const dropChildIds = [...new Set(dropIns.map(d => d.child_id).filter(id => !childrenMap[id]))];
+        if (dropChildIds.length > 0) {
+          const { data: dropChildren } = await this.client
+            .from('children')
+            .select('id, name, gender, birth_date, nickname')
+            .in('id', dropChildIds);
+          dropChildren?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date, nickname: c.nickname }; });
+        }
+        for (const d of dropIns) {
+          const ct = d.course_type;
+          if (!groupMap.has(ct)) groupMap.set(ct, []);
+          const exists = groupMap.get(ct)!.some(x => x.child_id === d.child_id);
+          if (exists) continue;
+          groupMap.get(ct)!.push({
+            child_id: d.child_id,
+            name: childrenMap[d.child_id]?.name || '',
+            gender: childrenMap[d.child_id]?.gender || '',
+            birth_date: childrenMap[d.child_id]?.birth_date || '',
+            start_date: null,
+            nickname: childrenMap[d.child_id]?.nickname || '',
+            end_date: null,
+            extended_end_date: null,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('[buildClassOverview] 附加临时来园记录失败:', e);
+    }
+
     // 查询当天考勤数据（含 course_type）
     const { data: attendance } = await this.client
       .from('attendance')
@@ -576,6 +614,44 @@ export class TeacherService {
         end_date: e.end_date,
         extended_end_date: e.extended_end_date || e.end_date,
       });
+    }
+
+    // 附加临时来园幼儿（不在报读中，但当天有临时来园记录）
+    try {
+      const { data: dropIns } = await this.client
+        .from('drop_in_records')
+        .select('child_id, course_type')
+        .eq('class_id', classId)
+        .eq('date', queryDate);
+      if (dropIns && dropIns.length > 0) {
+        // 补齐临时来园幼儿信息（可能未报读，不在 childrenMap 中）
+        const dropChildIds = [...new Set(dropIns.map(d => d.child_id).filter(id => !childrenMap[id]))];
+        if (dropChildIds.length > 0) {
+          const { data: dropChildren } = await this.client
+            .from('children')
+            .select('id, name, gender, birth_date, nickname')
+            .in('id', dropChildIds);
+          dropChildren?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date, nickname: c.nickname }; });
+        }
+        for (const d of dropIns) {
+          const ct = d.course_type;
+          if (!groupMap.has(ct)) groupMap.set(ct, []);
+          const exists = groupMap.get(ct)!.some(x => x.child_id === d.child_id);
+          if (exists) continue;
+          groupMap.get(ct)!.push({
+            child_id: d.child_id,
+            name: childrenMap[d.child_id]?.name || '',
+            gender: childrenMap[d.child_id]?.gender || '',
+            birth_date: childrenMap[d.child_id]?.birth_date || '',
+            start_date: null,
+            nickname: childrenMap[d.child_id]?.nickname || '',
+            end_date: null,
+            extended_end_date: null,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('[getGroupedOverviewByClass] 附加临时来园记录失败:', e);
     }
 
     // 查询当天考勤数据

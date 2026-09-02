@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/app'
 import { ChevronDown, ChevronUp } from 'lucide-react-taro'
 import { Network } from '@/network'
+import { dropInApi } from '@/utils/api'
 import TabBar from '@/components/tab-bar'
 
 
@@ -68,6 +69,7 @@ export default function RollCallPage() {
   const [classList, setClassList] = useState<Array<{ id: string; name: string }>>([])
   const [selectedClassId, setSelectedClassId] = useState('')
   const [holidayInfo, setHolidayInfo] = useState<{ is_class_holiday: boolean; holiday_label: string | null; personal_holiday_child_ids: string[] }>({ is_class_holiday: false, holiday_label: null, personal_holiday_child_ids: [] })
+  const [dropInModal, setDropInModal] = useState(false)
 
   // 上海时区（UTC+8）口径的当天字符串，前后端一致
   const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -401,6 +403,14 @@ export default function RollCallPage() {
             onClick={handleClear}
           >
             清除
+          </Text>
+        )}
+        {!isAdmin && selectedDate === today && (
+          <Text
+            className="block text-sm text-gray-600 bg-gray-100 rounded-full px-3 py-1"
+            onClick={() => setDropInModal(true)}
+          >
+            添加临时来园
           </Text>
         )}
       </View>
@@ -744,7 +754,166 @@ export default function RollCallPage() {
           </>
         )}
       </View>
+      {!isAdmin && (
+        <DropInModal
+          visible={dropInModal}
+          onClose={() => setDropInModal(false)}
+          date={selectedDate}
+          classId={classId}
+          childId={currentRole?.id || ''}
+          currentRole={currentRole}
+          onSuccess={() => {
+            Taro.showToast({ title: '已添加临时来园', icon: 'success' })
+            loadData()
+          }}
+        />
+      )}
       <TabBar />
+    </View>
+  )
+}
+
+// ============ 临时来园弹窗 ============
+
+function DropInModal({
+  visible,
+  onClose,
+  date,
+  classId,
+  childId,
+  currentRole,
+  onSuccess,
+}: {
+  visible: boolean
+  onClose: () => void
+  date: string
+  classId: string
+  childId: string
+  currentRole: any
+  onSuccess: () => void
+}) {
+  const [allChildren, setAllChildren] = useState<ChildItem[]>([])
+  const [pickedId, setPickedId] = useState('')
+  const [courseType, setCourseType] = useState('全日托')
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!visible) return
+    setPickedId('')
+    setSubmitting(false)
+    ;(async () => {
+      try {
+        const res: any = await Network.request({
+          url: `/api/teachers/grouped-overview?teacher_role_id=${currentRole?.id || ''}&date=${date}`,
+        })
+        const groups = res.data?.data || []
+        const flat: ChildItem[] = []
+        for (const g of groups) {
+          for (const s of g.students || []) {
+            flat.push({
+              id: s.id,
+              name: s.name,
+              gender: s.gender || '',
+              course_type: s.course_type || '',
+              attendance_status: s.attendance_status || null,
+              check_in_time: s.check_in_time || null,
+              check_out_time: s.check_out_time || null,
+              class_id: g.class_id || '',
+              record_status: s.attendance_status || null,
+            })
+          }
+        }
+        setAllChildren(flat)
+      } catch {
+        setAllChildren([])
+      }
+    })()
+  }, [visible, date, currentRole])
+
+  const submit = async () => {
+    if (!pickedId) {
+      Taro.showToast({ title: '请选择幼儿', icon: 'none' })
+      return
+    }
+    if (!classId) {
+      Taro.showToast({ title: '缺少班级信息', icon: 'none' })
+      return
+    }
+    setSubmitting(true)
+    try {
+      const res: any = await dropInApi.add({ child_id: pickedId, class_id: classId, course_type: courseType, date })
+      if (res.statusCode === 200 && res.data?.code === 200) {
+        Taro.showToast({ title: '已添加临时来园', icon: 'success' })
+        onSuccess()
+        onClose()
+      } else {
+        Taro.showToast({ title: res.data?.msg || '添加失败', icon: 'none' })
+      }
+    } catch {
+      Taro.showToast({ title: '添加失败', icon: 'none' })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (!visible) return null
+
+  return (
+    <View
+      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+      onClick={onClose}
+    >
+      <View
+        className="bg-white rounded-2xl p-5"
+        style={{ width: '300px', maxWidth: '90%' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text className="block text-base font-bold text-gray-900">添加临时来园</Text>
+          <Text className="text-gray-400 text-lg" onClick={onClose}>×</Text>
+        </View>
+        <Text className="block text-xs text-gray-500 mt-1">日期：{date}</Text>
+
+        <Text className="block text-xs text-gray-500 mt-3 mb-1">选择幼儿（不含当日已报读幼儿）</Text>
+        <ScrollView style={{ maxHeight: '220px' }} className="border border-gray-100 rounded-lg">
+          {allChildren.filter(c => c.id !== childId).map(c => (
+            <View
+              key={c.id}
+              className={`px-3 py-2 mx-1 my-1 rounded-full ${pickedId === c.id ? 'bg-[#E8651A]' : 'bg-gray-100'}`}
+              style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+              onClick={() => setPickedId(c.id)}
+            >
+              <Text className={`text-sm ${pickedId === c.id ? 'text-white' : 'text-gray-700'}`}>{c.name}</Text>
+              <Text className={`text-xs ${pickedId === c.id ? 'text-white' : 'text-gray-400'}`}>{c.course_type || ''}</Text>
+            </View>
+          ))}
+          {allChildren.filter(c => c.id !== childId).length === 0 && (
+            <Text className="block text-xs text-gray-400 text-center py-4">暂无可选幼儿</Text>
+          )}
+        </ScrollView>
+
+        <Text className="block text-xs text-gray-500 mt-3 mb-1">课程类型</Text>
+        <View style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '8px' }}>
+          {['全日托', '半日托', '周六托', '晚间托', '兴趣班'].map(ct => (
+            <Text
+              key={ct}
+              className={`text-xs rounded-full px-3 py-1 ${courseType === ct ? 'bg-[#E8651A] text-white' : 'bg-gray-100 text-gray-600'}`}
+              onClick={() => setCourseType(ct)}
+            >
+              {ct}
+            </Text>
+          ))}
+        </View>
+
+        <View
+          className={`rounded-full py-2 mt-4 text-center ${submitting || !pickedId ? 'bg-gray-200' : 'bg-[#E8651A]'}`}
+          onClick={submitting || !pickedId ? undefined : submit}
+        >
+          <Text className={`block text-sm font-medium ${submitting || !pickedId ? 'text-gray-400' : 'text-white'}`}>
+            {submitting ? '提交中...' : '确认添加'}
+          </Text>
+        </View>
+      </View>
     </View>
   )
 }

@@ -231,6 +231,43 @@ export class AttendanceService {
         extended_end_date: e.extended_end_date || e.end_date,
       });
     }
+    // 附加临时来园幼儿（不在报读中，但当天有临时来园记录）
+    try {
+      const { data: dropIns } = await this.client
+        .from('drop_in_records')
+        .select('child_id, course_type')
+        .eq('class_id', classId)
+        .eq('date', queryDate);
+      if (dropIns && dropIns.length > 0) {
+        // 补齐临时来园幼儿信息（可能未报读，不在 childrenMap 中）
+        const dropChildIds = [...new Set(dropIns.map(d => d.child_id).filter(id => !childrenMap[id]))];
+        if (dropChildIds.length > 0) {
+          const { data: dropChildren } = await this.client
+            .from('children')
+            .select('id, name, gender, birth_date')
+            .in('id', dropChildIds);
+          dropChildren?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date }; });
+        }
+        for (const d of dropIns) {
+          const ct = d.course_type;
+          if (!groupMap.has(ct)) groupMap.set(ct, []);
+          const exists = groupMap.get(ct)!.some(x => x.child_id === d.child_id);
+          if (exists) continue;
+          groupMap.get(ct)!.push({
+            child_id: d.child_id,
+            name: childrenMap[d.child_id]?.name || '',
+            gender: childrenMap[d.child_id]?.gender || '',
+            birth_date: childrenMap[d.child_id]?.birth_date || '',
+            start_date: null,
+            end_date: null,
+            extended_end_date: null,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('[getAdminOverview] 附加临时来园记录失败:', e);
+    }
+
     console.log(`[AdminOverview] Group map types: ${[...groupMap.keys()].join(', ')}`);
 
     // 查询当天考勤数据
@@ -344,6 +381,38 @@ export class AttendanceService {
     const { data, error } = await query.single();
     if (error && error.code !== 'PGRST116') throw error;
     return data || null;
+  }
+
+  /**
+   * 新增临时来园（drop_in_records），教师仅限本班
+   */
+  async addDropIn(userId: string, dto: { child_id: string; class_id: string; course_type: string; date: string }) {
+    const denied = await this.canAccessClass(userId, dto.class_id);
+    if (denied) return { code: 403, msg: denied };
+
+    const record = {
+      child_id: dto.child_id,
+      class_id: dto.class_id,
+      course_type: dto.course_type,
+      date: dto.date,
+      teacher_id: userId,
+    };
+    const { data, error } = await this.client.from('drop_in_records').insert(record).select('id').single();
+    if (error) return { code: 500, msg: `新增临时来园失败: ${error.message}` };
+    return { code: 200, msg: 'success', data: { id: (data as any)?.id } };
+  }
+
+  /**
+   * 按幼儿查询临时来园记录（按 date 倒序）
+   */
+  async getDropIns(childId: string) {
+    const { data, error } = await this.client
+      .from('drop_in_records')
+      .select('id, child_id, class_id, course_type, date, status, created_at')
+      .eq('child_id', childId)
+      .order('date', { ascending: false });
+    if (error) return { code: 500, msg: `查询临时来园失败: ${error.message}` };
+    return { code: 200, msg: 'success', data: data || [] };
   }
 
   /**

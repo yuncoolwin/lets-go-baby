@@ -105,4 +105,22 @@ export class AttendanceController {
     const data = await this.attendanceService.getDates(classId);
     return { code: 200, msg: 'success', data };
   }
+
+  @Post('drop-in')
+  @HttpCode(200)
+  async addDropIn(
+    @Req() req: Request,
+    @Body() body: { child_id: string; class_id: string; course_type: string; date: string },
+  ) {
+    const userId = (req as any).user?.userId;
+    const data = await this.attendanceService.addDropIn(userId, body);
+    return { code: (data as any)?.code || 200, msg: (data as any)?.msg || 'success', data: (data as any)?.data ?? null };
+  }
+
+  @Get('drop-ins')
+  @HttpCode(200)
+  async getDropIns(@Query('child_id') childId: string) {
+    const data = await this.attendanceService.getDropIns(childId);
+    return { code: (data as any)?.code || 200, msg: (data as any)?.msg || 'success', data: (data as any)?.data ?? null };
+  }
 }
