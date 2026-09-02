@@ -23,8 +23,9 @@ export class AuthController {
   @HttpCode(200)
   async wxLogin(
     @Query('code') code: string,
+    @Query('require_phone') requirePhone?: string,
   ) {
-    const data = await this.authService.wxLogin(code || 'demo');
+    const data = await this.authService.wxLogin(code || 'demo', requirePhone === '1' || requirePhone === 'true');
     if ((data as any)?.error) {
       return { code: (data as any).code, msg: (data as any).msg, data: null };
     }

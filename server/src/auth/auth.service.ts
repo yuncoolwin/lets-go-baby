@@ -22,7 +22,7 @@ export class AuthService {
    * 微信登录
    * 流程：code 换 openid（MOCK_WECHAT=true 时为 mock）→ 查users表 → 已注册则查角色 → 未注册则创建user+parent角色
    */
-  async wxLogin(code: string) {
+  async wxLogin(code: string, requirePhone = false) {
     console.log('[AuthService] wxLogin called:', { code: code?.substring(0, 10) + '...' });
 
     // 通过微信服务换取 openid（MOCK_WECHAT=true 联调时返回 mock 值；否则要求真实 appid/secret 配置）
@@ -57,6 +57,10 @@ export class AuthService {
       console.log('[AuthService] Using existing user:', userId);
     } else {
       // 未注册，创建新用户
+      // requirePhone 为 true 时不自动建号，返回 need_register 由前端引导手机号授权注册
+      if (requirePhone) {
+        return { need_register: true }
+      }
       console.log('[AuthService] Creating new user with openid:', openid);
       const { data: newUser, error } = await this.client
         .from('users')

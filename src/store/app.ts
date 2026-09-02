@@ -76,10 +76,11 @@ interface AppStore {
   setNeedRoleSelection: (need: boolean) => void
   setIsLoading: (loading: boolean) => void
   logout: () => void
-  wxLogin: (code: string) => Promise<{
+  wxLogin: (code: string, requirePhone?: boolean) => Promise<{
     needRoleSelection: boolean
     targetRole: string | null
     hasBoundChildren: boolean
+    needRegister?: boolean
     error?: boolean
   }>
   phoneLogin: (loginCode: string, phoneCode?: string) => Promise<{
@@ -223,9 +224,9 @@ export const useAppStore = create<AppStore>()(
     })
   },
 
-  wxLogin: async (code) => {
+  wxLogin: async (code, requirePhone = false) => {
     set({ isLoading: true })
-    const url = `/api/auth/wx-login?code=${code}`
+    const url = `/api/auth/wx-login?code=${code}${requirePhone ? '&require_phone=1' : ''}`
     console.log('[Auth] wxLogin request:', { url, code })
 
     // 15秒超时处理
@@ -255,6 +256,10 @@ export const useAppStore = create<AppStore>()(
         set({ isLoading: false })
         Taro.showToast({ title: '登录失败：响应数据为空', icon: 'none' })
         return { needRoleSelection: false, targetRole: null, hasBoundChildren: false, error: true }
+      }
+      if (data?.need_register) {
+        set({ isLoading: false })
+        return { needRoleSelection: false, targetRole: null, hasBoundChildren: false, needRegister: true }
       }
       if (data) {
         const roles = (data.roles || []) as UserRole[]

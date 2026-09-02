@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Button } from '@/components/ui/button'
@@ -8,6 +9,8 @@ const APP_VERSION = '1.0.0'
 
 export default function LoginPage() {
   const { wxLogin, phoneLogin, isLoading } = useAppStore()
+
+  const [needPhoneAuth, setNeedPhoneAuth] = useState(false)
 
   const isDev = (() => {
     if (Taro.getEnv() !== Taro.ENV_TYPE.WEAPP) return true
@@ -52,8 +55,13 @@ export default function LoginPage() {
         console.log('[Login] calling wx.login...')
         const { code } = await loginWithTimeout()
         console.log('[Login] wx.login success, code:', code)
-        const result = await wxLogin(code)
+        const result = await wxLogin(code, true)
         console.log('[Login] wxLogin result:', result)
+        if ((result as any).needRegister) {
+          Taro.showToast({ title: '新用户，使用手机号授权登录', icon: 'none' })
+          setNeedPhoneAuth(true)
+          return
+        }
         handleLoginResult(result)
       } catch (err) {
         console.error('[Login] wxLogin error:', err)
@@ -122,21 +130,6 @@ export default function LoginPage() {
 
   return (
     <View className="min-h-screen bg-gradient-to-b from-orange-50 to-white flex flex-col items-center justify-center px-6">
-      {/* 微信授权登录（右上角小按钮） */}
-      <View
-        className="flex items-center"
-        style={{ position: 'fixed', top: 60, right: 16, zIndex: 1001 }}
-      >
-        <Button
-          variant="ghost"
-          className="h-8 px-2"
-          onClick={handleWxLogin}
-          disabled={isLoading}
-        >
-          <Text className="text-xs text-gray-500">微信授权登录</Text>
-        </Button>
-      </View>
-
       {/* Logo 区域 */}
       <View className="mb-12 flex flex-col items-center">
         <Image
@@ -148,14 +141,24 @@ export default function LoginPage() {
 
       {/* 登录按钮 */}
       <View className="w-full max-w-sm space-y-4">
-        <Button
-          className="w-full h-12 rounded-xl bg-primary text-white text-base font-medium"
-          openType="getPhoneNumber"
-          onGetPhoneNumber={handlePhoneLogin}
-          disabled={isLoading}
-        >
-          {isLoading ? '登录中...' : '手机号一键登录'}
-        </Button>
+        {needPhoneAuth ? (
+          <Button
+            className="w-full h-12 rounded-xl bg-primary text-white text-base font-medium"
+            openType="getPhoneNumber"
+            onGetPhoneNumber={handlePhoneLogin}
+            disabled={isLoading}
+          >
+            {isLoading ? '登录中...' : '手机号授权登录'}
+          </Button>
+        ) : (
+          <Button
+            className="w-full h-12 rounded-xl bg-primary text-white text-base font-medium"
+            onClick={handleWxLogin}
+            disabled={isLoading}
+          >
+            {isLoading ? '登录中...' : '微信授权登录'}
+          </Button>
+        )}
       </View>
 
       {/* 底部说明 */}
