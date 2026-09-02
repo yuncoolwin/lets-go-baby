@@ -74,12 +74,12 @@ export class AuthzService {
 
   /**
    * 教师可见班级 ID 集合：
-   * teachers 表按 user_id 查 active 记录 -> class_id（去重）
+   * teachers 表按 user_id 查 active 记录 -> class_id + teacher_classes 多班关联（去重并集）
    */
   async getTeacherClassIds(userId: string): Promise<string[]> {
     const { data, error } = await this.client
       .from('teachers')
-      .select('class_id')
+      .select('id, class_id')
       .eq('user_id', userId)
       .eq('status', 'active');
 
@@ -87,6 +87,23 @@ export class AuthzService {
       console.error('[AuthzService] getTeacherClassIds 查询失败:', error.message);
       return [];
     }
-    return [...new Set((data || []).map(t => t.class_id).filter(Boolean))];
+
+    // teachers.class_id 兜底 + teacher_classes 多班关联并集
+    const classIds = new Set<string>((data || []).map(t => t.class_id).filter(Boolean) as string[]);
+    const teacherIds = (data || []).map(t => t.id).filter(Boolean);
+    if (teacherIds.length > 0) {
+      const { data: tcRows, error: tcError } = await this.client
+        .from('teacher_classes')
+        .select('class_id')
+        .in('teacher_id', teacherIds);
+      if (tcError) {
+        console.warn('[AuthzService] teacher_classes 查询失败:', tcError.message);
+      } else {
+        for (const cid of (tcRows || []).map(r => r.class_id)) {
+          if (cid) classIds.add(cid);
+        }
+      }
+    }
+    return [...classIds];
   }
 }

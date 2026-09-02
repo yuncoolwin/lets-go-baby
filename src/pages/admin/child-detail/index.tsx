@@ -194,14 +194,14 @@ export default function ChildDetailPage() {
     try {
       const payload: Record<string, any> = {
         name: editName.trim(),
-        nickname: editNickname.trim() || undefined,
+        nickname: editNickname.trim(),
         gender: editGender,
         birth_date: editBirthDate,
         status: editStatus,
-        parent_name: editParentName || undefined,
-        parent_phone: editParentPhone || undefined,
-        allergies: editAllergies || undefined,
-        health_info: editHealthInfo || undefined,
+        parent_name: editParentName.trim(),
+        parent_phone: editParentPhone.trim(),
+        allergies: editAllergies.trim(),
+        health_info: editHealthInfo.trim(),
       }
       const res = await childrenApi.update(id!, payload, { operator_user_id: userId ?? undefined, operator_role_id: currentRole?.id })
       if (res.code === 200) {

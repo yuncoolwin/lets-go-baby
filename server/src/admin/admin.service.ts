@@ -766,7 +766,7 @@ export class AdminService {
       action: 'role_assign',
       target_type: 'user',
       target_id: userId,
-      detail: { role_type: roleType },
+      detail: { name: (user as { nickname?: string } | null)?.nickname || null, role_type: roleType },
     });
 
     return { code: 200, msg: 'success', data: created };
@@ -781,7 +781,7 @@ export class AdminService {
 
     const { data: target, error: targetError } = await this.client
       .from('user_roles')
-      .select('id, role_type, status')
+      .select('id, user_id, role_type, status')
       .eq('id', userRoleId)
       .maybeSingle();
 
@@ -811,12 +811,37 @@ export class AdminService {
 
     if (revokeError) throw new Error(`撤销角色失败: ${revokeError.message}`);
 
+    // 撤销家长角色时自动解除其全部幼儿绑定
+    let unbindCount = 0;
+    if (target.role_type === 'parent') {
+      const { data: removed, error: unbindError } = await this.client
+        .from('parent_child_relations')
+        .delete()
+        .eq('parent_role_id', userRoleId)
+        .select('id');
+
+      if (unbindError) throw new Error(`解除绑定失败: ${unbindError.message}`);
+      unbindCount = (removed || []).length;
+    }
+
+    // 撤销前查目标角色对应用户的 nickname，写入日志 detail.name
+    let revokedNickname: string | null = null;
+    if (target.user_id) {
+      const { data: revokedUser } = await this.client
+        .from('users')
+        .select('nickname')
+        .eq('id', target.user_id)
+        .maybeSingle();
+      revokedNickname = (revokedUser as { nickname?: string } | null)?.nickname || null;
+    }
+
     await this.writeAuditLog({
       user_id: operatorUserId,
       user_role_id: isSuperAdmin.id,
       action: 'role_revoke',
       target_type: 'user_role',
       target_id: userRoleId,
+      detail: { name: revokedNickname, role_type: target.role_type, unbind_count: unbindCount },
     });
 
     return { code: 200, msg: 'success', data: { success: true } };
@@ -848,6 +873,7 @@ export class AdminService {
       action: 'user_create',
       target_type: 'user',
       target_id: created.id,
+      detail: { name: created.nickname || null },
     });
 
     return { code: 200, msg: 'success', data: created };
@@ -922,6 +948,7 @@ export class AdminService {
       action: 'user_update',
       target_type: 'user',
       target_id: userId,
+      detail: { name: updated.nickname || null },
     });
 
     return { code: 200, msg: 'success', data: updated };
@@ -985,6 +1012,13 @@ export class AdminService {
     }
 
     // 4. 删除 user_roles 再删除 users
+    const { data: victim, error: victimError } = await this.client
+      .from('users')
+      .select('nickname')
+      .eq('id', userId)
+      .maybeSingle();
+    if (victimError) throw new Error(`查询用户信息失败: ${victimError.message}`);
+
     const { error: deleteRolesError } = await this.client
       .from('user_roles')
       .delete()
@@ -1005,6 +1039,7 @@ export class AdminService {
       action: 'user_delete',
       target_type: 'user',
       target_id: userId,
+      detail: { name: (victim as { nickname?: string } | null)?.nickname || null },
       level: 'warn',
     });
 

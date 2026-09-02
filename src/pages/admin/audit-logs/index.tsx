@@ -55,7 +55,7 @@ const ACTION_LABELS: Record<string, string> = {
   class_update: '编辑了班级「{name}」',
   class_delete: '删除了班级「{name}」',
   child_create: '新增了幼儿「{name}」',
-  child_update: '编辑了幼儿「{name}」',
+  child_update: '编辑了幼儿「{name}」的{changes}',
   child_delete: '删除了幼儿「{name}」',
   course_create: '新增了课程「{name}」',
   course_update: '编辑了课程「{name}」',
@@ -71,31 +71,65 @@ const ACTION_LABELS: Record<string, string> = {
   growth_delete: '删除了成长档案「{name}」',
   binding_approve: '通过了绑定申请',
   binding_reject: '拒绝了绑定申请',
-  user_create: '新增了用户',
-  user_update: '编辑了用户',
-  user_delete: '删除了用户',
-  role_assign: '分配了角色',
-  role_revoke: '撤销了角色',
+  user_create: '新增了用户「{name}」',
+  user_update: '编辑了用户「{name}」',
+  user_delete: '删除了用户「{name}」',
+  role_assign: '给「{name}」分配了{role}',
+  role_revoke: '撤销了「{name}」的{role}',
 }
 
 const TYPE_OPTIONS = ['', ...Object.keys(TARGET_TYPE_LABELS)]
 
 const PAGE_SIZE = 20
 
+const ROLE_LABELS: Record<string, string> = {
+  superadmin: '超管角色',
+  admin: '管理员角色',
+  teacher: '教师角色',
+  parent: '家长角色',
+}
+
+// name 为空时的降级文案
+const ACTION_FALLBACKS: Record<string, string> = {
+  user_create: '新增了用户',
+  user_update: '编辑了用户',
+  user_delete: '删除了用户',
+  role_assign: '分配了{role}',
+  role_revoke: '撤销了{role}',
+  child_update: '编辑了幼儿',
+}
+
 const buildPhrase = (action: string, detail: any) => {
   const tpl = ACTION_LABELS[action]
   if (!tpl) return action || '执行了操作'
   let name = ''
+  let roleType = ''
+  let changes: string[] = []
   try {
     const obj = typeof detail === 'string' ? JSON.parse(detail) : detail
     name = obj?.name || ''
+    roleType = obj?.role_type || ''
+    changes = Array.isArray(obj?.changes) ? obj.changes : []
   } catch {
     name = ''
   }
-  if (tpl.includes('{name}')) {
-    return name ? tpl.replace('{name}', `「${name}」`) : tpl.replace('「{name}」', '')
+  const roleLabel = ROLE_LABELS[roleType] || '角色'
+  const changesLabel = changes.length > 0 ? changes.join('、') : '信息'
+
+  if (name) {
+    return tpl
+      .replace('{role}', roleLabel)
+      .replace('{changes}', changesLabel)
+      .replace('{name}', name)
   }
+  // name 为空：优先用降级模板，否则去掉「{name}」段落
+  const fallback = ACTION_FALLBACKS[action]
+  if (fallback) return fallback.replace('{role}', roleLabel).replace('{changes}', changesLabel)
   return tpl
+    .replace('{role}', roleLabel)
+    .replace('{changes}', changesLabel)
+    .replace('「{name}」的', '')
+    .replace('「{name}」', '')
 }
 
 export default function AuditLogsPage() {

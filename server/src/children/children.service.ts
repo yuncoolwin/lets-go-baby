@@ -45,6 +45,7 @@ export class ChildrenService {
     targetType: string;
     targetId?: string | null;
     name?: string | null;
+    changes?: string[];
     level?: string;
   }) {
     try {
@@ -53,7 +54,10 @@ export class ChildrenService {
         action: params.action,
         target_type: params.targetType,
         target_id: params.targetId || null,
-        detail: { name: params.name || null },
+        detail: {
+          name: params.name || null,
+          ...(params.changes && params.changes.length > 0 ? { changes: params.changes } : {}),
+        },
         level: params.level || 'info',
         created_at: new Date().toISOString(),
       });
@@ -234,20 +238,63 @@ export class ChildrenService {
       fullData = pagedIds.map(id => dataMap.get(id)).filter(Boolean);
     }
 
-    // 收集所有班级ID，批量查询教师
+    // 收集所有班级ID，批量查询教师（teachers.class_id + teacher_classes 多班并集）
     const classIds = [...new Set((fullData || []).map((c: any) => c.class_id).filter(Boolean))];
     const teachersMap: Record<string, string[]> = {};
+    const pushTeacherName = (classId: string, name: string) => {
+      if (!classId || !name) return;
+      if (!teachersMap[classId]) teachersMap[classId] = [];
+      if (!teachersMap[classId].includes(name)) teachersMap[classId].push(name);
+    };
     if (classIds.length > 0) {
-      const { data: teachers } = await this.client
+      // 关联命中的教师（teacher_classes）∪ 直属教师（teachers.class_id）
+      const { data: tcHits } = await this.client
+        .from('teacher_classes')
+        .select('teacher_id')
+        .in('class_id', classIds);
+      const hitTeacherIds = [...new Set((tcHits || []).map(r => r.teacher_id).filter(Boolean))];
+
+      let teacherList: any[] = [];
+      if (hitTeacherIds.length > 0) {
+        const { data: linked } = await this.client
+          .from('teachers')
+          .select('id, nickname, class_id')
+          .in('id', hitTeacherIds)
+          .eq('status', 'active');
+        teacherList = linked || [];
+      }
+      const { data: directList } = await this.client
         .from('teachers')
-        .select('nickname, class_id')
+        .select('id, nickname, class_id')
         .in('class_id', classIds)
         .eq('status', 'active');
-      for (const t of teachers || []) {
-        const name = t.nickname || '';
-        if (name && t.class_id) {
-          if (!teachersMap[t.class_id]) teachersMap[t.class_id] = [];
-          teachersMap[t.class_id].push(name);
+
+      const merged = new Map<string, any>();
+      for (const t of [...teacherList, ...(directList || [])]) {
+        if (t.id) merged.set(t.id, t);
+      }
+
+      // 展开每位教师覆盖的全部班级（class_id + teacher_classes 并集），限本页班级
+      const allTeacherIds = [...merged.keys()];
+      const tcMap = new Map<string, string[]>();
+      if (allTeacherIds.length > 0) {
+        const { data: tcRows } = await this.client
+          .from('teacher_classes')
+          .select('teacher_id, class_id')
+          .in('teacher_id', allTeacherIds);
+        for (const row of tcRows || []) {
+          const arr = tcMap.get(row.teacher_id) || [];
+          if (!arr.includes(row.class_id)) arr.push(row.class_id);
+          tcMap.set(row.teacher_id, arr);
+        }
+      }
+      for (const t of merged.values()) {
+        const covered = new Set<string>([
+          ...(t.class_id ? [t.class_id] : []),
+          ...(tcMap.get(t.id) || []),
+        ]);
+        for (const cid of covered) {
+          if (classIds.includes(cid)) pushTeacherName(cid, t.nickname || '');
         }
       }
     }
@@ -523,7 +570,31 @@ export class ChildrenService {
     if (error) {
       return { error: true, code: 500, msg: `更新失败: ${error.message}` };
     }
-    await this.logAudit({ userId, action: 'child_update', targetType: 'child', targetId: id, name: data?.name || null });
+
+    // 按 updateData 实际更新的键生成变更项（中文映射）
+    const FIELD_LABELS: Record<string, string> = {
+      name: '姓名',
+      nickname: '小名',
+      gender: '性别',
+      birth_date: '出生日期',
+      class_id: '班级',
+      parent_name: '家长姓名',
+      parent_phone: '家长电话',
+      health_info: '健康信息',
+      allergies: '过敏情况',
+      status: '在读状态',
+      course_type: '课程类型',
+      enrollment_duration: '报读时长',
+      start_date: '开始日期',
+      end_date: '结束日期',
+      payment_amount: '缴费金额',
+      payment_channel: '缴费渠道',
+      payment_status: '缴费状态',
+    };
+    const changes = Object.keys(updateData)
+      .filter(key => FIELD_LABELS[key])
+      .map(key => FIELD_LABELS[key]);
+    await this.logAudit({ userId, action: 'child_update', targetType: 'child', targetId: id, name: data?.name || null, changes });
     return data;
   }
 

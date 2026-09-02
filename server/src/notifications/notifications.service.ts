@@ -104,16 +104,35 @@ export class NotificationsService {
 
   /**
    * 查指定班级的在职教师角色 id
-   * 口径：teachers.class_id in classIds
+   * 口径：teachers.class_id in classIds + teacher_classes 多班关联（并集）
    */
   private async getTeacherRoleIdsByClassIds(classIds: string[]): Promise<string[]> {
     if (!classIds.length) return [];
-    const { data } = await this.client
-      .from('teachers')
-      .select('user_id')
-      .eq('status', 'active')
-      .in('class_id', classIds);
-    const userIds = [...new Set((data || []).map((t) => t.user_id).filter(Boolean))];
+    // 直属教师（teachers.class_id）+ 关联教师（teacher_classes）取并集
+    const [{ data: direct }, { data: tcHits }] = await Promise.all([
+      this.client
+        .from('teachers')
+        .select('user_id')
+        .eq('status', 'active')
+        .in('class_id', classIds),
+      this.client
+        .from('teacher_classes')
+        .select('teacher_id')
+        .in('class_id', classIds),
+    ]);
+    const tcTeacherIds = [...new Set((tcHits || []).map((r) => r.teacher_id).filter(Boolean))];
+    let linked: any[] = [];
+    if (tcTeacherIds.length) {
+      const { data } = await this.client
+        .from('teachers')
+        .select('user_id')
+        .eq('status', 'active')
+        .in('id', tcTeacherIds);
+      linked = data || [];
+    }
+    const userIds = [...new Set(
+      [...(direct || []), ...linked].map((t: any) => t.user_id).filter(Boolean),
+    )];
     return this.getTeacherRoleIdsByUserIds(userIds);
   }
 

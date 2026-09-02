@@ -58,7 +58,33 @@ export class TeacherService {
         .single();
       className = cls?.name || null;
     }
-    
+
+    // 教师班级并集：teachers.class_id + teacher_classes 多班关联
+    let classIds: string[] = classId ? [classId] : [];
+    if (teacher?.id) {
+      const { data: tcRows, error: tcError } = await this.client
+        .from('teacher_classes')
+        .select('class_id')
+        .eq('teacher_id', teacher.id);
+      if (tcError) {
+        console.warn('[teacherService] teacher_classes 查询失败:', tcError.message);
+      } else {
+        for (const cid of (tcRows || []).map(r => r.class_id)) {
+          if (cid && !classIds.includes(cid)) classIds.push(cid);
+        }
+      }
+    }
+    let classNames: string[] = [];
+    if (classIds.length > 0) {
+      const { data: clsRows } = await this.client
+        .from('classes')
+        .select('id, name')
+        .in('id', classIds);
+      const nameMap = new Map((clsRows || []).map(c => [c.id, c.name]));
+      classIds = classIds.filter(id => nameMap.has(id));
+      classNames = classIds.map(id => nameMap.get(id) || '');
+    }
+
     // 查询该班级在读幼儿数量
     let studentCount = 0;
     if (classId) {
@@ -106,6 +132,8 @@ export class TeacherService {
       real_name: teacher?.nickname || teacher?.real_name || role?.real_name,
       class_id: classId,
       class_name: className,
+      class_ids: classIds,
+      class_names: classNames,
       title: teacher?.title || role?.title || null,
       student_count: studentCount,
       today_attendance: todayAttendance,
@@ -220,12 +248,14 @@ export class TeacherService {
   async getGroupedOverview(teacherRoleId?: string, date?: string) {
     // 获取教师信息
     const teacherData = await this.getMe(teacherRoleId);
-    const teacherClassId = teacherData?.class_id || null;
-    if (!teacherClassId) return [];
+    const classIds: string[] = (teacherData?.class_ids?.length
+      ? teacherData.class_ids
+      : (teacherData?.class_id ? [teacherData.class_id] : []));
+    if (classIds.length === 0) return [];
 
     const targetDate = date || new Date().toISOString().split('T')[0];
 
-    // 全园假期（holidays type='all'）
+    // 全园假期（holidays type='all'）——循环外统一判断
     const { data: allHolidays } = await this.client
       .from('holidays')
       .select('name')
@@ -244,12 +274,45 @@ export class TeacherService {
     if ((statutory || []).some(h => h.date?.substring(0, 10) === targetDate)) return [];
 
     // 查询班级信息（含教室 room）
-    const { data: cls, error: clsError } = await this.client
+    const { data: classRows } = await this.client
       .from('classes')
       .select('id, name, room')
-      .eq('id', teacherClassId)
-      .single();
-    if (!cls) return [];
+      .in('id', classIds);
+    if (!classRows || classRows.length === 0) return [];
+
+    // 按班级并集聚合分组（多班拼接，跳过无效 id）
+    const allGroups: Awaited<ReturnType<typeof this.buildClassOverview>> = [];
+    for (const clsRow of classRows) {
+      allGroups.push(...(await this.buildClassOverview(clsRow, targetDate)));
+    }
+    return allGroups;
+  }
+
+  /** 单班考勤总览构建（教师端首页分组；多班教师按班拼接） */
+  private async buildClassOverview(
+    cls: { id: string; name: string; room: string | null },
+    date?: string,
+  ): Promise<Array<{
+    group_id: string;
+    class_id: string;
+    class_name: string;
+    room: string | null;
+    course_type: string;
+    student_count: number;
+    today_attendance: { present: number; absent: number; leave: number };
+    students: Array<{
+      id: string;
+      name: string;
+      gender: string;
+      course_type: string;
+      attendance_status: string;
+      start_date: string | null;
+      end_date: string | null;
+      nickname: string;
+      extended_end_date: string | null;
+    }>;
+  }>> {
+    const teacherClassId = cls.id;
 
     // 查询该班级的全部报读（通过 enrollments.class_id，关联 courses 获取课程名称）
     const { data: enrollments } = await this.client
@@ -641,7 +704,7 @@ export class TeacherService {
     // Try to find teacher by id directly (teachers.id)
     let { data: teacher } = await this.client
       .from('teachers')
-      .select('class_id')
+      .select('id, class_id')
       .eq('id', teacherId)
       .single();
 
@@ -656,21 +719,37 @@ export class TeacherService {
       if (roleRecord?.real_name) {
         const { data: teacherByRole } = await this.client
           .from('teachers')
-          .select('class_id')
+          .select('id, class_id')
           .eq('real_name', roleRecord.real_name)
           .single();
         teacher = teacherByRole;
       }
     }
 
-    if (!teacher?.class_id) {
+    // 教师班级并集：teachers.class_id + teacher_classes 多班关联
+    const classIds: string[] = teacher?.class_id ? [teacher.class_id] : [];
+    if (teacher?.id) {
+      const { data: tcRows, error: tcError } = await this.client
+        .from('teacher_classes')
+        .select('class_id')
+        .eq('teacher_id', teacher.id);
+      if (tcError) {
+        console.warn('[teacherService] teacher_classes 查询失败:', tcError.message);
+      } else {
+        for (const cid of (tcRows || []).map(r => r.class_id)) {
+          if (cid && !classIds.includes(cid)) classIds.push(cid);
+        }
+      }
+    }
+
+    if (classIds.length === 0) {
       return [];
     }
 
     const { data: classData } = await this.client
       .from('classes')
       .select('id, name')
-      .eq('id', teacher.class_id);
+      .in('id', classIds);
 
     return classData || [];
   }

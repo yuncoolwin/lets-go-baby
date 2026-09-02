@@ -25,6 +25,7 @@ export class TeachersService {
     specialty?: string;
     status?: string;
     class_id?: string;
+    class_ids?: string[];
     entry_date?: string;
     leave_date?: string;
   }) {
@@ -68,6 +69,15 @@ export class TeachersService {
     if (error) {
       return { error: true, code: 500, msg: `创建失败: ${error.message}` };
     }
+
+    // 同步多班级关联表
+    if (Array.isArray(dto.class_ids)) {
+      const rows = dto.class_ids.map((cid) => ({ teacher_id: data.id, class_id: cid }));
+      if (rows.length > 0) {
+        await this.client.from('teacher_classes').upsert(rows, { onConflict: 'teacher_id,class_id' });
+      }
+    }
+
     return data;
   }
 
@@ -127,14 +137,46 @@ export class TeachersService {
       // 关联教师角色 id（一人多角色时取第一条）
       const userIds = [...new Set(list.map(t => t.user_id).filter(Boolean))];
       if (userIds.length > 0) {
-        const { data: tRoles } = await this.client
+        const { data: tRoles, error: tRolesError } = await this.client
           .from('user_roles')
-          .select('id, user_id, class_id')
+          .select('id, user_id')
           .in('user_id', userIds)
           .eq('role_type', 'teacher')
           .eq('status', 'active');
+        if (tRolesError) {
+          console.warn('[teachers.findAll] 教师角色关联查询失败:', tRolesError.message);
+        }
         const roleMap = new Map((tRoles || []).map(r => [r.user_id, r]));
         list.forEach(t => { t.teacher_role_id = t.user_id ? (roleMap.get(t.user_id)?.id || null) : null });
+      }
+
+      // 关联多班级（teacher_classes + 原 class_id 兜底并集）
+      const tIds = [...new Set(list.map(t => t.id).filter(Boolean))];
+      if (tIds.length > 0) {
+        const { data: tcRows } = await this.client
+          .from('teacher_classes')
+          .select('teacher_id, class_id')
+          .in('teacher_id', tIds);
+        const tcByTeacher = new Map<string, string[]>();
+        (tcRows || []).forEach(row => {
+          const arr = tcByTeacher.get(row.teacher_id) || [];
+          arr.push(row.class_id);
+          tcByTeacher.set(row.teacher_id, arr);
+        });
+        const allCids = [...new Set(list.flatMap(t => [...(tcByTeacher.get(t.id) || []), t.class_id].filter(Boolean)))];
+        const nameMap = new Map<string, string>();
+        if (allCids.length > 0) {
+          const { data: clsRows } = await this.client
+            .from('classes')
+            .select('id, name')
+            .in('id', allCids);
+          (clsRows || []).forEach(c => nameMap.set(c.id, c.name));
+        }
+        list.forEach(t => {
+          const ids = [...new Set([...(tcByTeacher.get(t.id) || []), t.class_id].filter(Boolean))];
+          t.class_ids = ids;
+          t.class_names = ids.map(cid => nameMap.get(cid)).filter(Boolean);
+        });
       }
     }
 
@@ -194,6 +236,7 @@ export class TeachersService {
     status?: string;
     user_id?: string;
     class_id?: string;
+    class_ids?: string[];
     entry_date?: string;
     leave_date?: string;
   }) {
@@ -225,6 +268,16 @@ export class TeachersService {
     if (error) {
       return { error: true, code: 500, msg: `更新失败: ${error.message}` };
     }
+
+    // 同步多班级关联表（全量替换）
+    if (Array.isArray(dto.class_ids)) {
+      await this.client.from('teacher_classes').delete().eq('teacher_id', id);
+      const rows = dto.class_ids.map((cid) => ({ teacher_id: id, class_id: cid }));
+      if (rows.length > 0) {
+        await this.client.from('teacher_classes').upsert(rows, { onConflict: 'teacher_id,class_id' });
+      }
+    }
+
     return data;
   }
 

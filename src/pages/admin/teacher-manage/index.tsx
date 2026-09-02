@@ -18,6 +18,8 @@ interface Teacher {
   phone?: string | null
   title?: string
   class_name?: string
+  class_ids?: string[]
+  class_names?: string[]
   status: string
   entry_date?: string
   created_at: string
@@ -194,9 +196,20 @@ export default function TeacherManagePage() {
                   className="flex flex-wrap gap-x-4 gap-y-1"
                   onClick={() => Taro.navigateTo({ url: `/pages/admin/teacher-edit/index?id=${teacher.id}` })}
                 >
-                  {teacher.class_name && (
-                    <Text className="block text-sm text-muted-foreground">班级: {teacher.class_name}</Text>
-                  )}
+                  {(() => {
+                    const classNames = teacher.class_names?.length
+                      ? teacher.class_names
+                      : (teacher.class_name ? [teacher.class_name] : [])
+                    return classNames.length > 0 ? (
+                      <View className="flex flex-wrap gap-1">
+                        {classNames.map(name => (
+                          <Text key={name} className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">
+                            {name}
+                          </Text>
+                        ))}
+                      </View>
+                    ) : null
+                  })()}
                   {teacher.title && (
                     <Text className="block text-sm text-muted-foreground">职称: {teacher.title}</Text>
                   )}

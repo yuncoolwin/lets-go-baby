@@ -46,7 +46,7 @@ export default function TeacherEditPage() {
     phone: '',
     title: '',
     customTitle: '',
-    class_id: '',
+    class_ids: [] as string[],
     status: 'active',
     entry_date: '',
     leave_date: ''
@@ -95,7 +95,9 @@ export default function TeacherEditPage() {
           phone: data.phone || '',
           title: isPreset ? data.title : (data.title ? '其他' : ''),
           customTitle: isPreset ? '' : (data.title || ''),
-          class_id: data.class_id || '',
+          class_ids: Array.isArray(data.class_ids) && data.class_ids.length
+            ? data.class_ids
+            : (data.class_id ? [data.class_id] : []),
           status: data.status || 'active',
           entry_date: data.entry_date || '',
           leave_date: data.leave_date || ''
@@ -115,7 +117,9 @@ export default function TeacherEditPage() {
   const handleClassToggle = (classId: string) => {
     setFormData(prev => ({
       ...prev,
-      class_id: prev.class_id === classId ? '' : classId
+      class_ids: prev.class_ids.includes(classId)
+        ? prev.class_ids.filter(id => id !== classId)
+        : [...prev.class_ids, classId]
     }))
   }
 
@@ -140,7 +144,7 @@ export default function TeacherEditPage() {
         nickname: formData.nickname.trim(),
         ...(isCreate ? { phone: formData.phone.trim() } : {}),
         title: getEffectiveTitle(),
-        class_id: formData.class_id,
+        class_ids: formData.class_ids,
         status: formData.status,
         entry_date: formData.entry_date,
         leave_date: formData.status === 'inactive' ? formData.leave_date : ''
@@ -253,9 +257,9 @@ export default function TeacherEditPage() {
               </View>
             )}
 
-            {/* 所在班级 */}
+            {/* 所在班级（可多选） */}
             <View>
-              <Label>所在班级</Label>
+              <Label>所在班级（可多选）</Label>
               <View className="flex flex-wrap gap-2 mt-2">
                 {classes.length === 0 ? (
                   <Text className="block text-sm text-muted-foreground">暂无班级可选</Text>
@@ -264,13 +268,13 @@ export default function TeacherEditPage() {
                     <View
                       key={cls.id}
                       className={`px-4 py-2 rounded-lg ${
-                        formData.class_id === cls.id
+                        formData.class_ids.includes(cls.id)
                           ? 'bg-primary text-white'
                           : 'bg-gray-100 text-gray-600'
                       }`}
                       onClick={() => handleClassToggle(cls.id)}
                     >
-                      <Text className={formData.class_id === cls.id ? 'text-white' : 'text-gray-600'}>
+                      <Text className={formData.class_ids.includes(cls.id) ? 'text-white' : 'text-gray-600'}>
                         {cls.name}
                       </Text>
                     </View>

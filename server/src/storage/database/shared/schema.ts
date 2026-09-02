@@ -320,6 +320,25 @@ export const teachers = pgTable("teachers", {
 	title: varchar({ length: 64 }),
 });
 
+export const teacherClasses = pgTable("teacher_classes", {
+	id: varchar({ length: 36 }).default(sql`gen_random_uuid()`).primaryKey().notNull(),
+	teacherId: varchar("teacher_id", { length: 36 }).notNull(),
+	classId: varchar("class_id", { length: 36 }).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	unique("teacher_classes_teacher_id_class_id_unique").on(table.teacherId, table.classId),
+	foreignKey({
+			columns: [table.teacherId],
+			foreignColumns: [teachers.id],
+			name: "teacher_classes_teacher_id_teachers_id_fk"
+		}),
+	foreignKey({
+			columns: [table.classId],
+			foreignColumns: [classes.id],
+			name: "teacher_classes_class_id_classes_id_fk"
+		}),
+]);
+
 export const notifications = pgTable("notifications", {
 	id: varchar({ length: 36 }).default(sql`gen_random_uuid()`).primaryKey().notNull(),
 	title: varchar({ length: 128 }).notNull(),
