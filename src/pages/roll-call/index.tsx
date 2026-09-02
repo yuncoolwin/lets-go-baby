@@ -210,7 +210,7 @@ export default function RollCallPage() {
             attendance_status: s.attendance_status || null,
             check_in_time: s.check_in_time || null,
             check_out_time: s.check_out_time || null,
-            record_status: s.status || null,
+            record_status: s.attendance_status || null,
           })
           const status = s.attendance_status
           if (status === 'present' || status === 'absent' || status === 'leave' || status === 'full_day' || status === 'half_day') {

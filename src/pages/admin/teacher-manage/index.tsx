@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { teacherApi } from '@/utils/api'
 import { getNameInitial } from '@/utils/helpers'
 import { useAppStore } from '@/store/app'
-import { Search, GraduationCap } from 'lucide-react-taro'
+import { Search, GraduationCap, Pencil } from 'lucide-react-taro'
 
 interface Teacher {
   id: string
@@ -151,10 +151,7 @@ export default function TeacherManagePage() {
             >
               <CardContent className="p-4">
                 <View className="flex items-center justify-between mb-2">
-                  <View
-                    className="flex items-center gap-3 flex-1"
-                    onClick={() => Taro.navigateTo({ url: `/pages/admin/teacher-edit/index?id=${teacher.id}` })}
-                  >
+                  <View className="flex items-center gap-3 flex-1">
                     <View className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center">
                       <Text className="text-sm font-bold text-yellow-700">
                         {getNameInitial(teacher.nickname || teacher.real_name)}
@@ -192,30 +189,38 @@ export default function TeacherManagePage() {
                     </View>
                   )}
                 </View>
-                <View
-                  className="flex flex-wrap gap-x-4 gap-y-1"
-                  onClick={() => Taro.navigateTo({ url: `/pages/admin/teacher-edit/index?id=${teacher.id}` })}
-                >
-                  {(() => {
-                    const classNames = teacher.class_names?.length
-                      ? teacher.class_names
-                      : (teacher.class_name ? [teacher.class_name] : [])
-                    return classNames.length > 0 ? (
-                      <View className="flex flex-wrap gap-1">
-                        {classNames.map(name => (
-                          <Text key={name} className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">
-                            {name}
-                          </Text>
-                        ))}
-                      </View>
-                    ) : null
-                  })()}
-                  {teacher.title && (
-                    <Text className="block text-sm text-muted-foreground">职称: {teacher.title}</Text>
-                  )}
-                  {teacher.entry_date && (
-                    <Text className="block text-sm text-muted-foreground">入职: {teacher.entry_date}</Text>
-                  )}
+                <View className="flex items-center justify-between">
+                  <View className="flex flex-wrap gap-x-4 gap-y-1">
+                    {(() => {
+                      const classNames = teacher.class_names?.length
+                        ? teacher.class_names
+                        : (teacher.class_name ? [teacher.class_name] : [])
+                      return classNames.length > 0 ? (
+                        <View className="flex flex-wrap gap-1">
+                          {classNames.map(name => (
+                            <Text key={name} className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">
+                              {name}
+                            </Text>
+                          ))}
+                        </View>
+                      ) : null
+                    })()}
+                    {teacher.title && (
+                      <Text className="block text-sm text-muted-foreground">职称: {teacher.title}</Text>
+                    )}
+                    {teacher.entry_date && (
+                      <Text className="block text-sm text-muted-foreground">入职: {teacher.entry_date}</Text>
+                    )}
+                  </View>
+                  <View
+                    className="shrink-0 ml-2 p-1"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      Taro.navigateTo({ url: `/pages/admin/teacher-edit/index?id=${teacher.id}` })
+                    }}
+                  >
+                    <Pencil size={14} color="#E8651A" />
+                  </View>
                 </View>
               </CardContent>
             </Card>

@@ -390,14 +390,15 @@ export class TeacherService {
     // 查询当天考勤数据（含 course_type）
     const { data: attendance } = await this.client
       .from('attendance')
-      .select('child_id, course_type, status')
+      .select('child_id, course_type, status, check_in_time, check_out_time')
       .eq('class_id', teacherClassId)
       .eq('date', queryDate);
 
-    const attendanceMap = new Map<string, string>();
+    const attendanceMap = new Map<string, { status: string; check_in_time: string | null; check_out_time: string | null }>();
     attendance?.forEach(a => {
       const key = a.course_type ? `${a.child_id}__${a.course_type}` : a.child_id;
-      attendanceMap.set(key, a.status === 'present' ? 'present' : a.status === 'absent' ? 'absent' : a.status === 'leave' ? 'leave' : a.status === 'full_day' ? 'full_day' : a.status === 'half_day' ? 'half_day' : 'unknown');
+      const statusLabel = a.status === 'present' ? 'present' : a.status === 'absent' ? 'absent' : a.status === 'leave' ? 'leave' : a.status === 'full_day' ? 'full_day' : a.status === 'half_day' ? 'half_day' : 'unknown';
+      attendanceMap.set(key, { status: statusLabel, check_in_time: a.check_in_time || null, check_out_time: a.check_out_time || null });
     });
 
     // 排序优先级
@@ -423,6 +424,8 @@ export class TeacherService {
         end_date: string | null;
         nickname: string;
       extended_end_date: string | null;
+        check_in_time: string | null;
+        check_out_time: string | null;
       }>;
     }> = [];
 
@@ -437,7 +440,8 @@ export class TeacherService {
       let present = 0, absent = 0, leave = 0;
       const studentList = students.map(s => {
         const attKey = ct ? `${s.child_id}__${ct}` : s.child_id;
-        const attStatus = attendanceMap.get(attKey) || 'unknown';
+        const att = attendanceMap.get(attKey);
+        const attStatus = att?.status || 'unknown';
         if (attStatus === 'present' || attStatus === 'full_day' || attStatus === 'half_day') present++;
         else if (attStatus === 'absent') absent++;
         else if (attStatus === 'leave') leave++;
@@ -452,6 +456,8 @@ export class TeacherService {
           end_date: s.end_date,
           nickname: s.nickname || "",
           extended_end_date: s.extended_end_date || s.end_date,
+          check_in_time: att?.check_in_time || null,
+          check_out_time: att?.check_out_time || null,
         };
       });
 
@@ -575,14 +581,15 @@ export class TeacherService {
     // 查询当天考勤数据
     const { data: attendance } = await this.client
       .from('attendance')
-      .select('child_id, course_type, status')
+      .select('child_id, course_type, status, check_in_time, check_out_time')
       .eq('class_id', classId)
       .eq('date', queryDate);
 
-    const attendanceMap = new Map<string, string>();
+    const attendanceMap = new Map<string, { status: string; check_in_time: string | null; check_out_time: string | null }>();
     attendance?.forEach(a => {
       const key = a.course_type ? `${a.child_id}__${a.course_type}` : a.child_id;
-      attendanceMap.set(key, a.status === 'present' ? 'present' : a.status === 'absent' ? 'absent' : a.status === 'leave' ? 'leave' : a.status === 'full_day' ? 'full_day' : a.status === 'half_day' ? 'half_day' : 'unknown');
+      const statusLabel = a.status === 'present' ? 'present' : a.status === 'absent' ? 'absent' : a.status === 'leave' ? 'leave' : a.status === 'full_day' ? 'full_day' : a.status === 'half_day' ? 'half_day' : 'unknown';
+      attendanceMap.set(key, { status: statusLabel, check_in_time: a.check_in_time || null, check_out_time: a.check_out_time || null });
     });
 
     const sortOrder = ['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日'];
@@ -605,6 +612,8 @@ export class TeacherService {
         end_date: string | null;
         nickname: string;
       extended_end_date: string | null;
+        check_in_time: string | null;
+        check_out_time: string | null;
       }>;
     }> = [];
 
@@ -619,7 +628,8 @@ export class TeacherService {
       let present = 0, absent = 0, leave = 0;
       const studentList = students.map(s => {
         const attKey = ct ? `${s.child_id}__${ct}` : s.child_id;
-        const attStatus = attendanceMap.get(attKey) || 'unknown';
+        const att = attendanceMap.get(attKey);
+        const attStatus = att?.status || 'unknown';
         if (attStatus === 'present' || attStatus === 'full_day' || attStatus === 'half_day') present++;
         else if (attStatus === 'absent') absent++;
         else if (attStatus === 'leave') leave++;
@@ -634,6 +644,8 @@ export class TeacherService {
           end_date: s.end_date,
           nickname: s.nickname || "",
           extended_end_date: s.extended_end_date || s.end_date,
+          check_in_time: att?.check_in_time || null,
+          check_out_time: att?.check_out_time || null,
         };
       });
 

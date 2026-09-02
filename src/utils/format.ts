@@ -72,11 +72,25 @@ export function formatDate(dateStr: string | null | undefined): string {
 }
 
 /**
- * 安全地格式化时间为 HH:mm，无效日期返回空字符串
+ * 安全地格式化时间为 24 小时制 HH:mm，无效日期返回空字符串
  */
 export function formatTime(dateStr: string | number | null | undefined): string {
   if (!dateStr) return ''
   const d = new Date(dateStr)
   if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+  const h = String(d.getHours()).padStart(2, '0')
+  const m = String(d.getMinutes()).padStart(2, '0')
+  return `${h}:${m}`
+}
+
+/**
+ * 格式化为 "M月D日 HH:mm"，无效日期返回空字符串
+ */
+export function formatDateTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  if (Number.isNaN(d.getTime())) return ''
+  const date = `${d.getMonth() + 1}月${d.getDate()}日`
+  const time = formatTime(dateStr)
+  return time ? `${date} ${time}` : date
 }

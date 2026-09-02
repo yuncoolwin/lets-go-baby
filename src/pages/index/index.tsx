@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Portal } from '@/components/ui/portal'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
@@ -536,15 +537,6 @@ export default function IndexPage() {
                             <Text className="text-xs text-muted-foreground">
                               {record.class_name || ''}{record.class_name && record.course_name ? ' · ' : ''}{record.course_name || ''}
                             </Text>
-                            <Text
-                              className="text-xs rounded-full px-2 bg-orange-50 text-orange-600"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                Taro.navigateTo({ url: '/pages/pickup/index?course_name=' + encodeURIComponent(record.course_name || '') + '&course_type=' + encodeURIComponent(record.course_type || '') })
-                              }}
-                            >
-                              接送记录
-                            </Text>
                           </View>
                           <View style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             {record.mood_status && parseInt(record.mood_status, 10) > 0 && (
@@ -595,45 +587,53 @@ export default function IndexPage() {
 
               {/* 接送时间 */}
               {(babyStatus.check_in_time || babyStatus.check_out_time) && (
-                <View className="flex gap-4 pt-3 mt-3 border-t border-border">
-                  {babyStatus.check_in_time && formatTime(babyStatus.check_in_time) && (
-                    <View>
-                      <Text className="block text-xs text-muted-foreground">入园</Text>
-                      <Text className="block text-sm text-foreground">
-                        {formatTime(babyStatus.check_in_time)}
-                      </Text>
-                    </View>
-                  )}
-                  {babyStatus.check_out_time && formatTime(babyStatus.check_out_time) && (
-                    <View>
-                      <Text className="block text-xs text-muted-foreground">离园</Text>
-                      <Text className="block text-sm text-foreground">
-                        {formatTime(babyStatus.check_out_time)}
-                      </Text>
-                    </View>
-                  )}
+                <View className="flex items-center justify-between pt-3 mt-3 border-t border-border">
+                  <View className="flex gap-4">
+                    {babyStatus.check_in_time && formatTime(babyStatus.check_in_time) && (
+                      <View>
+                        <Text className="block text-xs text-muted-foreground">入园</Text>
+                        <Text className="block text-sm text-foreground">
+                          {formatTime(babyStatus.check_in_time)}
+                        </Text>
+                      </View>
+                    )}
+                    {babyStatus.check_out_time && formatTime(babyStatus.check_out_time) && (
+                      <View>
+                        <Text className="block text-xs text-muted-foreground">离园</Text>
+                        <Text className="block text-sm text-foreground">
+                          {formatTime(babyStatus.check_out_time)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text
+                    className="text-xs rounded-full px-2 bg-orange-50 text-orange-600"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      Taro.navigateTo({ url: '/pages/pickup/index' })
+                    }}
+                  >
+                    接送记录
+                  </Text>
                 </View>
               )}
             </CardContent>
           </Card>
         )}
 
-        {/* 家长端评分说明弹窗 */}
-        {parentMealInfoOpen && (
-          <View
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)' }}
-            onClick={() => setParentMealInfoOpen(false)}
-          >
-            <View
-              style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderRadius: '16px 16px 0 0', padding: 24, maxHeight: '70vh', overflowY: 'auto' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <Text className="block text-lg font-bold text-foreground">餐食评分说明</Text>
-                <View onClick={() => setParentMealInfoOpen(false)} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <X size={16} color="#6b7280" />
+        <Dialog open={parentMealInfoOpen} onOpenChange={setParentMealInfoOpen}>
+          <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '85vh' }}>
+            <DialogHeader>
+              <DialogTitle>
+                <View className="flex items-center justify-between">
+                  <Text className="block text-lg font-bold text-foreground">餐食评分说明</Text>
+                  <View onClick={() => setParentMealInfoOpen(false)} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
+                    <X size={16} color="#6b7280" />
+                  </View>
                 </View>
-              </View>
+              </DialogTitle>
+            </DialogHeader>
+            <View className="mt-2">
               {[
                 { star: '★★★★★', desc: '自主光盘，主动添饭，不挑食' },
                 { star: '★★★★☆', desc: '少量剩菜，无需喂食' },
@@ -647,23 +647,21 @@ export default function IndexPage() {
                 </View>
               ))}
             </View>
-          </View>
-        )}
-        {parentNapInfoOpen && (
-          <View
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)' }}
-            onClick={() => setParentNapInfoOpen(false)}
-          >
-            <View
-              style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderRadius: '16px 16px 0 0', padding: 24, maxHeight: '70vh', overflowY: 'auto' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <Text className="block text-lg font-bold text-foreground">午睡评分说明</Text>
-                <View onClick={() => setParentNapInfoOpen(false)} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <X size={16} color="#6b7280" />
+          </DialogContent>
+        </Dialog>
+        <Dialog open={parentNapInfoOpen} onOpenChange={setParentNapInfoOpen}>
+          <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '85vh' }}>
+            <DialogHeader>
+              <DialogTitle>
+                <View className="flex items-center justify-between">
+                  <Text className="block text-lg font-bold text-foreground">午睡评分说明</Text>
+                  <View onClick={() => setParentNapInfoOpen(false)} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
+                    <X size={16} color="#6b7280" />
+                  </View>
                 </View>
-              </View>
+              </DialogTitle>
+            </DialogHeader>
+            <View className="mt-2">
               {[
                 { star: '★★★★★', desc: '自主快速入睡，睡眠质量高，按时起床' },
                 { star: '★★★★☆', desc: '自主入睡较快，睡眠安稳' },
@@ -677,23 +675,21 @@ export default function IndexPage() {
                 </View>
               ))}
             </View>
-          </View>
-        )}
-        {parentMoodInfoOpen && (
-          <View
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)' }}
-            onClick={() => setParentMoodInfoOpen(false)}
-          >
-            <View
-              style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderRadius: '16px 16px 0 0', padding: 24, maxHeight: '70vh', overflowY: 'auto' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <Text className="block text-lg font-bold text-foreground">情绪评分说明</Text>
-                <View onClick={() => setParentMoodInfoOpen(false)} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <X size={16} color="#6b7280" />
+          </DialogContent>
+        </Dialog>
+        <Dialog open={parentMoodInfoOpen} onOpenChange={setParentMoodInfoOpen}>
+          <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '85vh' }}>
+            <DialogHeader>
+              <DialogTitle>
+                <View className="flex items-center justify-between">
+                  <Text className="block text-lg font-bold text-foreground">情绪评分说明</Text>
+                  <View onClick={() => setParentMoodInfoOpen(false)} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
+                    <X size={16} color="#6b7280" />
+                  </View>
                 </View>
-              </View>
+              </DialogTitle>
+            </DialogHeader>
+            <View className="mt-2">
               {[
                 { star: '★★★★★', desc: '全天心情愉悦，自主参与活动、社交' },
                 { star: '★★★★☆', desc: '状态平稳，轻微分心走神，简单引导即可' },
@@ -707,8 +703,8 @@ export default function IndexPage() {
                 </View>
               ))}
             </View>
-          </View>
-        )}
+          </DialogContent>
+        </Dialog>
 
         {/* 未绑定孩子提示 */}
         {children.length === 0 && (
@@ -885,6 +881,12 @@ export default function IndexPage() {
                                         {birthdayTag && <Text className={birthdayTag.className}>{birthdayTag.text}</Text>}
                                       </Text>
                                     </Text>
+                                    {dateRange && (
+                                      <Text className="block text-xs text-muted-foreground mt-1">
+                                        {dateRange}
+                                        {expiryTag && <Text className={expiryTag.className}>{expiryTag.text}</Text>}
+                                      </Text>
+                                    )}
                                     {hasAnyStars && (
                                       <View className="mt-1">
                                         <View className="flex flex-row items-center gap-3">
@@ -893,12 +895,6 @@ export default function IndexPage() {
                                         </View>
                                         {hasSleep && <Text className="block text-xs text-[#E8651A] mt-1">午睡{renderStars(childFeedback.sleep_status)}</Text>}
                                       </View>
-                                    )}
-                                    {dateRange && (
-                                      <Text className="block text-xs text-muted-foreground mt-1">
-                                        {dateRange}
-                                        {expiryTag && <Text className={expiryTag.className}>{expiryTag.text}</Text>}
-                                      </Text>
                                     )}
                                   </View>
                                   <View
@@ -1307,18 +1303,6 @@ export default function IndexPage() {
 
           <Card
             className="bg-white rounded-xl border-0 shadow-sm"
-            onClick={() => Taro.navigateTo({ url: '/pages/admin/children/index' })}
-          >
-            <CardContent className="p-4 flex flex-col items-center">
-              <View className="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center mb-2">
-                <Baby size={24} color="#22C55E" />
-              </View>
-              <Text className="text-sm text-foreground">幼儿管理</Text>
-            </CardContent>
-          </Card>
-
-          <Card
-            className="bg-white rounded-xl border-0 shadow-sm"
             onClick={() => Taro.navigateTo({ url: '/pages/admin/course-manage/index' })}
           >
             <CardContent className="p-4 flex flex-col items-center">
@@ -1326,6 +1310,18 @@ export default function IndexPage() {
                 <BookOpen size={24} color="#D97706" />
               </View>
               <Text className="text-sm text-foreground">课程管理</Text>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="bg-white rounded-xl border-0 shadow-sm"
+            onClick={() => Taro.navigateTo({ url: '/pages/admin/children/index' })}
+          >
+            <CardContent className="p-4 flex flex-col items-center">
+              <View className="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center mb-2">
+                <Baby size={24} color="#22C55E" />
+              </View>
+              <Text className="text-sm text-foreground">幼儿管理</Text>
             </CardContent>
           </Card>
 

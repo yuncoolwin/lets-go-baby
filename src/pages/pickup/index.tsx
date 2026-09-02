@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Network } from '@/network'
 import { Bus } from 'lucide-react-taro'
+import { formatTime } from '@/utils/format'
 import BackButton from '@/components/back-button'
 
 interface AttendanceRecord {
@@ -69,11 +70,6 @@ export default function PickupPage() {
     return { label: '未记录', className: 'bg-gray-100 text-gray-500' }
   }
 
-  const formatTime = (time: string | null) => {
-    if (!time) return '—'
-    return time.split('T')[1]?.slice(0, 5) || '—'
-  }
-
   if (loading) {
     return (
       <View className="min-h-screen bg-background p-4">
@@ -109,11 +105,11 @@ export default function PickupPage() {
                   <View className="flex gap-6">
                     <View>
                       <Text className="block text-xs text-muted-foreground">入园时间</Text>
-                      <Text className="block text-sm text-foreground">{formatTime(record.check_in_time)}</Text>
+                      <Text className="block text-sm text-foreground">{formatTime(record.check_in_time) || '—'}</Text>
                     </View>
                     <View>
                       <Text className="block text-xs text-muted-foreground">离园时间</Text>
-                      <Text className="block text-sm text-foreground">{formatTime(record.check_out_time)}</Text>
+                      <Text className="block text-sm text-foreground">{formatTime(record.check_out_time) || '—'}</Text>
                     </View>
                   </View>
                   
