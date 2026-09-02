@@ -390,6 +390,15 @@ export class AttendanceService {
     const denied = await this.canAccessClass(userId, dto.class_id);
     if (denied) return { code: 403, msg: denied };
 
+    const { data: dup } = await this.client
+      .from('drop_in_records')
+      .select('id')
+      .eq('child_id', dto.child_id)
+      .eq('date', dto.date)
+      .eq('course_type', dto.course_type)
+      .limit(1);
+    if (dup && dup.length > 0) return { code: 409, msg: '该幼儿当天已添加过此课程' };
+
     const record = {
       child_id: dto.child_id,
       class_id: dto.class_id,
@@ -408,11 +417,24 @@ export class AttendanceService {
   async getDropIns(childId: string) {
     const { data, error } = await this.client
       .from('drop_in_records')
-      .select('id, child_id, class_id, course_type, date, status, created_at')
+      .select('id, child_id, class_id, course_type, date, created_at')
       .eq('child_id', childId)
       .order('date', { ascending: false });
     if (error) return { code: 500, msg: `查询临时来园失败: ${error.message}` };
-    return { code: 200, msg: 'success', data: data || [] };
+    const rows = data || [];
+    if (rows.length === 0) return { code: 200, msg: 'success', data: [] };
+    const { data: atts } = await this.client
+      .from('attendance')
+      .select('date, course_type, status')
+      .eq('child_id', childId);
+    const attMap = new Map();
+    (atts || []).forEach(a => {
+      if (a.course_type) attMap.set(`${a.date}__${a.course_type}`, a.status);
+    });
+    return { code: 200, msg: 'success', data: rows.map(r => ({
+      ...r,
+      status: attMap.get(`${r.date}__${r.course_type}`) || null,
+    })) };
   }
 
   /**

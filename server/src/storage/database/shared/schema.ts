@@ -346,7 +346,6 @@ export const dropInRecords = pgTable("drop_in_records", {
 	courseType: varchar("course_type", { length: 20 }).notNull(),
 	date: date("date").notNull(),
 	teacherId: varchar("teacher_id", { length: 64 }),
-	status: varchar({ length: 20 }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	foreignKey({

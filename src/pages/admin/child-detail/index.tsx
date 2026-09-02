@@ -78,7 +78,7 @@ export default function ChildDetailPage() {
   const [loading, setLoading] = useState(true)
   const [enrollments, setEnrollments] = useState<any[]>([])
   const [dropIns, setDropIns] = useState<any[]>([])
-  const DROP_IN_STATUS_TEXT: Record<string, string> = { attended: '已到园', absent: '缺勤', leave: '请假' }
+  const DROP_IN_STATUS_TEXT: Record<string, string> = { present: '出勤', full_day: '全天出勤', half_day: '半天出勤', absent: '缺勤', leave: '请假' }
   const [classes, setClasses] = useState<any[]>([])
   const [editingEnrollment, setEditingEnrollment] = useState<any | null>(null)
   const [formCourseType, setFormCourseType] = useState('')
@@ -236,6 +236,7 @@ export default function ChildDetailPage() {
     setFormPaymentAmount('')
     setFormPaymentChannel('')
     setFormClassId('')
+    setFormNotes('')
     isStatusAutoRef.current = true
     autoCalculatedStatusRef.current = '进行中'
     setShowEnrollmentForm(true)

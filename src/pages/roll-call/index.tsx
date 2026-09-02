@@ -405,7 +405,7 @@ export default function RollCallPage() {
             清除
           </Text>
         )}
-        {!isAdmin && selectedDate === today && (
+        {selectedDate === today && (
           <Text
             className="block text-sm text-gray-600 bg-gray-100 rounded-full px-3 py-1"
             onClick={() => setDropInModal(true)}
@@ -754,20 +754,18 @@ export default function RollCallPage() {
           </>
         )}
       </View>
-      {!isAdmin && (
-        <DropInModal
-          visible={dropInModal}
-          onClose={() => setDropInModal(false)}
-          date={selectedDate}
-          classId={classId}
-          childId={currentRole?.id || ''}
-          currentRole={currentRole}
-          onSuccess={() => {
-            Taro.showToast({ title: '已添加临时来园', icon: 'success' })
-            loadData()
-          }}
-        />
-      )}
+      <DropInModal
+        visible={dropInModal}
+        onClose={() => setDropInModal(false)}
+        date={selectedDate}
+        classId={classId}
+        childId={currentRole?.id || ''}
+        currentRole={currentRole}
+        onSuccess={() => {
+          Taro.showToast({ title: '已添加临时来园', icon: 'success' })
+          loadData()
+        }}
+      />
       <TabBar />
     </View>
   )
@@ -781,7 +779,6 @@ function DropInModal({
   date,
   classId,
   childId,
-  currentRole,
   onSuccess,
 }: {
   visible: boolean
@@ -789,7 +786,7 @@ function DropInModal({
   date: string
   classId: string
   childId: string
-  currentRole: any
+  currentRole?: any
   onSuccess: () => void
 }) {
   const [allChildren, setAllChildren] = useState<ChildItem[]>([])
@@ -803,32 +800,15 @@ function DropInModal({
     setSubmitting(false)
     ;(async () => {
       try {
-        const res: any = await Network.request({
-          url: `/api/teachers/grouped-overview?teacher_role_id=${currentRole?.id || ''}&date=${date}`,
-        })
-        const groups = res.data?.data || []
-        const flat: ChildItem[] = []
-        for (const g of groups) {
-          for (const s of g.students || []) {
-            flat.push({
-              id: s.id,
-              name: s.name,
-              gender: s.gender || '',
-              course_type: s.course_type || '',
-              attendance_status: s.attendance_status || null,
-              check_in_time: s.check_in_time || null,
-              check_out_time: s.check_out_time || null,
-              class_id: g.class_id || '',
-              record_status: s.attendance_status || null,
-            })
-          }
-        }
-        setAllChildren(flat)
+        const url = classId ? `/api/children?class_id=${classId}` : '/api/children'
+        const res: any = await Network.request({ url })
+        const list = res.data?.data?.list || res.data?.data || []
+        setAllChildren(list.map((c: any) => ({ id: c.id, name: c.name, gender: c.gender || '', class_id: c.class_id, course_type: '' })))
       } catch {
         setAllChildren([])
       }
     })()
-  }, [visible, date, currentRole])
+  }, [visible, date, classId])
 
   const submit = async () => {
     if (!pickedId) {
@@ -841,7 +821,8 @@ function DropInModal({
     }
     setSubmitting(true)
     try {
-      const res: any = await dropInApi.add({ child_id: pickedId, class_id: classId, course_type: courseType, date })
+      const pickedChild = allChildren.find(c => c.id === pickedId)
+      const res: any = await dropInApi.add({ child_id: pickedId, class_id: pickedChild?.class_id || classId, course_type: courseType, date })
       if (res.statusCode === 200 && res.data?.code === 200) {
         Taro.showToast({ title: '已添加临时来园', icon: 'success' })
         onSuccess()
@@ -874,7 +855,7 @@ function DropInModal({
         </View>
         <Text className="block text-xs text-gray-500 mt-1">日期：{date}</Text>
 
-        <Text className="block text-xs text-gray-500 mt-3 mb-1">选择幼儿（不含当日已报读幼儿）</Text>
+        <Text className="block text-xs text-gray-500 mt-3 mb-1">选择幼儿</Text>
         <ScrollView style={{ maxHeight: '220px' }} className="border border-gray-100 rounded-lg">
           {allChildren.filter(c => c.id !== childId).map(c => (
             <View
@@ -894,7 +875,7 @@ function DropInModal({
 
         <Text className="block text-xs text-gray-500 mt-3 mb-1">课程类型</Text>
         <View style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '8px' }}>
-          {['全日托', '半日托', '周六托', '晚间托', '兴趣班'].map(ct => (
+          {['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日'].map(ct => (
             <Text
               key={ct}
               className={`text-xs rounded-full px-3 py-1 ${courseType === ct ? 'bg-[#E8651A] text-white' : 'bg-gray-100 text-gray-600'}`}
