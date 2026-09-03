@@ -290,6 +290,8 @@ export const children = pgTable("children", {
 	classId: varchar("class_id", { length: 36 }),
 	healthInfo: text("health_info"),
 	allergies: text(),
+	nickname: varchar({ length: 64 }),
+	parentPhone: varchar("parent_phone", { length: 20 }),
 	status: varchar({ length: 20 }).default('active'),
 	courseType: varchar("course_type", { length: 20 }).default(''),
 	enrollmentDuration: varchar("enrollment_duration", { length: 50 }).default(''),
