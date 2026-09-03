@@ -269,7 +269,7 @@ export class GrowthService {
     }
   }
 
-  async create(userId: string, dto: { child_id: string; title: string; content?: string; photo_urls?: string[]; record_date?: string; course_name?: string }) {
+  async create(userId: string, dto: { child_id: string; title: string; content?: string; photo_urls?: string[]; record_date?: string; course_name?: string; diet_overall?: string; diet_vegetable?: string; diet_meat?: string; diet_soup?: string; diet_water?: string; nap_status?: string; stool_status?: string }) {
     if (!dto.child_id || !dto.title) {
       return { error: true, code: 400, msg: 'child_id/title 不能为空' };
     }
@@ -313,6 +313,13 @@ export class GrowthService {
         photo_urls: dto.photo_urls || [],
         record_date: dto.record_date || this.shanghaiToday(),
         course_name: dto.course_name || null,
+        diet_overall: dto.diet_overall || null,
+        diet_vegetable: dto.diet_vegetable || null,
+        diet_meat: dto.diet_meat || null,
+        diet_soup: dto.diet_soup || null,
+        diet_water: dto.diet_water || null,
+        nap_status: dto.nap_status || null,
+        stool_status: dto.stool_status || null,
       })
       .select()
       .single();
@@ -417,7 +424,7 @@ export class GrowthService {
   async update(
     userId: string,
     id: string,
-    dto: { title?: string; content?: string; photo_urls?: string[]; record_date?: string; course_name?: string },
+    dto: { title?: string; content?: string; photo_urls?: string[]; record_date?: string; course_name?: string; diet_overall?: string; diet_vegetable?: string; diet_meat?: string; diet_soup?: string; diet_water?: string; nap_status?: string; stool_status?: string },
   ) {
     const { data: existing } = await this.client
       .from('growth_records')
@@ -445,6 +452,13 @@ export class GrowthService {
     if (dto.photo_urls !== undefined) updateData.photo_urls = dto.photo_urls;
     if (dto.record_date !== undefined) updateData.record_date = dto.record_date;
     if (dto.course_name !== undefined) updateData.course_name = dto.course_name;
+    if (dto.diet_overall !== undefined) updateData.diet_overall = dto.diet_overall;
+    if (dto.diet_vegetable !== undefined) updateData.diet_vegetable = dto.diet_vegetable;
+    if (dto.diet_meat !== undefined) updateData.diet_meat = dto.diet_meat;
+    if (dto.diet_soup !== undefined) updateData.diet_soup = dto.diet_soup;
+    if (dto.diet_water !== undefined) updateData.diet_water = dto.diet_water;
+    if (dto.nap_status !== undefined) updateData.nap_status = dto.nap_status;
+    if (dto.stool_status !== undefined) updateData.stool_status = dto.stool_status;
 
     const { data: updated, error } = await this.client
       .from('growth_records')

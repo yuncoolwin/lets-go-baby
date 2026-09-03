@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text, Image, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,6 +39,10 @@ const loadDrafts = (): any[] => {
     return []
   }
 }
+
+const DIET_OPTIONS = ['一般', '正常', '吃好喝好']
+const NAP_OPTIONS = ['半小时以下', '1小时-2小时', '2小时']
+const STOOL_OPTIONS = ['有', '无']
 
 const saveDrafts = (drafts: any[]) => {
   Taro.setStorageSync(DRAFT_KEY, drafts)
@@ -100,6 +104,14 @@ export default function GrowthEditPage() {
   const [pickerChildren, setPickerChildren] = useState<any[]>([])
   const [pickerLoading, setPickerLoading] = useState(false)
 
+  // 今日饮食反馈等 7 个可选项
+  const [dietOverall, setDietOverall] = useState('')
+  const [dietVegetable, setDietVegetable] = useState('')
+  const [dietMeat, setDietMeat] = useState('')
+  const [dietSoup, setDietSoup] = useState('')
+  const [dietWater, setDietWater] = useState('')
+  const [napStatus, setNapStatus] = useState('')
+  const [stoolStatus, setStoolStatus] = useState('')
   const [dateOverlayVisible, setDateOverlayVisible] = useState(false)
 
   // 教师端本班幼儿 id 集合（用于在该课程在读幼儿基础上过滤本班）
@@ -162,6 +174,13 @@ export default function GrowthEditPage() {
         setSelectedChildId(data.child_id || '')
         setSelectedChildName(data.child_name || '')
         setRecordDate(data.record_date || formatToday())
+        setDietOverall(data.diet_overall || '')
+        setDietVegetable(data.diet_vegetable || '')
+        setDietMeat(data.diet_meat || '')
+        setDietSoup(data.diet_soup || '')
+        setDietWater(data.diet_water || '')
+        setNapStatus(data.nap_status || '')
+        setStoolStatus(data.stool_status || '')
         if (data.course_name) {
           const courseList = extractList(await courseApi.list())
           const matched = courseList.find((c) => c.name === data.course_name)
@@ -303,12 +322,30 @@ export default function GrowthEditPage() {
       if (recordId) {
         await growthApi.update(
           recordId,
-          { title, content, photo_urls: images, record_date: recordDate, course_name: courseName },
+          {
+            title, content, photo_urls: images, record_date: recordDate, course_name: courseName,
+            ...(dietOverall ? { diet_overall: dietOverall } : {}),
+            ...(dietVegetable ? { diet_vegetable: dietVegetable } : {}),
+            ...(dietMeat ? { diet_meat: dietMeat } : {}),
+            ...(dietSoup ? { diet_soup: dietSoup } : {}),
+            ...(dietWater ? { diet_water: dietWater } : {}),
+            ...(napStatus ? { nap_status: napStatus } : {}),
+            ...(stoolStatus ? { stool_status: stoolStatus } : {}),
+          },
           currentRole?.id,
         )
       } else {
         await growthApi.create(
-          { child_id: selectedChildId, title, content, photo_urls: images, record_date: recordDate, course_name: courseName },
+          {
+            child_id: selectedChildId, title, content, photo_urls: images, record_date: recordDate, course_name: courseName,
+            ...(dietOverall ? { diet_overall: dietOverall } : {}),
+            ...(dietVegetable ? { diet_vegetable: dietVegetable } : {}),
+            ...(dietMeat ? { diet_meat: dietMeat } : {}),
+            ...(dietSoup ? { diet_soup: dietSoup } : {}),
+            ...(dietWater ? { diet_water: dietWater } : {}),
+            ...(napStatus ? { nap_status: napStatus } : {}),
+            ...(stoolStatus ? { stool_status: stoolStatus } : {}),
+          },
           currentRole?.id,
         )
         if (draftId) removeDraftById(draftId)
@@ -370,6 +407,55 @@ export default function GrowthEditPage() {
               onInput={(e) => setContent(e.detail.value)}
               maxlength={1000}
             />
+          </View>
+        </View>
+
+        {/* 今日饮食反馈 */}
+        <View className="space-y-3">
+          <Text className="block text-sm font-medium text-foreground">今日饮食反馈（选填）</Text>
+          {([
+            ['总体', dietOverall, setDietOverall],
+            ['蔬菜', dietVegetable, setDietVegetable],
+            ['荤菜', dietMeat, setDietMeat],
+            ['汤', dietSoup, setDietSoup],
+            ['喝水', dietWater, setDietWater],
+          ] as [string, string, (v: string) => void][]).map(([label, value, setter]) => (
+            <View key={label}>
+              <Text className="block text-sm text-muted-foreground mb-2">{label}</Text>
+              <View className="bg-gray-50 rounded-xl px-4 py-3">
+                <Picker
+                  mode="selector"
+                  range={DIET_OPTIONS}
+                  onChange={(e) => setter(DIET_OPTIONS[Number(e.detail.value)])}
+                >
+                  <Text className="block text-base text-foreground">{value || '请选择'}</Text>
+                </Picker>
+              </View>
+            </View>
+          ))}
+          <View>
+            <Text className="block text-sm text-muted-foreground mb-2">午睡情况</Text>
+            <View className="bg-gray-50 rounded-xl px-4 py-3">
+              <Picker
+                mode="selector"
+                range={NAP_OPTIONS}
+                onChange={(e) => setNapStatus(NAP_OPTIONS[Number(e.detail.value)])}
+              >
+                <Text className="block text-base text-foreground">{napStatus || '请选择'}</Text>
+              </Picker>
+            </View>
+          </View>
+          <View>
+            <Text className="block text-sm text-muted-foreground mb-2">大便情况</Text>
+            <View className="bg-gray-50 rounded-xl px-4 py-3">
+              <Picker
+                mode="selector"
+                range={STOOL_OPTIONS}
+                onChange={(e) => setStoolStatus(STOOL_OPTIONS[Number(e.detail.value)])}
+              >
+                <Text className="block text-base text-foreground">{stoolStatus || '请选择'}</Text>
+              </Picker>
+            </View>
           </View>
         </View>
 

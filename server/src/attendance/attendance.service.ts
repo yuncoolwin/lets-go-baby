@@ -207,6 +207,7 @@ export class AttendanceService {
       start_date: string | null;
       end_date: string | null;
       extended_end_date: string | null;
+      is_drop_in?: boolean;
     }>>();
 
     for (const e of enrollmentList) {
@@ -261,6 +262,7 @@ export class AttendanceService {
             start_date: null,
             end_date: null,
             extended_end_date: null,
+            is_drop_in: true,
           });
         }
       }

@@ -26,7 +26,7 @@ export class ParentController {
   @HttpCode(200)
   async getAttendance(@Req() req: Request, @Query('course_type') courseType?: string, @Query('child_id') agentChildId?: string) {
     const userId = (req as any).user?.userId;
-    const data = await this.parentService.getAttendance(userId, courseType, agentChildId);
+    const data = await this.parentService.getAttendance(userId, courseType, agentChildId, agentChildId);
     return { code: 200, msg: 'success', data };
   }
 
@@ -54,6 +54,15 @@ export class ParentController {
   async getGrowthUnreadCount(@Req() req: Request, @Query('child_id') agentChildId?: string) {
     const userId = (req as any).user?.userId;
     const data = await this.parentService.getGrowthUnreadCount(userId, agentChildId);
+    return { code: 200, msg: 'success', data };
+  }
+
+  // 按幼儿分组统计未读成长记录数（首页幼儿标签角标）
+  @Get('growth-records/unread-counts')
+  @HttpCode(200)
+  async getGrowthUnreadCounts(@Req() req: Request) {
+    const userId = (req as any).user?.userId;
+    const data = await this.parentService.getGrowthUnreadCounts(userId);
     return { code: 200, msg: 'success', data };
   }
 

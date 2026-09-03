@@ -23,6 +23,7 @@ interface ChildItem {
   avatar_url?: string
   attendance_status?: string | null
   course_type?: string | null
+  is_drop_in?: boolean
   check_in_time?: string | null
   check_out_time?: string | null
   record_status?: string | null
@@ -405,7 +406,7 @@ export default function RollCallPage() {
   return (
     <View className="h-full overflow-hidden bg-background" style={{ display: 'flex', flexDirection: 'column' }}>
       {/* 头部信息 */}
-      <View className="bg-white px-4 py-3 flex items-center justify-between border-b border-gray-100">
+      <View className="bg-background px-4 py-3 flex items-center justify-between border-b border-gray-100">
         <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
           <View onClick={() => setCalendarVisible(true)}>
             <View className="flex items-center flex-row">
@@ -442,7 +443,7 @@ export default function RollCallPage() {
 
       {/* 管理员模式：班级选择器 */}
       {isAdmin && classList.length > 0 && (
-        <View className="bg-white px-4 py-2 border-b border-gray-100">
+        <View className="bg-background px-4 py-2 border-b border-gray-100">
           <View style={{ display: 'flex', flexDirection: 'row', gap: '8px', overflowX: 'auto' }}>
             {classList.map(cls => {
               const isSelected = cls.id === (selectedClassId || classId)
@@ -471,7 +472,7 @@ export default function RollCallPage() {
         {/* 教师多班级切换标签（考勤完成的班级显示绿色） */}
         {!isAdmin && teacherClassList.length > 0 && (
           <View
-            className="px-4 py-2 bg-white"
+            className="px-4 py-2"
             style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '8px' }}
           >
             {teacherClassList.map(tc => {
@@ -675,15 +676,22 @@ export default function RollCallPage() {
                                       >
                                         {child.name.charAt(0)}
                                       </View>
-                                      <Text className="block text-base font-medium text-gray-900 flex-1">{child.name}</Text>
+                                      <View className="flex-1 flex items-center gap-2" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                                        <Text className="block text-base font-medium text-gray-900 truncate">{child.name}</Text>
+                                        {child.is_drop_in && (
+                                          <View className="px-2 py-1 rounded-full bg-orange-100 flex-shrink-0">
+                                            <Text className="text-xs text-orange-600">临时来园</Text>
+                                          </View>
+                                        )}
+                                      </View>
                                       {child.check_out_time ? (
                                         <Text className="block text-xs text-gray-400 flex-shrink-0">已离园</Text>
                                       ) : !isAgentAdmin && child.check_in_time && child.record_status !== 'leave' && child.record_status !== 'absent' ? (
                                         <View
-                                          className="px-2 py-1 rounded-lg bg-orange-100 flex-shrink-0"
+                                          className="px-3 py-2 rounded-lg bg-orange-100 flex-shrink-0"
                                           onClick={() => handleCheckOut(child)}
                                         >
-                                          <Text className="block text-xs text-orange-600">离园</Text>
+                                          <Text className="block text-sm text-orange-600">离园</Text>
                                         </View>
                                       ) : null}
                                     </View>
@@ -757,7 +765,7 @@ export default function RollCallPage() {
           position: 'fixed', left: 0, right: 0,
           bottom: 50,
           display: 'flex', flexDirection: 'row', gap: '12px',
-          padding: '12px 16px', backgroundColor: '#fff',
+          padding: '12px 16px', backgroundColor: '#FFF8F0',
           borderTop: '1px solid #f3f4f6', zIndex: 100,
         }}
       >
@@ -905,14 +913,13 @@ function DropInModal({
       Taro.showToast({ title: '请选择幼儿', icon: 'none' })
       return
     }
-    if (!classId) {
+    if (!pickedClassId) {
       Taro.showToast({ title: '缺少班级信息', icon: 'none' })
       return
     }
     setSubmitting(true)
     try {
-      const pickedChild = allChildren.find(c => c.id === pickedId)
-      const res: any = await dropInApi.add({ child_id: pickedId, class_id: pickedChild?.class_id || classId, course_type: courseType, date })
+      const res: any = await dropInApi.add({ child_id: pickedId, class_id: pickedClassId, course_type: courseType, date })
       if (res.code === 200) {
         Taro.showToast({ title: '已添加临时来园', icon: 'success' })
         onSuccess()
@@ -940,10 +947,12 @@ function DropInModal({
         onClick={(e) => e.stopPropagation()}
       >
         <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text className="block text-base font-bold text-gray-900">添加临时来园</Text>
+          <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
+            <Text className="block text-base font-bold text-gray-900">添加临时来园</Text>
+            <Text className="block text-xs text-gray-500">{date}</Text>
+          </View>
           <Text className="text-gray-400 text-lg" onClick={onClose}>×</Text>
         </View>
-        <Text className="block text-xs text-gray-500 mt-1">日期：{date}</Text>
 
                 {/* 幼儿搜索 */}
                 <View className="mb-3">
@@ -954,23 +963,6 @@ function DropInModal({
                     onInput={(e) => setSearchKw(e.detail.value)}
                   />
                 </View>
-        <Text className="block text-xs text-gray-500 mt-3 mb-1">选择所在班级</Text>
-        <ScrollView scrollY style={{ maxHeight: '96px' }} className="border border-gray-100 rounded-lg">
-          <View className="flex flex-wrap p-1" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
-            {classList.map(cls => (
-              <View
-                key={cls.id}
-                className={`w-[31%] m-[1%] py-2 rounded-lg text-center ${pickedClassId === cls.id ? 'bg-[#E8651A]' : 'bg-gray-100'}`}
-                onClick={() => setPickedClassId(cls.id)}
-              >
-                <Text className={`block text-xs ${pickedClassId === cls.id ? 'text-white' : 'text-gray-700'}`}>{cls.name}</Text>
-              </View>
-            ))}
-            {classList.length === 0 && (
-              <Text className="block text-xs text-gray-400 text-center py-3 w-full">暂无班级</Text>
-            )}
-          </View>
-        </ScrollView>
 
         <Text className="block text-xs text-gray-500 mt-3 mb-1">选择幼儿</Text>
         <ScrollView scrollY style={{ maxHeight: '220px' }} className="border border-gray-100 rounded-lg">
@@ -986,6 +978,24 @@ function DropInModal({
             ))}
             {allChildren.filter(c => c.name && c.name.includes(searchKw)).filter(c => c.id !== childId).filter(c => !pickedClassId || c.class_id === pickedClassId).length === 0 && (
               <Text className="block text-xs text-gray-400 text-center py-4 w-full">暂无可选幼儿</Text>
+            )}
+          </View>
+        </ScrollView>
+
+        <Text className="block text-xs text-gray-500 mt-3 mb-1">选择所在班级</Text>
+        <ScrollView scrollY style={{ maxHeight: '96px' }} className="border border-gray-100 rounded-lg">
+          <View className="flex flex-wrap p-1" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
+            {classList.map(cls => (
+              <View
+                key={cls.id}
+                className={`w-[31%] m-[1%] py-2 rounded-lg text-center ${pickedClassId === cls.id ? 'bg-[#E8651A]' : 'bg-gray-100'}`}
+                onClick={() => setPickedClassId(cls.id)}
+              >
+                <Text className={`block text-xs ${pickedClassId === cls.id ? 'text-white' : 'text-gray-700'}`}>{cls.name}</Text>
+              </View>
+            ))}
+            {classList.length === 0 && (
+              <Text className="block text-xs text-gray-400 text-center py-3 w-full">暂无班级</Text>
             )}
           </View>
         </ScrollView>

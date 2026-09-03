@@ -40,6 +40,15 @@ export default function PickupPage() {
     }
   })()
 
+  const childId = (() => {
+    try {
+      const raw = Taro.getCurrentInstance()?.router?.params?.child_id
+      return raw ? decodeURIComponent(raw) : ''
+    } catch {
+      return ''
+    }
+  })()
+
   useDidShow(() => {
     loadRecords()
   })
@@ -50,7 +59,7 @@ export default function PickupPage() {
       const res = await Network.request({
         url: '/api/parent/attendance',
         method: 'GET',
-        data: { course_type: courseType },
+        data: { course_type: courseType, ...(childId ? { child_id: childId } : {}) },
       })
       console.log('[Pickup] records:', res.data)
       if (res.data?.data) {

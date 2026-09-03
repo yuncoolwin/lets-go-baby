@@ -97,7 +97,7 @@ const MOOD_SCORE_ITEMS = [
 ]
 
 export default function IndexPage() {
-  const { isLoggedIn, currentRole, isLoading, fetchUserInfo, children, currentChildIndex, setCurrentChild, nickname, agentChildId, agentTeacherId, exitAgentParentMode } = useAppStore()
+  const { isLoggedIn, currentRole, isLoading, fetchUserInfo, children, currentChildIndex, setCurrentChild, nickname, agentChildId, agentTeacherId, agentOriginalRoleType, exitAgentParentMode } = useAppStore()
   const [babyStatus, setBabyStatus] = useState<BabyStatus | null>(null)
   const [groupList, setGroupList] = useState<GroupOverview[]>([])
   const [activeClassId, setActiveClassId] = useState('')
@@ -144,6 +144,8 @@ export default function IndexPage() {
   const [todayFeedbacks, setTodayFeedbacks] = useState<DailyFeedbackRecord[]>([])
   const [scoreInfoOpen, setScoreInfoOpen] = useState(false)
   const [scoreInfoTab, setScoreInfoTab] = useState<'mood' | 'meal' | 'nap'>('mood')
+  // 每个幼儿的未读成长记录数（child_id -> count）
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const currentChild = children[currentChildIndex] || null
   const todayNow = new Date()
   const isBirthdayToday = !!currentChild?.birth_date && parseInt(currentChild.birth_date.slice(5, 7), 10) === todayNow.getMonth() + 1 && parseInt(currentChild.birth_date.slice(8, 10), 10) === todayNow.getDate()
@@ -238,6 +240,17 @@ export default function IndexPage() {
     console.log('[Index] baby status:', res.data)
     if (res.data?.data) {
       setBabyStatus(res.data.data)
+    }
+
+    // 拉取各幼儿未读成长记录数（角标）
+    try {
+      const unreadRes = await Network.request({ url: '/api/parent/growth-records/unread-counts', method: 'GET' })
+      console.log('[Index] unread counts:', unreadRes.data)
+      if (unreadRes.data?.code === 200 && unreadRes.data.data) {
+        setUnreadCounts(unreadRes.data.data)
+      }
+    } catch (e) {
+      console.error('[Index] load unread counts error:', e)
     }
 
     // 加载今日日常记录
@@ -394,11 +407,13 @@ export default function IndexPage() {
         >
           <View style={{ flex: 1 }}>
             <Text className="block text-xl font-bold text-foreground">
-              您好，{currentChild ? `${currentChild.name}${
-                currentChild.relationship === 'other' && currentChild.custom_relationship
-                  ? currentChild.custom_relationship
-                  : (getRelationshipLabel(currentChild.relationship) === '其他' ? '家长' : getRelationshipLabel(currentChild.relationship) || '家长')
-              }` : '新用户'}
+              {agentOriginalRoleType === 'admin' || agentOriginalRoleType === 'superadmin'
+                ? `您好，${nickname || '管理员'}`
+                : `您好，${currentChild ? `${currentChild.name}${
+                    currentChild.relationship === 'other' && currentChild.custom_relationship
+                      ? currentChild.custom_relationship
+                      : (getRelationshipLabel(currentChild.relationship) === '其他' ? '家长' : getRelationshipLabel(currentChild.relationship) || '家长')
+                  }` : '新用户'}`}
             </Text>
             <Text className="block text-sm text-muted-foreground mt-1">
               {formatChineseDate(new Date())}
@@ -444,17 +459,14 @@ export default function IndexPage() {
                   }`}
                   onClick={() => setCurrentChild(index)}
                 >
-                  <View className="w-6 h-6 rounded-full bg-white bg-opacity-30 flex items-center justify-center overflow-hidden">
-                    <Image
-                      src={rabbitLogo}
-                      className="w-6 h-6 rounded-full"
-                      mode="aspectFit"
-                    />
-                  </View>
                   <Text className="text-sm font-medium truncate max-w-24">
                     {child.name}
-                    {child.nickname ? <Text className="text-xs text-[#999]">（{child.nickname}）</Text> : null}
                   </Text>
+                  {(unreadCounts[child.id] || 0) > 0 && (
+                    <View className="min-w-4 h-4 px-1 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0">
+                      <Text className="text-xs text-white">{unreadCounts[child.id]}</Text>
+                    </View>
+                  )}
                 </View>
               ))}
               {/* 添加幼儿按钮 */}
@@ -594,7 +606,12 @@ export default function IndexPage() {
                     className="text-xs rounded-full px-2 bg-orange-50 text-orange-600"
                     onClick={(e) => {
                       e.stopPropagation()
-                      Taro.navigateTo({ url: '/pages/pickup/index' })
+                      const pid = currentChild?.id || currentChild?.child_id || babyStatus?.child_id || ''
+                      const firstFb: any = todayFeedbacks[0]
+                      const pickupParams = [`child_id=${pid}`]
+                      if (firstFb?.course_type) pickupParams.push(`course_type=${encodeURIComponent(firstFb.course_type)}`)
+                      if (firstFb?.course_name) pickupParams.push(`course_name=${encodeURIComponent(firstFb.course_name)}`)
+                      Taro.navigateTo({ url: `/pages/pickup/index?${pickupParams.join('&')}` })
                     }}
                   >
                     接送记录
@@ -609,12 +626,7 @@ export default function IndexPage() {
           <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '85vh' }}>
             <DialogHeader>
               <DialogTitle>
-                <View className="flex items-center justify-between">
-                  <Text className="block text-lg font-bold text-foreground">评分说明</Text>
-                  <View onClick={() => setScoreInfoOpen(false)} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
-                    <X size={16} color="#6b7280" />
-                  </View>
-                </View>
+                <Text className="block text-lg font-bold text-foreground">评分说明</Text>
               </DialogTitle>
             </DialogHeader>
             <View className="flex flex-wrap gap-3 mt-3" style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>

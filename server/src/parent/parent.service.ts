@@ -237,7 +237,7 @@ export class ParentService {
     });
   }
 
-  async getAttendance(userId: string, courseType?: string, agentChildId?: string) {
+  async getAttendance(userId: string, courseType?: string, agentChildId?: string, childId?: string) {
     // 查询当前家长绑定的在读幼儿
     const childIds = await this.getChildIds(userId, agentChildId);
     if (!childIds.length) return [];
@@ -247,6 +247,11 @@ export class ParentService {
       .select('id, record_date, status, check_in_time, check_out_time, notes, course_type')
       .in('child_id', childIds)
       .order('record_date', { ascending: false });
+
+    // 指定幼儿时精确过滤（校验归属，超管代理/家长切换幼儿均生效）
+    if (childId && childIds.includes(childId)) {
+      query = query.eq('child_id', childId);
+    }
 
     if (courseType) {
       query = query.eq('course_type', courseType);
@@ -375,6 +380,28 @@ export class ParentService {
       .is('parent_read_at', null);
     if (error) throw new Error(`未读统计失败: ${error.message}`);
     return count || 0;
+  }
+
+  // 按幼儿分组统计未读成长记录数（child_id -> count 映射），供家长端首页角标
+  async getGrowthUnreadCounts(userId: string, agentChildId?: string) {
+    const childIds = await this.getChildIds(userId, agentChildId);
+    if (!childIds.length) return {};
+
+    const { data, error } = await this.client
+      .from('growth_records')
+      .select('child_id')
+      .in('child_id', childIds)
+      .is('parent_read_at', null);
+    if (error) {
+      console.error('[ParentService] getGrowthUnreadCounts error:', error.message);
+      return {};
+    }
+    const counts: Record<string, number> = {};
+    (data || []).forEach((r: any) => {
+      const key = r.child_id as string;
+      if (key) counts[key] = (counts[key] || 0) + 1;
+    });
+    return counts;
   }
 
   async searchChildren(userId: string, keyword: string) {

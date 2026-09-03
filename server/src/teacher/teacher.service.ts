@@ -367,6 +367,7 @@ export class TeacherService {
       end_date: string | null;
       nickname: string;
       extended_end_date: string | null;
+      is_drop_in?: boolean;
     }>>();
 
     for (const e of filteredEnrollments) {
@@ -418,6 +419,7 @@ export class TeacherService {
             nickname: childrenMap[d.child_id]?.nickname || '',
             end_date: null,
             extended_end_date: null,
+            is_drop_in: true,
           });
         }
       }
@@ -610,6 +612,7 @@ export class TeacherService {
       end_date: string | null;
       nickname: string;
       extended_end_date: string | null;
+      is_drop_in?: boolean;
     }>>();
 
     for (const e of filteredEnrollments) {
@@ -660,6 +663,7 @@ export class TeacherService {
             nickname: childrenMap[d.child_id]?.nickname || '',
             end_date: null,
             extended_end_date: null,
+            is_drop_in: true,
           });
         }
       }

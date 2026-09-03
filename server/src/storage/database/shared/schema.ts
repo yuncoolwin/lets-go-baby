@@ -136,6 +136,13 @@ export const growthRecords = pgTable("growth_records", {
 	recordDate: date("record_date"),
 	courseName: varchar("course_name", { length: 200 }),
 	parentReadAt: timestamp("parent_read_at", { withTimezone: true, mode: 'string' }),
+	dietOverall: varchar("diet_overall", { length: 20 }),
+	dietVegetable: varchar("diet_vegetable", { length: 20 }),
+	dietMeat: varchar("diet_meat", { length: 20 }),
+	dietSoup: varchar("diet_soup", { length: 20 }),
+	dietWater: varchar("diet_water", { length: 20 }),
+	napStatus: varchar("nap_status", { length: 20 }),
+	stoolStatus: varchar("stool_status", { length: 20 }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("growth_child_id_idx").using("btree", table.childId.asc().nullsLast().op("text_ops")),

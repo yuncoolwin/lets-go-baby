@@ -12,7 +12,7 @@ import TabBar from '@/components/tab-bar'
 
 export default function ProfilePage() {
   const {
-    nickname, roles, currentRole, currentRoleIndex,
+    nickname, roles, currentRole, currentRoleIndex, agentOriginalRoleType,
     children, currentChildIndex, isLoggedIn, setCurrentRole, logout, fetchUserInfo,
   } = useAppStore()
 
@@ -23,6 +23,10 @@ export default function ProfilePage() {
     if (!currentRole) return nickname || '用户'
     switch (currentRole.role_type) {
       case 'parent':
+        // 管理员/超管代理进入家长端时，显示本人用户名
+        if (agentOriginalRoleType === 'admin' || agentOriginalRoleType === 'superadmin') {
+          return nickname || '管理员'
+        }
         if (currentChild) {
           const relText = currentChild.relationship === 'other' && currentChild.custom_relationship
             ? currentChild.custom_relationship

@@ -23,6 +23,13 @@ interface GrowthRecord {
   course_name?: string
   parent_read_at?: string | null
   record_date?: string
+  diet_overall?: string | null
+  diet_vegetable?: string | null
+  diet_meat?: string | null
+  diet_soup?: string | null
+  diet_water?: string | null
+  nap_status?: string | null
+  stool_status?: string | null
 }
 
 export default function GrowthPage() {
@@ -134,6 +141,31 @@ export default function GrowthPage() {
                   }}
                 >
                   <Text className="block text-base font-semibold text-foreground mb-1">{record.title}</Text>
+                  {[
+                    ['总体', record.diet_overall],
+                    ['蔬菜', record.diet_vegetable],
+                    ['荤菜', record.diet_meat],
+                    ['汤', record.diet_soup],
+                    ['喝水', record.diet_water],
+                    ['午睡', record.nap_status],
+                    ['大便', record.stool_status],
+                  ].some(([, v]) => !!v) && (
+                    <View className="flex flex-wrap gap-2 mt-2">
+                      {([
+                        ['总体', record.diet_overall],
+                        ['蔬菜', record.diet_vegetable],
+                        ['荤菜', record.diet_meat],
+                        ['汤', record.diet_soup],
+                        ['喝水', record.diet_water],
+                        ['午睡', record.nap_status],
+                        ['大便', record.stool_status],
+                      ] as [string, string][]).filter(([, v]) => !!v).map(([label, value]) => (
+                        <View key={label} className="px-2 py-1 rounded-md bg-gray-100">
+                          <Text className="text-xs text-gray-600">{label}：{value}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                   {record.content && (
                     <Text
                       className="block text-sm text-muted-foreground"

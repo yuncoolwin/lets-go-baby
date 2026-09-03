@@ -25,6 +25,13 @@ interface GrowthRecord {
   teacher_id?: string | null
   course_name?: string
   parent_read_at?: string | null
+  diet_overall?: string | null
+  diet_vegetable?: string | null
+  diet_meat?: string | null
+  diet_soup?: string | null
+  diet_water?: string | null
+  nap_status?: string | null
+  stool_status?: string | null
 }
 
 const DRAFT_KEY = 'growth_drafts'
@@ -71,7 +78,7 @@ export default function GrowthManagePage() {
   const [courses, setCourses] = useState<any[]>([])
   const [filterCourseId, setFilterCourseId] = useState('')
   const [filterChildId, setFilterChildId] = useState('')
-  const [filterDate, setFilterDate] = useState('')
+  const [filterDate, setFilterDate] = useState(todayStr)
   const [courseChildren, setCourseChildren] = useState<any[]>([])
   const [records, setRecords] = useState<GrowthRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -95,7 +102,7 @@ export default function GrowthManagePage() {
   useEffect(() => {
     if (currentRole?.id) {
       loadTeacherMeta()
-      doLoadRecords('', '', [], '')
+      doLoadRecords('', '', [], todayStr)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentRole?.id])
@@ -112,7 +119,18 @@ export default function GrowthManagePage() {
   const loadCourses = async () => {
     try {
       const res = await courseApi.list()
-      setCourses(extractList(res))
+      const list = extractList(res)
+      // 固定顺序：全日托 > 半日托 > 周六托 > 晚间托 > 兴趣班 > 其余（保持原名）
+      const order = ['全日托', '半日托', '周六托', '晚间托', '兴趣班']
+      list.sort((a: any, b: any) => {
+        const ia = order.indexOf(a.name)
+        const ib = order.indexOf(b.name)
+        if (ia === -1 && ib === -1) return 0
+        if (ia === -1) return 1
+        if (ib === -1) return -1
+        return ia - ib
+      })
+      setCourses(list)
     } catch (err) {
       console.error('[GrowthManage] load courses error:', err)
     }
@@ -359,6 +377,31 @@ export default function GrowthManagePage() {
                       </Text>
                     )}
                   </View>
+                  {[
+                    ['总体', record.diet_overall],
+                    ['蔬菜', record.diet_vegetable],
+                    ['荤菜', record.diet_meat],
+                    ['汤', record.diet_soup],
+                    ['喝水', record.diet_water],
+                    ['午睡', record.nap_status],
+                    ['大便', record.stool_status],
+                  ].some(([, v]) => !!v) && (
+                    <View className="flex flex-wrap gap-2 mb-2">
+                      {([
+                        ['总体', record.diet_overall],
+                        ['蔬菜', record.diet_vegetable],
+                        ['荤菜', record.diet_meat],
+                        ['汤', record.diet_soup],
+                        ['喝水', record.diet_water],
+                        ['午睡', record.nap_status],
+                        ['大便', record.stool_status],
+                      ] as [string, string][]).filter(([, v]) => !!v).map(([label, value]) => (
+                        <View key={label} className="px-2 py-1 rounded-md bg-gray-100">
+                          <Text className="text-xs text-gray-600">{label}：{value}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                   {record.content && (
                     <Text
                       className="block text-sm text-gray-600 mb-2"
