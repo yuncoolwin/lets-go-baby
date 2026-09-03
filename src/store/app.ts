@@ -53,6 +53,7 @@ interface AppStore {
   // 代理家长模式：超管以某幼儿身份进入家长端时为其幼儿 id，否则为 null
   agentChildId: string | null
   agentTeacherId: string | null
+  agentOriginalRoleType: 'admin' | 'superadmin' | null
 
   // 登录状态
   isLoggedIn: boolean
@@ -150,6 +151,7 @@ export const useAppStore = create<AppStore>()(
   currentChildIndex: 0,
   agentChildId: null,
   agentTeacherId: null,
+  agentOriginalRoleType: null,
   isLoggedIn: false,
   isLoading: false,
   needRoleSelection: false,
@@ -442,6 +444,7 @@ export const useAppStore = create<AppStore>()(
       currentRole: fakeParentRole,
       currentRoleIndex: 0,
       agentChildId: child.id,
+      agentOriginalRoleType: currentRole?.role_type === 'admin' || currentRole?.role_type === 'superadmin' ? currentRole.role_type : null,
     })
   },
 
@@ -452,6 +455,7 @@ export const useAppStore = create<AppStore>()(
       agentChildId: null,
       currentRole: agentSavedRole,
       currentRoleIndex: agentSavedRoleIndex,
+      agentOriginalRoleType: null,
     })
     agentSavedRole = null
     agentSavedRoleIndex = 0
@@ -463,11 +467,17 @@ export const useAppStore = create<AppStore>()(
     // 保存当前管理端角色，进入教师端代理态
     agentSavedRole = get().currentRole
     agentSavedRoleIndex = get().currentRoleIndex
-    set({ currentRole: role, currentRoleIndex: 0, agentTeacherId: role.id })
+    const originType = get().currentRole?.role_type
+    set({
+      currentRole: role,
+      currentRoleIndex: 0,
+      agentTeacherId: role.id,
+      agentOriginalRoleType: originType === 'admin' || originType === 'superadmin' ? originType : null,
+    })
   },
 
   exitAgentTeacherMode: async () => {
-    set({ agentTeacherId: null, currentRole: agentSavedRole, currentRoleIndex: agentSavedRoleIndex })
+    set({ agentTeacherId: null, currentRole: agentSavedRole, currentRoleIndex: agentSavedRoleIndex, agentOriginalRoleType: null })
     agentSavedRole = null
     agentSavedRoleIndex = 0
     await get().fetchUserInfo()

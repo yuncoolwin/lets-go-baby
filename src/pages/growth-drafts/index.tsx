@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Trash2, Copy } from 'lucide-react-taro'
+import { useAppStore } from '@/store/app'
 
 const DRAFT_KEY = 'growth_drafts'
 
@@ -43,6 +44,7 @@ const formatTime = (iso?: string) => {
 
 export default function GrowthDraftsPage() {
   const [drafts, setDrafts] = useState<GrowthDraft[]>(loadDrafts())
+  const isAgentAdmin = useAppStore((s) => s.agentOriginalRoleType === 'admin')
 
   const refresh = () => setDrafts(loadDrafts())
 
@@ -91,7 +93,7 @@ export default function GrowthDraftsPage() {
     <View className="min-h-screen bg-background">
       <View className="px-4 pt-3 flex items-center justify-between mb-2">
         <Text className="block text-sm text-muted-foreground">共 {drafts.length} 条草稿</Text>
-        {drafts.length > 0 && (
+        {!isAgentAdmin && drafts.length > 0 && (
           <Text className="text-sm text-red-500" onClick={handleClearAll}>
             清空全部
           </Text>
@@ -105,7 +107,7 @@ export default function GrowthDraftsPage() {
       ) : (
         <View className="px-4 space-y-3 pb-8">
           {drafts.map((draft) => (
-            <Card key={draft.id} onClick={() => goEdit(draft)}>
+            <Card key={draft.id} onClick={() => { if (!isAgentAdmin) goEdit(draft) }}>
               <CardContent className="p-4">
                 <View className="flex items-center justify-between mb-2">
                   <Text className="text-sm font-medium text-primary">
@@ -151,6 +153,7 @@ export default function GrowthDraftsPage() {
                   </View>
                 )}
                 <View className="flex justify-end gap-2 mt-3">
+                  {!isAgentAdmin && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -162,6 +165,8 @@ export default function GrowthDraftsPage() {
                     <Copy size={14} color="#E8651A" />
                     <Text className="text-primary text-sm">复制</Text>
                   </Button>
+                  )}
+                  {!isAgentAdmin && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -173,6 +178,7 @@ export default function GrowthDraftsPage() {
                     <Trash2 size={14} color="#ef4444" />
                     <Text className="text-red-500 text-sm">删除</Text>
                   </Button>
+                  )}
                 </View>
               </CardContent>
             </Card>

@@ -105,6 +105,7 @@ export default function IndexPage() {
   const { isLoggedIn, currentRole, isLoading, fetchUserInfo, children, currentChildIndex, setCurrentChild, nickname, agentChildId, agentTeacherId, exitAgentParentMode } = useAppStore()
   const [babyStatus, setBabyStatus] = useState<BabyStatus | null>(null)
   const [groupList, setGroupList] = useState<GroupOverview[]>([])
+  const [activeClassId, setActiveClassId] = useState('')
   const [isClassHoliday, setIsClassHoliday] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
   const [pageLoading, setPageLoading] = useState(true)
@@ -396,39 +397,46 @@ export default function IndexPage() {
     return (
       <View className="min-h-screen bg-background p-4 pb-24">
         {/* 欢迎区域 */}
-        <View className="mb-4">
-          <Text className="block text-xl font-bold text-foreground">
-            您好，{currentChild ? `${currentChild.name}${
-              currentChild.relationship === 'other' && currentChild.custom_relationship
-                ? currentChild.custom_relationship
-                : (getRelationshipLabel(currentChild.relationship) === '其他' ? '家长' : getRelationshipLabel(currentChild.relationship) || '家长')
-            }` : '新用户'}
-          </Text>
-          <Text className="block text-sm text-muted-foreground mt-1">
-            {formatChineseDate(new Date())}
-          </Text>
-          {agentChildId && (
-            <View
-              className="self-start inline-flex items-center bg-gray-100 rounded-full px-3 py-2 mt-2"
-              onClick={async () => {
-                await exitAgentParentMode()
-                loadPageData()
-              }}
-            >
-              <Text className="block text-xs text-primary">退出家长端，返回管理端</Text>
-            </View>
-          )}
-          {agentTeacherId && (
-            <View
-              className="self-start inline-flex items-center bg-gray-100 rounded-full px-3 py-2 mt-2"
-              onClick={async () => {
-                await useAppStore.getState().exitAgentTeacherMode()
-                loadPageData()
-              }}
-            >
-              <Text className="block text-xs text-primary">退出教师端，返回管理端</Text>
-            </View>
-          )}
+        <View
+          className="mb-4"
+          style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text className="block text-xl font-bold text-foreground">
+              您好，{currentChild ? `${currentChild.name}${
+                currentChild.relationship === 'other' && currentChild.custom_relationship
+                  ? currentChild.custom_relationship
+                  : (getRelationshipLabel(currentChild.relationship) === '其他' ? '家长' : getRelationshipLabel(currentChild.relationship) || '家长')
+              }` : '新用户'}
+            </Text>
+            <Text className="block text-sm text-muted-foreground mt-1">
+              {formatChineseDate(new Date())}
+            </Text>
+          </View>
+          <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+            {agentChildId && (
+              <View
+                className="inline-flex items-center bg-gray-100 rounded-full px-3 py-2"
+                onClick={async () => {
+                  await exitAgentParentMode()
+                  loadPageData()
+                }}
+              >
+                <Text className="block text-xs text-primary">退出家长端，返回管理端</Text>
+              </View>
+            )}
+            {agentTeacherId && (
+              <View
+                className="inline-flex items-center bg-gray-100 rounded-full px-3 py-2"
+                onClick={async () => {
+                  await useAppStore.getState().exitAgentTeacherMode()
+                  loadPageData()
+                }}
+              >
+                <Text className="block text-xs text-primary">退出教师端，返回管理端</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {/* 多孩切换 + 添加幼儿 */}
@@ -732,16 +740,21 @@ export default function IndexPage() {
   if (currentRole?.role_type === 'teacher') {
     return (
       <View className="min-h-screen bg-background p-4 pb-24">
-        <View className="mb-4">
-          <Text className="block text-xl font-bold text-foreground">
-            您好，{nickname || currentRole?.real_name || '老师'} 💕
-          </Text>
-          <Text className="block text-sm text-muted-foreground mt-1">
-            {formatChineseDate(new Date())}
-          </Text>
+        <View
+          className="mb-4"
+          style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text className="block text-xl font-bold text-foreground">
+              您好，{nickname || currentRole?.real_name || '老师'} 💕
+            </Text>
+            <Text className="block text-sm text-muted-foreground mt-1">
+              {formatChineseDate(new Date())}
+            </Text>
+          </View>
           {agentTeacherId && (
             <View
-              className="self-start inline-flex items-center bg-gray-100 rounded-full px-3 py-2 mt-2"
+              className="inline-flex items-center bg-gray-100 rounded-full px-3 py-2"
               onClick={async () => {
                 await useAppStore.getState().exitAgentTeacherMode()
                 loadPageData()
@@ -752,10 +765,58 @@ export default function IndexPage() {
           )}
         </View>
 
+        {/* 教师多班级切换标签（考勤完成的班级显示绿色） */}
+        {(() => {
+          const uniqClasses: Array<{ class_id: string; class_name: string }> = []
+          groupList.forEach(g => {
+            if (g.class_id && !uniqClasses.some(c => c.class_id === g.class_id)) {
+              uniqClasses.push({ class_id: g.class_id, class_name: g.class_name || '' })
+            }
+          })
+          if (uniqClasses.length === 0) return null
+          const effectiveActiveId = activeClassId || uniqClasses[0].class_id
+          return (
+            <View
+              className="mb-3"
+              style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '8px' }}
+            >
+              {uniqClasses.map(tc => {
+                const clsGroups = groupList.filter(g => g.class_id === tc.class_id)
+                const allRecorded = clsGroups.length > 0 && clsGroups.every(g =>
+                  (g.students || []).every(s => {
+                    const st = s.attendance_status
+                    return !!st && st !== 'unknown'
+                  })
+                )
+                const isActive = effectiveActiveId === tc.class_id
+                return (
+                  <Text
+                    key={tc.class_id}
+                    className={`block text-xs rounded-full px-3 py-1 ${
+                      allRecorded
+                        ? isActive
+                          ? 'bg-green-600 text-white'
+                          : 'bg-green-100 text-green-700'
+                        : isActive
+                          ? 'bg-[#E8651A] text-white'
+                          : 'bg-gray-100 text-gray-600'
+                    }`}
+                    onClick={() => setActiveClassId(tc.class_id)}
+                  >
+                    {tc.class_name || tc.class_id}
+                  </Text>
+                )
+              })}
+            </View>
+          )
+        })()}
+
         {/* 课程类型分组卡片 */}
         {groupList.length > 0 ? (
           <View className="mb-4">
             {groupList.map((group) => {
+              const effectiveActiveId = activeClassId || groupList[0]?.class_id || ''
+              if (group.class_id !== effectiveActiveId) return null
               const isExpanded = expandedGroupId.has(group.group_id)
               return (
                 <Card key={group.group_id} className="bg-white rounded-xl border-0 shadow-sm mb-3">

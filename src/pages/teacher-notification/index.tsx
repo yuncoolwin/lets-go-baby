@@ -116,6 +116,7 @@ const formatTime = (dateStr: string) => {
 
 export default function TeacherNotificationPage() {
   const currentRole = useAppStore((s) => s.currentRole)
+  const isAgentAdmin = useAppStore((s) => s.agentOriginalRoleType === 'admin')
   const isAdmin = currentRole?.role_type === 'admin' || currentRole?.role_type === 'superadmin'
   const router = useRouter()
   const editIdFromUrl = router.params?.id || ''
@@ -705,9 +706,11 @@ export default function TeacherNotificationPage() {
                         <Text className="text-xs text-muted-foreground">
                           已读 {item.read_count ?? 0}/{item.recipient_count ?? 0}
                         </Text>
+                        {!isAgentAdmin && (
                         <Button variant="secondary" size="sm" onClick={() => handleRevoke(item.id)}>
                           <Text className="text-xs">撤回</Text>
                         </Button>
+                        )}
                       </View>
                     ) : (
                       <View className="flex items-center justify-between mt-3">
@@ -718,12 +721,16 @@ export default function TeacherNotificationPage() {
                           <Badge className="bg-gray-200 text-gray-500 text-xs">
                             <Text className="text-xs">已撤回</Text>
                           </Badge>
+                          {!isAgentAdmin && (
                           <Button variant="outline" size="sm" onClick={() => handleEditSent(item)}>
                             <Text className="text-xs">编辑</Text>
                           </Button>
+                          )}
+                          {!isAgentAdmin && (
                           <Button variant="secondary" size="sm" onClick={() => handleRepublish(item.id)}>
                             <Text className="text-xs">再次发送</Text>
                           </Button>
+                          )}
                         </View>
                       </View>
                     )}
@@ -736,7 +743,7 @@ export default function TeacherNotificationPage() {
       )}
 
       {/* 底部按钮：仅发布 tab 显示；编辑已撤回时只显示重新发布 */}
-      {mainTab === 'compose' && (
+      {mainTab === 'compose' && !isAgentAdmin && (
         <View
           style={{
             position: 'fixed', bottom: 0, left: 0, right: 0,
@@ -806,12 +813,16 @@ export default function TeacherNotificationPage() {
                   <View className="flex items-center justify-between mt-2">
                     <Text className="text-xs text-muted-foreground">{formatTime(draft.created_at)}</Text>
                     <View className="flex gap-2">
+                      {!isAgentAdmin && (
                       <Button variant="outline" size="sm" onClick={() => handleEditDraft(draft)}>
                         <Text className="text-xs">编辑</Text>
                       </Button>
+                      )}
+                      {!isAgentAdmin && (
                       <Button variant="ghost" size="sm" onClick={() => handleDeleteDraft(draft.id)}>
                         <Text className="text-xs text-red-500">删除</Text>
                       </Button>
+                      )}
                     </View>
                   </View>
                 </View>

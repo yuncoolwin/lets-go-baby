@@ -614,9 +614,38 @@ export class AdminService {
     level?: string;
   }) {
     try {
+      const nowIso = new Date().toISOString();
+      // 10 分钟内同用户、同 action、同 target 的日志合并为一条（仅更新时间与 detail）
+      const cutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      let dupQuery = this.client
+        .from('audit_logs')
+        .select('id')
+        .eq('user_id', payload.user_id || null)
+        .eq('action', payload.action)
+        .eq('target_type', payload.target_type || null);
+      if (payload.target_id) {
+        dupQuery = dupQuery.eq('target_id', payload.target_id);
+      } else {
+        dupQuery = dupQuery.is('target_id', null);
+      }
+      const { data: dupRows } = await dupQuery
+        .gte('created_at', cutoff)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      const dup = dupRows && dupRows[0];
+      if (dup) {
+        const { error: updErr } = await this.client
+          .from('audit_logs')
+          .update({ created_at: nowIso, detail: payload.detail })
+          .eq('id', dup.id);
+        if (updErr) {
+          console.warn('[audit-log] 合并更新失败:', updErr.message);
+        }
+        return;
+      }
       const { error } = await this.client.from('audit_logs').insert({
         ...payload,
-        created_at: new Date().toISOString(),
+        created_at: nowIso,
       });
       if (error) {
         console.warn('[audit-log] 写入失败:', error.message);

@@ -41,6 +41,7 @@ const statusMap: Record<string, { label: string; className: string }> = {
 
 export default function TeacherManagePage() {
   const isSuperadmin = useAppStore((s) => s.currentRole?.role_type === 'superadmin')
+  const currentRole = useAppStore((s) => s.currentRole)
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [loading, setLoading] = useState(true)
   const [keyword, setKeyword] = useState('')
@@ -169,7 +170,7 @@ export default function TeacherManagePage() {
                   <Badge className={`${statusMap[teacher.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
                     <Text className="text-xs">{statusMap[teacher.status]?.label || teacher.status}</Text>
                   </Badge>
-                  {isSuperadmin && teacher.status === 'active' && !!teacher.teacher_role_id && (
+                  {(isSuperadmin || currentRole?.role_type === 'admin') && teacher.status === 'active' && !!teacher.teacher_role_id && (
                     <View
                       className="ml-2 shrink-0"
                       onClick={(e) => {

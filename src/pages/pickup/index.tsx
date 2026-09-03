@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import Taro from '@tarojs/taro'
+import { useState } from 'react'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text } from '@tarojs/components'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -40,9 +40,9 @@ export default function PickupPage() {
     }
   })()
 
-  useEffect(() => {
+  useDidShow(() => {
     loadRecords()
-  }, [])
+  })
 
   const loadRecords = async () => {
     setLoading(true)

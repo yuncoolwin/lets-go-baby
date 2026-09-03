@@ -78,6 +78,53 @@ export class TeachersService {
       }
     }
 
+    // 补齐登录账号：创建 users + teacher 角色，并回填 teachers.user_id
+    const nickname = dto.real_name || dto.nickname || '';
+    let linkedUserId: string | null = null;
+    if (dto.phone) {
+      const { data: existingUser } = await this.client
+        .from('users')
+        .select('id')
+        .eq('phone', dto.phone)
+        .maybeSingle();
+      if (existingUser) {
+        linkedUserId = existingUser.id;
+      } else {
+        const { data: createdUser, error: userErr } = await this.client
+          .from('users')
+          .insert({ nickname, phone: dto.phone })
+          .select('id')
+          .single();
+        if (!userErr && createdUser) linkedUserId = createdUser.id;
+      }
+    } else {
+      const { data: createdUser, error: userErr } = await this.client
+        .from('users')
+        .insert({ nickname })
+        .select('id')
+        .single();
+      if (!userErr && createdUser) linkedUserId = createdUser.id;
+    }
+
+    if (linkedUserId) {
+      const { data: existingRole } = await this.client
+        .from('user_roles')
+        .select('id')
+        .eq('user_id', linkedUserId)
+        .eq('role_type', 'teacher')
+        .eq('status', 'active')
+        .limit(1);
+      if (!existingRole || existingRole.length === 0) {
+        await this.client.from('user_roles').insert({
+          user_id: linkedUserId,
+          role_type: 'teacher',
+          real_name: dto.real_name,
+          status: 'active',
+        });
+      }
+      await this.client.from('teachers').update({ user_id: linkedUserId }).eq('id', data.id);
+    }
+
     return data;
   }
 

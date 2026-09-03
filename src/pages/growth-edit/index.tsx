@@ -75,6 +75,7 @@ const removeDraftById = (id: string) => {
 
 export default function GrowthEditPage() {
   const currentRole = useAppStore((s) => s.currentRole)
+  const isAgentAdmin = useAppStore((s) => s.agentOriginalRoleType === 'admin')
 
   const [allChildren, setAllChildren] = useState<any[]>([])
   const [teacherClassId, setTeacherClassId] = useState('')
@@ -421,15 +422,15 @@ export default function GrowthEditPage() {
             <Button
               variant="ghost"
               className="w-full"
-              onClick={handleSaveDraft}
-              disabled={saving || uploading}
+              onClick={() => { if (!isAgentAdmin) handleSaveDraft() }}
+              disabled={isAgentAdmin || saving || uploading}
             >
               <Text className="text-primary">存草稿</Text>
             </Button>
           </View>
         )}
         <View style={{ flex: 1 }}>
-          <Button className="w-full" onClick={handleSave} disabled={saving || uploading}>
+          <Button className="w-full" onClick={() => { if (!isAgentAdmin) handleSave() }} disabled={isAgentAdmin || saving || uploading}>
             <Text className="text-white">{saving ? '保存中...' : '保存'}</Text>
           </Button>
         </View>

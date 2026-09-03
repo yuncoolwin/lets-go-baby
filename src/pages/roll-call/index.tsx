@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
+import { Input } from '@/components/ui/input'
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
 import { format } from 'date-fns'
 import Taro from '@tarojs/taro'
@@ -51,7 +52,8 @@ const STATUS_CONFIG = {
 } as const
 
 export default function RollCallPage() {
-  const { currentRole, userId } = useAppStore()
+  const { currentRole, userId, agentOriginalRoleType } = useAppStore()
+  const isAgentAdmin = agentOriginalRoleType === 'admin'
   const [children, setChildren] = useState<ChildItem[]>([])
   const [attendance, setAttendance] = useState<Record<string, AttendanceItem['status']>>({})
   const [classId, setClassId] = useState('')
@@ -70,6 +72,8 @@ export default function RollCallPage() {
   const [selectedClassId, setSelectedClassId] = useState('')
   const [holidayInfo, setHolidayInfo] = useState<{ is_class_holiday: boolean; holiday_label: string | null; personal_holiday_child_ids: string[] }>({ is_class_holiday: false, holiday_label: null, personal_holiday_child_ids: [] })
   const [dropInModal, setDropInModal] = useState(false)
+  const [teacherClassList, setTeacherClassList] = useState<Array<{ class_id: string; class_name: string }>>([])
+  const [activeClassId, setActiveClassId] = useState('')
 
   // 上海时区（UTC+8）口径的当天字符串，前后端一致
   const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -177,6 +181,17 @@ export default function RollCallPage() {
       const theClassId = groups[0]?.class_id || ''
       setClassId(theClassId)
       setClassName([...new Set(groups.map(g => g.class_name).filter(Boolean))].join('、'))
+
+      // 教师多班级：提取去重班级列表，默认选中第一个（已有选择时不覆盖）
+      const uniqClasses: Array<{ class_id: string; class_name: string }> = []
+      groups.forEach(g => {
+        if (g.class_id && !uniqClasses.some(c => c.class_id === g.class_id)) {
+          uniqClasses.push({ class_id: g.class_id, class_name: g.class_name || '' })
+        }
+      })
+      setTeacherClassList(uniqClasses)
+      setActiveClassId(prev => prev || uniqClasses[0]?.class_id || '')
+
       if (theClassId) {
         await fetchHolidayStatus(theClassId)
       }
@@ -262,6 +277,12 @@ export default function RollCallPage() {
   }
 
   const handleCheckOut = async (child: ChildItem) => {
+    const confirmRes = await Taro.showModal({
+      title: '确认离园',
+      content: `确定要给「${child.name}」办理离园吗？`,
+      confirmText: '确认离园',
+    })
+    if (!confirmRes.confirm) return
     try {
       await Network.request({
         url: '/api/attendance/check-out',
@@ -397,20 +418,25 @@ export default function RollCallPage() {
             <Text className="block text-xs text-orange-500">（历史记录，只读）</Text>
           )}
         </View>
-        {(selectedDate === today || isAdmin) && (
-          <Text 
+        {!isAgentAdmin && selectedDate === today && (
+          <View
+            className="flex-1 flex justify-center"
+            style={{ display: 'flex', justifyContent: 'center' }}
+          >
+            <Text
+              className="block text-sm text-gray-600 bg-gray-100 rounded-full px-3 py-1"
+              onClick={() => setDropInModal(true)}
+            >
+              添加临时来园
+            </Text>
+          </View>
+        )}
+        {!isAgentAdmin && (selectedDate === today || isAdmin) && (
+          <Text
             className="block text-sm text-red-500"
             onClick={handleClear}
           >
             清除
-          </Text>
-        )}
-        {selectedDate === today && (
-          <Text
-            className="block text-sm text-gray-600 bg-gray-100 rounded-full px-3 py-1"
-            onClick={() => setDropInModal(true)}
-          >
-            添加临时来园
           </Text>
         )}
       </View>
@@ -447,6 +473,40 @@ export default function RollCallPage() {
         {className && (
           <View className="px-4 pt-4 pb-2">
             <Text className="block text-sm text-gray-500">{className} 考勤分组</Text>
+          </View>
+        )}
+
+        {/* 教师多班级切换标签（考勤完成的班级显示绿色） */}
+        {!isAdmin && teacherClassList.length > 0 && (
+          <View
+            className="px-4 pb-2"
+            style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '8px' }}
+          >
+            {teacherClassList.map(tc => {
+              const clsChildren = children.filter(c => c.class_id === tc.class_id)
+              const allRecorded = clsChildren.length > 0 && clsChildren.every(c => {
+                const st = currentDisplay[c.id + '__' + c.course_type]
+                return !!st && st !== 'unknown'
+              })
+              const isActive = activeClassId === tc.class_id
+              return (
+                <Text
+                  key={tc.class_id}
+                  className={`block text-xs rounded-full px-3 py-1 ${
+                    allRecorded
+                      ? isActive
+                        ? 'bg-green-600 text-white'
+                        : 'bg-green-100 text-green-700'
+                      : isActive
+                        ? 'bg-[#E8651A] text-white'
+                        : 'bg-gray-100 text-gray-600'
+                  }`}
+                  onClick={() => setActiveClassId(tc.class_id)}
+                >
+                  {tc.class_name || tc.class_id}
+                </Text>
+              )
+            })}
           </View>
         )}
 
@@ -487,10 +547,11 @@ export default function RollCallPage() {
           </View>
         ) : (
           (() => {
-            // 按课程类型分组
+            // 按课程类型分组（教师多班时仅分组当前选中班级）
             const sortOrder = ['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日']
             const groupMap = new Map<string, ChildItem[]>()
-            children.forEach(child => {
+            const visibleChildren = !isAdmin && activeClassId ? children.filter(c => c.class_id === activeClassId) : children
+            visibleChildren.forEach(child => {
               const ct = child.course_type || '其他'
               if (!groupMap.has(ct)) groupMap.set(ct, [])
               groupMap.get(ct)!.push(child)
@@ -625,7 +686,7 @@ export default function RollCallPage() {
                                       <Text className="block text-base font-medium text-gray-900 flex-1">{child.name}</Text>
                                       {child.check_out_time ? (
                                         <Text className="block text-xs text-gray-400 flex-shrink-0">已离园</Text>
-                                      ) : child.check_in_time && child.record_status !== 'leave' && child.record_status !== 'absent' ? (
+                                      ) : !isAgentAdmin && child.check_in_time && child.record_status !== 'leave' && child.record_status !== 'absent' ? (
                                         <View
                                           className="px-2 py-1 rounded-lg bg-orange-100 flex-shrink-0"
                                           onClick={() => handleCheckOut(child)}
@@ -640,7 +701,7 @@ export default function RollCallPage() {
                                         const isSelected = current === status
                                         const isAttendanceStatus = status === 'present' || status === 'full_day' || status === 'half_day'
                                         const holidayDisabled = isAttendanceStatus && (holidayInfo.is_class_holiday || holidayInfo.personal_holiday_child_ids.includes(child.id))
-                                        const isClickable = !isLocked && !holidayDisabled
+                                        const isClickable = !isAgentAdmin && !isLocked && !holidayDisabled
                                         return (
                                           <View
                                             key={status}
@@ -651,7 +712,7 @@ export default function RollCallPage() {
                                                   ? 'bg-gray-100 text-gray-500 active:bg-gray-200'
                                                   : 'bg-gray-100 text-gray-300'
                                             }`}
-                                            onClick={() => !isLocked && !holidayDisabled && handleStatusChange(child.id + '__' + child.course_type, status)}
+                                            onClick={() => !isAgentAdmin && !isLocked && !holidayDisabled && handleStatusChange(child.id + '__' + child.course_type, status)}
                                           >
                                             <Text className={`block text-sm font-medium ${
                                               isSelected && !holidayDisabled
@@ -713,20 +774,20 @@ export default function RollCallPage() {
             <View
               style={{ flex: 1 }}
               className={`py-3 rounded-xl text-center font-medium ${
-                hasUnsaved 
-                  ? 'bg-blue-500 text-white' 
+                hasUnsaved && !isAgentAdmin
+                  ? 'bg-blue-500 text-white'
                   : 'bg-gray-100 text-gray-400'
               }`}
-              onClick={hasUnsaved ? handleSave : undefined}
+              onClick={isAgentAdmin ? undefined : hasUnsaved ? handleSave : undefined}
             >
-              <Text className={`block text-base font-medium ${hasUnsaved ? 'text-white' : 'text-gray-400'}`}>
-                保存考勤 {hasUnsaved ? '' : '(无变化)'}
+              <Text className={`block text-base font-medium ${hasUnsaved && !isAgentAdmin ? 'text-white' : 'text-gray-400'}`}>
+                保存考勤 {hasUnsaved && !isAgentAdmin ? '' : '(无变化)'}
               </Text>
             </View>
           </>
-        ) : selectedDate !== today ? (
+        ) : selectedDate !== today || isAgentAdmin ? (
           <View style={{ flex: 1 }} className="py-3 rounded-xl text-center font-medium bg-gray-100">
-            <Text className="block text-base font-medium text-gray-400">历史记录，只读查看</Text>
+            <Text className="block text-base font-medium text-gray-400">{isAgentAdmin ? '管理员代理，只读查看' : '历史记录，只读查看'}</Text>
           </View>
         ) : isLocked ? (
           <View
@@ -791,6 +852,7 @@ function DropInModal({
 }) {
   const [allChildren, setAllChildren] = useState<ChildItem[]>([])
   const [pickedId, setPickedId] = useState('')
+  const [searchKw, setSearchKw] = useState('')
   const [courseType, setCourseType] = useState('全日托')
   const [submitting, setSubmitting] = useState(false)
 
@@ -823,12 +885,12 @@ function DropInModal({
     try {
       const pickedChild = allChildren.find(c => c.id === pickedId)
       const res: any = await dropInApi.add({ child_id: pickedId, class_id: pickedChild?.class_id || classId, course_type: courseType, date })
-      if (res.statusCode === 200 && res.data?.code === 200) {
+      if (res.code === 200) {
         Taro.showToast({ title: '已添加临时来园', icon: 'success' })
         onSuccess()
         onClose()
       } else {
-        Taro.showToast({ title: res.data?.msg || '添加失败', icon: 'none' })
+        Taro.showToast({ title: res.msg || '添加失败', icon: 'none' })
       }
     } catch {
       Taro.showToast({ title: '添加失败', icon: 'none' })
@@ -855,9 +917,18 @@ function DropInModal({
         </View>
         <Text className="block text-xs text-gray-500 mt-1">日期：{date}</Text>
 
+                {/* 幼儿搜索 */}
+                <View className="mb-3">
+                  <Input
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    placeholder="搜索幼儿姓名"
+                    value={searchKw}
+                    onInput={(e) => setSearchKw(e.detail.value)}
+                  />
+                </View>
         <Text className="block text-xs text-gray-500 mt-3 mb-1">选择幼儿</Text>
         <ScrollView style={{ maxHeight: '220px' }} className="border border-gray-100 rounded-lg">
-          {allChildren.filter(c => c.id !== childId).map(c => (
+          {allChildren.filter(c => c.name && c.name.includes(searchKw)).filter(c => c.id !== childId).map(c => (
             <View
               key={c.id}
               className={`px-3 py-2 mx-1 my-1 rounded-full ${pickedId === c.id ? 'bg-[#E8651A]' : 'bg-gray-100'}`}
@@ -868,7 +939,7 @@ function DropInModal({
               <Text className={`text-xs ${pickedId === c.id ? 'text-white' : 'text-gray-400'}`}>{c.course_type || ''}</Text>
             </View>
           ))}
-          {allChildren.filter(c => c.id !== childId).length === 0 && (
+          {allChildren.filter(c => c.name && c.name.includes(searchKw)).filter(c => c.id !== childId).length === 0 && (
             <Text className="block text-xs text-gray-400 text-center py-4">暂无可选幼儿</Text>
           )}
         </ScrollView>

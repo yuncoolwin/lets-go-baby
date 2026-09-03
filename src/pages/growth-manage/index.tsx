@@ -61,6 +61,7 @@ const loadDraftCount = (): number => {
 
 export default function GrowthManagePage() {
   const currentRole = useAppStore((s) => s.currentRole)
+  const isAgentAdmin = useAppStore((s) => s.agentOriginalRoleType === 'admin')
   const isSuperadmin = currentRole?.role_type === 'superadmin'
   // 上海时区（UTC+8）口径的当天字符串，前后端一致
   const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -403,6 +404,7 @@ export default function GrowthManagePage() {
       </View>
 
       {/* 底部操作栏 */}
+      {!isAgentAdmin && (
       <View
         style={{
           position: 'fixed',
@@ -432,6 +434,7 @@ export default function GrowthManagePage() {
           </Button>
         </View>
       </View>
+      )}
 
       <CalendarOverlay
         visible={dateOverlayVisible}
@@ -487,15 +490,19 @@ export default function GrowthManagePage() {
             )}
           </ScrollView>
           <View className="flex justify-end gap-2 mt-4 border-t border-gray-100 pt-4">
+            {!isAgentAdmin && (
             <Button variant="ghost" size="sm" onClick={() => detailRecord && handleCopy(detailRecord)}>
               <Copy size={14} color="#E8651A" />
               <Text className="text-primary text-sm">复制</Text>
             </Button>
+            )}
+            {!isAgentAdmin && (
             <Button variant="ghost" size="sm" onClick={() => { if (detailRecord) { setDetailOpen(false); goEdit(detailRecord.id) } }}>
               <Pencil size={14} color="#E8651A" />
               <Text className="text-primary text-sm">编辑</Text>
             </Button>
-            {(isSuperadmin || ((detailRecord?.record_date || (detailRecord?.created_at || '').slice(0, 10)) === todayStr && detailRecord?.teacher_id === currentRole?.id)) && (
+            )}
+            {!isAgentAdmin && (isSuperadmin || ((detailRecord?.record_date || (detailRecord?.created_at || '').slice(0, 10)) === todayStr && detailRecord?.teacher_id === currentRole?.id)) && (
               <Button variant="ghost" size="sm" onClick={() => { if (detailRecord) { handleDelete(detailRecord.id); setDetailOpen(false) } }}>
                 <Trash2 size={14} color="#ef4444" />
                 <Text className="text-red-500 text-sm">删除</Text>
