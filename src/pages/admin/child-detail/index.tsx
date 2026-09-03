@@ -776,9 +776,6 @@ export default function ChildDetailPage() {
                       </View>
                     </View>
                   </View>
-                  {enr.notes && (
-                    <Text className="block text-xs text-gray-500 mt-1">备注：{enr.notes}</Text>
-                  )}
                   {canEdit && (
                     <View className="absolute bottom-3 right-3 flex items-center gap-3">
                       <View onClick={() => openEditEnrollment(enr)}>
@@ -808,9 +805,16 @@ export default function ChildDetailPage() {
                     日期：{enr.start_date ? `${enr.start_date}${enr.end_date ? ` ~ ${enr.end_date}` : '起'}` : '--'}
                   </Text>
                   {(enr.payment_amount || enr.payment_channel) && (
-                    <Text className="block text-xs text-gray-500 mt-1">
-                      缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{!isReadonly && enr.payment_channel ? `（${enr.payment_channel}）` : ''}
-                    </Text>
+                    <View className="flex flex-row items-center mt-1">
+                      <Text className="text-xs text-gray-500">
+                        缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{!isReadonly && enr.payment_channel ? `（${enr.payment_channel}）` : ''}
+                      </Text>
+                      {enr.notes && (
+                        <View className="ml-1" onClick={() => Taro.showModal({ title: '备注', content: enr.notes || '', showCancel: false })}>
+                          <Info size={12} color="#999" />
+                        </View>
+                      )}
+                    </View>
                   )}
                   {!['一学期', '一学年'].includes(enr.duration_type) && (
                     <View className="flex flex-row items-center mt-1">
@@ -1040,16 +1044,6 @@ export default function ChildDetailPage() {
                 )}
               </View>
               <View>
-                <Text className="block text-sm font-medium text-foreground mb-1">备注</Text>
-                <Textarea
-                  className="bg-gray-50 border-0 rounded-xl px-4 py-3"
-                  placeholder="请输入备注（可留空）"
-                  maxlength={200}
-                  value={formNotes}
-                  onInput={(e) => setFormNotes(e.detail.value)}
-                />
-              </View>
-              <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">结束日期</Text>
                 {['一学期', '一学年'].includes(formDurationType) ? (
                   <View
@@ -1156,6 +1150,16 @@ export default function ChildDetailPage() {
                     </View>
                   ))}
                 </View>
+              </View>
+              <View>
+                <Text className="block text-sm font-medium text-foreground mb-1">备注</Text>
+                <Textarea
+                  className="bg-gray-50 border-0 rounded-xl px-4 py-3"
+                  placeholder="请输入备注（可留空）"
+                  maxlength={200}
+                  value={formNotes}
+                  onInput={(e) => setFormNotes(e.detail.value)}
+                />
               </View>
               <Button
                 className="w-full bg-primary text-primary-foreground rounded-xl py-3"

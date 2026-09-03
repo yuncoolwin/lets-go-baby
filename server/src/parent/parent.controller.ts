@@ -115,6 +115,11 @@ export class ParentController {
     child_id?: string;
     relationship?: string;
     custom_relationship?: string;
+    nickname?: string;
+    gender?: string;
+    birth_date?: string;
+    allergies?: string;
+    parent_phone?: string;
   }) {
     const userId = (req as any).user?.userId;
     const data: any = await this.parentService.submitBindingRequest(userId, body);

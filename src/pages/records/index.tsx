@@ -4,7 +4,7 @@ import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
 import { Button } from '@/components/ui/button'
-import { Trash2, BookOpen, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Info } from 'lucide-react-taro'
+import { Trash2, BookOpen, X, ChevronDown, ChevronLeft, ChevronRight, Info } from 'lucide-react-taro'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
@@ -361,23 +361,6 @@ export default function RecordsPage() {
             <ChevronRight size={20} color={isToday ? '#d1d5db' : '#666'} />
           </View>
           </View>
-        {/* 新增按钮 */}
-        <View className="flex-1 flex justify-end">
-          <Button
-            size="sm"
-            className="bg-primary text-primary-foreground rounded-lg"
-            onClick={() => {
-              setShowAddModal(true);
-              // 每次打开弹窗时重新加载幼儿列表，同步最新考勤状态
-              if (currentRole?.role_type === 'teacher') {
-                loadStudents();
-              }
-            }}
-          >
-            <Plus size={14} className="mr-1" color="#fff" />
-            <Text className="text-xs text-primary-foreground">新增</Text>
-          </Button>
-        </View>
       </View>
 
         {feedbacks.length === 0 ? (
@@ -777,6 +760,25 @@ export default function RecordsPage() {
             }}
             disabled={(date) => date > new Date()}
           />
+
+        {/* 底部固定：新增日常记录 */}
+        <View
+          style={{
+            position: 'fixed', bottom: 0, left: 0, right: 0,
+            backgroundColor: '#fff', borderTop: '1px solid #e5e5e5',
+            padding: '12px 16px', zIndex: 100
+          }}
+        >
+          <View
+            className="w-full bg-primary text-white rounded-xl py-3 flex items-center justify-center"
+            onClick={() => {
+              setShowAddModal(true)
+              loadStudents()
+            }}
+          >
+            <Text className="block text-base font-medium text-white">新增日常记录</Text>
+          </View>
+        </View>
       </View>
     )
   }

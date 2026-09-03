@@ -279,7 +279,6 @@ export default function RollCallPage() {
   const handleCheckOut = async (child: ChildItem) => {
     const confirmRes = await Taro.showModal({
       title: '确认离园',
-      content: `确定要给「${child.name}」办理离园吗？`,
       confirmText: '确认离园',
     })
     if (!confirmRes.confirm) return
@@ -469,13 +468,6 @@ export default function RollCallPage() {
       )}
 
       <ScrollView scrollY style={{ flex: 1, height: 0, paddingBottom: '100rpx' }}>
-        {/* 班级信息 */}
-        {className && (
-          <View className="px-4 pt-4 pb-2">
-            <Text className="block text-sm text-gray-500">{className} 考勤分组</Text>
-          </View>
-        )}
-
         {/* 教师多班级切换标签（考勤完成的班级显示绿色） */}
         {!isAdmin && teacherClassList.length > 0 && (
           <View
@@ -492,7 +484,7 @@ export default function RollCallPage() {
               return (
                 <Text
                   key={tc.class_id}
-                  className={`block text-xs rounded-full px-3 py-1 ${
+                  className={`block text-sm rounded-full px-4 py-2 ${
                     allRecorded
                       ? isActive
                         ? 'bg-green-600 text-white'
@@ -853,16 +845,19 @@ function DropInModal({
   const [allChildren, setAllChildren] = useState<ChildItem[]>([])
   const [pickedId, setPickedId] = useState('')
   const [searchKw, setSearchKw] = useState('')
+  const [activeCourses, setActiveCourses] = useState<string[]>([])
   const [courseType, setCourseType] = useState('全日托')
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!visible) return
     setPickedId('')
+    setActiveCourses([])
+    setActiveCourses([])
     setSubmitting(false)
     ;(async () => {
       try {
-        const url = classId ? `/api/children?class_id=${classId}` : '/api/children'
+        const url = '/api/children'
         const res: any = await Network.request({ url })
         const list = res.data?.data?.list || res.data?.data || []
         setAllChildren(list.map((c: any) => ({ id: c.id, name: c.name, gender: c.gender || '', class_id: c.class_id, course_type: '' })))
@@ -871,6 +866,20 @@ function DropInModal({
       }
     })()
   }, [visible, date, classId])
+
+  const handlePickChild = async (id: string) => {
+    setPickedId(id)
+    try {
+      const res: any = await Network.request({ url: `/api/enrollments/child/${id}/active` })
+      const list = res.data?.data || []
+      const types: string[] = Array.isArray(list)
+        ? list.map((e: any) => e.course_type).filter(Boolean)
+        : []
+      setActiveCourses(types)
+    } catch {
+      setActiveCourses([])
+    }
+  }
 
   const submit = async () => {
     if (!pickedId) {
@@ -933,7 +942,7 @@ function DropInModal({
               key={c.id}
               className={`px-3 py-2 mx-1 my-1 rounded-full ${pickedId === c.id ? 'bg-[#E8651A]' : 'bg-gray-100'}`}
               style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-              onClick={() => setPickedId(c.id)}
+              onClick={() => handlePickChild(c.id)}
             >
               <Text className={`text-sm ${pickedId === c.id ? 'text-white' : 'text-gray-700'}`}>{c.name}</Text>
               <Text className={`text-xs ${pickedId === c.id ? 'text-white' : 'text-gray-400'}`}>{c.course_type || ''}</Text>
@@ -946,15 +955,21 @@ function DropInModal({
 
         <Text className="block text-xs text-gray-500 mt-3 mb-1">课程类型</Text>
         <View style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '8px' }}>
-          {['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日'].map(ct => (
-            <Text
-              key={ct}
-              className={`text-xs rounded-full px-3 py-1 ${courseType === ct ? 'bg-[#E8651A] text-white' : 'bg-gray-100 text-gray-600'}`}
-              onClick={() => setCourseType(ct)}
-            >
-              {ct}
-            </Text>
-          ))}
+          {['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日'].map(ct => {
+            const disabled = activeCourses.includes(ct)
+            return (
+              <Text
+                key={ct}
+                className={`text-xs rounded-full px-3 py-1 ${disabled ? 'bg-gray-100 text-gray-300' : courseType === ct ? 'bg-[#E8651A] text-white' : 'bg-gray-100 text-gray-600'}`}
+                onClick={() => {
+                  if (disabled) return
+                  setCourseType(ct)
+                }}
+              >
+                {ct}
+              </Text>
+            )
+          })}
         </View>
 
         <View

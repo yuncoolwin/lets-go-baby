@@ -159,9 +159,30 @@ export default function TeacherManagePage() {
                       </Text>
                     </View>
                     <View className="flex-1">
-                      <Text className="block text-base font-semibold text-foreground">
-                        {teacher.nickname || teacher.real_name}
-                      </Text>
+                      <View className="flex flex-row items-center">
+                        <Text className="block text-base font-semibold text-foreground">
+                          {teacher.nickname || teacher.real_name}
+                        </Text>
+                        {(isSuperadmin || currentRole?.role_type === 'admin') && teacher.status === 'active' && !!teacher.teacher_role_id && (
+                          <Text
+                            className="ml-2 rounded px-2 py-1 text-xs bg-orange-100 text-orange-600"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              useAppStore.getState().enterAgentTeacherMode({
+                                id: teacher.teacher_role_id!,
+                                user_id: teacher.user_id || '',
+                                role_type: 'teacher',
+                                real_name: teacher.real_name,
+                                status: 'active',
+                                class_id: teacher.class_id || null,
+                              })
+                              Taro.switchTab({ url: '/pages/index/index' })
+                            }}
+                          >
+                            进入教师端
+                          </Text>
+                        )}
+                      </View>
                       {teacher.nickname && (
                         <Text className="block text-xs text-muted-foreground">{teacher.real_name}</Text>
                       )}
@@ -170,25 +191,6 @@ export default function TeacherManagePage() {
                   <Badge className={`${statusMap[teacher.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
                     <Text className="text-xs">{statusMap[teacher.status]?.label || teacher.status}</Text>
                   </Badge>
-                  {(isSuperadmin || currentRole?.role_type === 'admin') && teacher.status === 'active' && !!teacher.teacher_role_id && (
-                    <View
-                      className="ml-2 shrink-0"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        useAppStore.getState().enterAgentTeacherMode({
-                          id: teacher.teacher_role_id!,
-                          user_id: teacher.user_id || '',
-                          role_type: 'teacher',
-                          real_name: teacher.real_name,
-                          status: 'active',
-                          class_id: teacher.class_id || null,
-                        })
-                        Taro.switchTab({ url: '/pages/index/index' })
-                      }}
-                    >
-                      <Text className="text-xs text-primary">进入教师端</Text>
-                    </View>
-                  )}
                 </View>
                 <View className="flex items-center justify-between">
                   <View className="flex flex-wrap gap-x-4 gap-y-1">

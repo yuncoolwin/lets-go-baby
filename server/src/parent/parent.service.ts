@@ -381,6 +381,11 @@ export class ParentService {
     child_id?: string;
     relationship?: string;
     custom_relationship?: string;
+    nickname?: string;
+    gender?: string;
+    birth_date?: string;
+    allergies?: string;
+    parent_phone?: string;
   }) {
     // 家长角色由服务端 JWT 推导
     const parentRole = (await this.authz.getUserRoles(userId)).find(r => r.role_type === 'parent');
@@ -430,6 +435,11 @@ export class ParentService {
         child_name: child.name,
         relationship: data.relationship,
         custom_relationship: data.custom_relationship || null,
+        nickname: data.nickname || null,
+        gender: data.gender || null,
+        birth_date: data.birth_date || null,
+        allergies: data.allergies || null,
+        parent_phone: data.parent_phone || null,
         status: 'pending',
       })
       .select()

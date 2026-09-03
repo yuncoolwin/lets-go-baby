@@ -190,6 +190,9 @@ export class AdminService {
     const updateChildData: Record<string, any> = {};
     if (request.nickname) updateChildData.nickname = request.nickname;
     if (request.allergies) updateChildData.allergies = request.allergies;
+    if (request.gender) updateChildData.gender = request.gender;
+    if (request.birth_date) updateChildData.birth_date = request.birth_date;
+    if (request.parent_phone) updateChildData.parent_phone = request.parent_phone;
 
     if (request.child_id && Object.keys(updateChildData).length > 0) {
       const { error: childError } = await this.client

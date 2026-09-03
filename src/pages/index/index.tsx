@@ -792,7 +792,7 @@ export default function IndexPage() {
                 return (
                   <Text
                     key={tc.class_id}
-                    className={`block text-xs rounded-full px-3 py-1 ${
+                    className={`block text-sm rounded-full px-4 py-2 ${
                       allRecorded
                         ? isActive
                           ? 'bg-green-600 text-white'
@@ -836,18 +836,13 @@ export default function IndexPage() {
                     >
                       <View className="flex-1">
                         <View className="flex items-center gap-2 mb-1">
-                          <Text className="block text-base font-semibold text-foreground">
-                            {group.class_name}
-                          </Text>
                           <View className={`text-xs px-2 py-1 rounded-full border ${courseColors[group.course_type] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
                             <Text className="text-xs font-medium">{group.course_type}</Text>
                           </View>
                         </View>
-                        {group.room && (
-                          <Text className="block text-xs text-muted-foreground mb-1">
-                            {group.room}
-                          </Text>
-                        )}
+                        <Text className="block text-xs text-muted-foreground mb-1">
+                          {group.class_name}{group.room ? ' · ' + group.room : ''}
+                        </Text>
                         <Text className="block text-sm text-muted-foreground">
                           {group.student_count} 名幼儿 · 出勤 {group.today_attendance.present} 人 · 缺勤 {group.today_attendance.absent} 人 · 请假 {group.today_attendance.leave} 人
                         </Text>

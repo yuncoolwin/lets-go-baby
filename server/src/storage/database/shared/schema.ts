@@ -37,6 +37,11 @@ export const bindingRequests = pgTable("binding_requests", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	customRelationship: varchar("custom_relationship"),
 	approvedAt: timestamp("approved_at", { withTimezone: true, mode: 'string' }),
+	nickname: varchar({ length: 64 }),
+	allergies: text(),
+	gender: varchar({ length: 10 }),
+	birthDate: date("birth_date"),
+	parentPhone: varchar("parent_phone", { length: 20 }),
 }, (table) => [
 	index("binding_created_at_idx").using("btree", table.createdAt.asc().nullsLast().op("timestamptz_ops")),
 	index("binding_parent_role_id_idx").using("btree", table.parentRoleId.asc().nullsLast().op("text_ops")),

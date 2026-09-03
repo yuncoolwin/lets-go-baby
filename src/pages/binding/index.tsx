@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Picker } from '@tarojs/components'
+import { Input } from '@/components/ui/input'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Network } from '@/network'
@@ -27,6 +27,11 @@ export default function BindingPage() {
   const [childName, setChildName] = useState('')
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null)
   const [relationship, setRelationship] = useState('father')
+  const [nickname, setNickname] = useState('')
+  const [gender, setGender] = useState<'male' | 'female' | ''>('')
+  const [birthDate, setBirthDate] = useState('')
+  const [allergies, setAllergies] = useState('')
+  const [parentPhone, setParentPhone] = useState('')
   const [customRelationship, setCustomRelationship] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [searchResult, setSearchResult] = useState<Array<{ id: string; name: string; gender: string }> | null>(null)
@@ -89,6 +94,11 @@ export default function BindingPage() {
           child_id: selectedChildId,
           relationship: relationship === 'other' ? 'other' : relationship,
           custom_relationship: relationship === 'other' ? customRelationship.trim() : null,
+          nickname: nickname.trim() || null,
+          gender: gender || null,
+          birth_date: birthDate || null,
+          allergies: allergies.trim() || null,
+          parent_phone: parentPhone.trim() || null,
         },
       })
       console.log('[Binding] submit:', res.data)
@@ -217,6 +227,82 @@ export default function BindingPage() {
                 </Label>
                 <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
                   <Text className="block text-sm text-foreground">{childName}</Text>
+                </View>
+              </View>
+
+              <View>
+                <Label className="text-sm text-foreground mb-2">
+                  <Text>幼儿昵称（选填）</Text>
+                </Label>
+                <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
+                  <Input
+                    style={{ width: '100%', backgroundColor: 'transparent', fontSize: '14px' }}
+                    placeholder="请输入幼儿昵称"
+                    value={nickname}
+                    onInput={(e) => setNickname(e.detail.value)}
+                    maxlength={20}
+                  />
+                </View>
+              </View>
+
+              <View>
+                <Label className="text-sm text-foreground mb-2">
+                  <Text>幼儿性别（选填）</Text>
+                </Label>
+                <View className="flex flex-wrap gap-3 mt-2" style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
+                  {(['male', 'female'] as const).map((g) => (
+                    <Text
+                      key={g}
+                      className={`block text-sm rounded-full px-4 py-2 ${gender === g ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}
+                      onClick={() => setGender(gender === g ? '' : g)}
+                    >
+                      {g === 'male' ? '男' : '女'}
+                    </Text>
+                  ))}
+                </View>
+              </View>
+
+              <View>
+                <Label className="text-sm text-foreground mb-2">
+                  <Text>出生日期（选填）</Text>
+                </Label>
+                <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
+                  <Picker mode="date" value={birthDate} onChange={(e) => setBirthDate(e.detail.value)}>
+                    <Text className={`block text-sm ${birthDate ? 'text-foreground' : 'text-gray-400'}`}>
+                      {birthDate || '请选择出生日期'}
+                    </Text>
+                  </Picker>
+                </View>
+              </View>
+
+              <View>
+                <Label className="text-sm text-foreground mb-2">
+                  <Text>过敏状况（选填）</Text>
+                </Label>
+                <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
+                  <Input
+                    style={{ width: '100%', backgroundColor: 'transparent', fontSize: '14px' }}
+                    placeholder="如：花粉、牛奶过敏，无则留空"
+                    value={allergies}
+                    onInput={(e) => setAllergies(e.detail.value)}
+                    maxlength={100}
+                  />
+                </View>
+              </View>
+
+              <View>
+                <Label className="text-sm text-foreground mb-2">
+                  <Text>家长电话（选填）</Text>
+                </Label>
+                <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
+                  <Input
+                    style={{ width: '100%', backgroundColor: 'transparent', fontSize: '14px' }}
+                    placeholder="请输入家长联系电话"
+                    type="number"
+                    value={parentPhone}
+                    onInput={(e) => setParentPhone(e.detail.value)}
+                    maxlength={11}
+                  />
                 </View>
               </View>
 
