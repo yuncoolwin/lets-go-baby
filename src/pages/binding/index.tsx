@@ -72,8 +72,11 @@ export default function BindingPage() {
     // 查询该幼儿已有资料，回填表单（灰字显示、可编辑）
     try {
       const res: any = await Network.request({ url: `/api/parent/children/${child.id}/profile` })
-      const profile = res.data?.data
-      if (profile) {
+      console.log('[Binding] child profile:', res.data)
+      // 兼容双层包装：放行时 res.data.data 为 { code, msg, data: 幼儿 }；403 时 res.data.data 为 null
+      const envelope: any = res.data?.data
+      const profile: any = envelope && envelope.code && envelope.data ? envelope.data : envelope
+      if (profile?.id) {
         setNickname(profile.nickname || '')
         setGender(profile.gender === 'male' || profile.gender === 'female' ? profile.gender : '')
         setBirthDate(profile.birth_date ? String(profile.birth_date).slice(0, 10) : '')

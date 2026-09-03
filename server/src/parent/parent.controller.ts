@@ -119,8 +119,13 @@ export class ParentController {
   }
 
   @Get('children/:childId/profile')
-  async getChildProfile(@Param('childId') childId: string) {
-    return this.parentService.getChildProfile(childId);
+  async getChildProfile(@Req() req: Request, @Param('childId') childId: string) {
+    const userId = (req as any).user?.userId;
+    const data: any = await this.parentService.getChildProfile(userId, childId);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
+    return { code: 200, msg: 'success', data };
   }
 
   @Post('binding-request')

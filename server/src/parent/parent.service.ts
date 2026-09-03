@@ -421,7 +421,27 @@ export class ParentService {
   }
 
   // 查询单个幼儿的可回填资料（绑定表单用）
-  async getChildProfile(childId: string) {
+  async getChildProfile(userId: string, childId: string) {
+    // 越权校验：绑定家长 或 存在 pending 绑定申请（幼儿选择场景）才可查看
+    const childIds = await this.getChildIds(userId);
+    if (!childIds.includes(childId)) {
+      const parentRole = (await this.authz.getUserRoles(userId)).find(r => r.role_type === 'parent');
+      let pendingAllowed = false;
+      if (parentRole) {
+        const { data: pending } = await this.client
+          .from('binding_requests')
+          .select('id')
+          .eq('parent_role_id', parentRole.id)
+          .eq('child_id', childId)
+          .eq('status', 'pending')
+          .maybeSingle();
+        pendingAllowed = !!pending;
+      }
+      if (!pendingAllowed) {
+        return { error: true, code: 403, msg: '无权查看该幼儿资料' };
+      }
+    }
+
     const { data, error } = await this.client
       .from('children')
       .select('id, name, nickname, gender, birth_date, allergies, parent_phone')
