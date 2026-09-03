@@ -471,7 +471,7 @@ export default function RollCallPage() {
         {/* 教师多班级切换标签（考勤完成的班级显示绿色） */}
         {!isAdmin && teacherClassList.length > 0 && (
           <View
-            className="px-4 pb-2"
+            className="px-4 py-2 bg-white"
             style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '8px' }}
           >
             {teacherClassList.map(tc => {
@@ -848,11 +848,13 @@ function DropInModal({
   const [activeCourses, setActiveCourses] = useState<string[]>([])
   const [courseType, setCourseType] = useState('全日托')
   const [submitting, setSubmitting] = useState(false)
+  const [courses, setCourses] = useState<Array<{ id: string; name: string }>>([])
+  const [classList, setClassList] = useState<Array<{ id: string; name: string }>>([])
+  const [pickedClassId, setPickedClassId] = useState('')
 
   useEffect(() => {
     if (!visible) return
     setPickedId('')
-    setActiveCourses([])
     setActiveCourses([])
     setSubmitting(false)
     ;(async () => {
@@ -863,6 +865,23 @@ function DropInModal({
         setAllChildren(list.map((c: any) => ({ id: c.id, name: c.name, gender: c.gender || '', class_id: c.class_id, course_type: '' })))
       } catch {
         setAllChildren([])
+      }
+      try {
+        const wres: any = await Network.request({ url: `/api/courses?weekday=${new Date(`${date}T00:00:00`).getDay()}` })
+        const clist: Array<{ id: string; name: string }> = (wres.data?.data || []).map((c: any) => ({ id: c.id, name: c.name }))
+        setCourses(clist)
+        setCourseType(prev => (clist.some(c => c.name === prev) ? prev : clist[0]?.name || prev))
+      } catch {
+        setCourses([])
+      }
+      try {
+        const cres: any = await Network.request({ url: '/api/classes?page=1&page_size=100' })
+        const cds = cres.data?.data
+        const clist = (cds?.list || cds || []).map((c: any) => ({ id: c.id, name: c.name }))
+        setClassList(clist)
+        setPickedClassId(prev => prev || classId || clist[0]?.id || '')
+      } catch {
+        setClassList([])
       }
     })()
   }, [visible, date, classId])
@@ -935,31 +954,50 @@ function DropInModal({
                     onInput={(e) => setSearchKw(e.detail.value)}
                   />
                 </View>
+        <Text className="block text-xs text-gray-500 mt-3 mb-1">选择所在班级</Text>
+        <ScrollView scrollY style={{ maxHeight: '96px' }} className="border border-gray-100 rounded-lg">
+          <View className="flex flex-wrap p-1" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
+            {classList.map(cls => (
+              <View
+                key={cls.id}
+                className={`w-[31%] m-[1%] py-2 rounded-lg text-center ${pickedClassId === cls.id ? 'bg-[#E8651A]' : 'bg-gray-100'}`}
+                onClick={() => setPickedClassId(cls.id)}
+              >
+                <Text className={`block text-xs ${pickedClassId === cls.id ? 'text-white' : 'text-gray-700'}`}>{cls.name}</Text>
+              </View>
+            ))}
+            {classList.length === 0 && (
+              <Text className="block text-xs text-gray-400 text-center py-3 w-full">暂无班级</Text>
+            )}
+          </View>
+        </ScrollView>
+
         <Text className="block text-xs text-gray-500 mt-3 mb-1">选择幼儿</Text>
-        <ScrollView style={{ maxHeight: '220px' }} className="border border-gray-100 rounded-lg">
-          {allChildren.filter(c => c.name && c.name.includes(searchKw)).filter(c => c.id !== childId).map(c => (
-            <View
-              key={c.id}
-              className={`px-3 py-2 mx-1 my-1 rounded-full ${pickedId === c.id ? 'bg-[#E8651A]' : 'bg-gray-100'}`}
-              style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-              onClick={() => handlePickChild(c.id)}
-            >
-              <Text className={`text-sm ${pickedId === c.id ? 'text-white' : 'text-gray-700'}`}>{c.name}</Text>
-              <Text className={`text-xs ${pickedId === c.id ? 'text-white' : 'text-gray-400'}`}>{c.course_type || ''}</Text>
-            </View>
-          ))}
-          {allChildren.filter(c => c.name && c.name.includes(searchKw)).filter(c => c.id !== childId).length === 0 && (
-            <Text className="block text-xs text-gray-400 text-center py-4">暂无可选幼儿</Text>
-          )}
+        <ScrollView scrollY style={{ maxHeight: '220px' }} className="border border-gray-100 rounded-lg">
+          <View className="flex flex-wrap p-1" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
+            {allChildren.filter(c => c.name && c.name.includes(searchKw)).filter(c => c.id !== childId).filter(c => !pickedClassId || c.class_id === pickedClassId).map(c => (
+              <View
+                key={c.id}
+                className={`w-[31%] m-[1%] py-2 rounded-lg text-center ${pickedId === c.id ? 'bg-[#E8651A]' : 'bg-gray-100'}`}
+                onClick={() => handlePickChild(c.id)}
+              >
+                <Text className={`block text-xs ${pickedId === c.id ? 'text-white' : 'text-gray-700'}`}>{c.name}</Text>
+              </View>
+            ))}
+            {allChildren.filter(c => c.name && c.name.includes(searchKw)).filter(c => c.id !== childId).filter(c => !pickedClassId || c.class_id === pickedClassId).length === 0 && (
+              <Text className="block text-xs text-gray-400 text-center py-4 w-full">暂无可选幼儿</Text>
+            )}
+          </View>
         </ScrollView>
 
         <Text className="block text-xs text-gray-500 mt-3 mb-1">课程类型</Text>
         <View style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '8px' }}>
-          {['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日'].map(ct => {
+          {courses.map(course => {
+            const ct = course.name
             const disabled = activeCourses.includes(ct)
             return (
               <Text
-                key={ct}
+                key={course.id}
                 className={`text-xs rounded-full px-3 py-1 ${disabled ? 'bg-gray-100 text-gray-300' : courseType === ct ? 'bg-[#E8651A] text-white' : 'bg-gray-100 text-gray-600'}`}
                 onClick={() => {
                   if (disabled) return
@@ -970,6 +1008,9 @@ function DropInModal({
               </Text>
             )
           })}
+          {courses.length === 0 && (
+            <Text className="block text-xs text-gray-400 py-1">当天暂无可选课程</Text>
+          )}
         </View>
 
         <View

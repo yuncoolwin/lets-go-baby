@@ -109,6 +109,11 @@ export class ParentController {
     return { code: 200, msg: 'success', data };
   }
 
+  @Get('children/:childId/profile')
+  async getChildProfile(@Param('childId') childId: string) {
+    return this.parentService.getChildProfile(childId);
+  }
+
   @Post('binding-request')
   @HttpCode(200)
   async submitBindingRequest(@Req() req: Request, @Body() body: {

@@ -73,33 +73,28 @@ const courseTypeColors: Record<string, string> = {
   '计日': 'bg-teal-50 text-teal-700 border-teal-200',
 }
 
-// 弹窗动画 hook：管理挂载状态（show）与动效状态（animating），实现与主弹窗一致的缩放+淡入淡出动画
-function usePopupAnimation() {
-  const [show, setShow] = useState(false)
-  const [animating, setAnimating] = useState<'open' | 'close' | 'idle'>('idle')
-  const timerRef = useRef<ReturnType<typeof setTimeout>>()
-
-  const open = () => {
-    setShow(true)
-    setAnimating('idle')
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setAnimating('open')
-      })
-    })
-  }
-
-  const close = () => {
-    setAnimating('close')
-    if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => {
-      setShow(false)
-      setAnimating('idle')
-    }, 200)
-  }
-
-  return { show, animating, open, close }
-}
+// 家长端首页「评分说明」统一弹窗文案（情绪/餐食/午睡）
+const MEAL_SCORE_ITEMS = [
+  { star: '★★★★★', desc: '自主光盘，主动添饭，不挑食' },
+  { star: '★★★★☆', desc: '少量剩菜，无需喂食' },
+  { star: '★★★☆☆', desc: '一半饭菜，需要简单提醒' },
+  { star: '★★☆☆☆', desc: '进食很少，全程老师喂饭' },
+  { star: '★☆☆☆☆', desc: '拒食、哭闹，进食不足 1/3' },
+]
+const NAP_SCORE_ITEMS = [
+  { star: '★★★★★', desc: '自主快速入睡，睡眠质量高，按时起床' },
+  { star: '★★★★☆', desc: '自主入睡较快，睡眠安稳' },
+  { star: '★★★☆☆', desc: '需要简单安抚，入睡较慢' },
+  { star: '★★☆☆☆', desc: '入睡困难，需老师长时间陪伴' },
+  { star: '★☆☆☆☆', desc: '哭闹不睡，全程需老师安抚' },
+]
+const MOOD_SCORE_ITEMS = [
+  { star: '★★★★★', desc: '全天心情愉悦，自主参与活动、社交' },
+  { star: '★★★★☆', desc: '状态平稳，轻微分心走神，简单引导即可' },
+  { star: '★★★☆☆', desc: '情绪小幅起伏，陪伴安抚1-2分钟就能平复' },
+  { star: '★★☆☆☆', desc: '低落烦躁易怒，抗拒活动、争抢玩具，需长时间安抚' },
+  { star: '★☆☆☆☆', desc: '情绪崩溃失控，抗拒吃饭，安抚半小时仍无法平复' },
+]
 
 export default function IndexPage() {
   const { isLoggedIn, currentRole, isLoading, fetchUserInfo, children, currentChildIndex, setCurrentChild, nickname, agentChildId, agentTeacherId, exitAgentParentMode } = useAppStore()
@@ -122,7 +117,6 @@ export default function IndexPage() {
   const [feedbackShow, setFeedbackShow] = useState(false)
   const [feedbackAnimating, setFeedbackAnimating] = useState<'open' | 'close' | 'idle'>('idle')
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout>>()
-  const mealInfo = usePopupAnimation()
 
   useEffect(() => {
     if (feedbackChild) {
@@ -145,14 +139,11 @@ export default function IndexPage() {
       setFeedbackChild(null)
     }, 200)
   }
-  const napInfo = usePopupAnimation()
-  const moodInfo = usePopupAnimation()
   const [courseList, setCourseList] = useState<{ id: string; name: string; class_id: string }[]>([])
   // 家长端今日记录
   const [todayFeedbacks, setTodayFeedbacks] = useState<DailyFeedbackRecord[]>([])
-  const [parentMealInfoOpen, setParentMealInfoOpen] = useState(false)
-  const [parentNapInfoOpen, setParentNapInfoOpen] = useState(false)
-  const [parentMoodInfoOpen, setParentMoodInfoOpen] = useState(false)
+  const [scoreInfoOpen, setScoreInfoOpen] = useState(false)
+  const [scoreInfoTab, setScoreInfoTab] = useState<'mood' | 'meal' | 'nap'>('mood')
   const currentChild = children[currentChildIndex] || null
   const todayNow = new Date()
   const isBirthdayToday = !!currentChild?.birth_date && parseInt(currentChild.birth_date.slice(5, 7), 10) === todayNow.getMonth() + 1 && parseInt(currentChild.birth_date.slice(8, 10), 10) === todayNow.getDate()
@@ -531,7 +522,10 @@ export default function IndexPage() {
 
               {/* 今日记录 - 按课程分行 */}
               <View className="pt-3 border-t border-border">
-                <Text className="block text-sm font-medium text-foreground mb-2">今日记录</Text>
+                <View className="flex items-center justify-between mb-2">
+                  <Text className="block text-sm font-medium text-foreground">今日记录</Text>
+                  <Info size={14} color="#9ca3af" onClick={() => setScoreInfoOpen(true)} />
+                </View>
                 {todayFeedbacks.length > 0 ? (
                   <View className="space-y-2">
                     {todayFeedbacks.map((record, idx) => {
@@ -550,36 +544,18 @@ export default function IndexPage() {
                             {record.mood_status && parseInt(record.mood_status, 10) > 0 && (
                               <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                                 <Text className="text-xs text-gray-500">情绪</Text>
-                                <View
-                                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                  onClick={(e) => { e.stopPropagation(); setParentMoodInfoOpen(true) }}
-                                >
-                                  <Info size={14} color="#9ca3af" />
-                                </View>
                                 <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.mood_status)}</Text>
                               </View>
                             )}
                             {record.meal_status && parseInt(record.meal_status, 10) > 0 && (
                               <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                                 <Text className="text-xs text-gray-500">餐食</Text>
-                                <View
-                                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                  onClick={(e) => { e.stopPropagation(); setParentMealInfoOpen(true) }}
-                                >
-                                  <Info size={14} color="#9ca3af" />
-                                </View>
                                 <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.meal_status)}</Text>
                               </View>
                             )}
                             {record.sleep_status && parseInt(record.sleep_status, 10) > 0 && (
                               <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                                 <Text className="text-xs text-gray-500">午睡</Text>
-                                <View
-                                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                  onClick={(e) => { e.stopPropagation(); setParentNapInfoOpen(true) }}
-                                >
-                                  <Info size={14} color="#9ca3af" />
-                                </View>
                                 <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.sleep_status)}</Text>
                               </View>
                             )}
@@ -629,82 +605,36 @@ export default function IndexPage() {
           </Card>
         )}
 
-        <Dialog open={parentMealInfoOpen} onOpenChange={setParentMealInfoOpen}>
+        <Dialog open={scoreInfoOpen} onOpenChange={setScoreInfoOpen}>
           <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '85vh' }}>
             <DialogHeader>
               <DialogTitle>
                 <View className="flex items-center justify-between">
-                  <Text className="block text-lg font-bold text-foreground">餐食评分说明</Text>
-                  <View onClick={() => setParentMealInfoOpen(false)} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
+                  <Text className="block text-lg font-bold text-foreground">评分说明</Text>
+                  <View onClick={() => setScoreInfoOpen(false)} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
                     <X size={16} color="#6b7280" />
                   </View>
                 </View>
               </DialogTitle>
             </DialogHeader>
-            <View className="mt-2">
-              {[
-                { star: '★★★★★', desc: '自主光盘，主动添饭，不挑食' },
-                { star: '★★★★☆', desc: '少量剩菜，无需喂食' },
-                { star: '★★★☆☆', desc: '一半饭菜，需要简单提醒' },
-                { star: '★★☆☆☆', desc: '进食很少，全程老师喂饭' },
-                { star: '★☆☆☆☆', desc: '拒食、哭闹，进食不足 1/3' },
-              ].map((item) => (
-                <View key={item.star} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
-                  <Text style={{ fontSize: 16, color: '#E8651A', marginRight: 12, width: 80, flexShrink: 0 }}>{item.star}</Text>
-                  <Text className="block text-sm text-gray-600 flex-1">{item.desc}</Text>
-                </View>
+            <View className="flex flex-wrap gap-3 mt-3" style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
+              {([['mood', '情绪'], ['meal', '餐食'], ['nap', '午睡']] as const).map(([key, label]) => (
+                <Text
+                  key={key}
+                  className={`block text-sm rounded-full px-4 py-2 ${scoreInfoTab === key ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}
+                  onClick={() => setScoreInfoTab(key)}
+                >
+                  {label}
+                </Text>
               ))}
             </View>
-          </DialogContent>
-        </Dialog>
-        <Dialog open={parentNapInfoOpen} onOpenChange={setParentNapInfoOpen}>
-          <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '85vh' }}>
-            <DialogHeader>
-              <DialogTitle>
-                <View className="flex items-center justify-between">
-                  <Text className="block text-lg font-bold text-foreground">午睡评分说明</Text>
-                  <View onClick={() => setParentNapInfoOpen(false)} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
-                    <X size={16} color="#6b7280" />
-                  </View>
-                </View>
-              </DialogTitle>
-            </DialogHeader>
             <View className="mt-2">
-              {[
-                { star: '★★★★★', desc: '自主快速入睡，睡眠质量高，按时起床' },
-                { star: '★★★★☆', desc: '自主入睡较快，睡眠安稳' },
-                { star: '★★★☆☆', desc: '需要简单安抚，入睡较慢' },
-                { star: '★★☆☆☆', desc: '入睡困难，需老师长时间陪伴' },
-                { star: '★☆☆☆☆', desc: '哭闹不睡，全程需老师安抚' },
-              ].map((item) => (
-                <View key={item.star} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
-                  <Text style={{ fontSize: 16, color: '#E8651A', marginRight: 12, width: 80, flexShrink: 0 }}>{item.star}</Text>
-                  <Text className="block text-sm text-gray-600 flex-1">{item.desc}</Text>
-                </View>
-              ))}
-            </View>
-          </DialogContent>
-        </Dialog>
-        <Dialog open={parentMoodInfoOpen} onOpenChange={setParentMoodInfoOpen}>
-          <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '85vh' }}>
-            <DialogHeader>
-              <DialogTitle>
-                <View className="flex items-center justify-between">
-                  <Text className="block text-lg font-bold text-foreground">情绪评分说明</Text>
-                  <View onClick={() => setParentMoodInfoOpen(false)} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
-                    <X size={16} color="#6b7280" />
-                  </View>
-                </View>
-              </DialogTitle>
-            </DialogHeader>
-            <View className="mt-2">
-              {[
-                { star: '★★★★★', desc: '全天心情愉悦，自主参与活动、社交' },
-                { star: '★★★★☆', desc: '状态平稳，轻微分心走神，简单引导即可' },
-                { star: '★★★☆☆', desc: '情绪小幅起伏，陪伴安抚1-2分钟就能平复' },
-                { star: '★★☆☆☆', desc: '低落烦躁易怒，抗拒活动、争抢玩具，需长时间安抚' },
-                { star: '★☆☆☆☆', desc: '情绪崩溃失控，抗拒吃饭，安抚半小时仍无法平复' },
-              ].map((item) => (
+              {(scoreInfoTab === 'meal'
+                ? MEAL_SCORE_ITEMS
+                : scoreInfoTab === 'nap'
+                  ? NAP_SCORE_ITEMS
+                  : MOOD_SCORE_ITEMS
+              ).map((item) => (
                 <View key={item.star} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
                   <Text style={{ fontSize: 16, color: '#E8651A', marginRight: 12, width: 80, flexShrink: 0 }}>{item.star}</Text>
                   <Text className="block text-sm text-gray-600 flex-1">{item.desc}</Text>
@@ -836,8 +766,8 @@ export default function IndexPage() {
                     >
                       <View className="flex-1">
                         <View className="flex items-center gap-2 mb-1">
-                          <View className={`text-xs px-2 py-1 rounded-full border ${courseColors[group.course_type] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
-                            <Text className="text-xs font-medium">{group.course_type}</Text>
+                          <View className={`text-sm px-3 py-2 rounded-full border ${courseColors[group.course_type] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                            <Text className="text-sm font-semibold">{group.course_type}</Text>
                           </View>
                         </View>
                         <Text className="block text-xs text-muted-foreground mb-1">
@@ -1086,39 +1016,6 @@ export default function IndexPage() {
                   <View className="mb-3" key={label}>
                     <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                       <Text className="text-sm font-medium text-foreground">{label}</Text>
-                      {label === '餐食' && (
-                        <View
-                          style={{
-                            width: 20, height: 20, borderRadius: 10,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 6,
-                          }}
-                          onClick={(e) => { e.stopPropagation(); mealInfo.open() }}
-                        >
-                          <Info size={12} color="#9ca3af" />
-                        </View>
-                      )}
-                      {label === '午睡' && (
-                        <View
-                          style={{
-                            width: 20, height: 20, borderRadius: 10,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 6,
-                          }}
-                          onClick={(e) => { e.stopPropagation(); napInfo.open() }}
-                        >
-                          <Info size={12} color="#9ca3af" />
-                        </View>
-                      )}
-                      {label === '情绪' && (
-                        <View
-                          style={{
-                            width: 20, height: 20, borderRadius: 10,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 6,
-                          }}
-                          onClick={(e) => { e.stopPropagation(); moodInfo.open() }}
-                        >
-                          <Info size={12} color="#9ca3af" />
-                        </View>
-                      )}
                     </View>
                     <View style={{ display: 'flex', flexDirection: 'row', gap: '4px' }}>
                       {[1, 2, 3, 4, 5].map((star) => {
@@ -1197,106 +1094,7 @@ export default function IndexPage() {
           </Portal>
         )}
 
-            {/* 餐食评分说明弹窗 */}
-            {mealInfo.show && (
-              <Portal>
-              <View
-                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                onClick={() => mealInfo.close()}
-              >
-                <View
-                  style={{ position: 'relative', backgroundColor: '#fff', borderRadius: 16, padding: 24, maxHeight: '70vh', overflowY: 'auto', width: '88%', maxWidth: '400px', transform: mealInfo.animating === 'open' ? 'scale(1)' : 'scale(0.3)', opacity: mealInfo.animating === 'idle' ? 0 : 1, transition: mealInfo.animating === 'open' ? 'transform 300ms ease, opacity 300ms ease' : mealInfo.animating === 'close' ? 'transform 200ms ease-in, opacity 200ms ease-in' : 'none' }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                    <Text className="block text-lg font-bold text-foreground">餐食评分说明</Text>
-                    <View onClick={() => mealInfo.close()} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <X size={16} color="#6b7280" />
-                    </View>
-                  </View>
-                  {[
-                    { star: '★★★★★', desc: '自主光盘，主动添饭，不挑食' },
-                    { star: '★★★★☆', desc: '少量剩菜，无需喂食' },
-                    { star: '★★★☆☆', desc: '一半饭菜，需要简单提醒' },
-                    { star: '★★☆☆☆', desc: '进食很少，全程老师喂饭' },
-                    { star: '★☆☆☆☆', desc: '拒食、哭闹，进食不足 1/3' },
-                  ].map((item) => (
-                    <View key={item.star} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
-                      <Text style={{ fontSize: 16, color: '#E8651A', marginRight: 12, width: 80, flexShrink: 0 }}>{item.star}</Text>
-                      <Text className="block text-sm text-gray-600 flex-1">{item.desc}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-              </Portal>
-            )}
-            {/* 午睡评分说明弹窗 */}
-            {napInfo.show && (
-              <Portal>
-              <View
-                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                onClick={() => napInfo.close()}
-              >
-                <View
-                  style={{ position: 'relative', backgroundColor: '#fff', borderRadius: 16, padding: 24, maxHeight: '70vh', overflowY: 'auto', width: '88%', maxWidth: '400px', transform: napInfo.animating === 'open' ? 'scale(1)' : 'scale(0.3)', opacity: napInfo.animating === 'idle' ? 0 : 1, transition: napInfo.animating === 'open' ? 'transform 300ms ease, opacity 300ms ease' : napInfo.animating === 'close' ? 'transform 200ms ease-in, opacity 200ms ease-in' : 'none' }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                    <Text className="block text-lg font-bold text-foreground">午睡评分说明</Text>
-                    <View onClick={() => napInfo.close()} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <X size={16} color="#6b7280" />
-                    </View>
-                  </View>
-                  {[
-                    { star: '★★★★★', desc: '自主快速入睡，睡眠质量高，按时起床' },
-                    { star: '★★★★☆', desc: '自主入睡较快，睡眠安稳' },
-                    { star: '★★★☆☆', desc: '需要简单安抚，入睡较慢' },
-                    { star: '★★☆☆☆', desc: '入睡困难，需老师长时间陪伴' },
-                    { star: '★☆☆☆☆', desc: '哭闹不睡，全程需老师安抚' },
-                  ].map((item) => (
-                    <View key={item.star} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
-                      <Text style={{ fontSize: 16, color: '#E8651A', marginRight: 12, width: 80, flexShrink: 0 }}>{item.star}</Text>
-                      <Text className="block text-sm text-gray-600 flex-1">{item.desc}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-              </Portal>
-            )}
-            {/* 情绪评分说明弹窗 */}
-            {feedbackChild && moodInfo.show && (
-              <Portal>
-              <View
-                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                onClick={() => moodInfo.close()}
-              >
-                <View
-                  style={{ position: 'relative', backgroundColor: '#fff', borderRadius: 16, padding: 24, maxHeight: '70vh', overflowY: 'auto', width: '88%', maxWidth: '400px', transform: moodInfo.animating === 'open' ? 'scale(1)' : 'scale(0.3)', opacity: moodInfo.animating === 'idle' ? 0 : 1, transition: moodInfo.animating === 'open' ? 'transform 300ms ease, opacity 300ms ease' : moodInfo.animating === 'close' ? 'transform 200ms ease-in, opacity 200ms ease-in' : 'none' }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                    <Text className="block text-lg font-bold text-foreground">情绪评分说明</Text>
-                    <View onClick={() => moodInfo.close()} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <X size={16} color="#6b7280" />
-                    </View>
-                  </View>
-                  {[
-                    { star: '★★★★★', desc: '全天心情愉悦，自主参与活动、社交' },
-                    { star: '★★★★☆', desc: '状态平稳，轻微分心走神，简单引导即可' },
-                    { star: '★★★☆☆', desc: '情绪小幅起伏，陪伴安抚1-2分钟就能平复' },
-                    { star: '★★☆☆☆', desc: '低落烦躁易怒，抗拒活动、争抢玩具，需长时间安抚' },
-                    { star: '★☆☆☆☆', desc: '情绪崩溃失控，抗拒吃饭，安抚半小时仍无法平复' },
-                  ].map((item) => (
-                    <View key={item.star} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
-                      <Text style={{ fontSize: 16, color: '#E8651A', marginRight: 12, width: 80, flexShrink: 0 }}>{item.star}</Text>
-                      <Text className="block text-sm text-gray-600 flex-1">{item.desc}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-              </Portal>
-            )}
-        <TabBar />
+            <TabBar />
       </View>
     )
   }

@@ -65,10 +65,24 @@ export default function BindingPage() {
     }
   }
 
-  const handleSelectChild = (child: { id: string; name: string }) => {
+  const handleSelectChild = async (child: { id: string; name: string }) => {
     setChildName(child.name)
     setSelectedChildId(child.id)
     setStep('form')
+    // 查询该幼儿已有资料，回填表单（灰字显示、可编辑）
+    try {
+      const res: any = await Network.request({ url: `/api/parent/children/${child.id}/profile` })
+      const profile = res.data?.data
+      if (profile) {
+        setNickname(profile.nickname || '')
+        setGender(profile.gender === 'male' || profile.gender === 'female' ? profile.gender : '')
+        setBirthDate(profile.birth_date ? String(profile.birth_date).slice(0, 10) : '')
+        setAllergies(profile.allergies || '')
+        setParentPhone(profile.parent_phone || '')
+      }
+    } catch (error) {
+      console.error('[Binding] load child profile error:', error)
+    }
   }
 
   const handleSubmit = async () => {
@@ -236,7 +250,7 @@ export default function BindingPage() {
                 </Label>
                 <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
                   <Input
-                    style={{ width: '100%', backgroundColor: 'transparent', fontSize: '14px' }}
+                    style={{ width: '100%', backgroundColor: 'transparent', fontSize: '14px', color: '#6b7280' }}
                     placeholder="请输入幼儿昵称"
                     value={nickname}
                     onInput={(e) => setNickname(e.detail.value)}
@@ -247,7 +261,7 @@ export default function BindingPage() {
 
               <View>
                 <Label className="text-sm text-foreground mb-2">
-                  <Text>幼儿性别（选填）</Text>
+                  <Text>幼儿性别</Text>
                 </Label>
                 <View className="flex flex-wrap gap-3 mt-2" style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
                   {(['male', 'female'] as const).map((g) => (
@@ -264,7 +278,7 @@ export default function BindingPage() {
 
               <View>
                 <Label className="text-sm text-foreground mb-2">
-                  <Text>出生日期（选填）</Text>
+                  <Text>出生日期</Text>
                 </Label>
                 <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
                   <Picker mode="date" value={birthDate} onChange={(e) => setBirthDate(e.detail.value)}>
@@ -281,7 +295,7 @@ export default function BindingPage() {
                 </Label>
                 <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
                   <Input
-                    style={{ width: '100%', backgroundColor: 'transparent', fontSize: '14px' }}
+                    style={{ width: '100%', backgroundColor: 'transparent', fontSize: '14px', color: '#6b7280' }}
                     placeholder="如：花粉、牛奶过敏，无则留空"
                     value={allergies}
                     onInput={(e) => setAllergies(e.detail.value)}
@@ -292,11 +306,11 @@ export default function BindingPage() {
 
               <View>
                 <Label className="text-sm text-foreground mb-2">
-                  <Text>家长电话（选填）</Text>
+                  <Text>家长电话</Text>
                 </Label>
                 <View className="bg-gray-50 rounded-xl px-4 py-3 mt-2">
                   <Input
-                    style={{ width: '100%', backgroundColor: 'transparent', fontSize: '14px' }}
+                    style={{ width: '100%', backgroundColor: 'transparent', fontSize: '14px', color: '#6b7280' }}
                     placeholder="请输入家长联系电话"
                     type="number"
                     value={parentPhone}

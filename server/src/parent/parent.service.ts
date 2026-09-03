@@ -42,13 +42,29 @@ export class ParentService {
       .maybeSingle();
     const childName = child?.name || null;
 
-    // Get today's attendance
-    const { data: attendance } = await this.client
+    // Get today's attendance（多课程/多班时当天可能有多条记录：入园取最早、离园取最晚）
+    const { data: attendanceRows } = await this.client
       .from('attendance_records')
       .select('status, check_in_time, check_out_time')
       .eq('child_id', childId)
-      .eq('record_date', this.today())
-      .maybeSingle();
+      .eq('record_date', this.today());
+    const attendanceList = attendanceRows || [];
+    const sortedIn = attendanceList
+      .map(r => r.check_in_time)
+      .filter(Boolean)
+      .sort();
+    const sortedOut = attendanceList
+      .map(r => r.check_out_time)
+      .filter(Boolean)
+      .sort()
+      .reverse();
+    const attendance = attendanceList.length > 0
+      ? {
+          status: attendanceList.find(r => r.status && r.status !== 'absent')?.status || attendanceList[0].status,
+          check_in_time: sortedIn[0] || null,
+          check_out_time: sortedOut[0] || null,
+        }
+      : null;
 
     // Get latest feedback
     const { data: feedback } = await this.client
@@ -375,6 +391,18 @@ export class ParentService {
 
     if (error) throw new Error(`搜索失败: ${error.message}`);
     return data || [];
+  }
+
+  // 查询单个幼儿的可回填资料（绑定表单用）
+  async getChildProfile(childId: string) {
+    const { data, error } = await this.client
+      .from('children')
+      .select('id, name, nickname, gender, birth_date, allergies, parent_phone')
+      .eq('id', childId)
+      .maybeSingle();
+    if (error) return { code: 500, msg: `查询幼儿资料失败: ${error.message}` };
+    if (!data) return { code: 404, msg: '幼儿不存在' };
+    return { code: 200, msg: 'success', data };
   }
 
   async submitBindingRequest(userId: string, data: {
