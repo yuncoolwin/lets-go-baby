@@ -215,7 +215,8 @@ export default function GrowthEditPage() {
       let list: any[] = Array.isArray(data) ? data : (data?.data || data?.list || [])
       list = list.map((item: any) => ({ id: item.child_id, name: item.child_name, class_id: item.class_id, is_drop_in: item.is_drop_in }))
       if (classChildIds) {
-        list = list.filter((c) => classChildIds.has(String(c.id)))
+        // 报读幼儿按本班集合保留；临时来园幼儿按 class_id 等于本班保留
+        list = list.filter((c) => classChildIds.has(String(c.id)) || (c.is_drop_in && String(c.class_id) === String(teacherClassId)))
       }
       return list
     } catch (err) {
