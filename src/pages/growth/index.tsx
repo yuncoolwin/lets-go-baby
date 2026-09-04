@@ -131,6 +131,7 @@ export default function GrowthPage() {
                         <Text className="text-xs">{record.course_name}</Text>
                       </Badge>
                     ) : null}
+                    <Text className="block text-base font-semibold text-foreground">{record.title}</Text>
                     {!record.parent_read_at && (
                       <View className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
                     )}
@@ -144,7 +145,6 @@ export default function GrowthPage() {
                     setDetailOpen(true)
                   }}
                 >
-                  <Text className="block text-base font-semibold text-foreground mb-1">{record.title}</Text>
                   {[
                     ['总体', record.diet_overall],
                     ['蔬菜', record.diet_vegetable],
@@ -163,11 +163,23 @@ export default function GrowthPage() {
                         ['喝水', record.diet_water],
                         ['午睡', record.nap_status],
                         ['大便', record.stool_status],
-                      ] as [string, string][]).filter(([, v]) => !!v).map(([label, value]) => (
-                        <View key={label} className="px-2 py-1 rounded-md bg-gray-100">
-                          <Text className="text-xs text-gray-600">{label}：{value}</Text>
-                        </View>
-                      ))}
+                      ] as [string, string][]).filter(([, v]) => !!v).map(([label, value]) => {
+                        const colors: Record<string, [string, string]> = {
+                          总体: ['bg-blue-100', 'text-blue-700'],
+                          蔬菜: ['bg-green-100', 'text-green-700'],
+                          荤菜: ['bg-red-100', 'text-red-700'],
+                          汤: ['bg-amber-100', 'text-amber-700'],
+                          喝水: ['bg-cyan-100', 'text-cyan-700'],
+                          午睡: ['bg-purple-100', 'text-purple-700'],
+                          大便: ['bg-rose-100', 'text-rose-700'],
+                        }
+                        const [bgCls, textCls] = colors[label] || ['bg-gray-100', 'text-gray-600']
+                        return (
+                          <View key={label} className={`px-2 py-1 rounded-md ${bgCls}`}>
+                            <Text className={`text-xs ${textCls}`}>{label}：{value}</Text>
+                          </View>
+                        )
+                      })}
                     </View>
                   )}
                   {record.content && (

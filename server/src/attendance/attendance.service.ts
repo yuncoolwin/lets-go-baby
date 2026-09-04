@@ -434,9 +434,22 @@ export class AttendanceService {
     (atts || []).forEach(a => {
       if (a.course_type) attMap.set(`${a.date}__${a.course_type}`, a.status);
     });
+    const { data: recs } = await this.client
+      .from('attendance_records')
+      .select('record_date, course_type, check_in_time, check_out_time')
+      .eq('child_id', childId);
+    const checkInMap = new Map();
+    const checkOutMap = new Map();
+    (recs || []).forEach(r => {
+      const key = `${r.record_date}__${r.course_type}`;
+      checkInMap.set(key, r.check_in_time ?? null);
+      checkOutMap.set(key, r.check_out_time ?? null);
+    });
     return { code: 200, msg: 'success', data: rows.map(r => ({
       ...r,
       status: attMap.get(`${r.date}__${r.course_type}`) || null,
+      check_in_time: checkInMap.get(`${r.date}__${r.course_type}`) ?? null,
+      check_out_time: checkOutMap.get(`${r.date}__${r.course_type}`) ?? null,
     })) };
   }
 

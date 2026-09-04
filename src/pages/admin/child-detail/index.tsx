@@ -853,6 +853,12 @@ export default function ChildDetailPage() {
                   <Text className="block text-xs text-gray-500 mt-1">
                     日期：{d.date || '--'}（考勤：{DROP_IN_STATUS_TEXT[d.status] || '未考勤'}）
                   </Text>
+                  <Text className="block text-xs text-gray-500 mt-1">
+                    来园时间：{d.check_in_time ? String(d.check_in_time).slice(11, 16) : '未记录'}
+                  </Text>
+                  <Text className="block text-xs text-gray-500 mt-1">
+                    离园时间：{d.check_out_time ? String(d.check_out_time).slice(11, 16) : '未记录'}
+                  </Text>
                 </View>
               ))}
             </CardContent>
