@@ -164,7 +164,20 @@ export default function LoginPage() {
       {/* 底部说明 */}
       <View className="mt-12 text-center">
         <Text className="block text-xs text-gray-400">
-          登录即表示同意《用户协议》和《隐私政策》
+          登录即表示同意
+          <Text
+            className="text-xs text-[#E8651A]"
+            onClick={() => Taro.navigateTo({ url: '/pages/agreement/index' })}
+          >
+            《用户协议》
+          </Text>
+          和
+          <Text
+            className="text-xs text-[#E8651A]"
+            onClick={() => Taro.navigateTo({ url: '/pages/privacy/index' })}
+          >
+            《隐私政策》
+          </Text>
         </Text>
       </View>
 

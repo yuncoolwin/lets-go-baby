@@ -3,6 +3,8 @@ export default typeof defineAppConfig === 'function'
     pages: [
       'pages/index/index',
       'pages/login/index',
+      'pages/agreement/index',
+      'pages/privacy/index',
       'pages/role-select/index',
       'pages/records/index',
       'pages/messages/index',
@@ -84,6 +86,8 @@ export default typeof defineAppConfig === 'function'
     pages: [
       'pages/index/index',
       'pages/login/index',
+      'pages/agreement/index',
+      'pages/privacy/index',
       'pages/role-select/index',
       'pages/records/index',
       'pages/messages/index',
