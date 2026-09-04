@@ -7,7 +7,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Network } from '@/network'
 import { Bus } from 'lucide-react-taro'
 import { formatTime } from '@/utils/format'
-import BackButton from '@/components/back-button'
 
 interface AttendanceRecord {
   id: string
@@ -16,29 +15,12 @@ interface AttendanceRecord {
   check_in_time: string | null
   check_out_time: string | null
   notes: string | null
+  course_type?: string | null
 }
 
 export default function PickupPage() {
   const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [loading, setLoading] = useState(true)
-
-  const courseName = (() => {
-    try {
-      const raw = Taro.getCurrentInstance()?.router?.params?.course_name
-      return raw ? decodeURIComponent(raw) : ''
-    } catch {
-      return ''
-    }
-  })()
-
-  const courseType = (() => {
-    try {
-      const raw = Taro.getCurrentInstance()?.router?.params?.course_type
-      return raw ? decodeURIComponent(raw) : ''
-    } catch {
-      return ''
-    }
-  })()
 
   const childId = (() => {
     try {
@@ -59,7 +41,7 @@ export default function PickupPage() {
       const res = await Network.request({
         url: '/api/parent/attendance',
         method: 'GET',
-        data: { course_type: courseType, ...(childId ? { child_id: childId } : {}) },
+        data: { ...(childId ? { child_id: childId } : {}) },
       })
       console.log('[Pickup] records:', res.data)
       if (res.data?.data) {
@@ -91,7 +73,6 @@ export default function PickupPage() {
 
   return (
     <View className="min-h-screen bg-background p-4">
-      <BackButton title={courseName ? `接送记录 · ${courseName}` : '接送记录'} />
 
       {records.length === 0 ? (
         <View className="flex flex-col items-center py-16">
@@ -107,6 +88,9 @@ export default function PickupPage() {
                 <CardContent className="p-4">
                   <View className="flex items-center justify-between mb-2">
                     <Text className="text-sm font-medium text-foreground">{record.record_date}</Text>
+                    {record.course_type && (
+                      <Text className="text-sm text-muted-foreground">{record.course_type}</Text>
+                    )}
                     <Badge className={`${badge.className} text-xs`}>
                       <Text className="text-xs">{badge.label}</Text>
                     </Badge>

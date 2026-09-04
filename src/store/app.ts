@@ -26,6 +26,7 @@ export interface ChildInfo {
   relationship: string
   custom_relationship?: string | null
   allergies?: string | null
+  is_drop_in?: boolean
 }
 
 interface AppStore {

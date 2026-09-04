@@ -20,9 +20,9 @@ export class EnrollmentsController {
   }
 
   @Get('by-course')
-  async findByCourse(@Query('course_id') courseId: string) {
+  async findByCourse(@Query('course_id') courseId: string, @Query('date') date?: string) {
     try {
-      const data = await this.enrollmentsService.findByCourse(courseId || '');
+      const data = await this.enrollmentsService.findByCourse(courseId || '', date || '');
       return { code: 200, msg: 'success', data };
     } catch (e: any) {
       return { code: 500, msg: e.message || '查询失败', data: null };

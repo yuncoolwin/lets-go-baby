@@ -509,6 +509,7 @@ export class TeacherService {
           end_date: s.end_date,
           nickname: s.nickname || "",
           extended_end_date: s.extended_end_date || s.end_date,
+          is_drop_in: s.is_drop_in || false,
           check_in_time: recordsMap.get(attKey)?.check_in_time || null,
           check_out_time: recordsMap.get(attKey)?.check_out_time || null,
         };
@@ -750,6 +751,7 @@ export class TeacherService {
           end_date: s.end_date,
           nickname: s.nickname || "",
           extended_end_date: s.extended_end_date || s.end_date,
+          is_drop_in: s.is_drop_in || false,
           check_in_time: recordsMap.get(attKey)?.check_in_time || null,
           check_out_time: recordsMap.get(attKey)?.check_out_time || null,
         };

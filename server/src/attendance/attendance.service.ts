@@ -350,6 +350,7 @@ export class AttendanceService {
           start_date: s.start_date,
           end_date: s.end_date,
           extended_end_date: s.extended_end_date || s.end_date,
+          is_drop_in: s.is_drop_in || false,
         };
       });
 

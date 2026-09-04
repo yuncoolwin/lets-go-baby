@@ -61,6 +61,7 @@ interface GroupOverview {
     start_date: string | null
     end_date: string | null
     extended_end_date: string | null
+    is_drop_in?: boolean
   }>
 }
 
@@ -475,7 +476,6 @@ export default function IndexPage() {
                 onClick={() => Taro.navigateTo({ url: '/pages/binding/index' })}
               >
                 <Plus size={16} color="#E8651A" />
-                <Text className="text-sm text-primary">添加幼儿</Text>
               </View>
             </View>
           </ScrollView>
@@ -607,11 +607,7 @@ export default function IndexPage() {
                     onClick={(e) => {
                       e.stopPropagation()
                       const pid = currentChild?.id || currentChild?.child_id || babyStatus?.child_id || ''
-                      const firstFb: any = todayFeedbacks[0]
-                      const pickupParams = [`child_id=${pid}`]
-                      if (firstFb?.course_type) pickupParams.push(`course_type=${encodeURIComponent(firstFb.course_type)}`)
-                      if (firstFb?.course_name) pickupParams.push(`course_name=${encodeURIComponent(firstFb.course_name)}`)
-                      Taro.navigateTo({ url: `/pages/pickup/index?${pickupParams.join('&')}` })
+                      Taro.navigateTo({ url: `/pages/pickup/index?child_id=${pid}` })
                     }}
                   >
                     接送记录
@@ -879,6 +875,11 @@ export default function IndexPage() {
                                         {birthdayTag && <Text className={birthdayTag.className}>{birthdayTag.text}</Text>}
                                       </Text>
                                     </Text>
+                                    {child.is_drop_in && (
+                                      <View className="px-2 py-1 rounded-full bg-orange-100 mt-1 self-start">
+                                        <Text className="text-xs text-orange-600">临时来园</Text>
+                                      </View>
+                                    )}
                                     {dateRange && (
                                       <Text className="block text-xs text-muted-foreground mt-1">
                                         {dateRange}

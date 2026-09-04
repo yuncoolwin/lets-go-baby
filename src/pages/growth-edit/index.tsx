@@ -40,7 +40,7 @@ const loadDrafts = (): any[] => {
   }
 }
 
-const DIET_OPTIONS = ['一般', '正常', '吃好喝好']
+const DIET_OPTIONS = ['一般', '正常', '很好']
 const NAP_OPTIONS = ['半小时以下', '1小时-2小时', '2小时']
 const STOOL_OPTIONS = ['有', '无']
 
@@ -208,12 +208,12 @@ export default function GrowthEditPage() {
   const fetchCourseChildren = async (courseId: string): Promise<any[]> => {
     try {
       const res = await Network.request({
-        url: `/api/enrollments/by-course?course_id=${courseId}`,
+        url: `/api/enrollments/by-course?course_id=${courseId}&date=${recordDate}`,
         method: 'GET',
       })
       const data = res?.data
       let list: any[] = Array.isArray(data) ? data : (data?.data || data?.list || [])
-      list = list.map((item: any) => ({ id: item.child_id, name: item.child_name }))
+      list = list.map((item: any) => ({ id: item.child_id, name: item.child_name, class_id: item.class_id, is_drop_in: item.is_drop_in }))
       if (classChildIds) {
         list = list.filter((c) => classChildIds.has(String(c.id)))
       }
@@ -362,31 +362,31 @@ export default function GrowthEditPage() {
   return (
     <View className="min-h-screen bg-background pb-28">
       <View className="px-4 pt-3 space-y-4">
-        {/* 日期 */}
-        <View>
-          <Text className="block text-sm text-muted-foreground mb-2">日期</Text>
-          <View
-            className="bg-gray-50 rounded-xl px-4 py-3"
-            onClick={() => setDateOverlayVisible(true)}
-          >
-            <Text className="block text-base text-foreground">{recordDate}</Text>
+        {/* 日期 + 选择幼儿（并排） */}
+        <View className="flex flex-row gap-3">
+          <View className="flex-1 min-w-0">
+            <Text className="block text-sm text-muted-foreground mb-2">日期</Text>
+            <View
+              className="bg-gray-50 rounded-xl border border-gray-200 px-4 py-3"
+              onClick={() => setDateOverlayVisible(true)}
+            >
+              <Text className="block text-base text-foreground">{recordDate}</Text>
+            </View>
           </View>
-        </View>
-
-        {/* 选择幼儿 */}
-        <View>
-          <Text className="block text-sm text-muted-foreground mb-2">选择幼儿</Text>
-          <View className="bg-gray-50 rounded-xl px-4 py-3" onClick={openPicker}>
-            <Text className="block text-base text-foreground">
-              {selectedChildName || '点击选择幼儿'}
-            </Text>
+          <View className="flex-1 min-w-0">
+            <Text className="block text-sm text-muted-foreground mb-2">选择幼儿</Text>
+            <View className="bg-gray-50 rounded-xl border border-gray-200 px-4 py-3" onClick={openPicker}>
+              <Text className="block text-base text-foreground truncate">
+                {selectedChildName || '点击选择幼儿'}
+              </Text>
+            </View>
           </View>
         </View>
 
         {/* 标题 */}
         <View>
           <Text className="block text-sm text-muted-foreground mb-2">标题</Text>
-          <View className="bg-gray-50 rounded-xl px-4 py-3">
+          <View className="bg-gray-50 rounded-xl border border-gray-200 px-4 py-3">
             <Input
               className="w-full bg-transparent"
               placeholder="请输入标题"
@@ -399,7 +399,7 @@ export default function GrowthEditPage() {
         {/* 正文 */}
         <View>
           <Text className="block text-sm text-muted-foreground mb-2">正文</Text>
-          <View className="bg-gray-50 rounded-xl p-4">
+          <View className="bg-gray-50 rounded-xl border border-gray-200 p-4">
             <Textarea
               className="w-full bg-transparent border-transparent min-h-80"
               placeholder="记录孩子的成长点滴..."
@@ -413,49 +413,29 @@ export default function GrowthEditPage() {
         {/* 今日饮食反馈 */}
         <View className="space-y-3">
           <Text className="block text-sm font-medium text-foreground">今日饮食反馈（选填）</Text>
-          {([
-            ['总体', dietOverall, setDietOverall],
-            ['蔬菜', dietVegetable, setDietVegetable],
-            ['荤菜', dietMeat, setDietMeat],
-            ['汤', dietSoup, setDietSoup],
-            ['喝水', dietWater, setDietWater],
-          ] as [string, string, (v: string) => void][]).map(([label, value, setter]) => (
-            <View key={label}>
-              <Text className="block text-sm text-muted-foreground mb-2">{label}</Text>
-              <View className="bg-gray-50 rounded-xl px-4 py-3">
-                <Picker
-                  mode="selector"
-                  range={DIET_OPTIONS}
-                  onChange={(e) => setter(DIET_OPTIONS[Number(e.detail.value)])}
-                >
-                  <Text className="block text-base text-foreground">{value || '请选择'}</Text>
-                </Picker>
+          <View className="flex flex-row flex-wrap">
+            {([
+              ['总体', dietOverall, setDietOverall, DIET_OPTIONS],
+              ['蔬菜', dietVegetable, setDietVegetable, DIET_OPTIONS],
+              ['荤菜', dietMeat, setDietMeat, DIET_OPTIONS],
+              ['汤', dietSoup, setDietSoup, DIET_OPTIONS],
+              ['喝水', dietWater, setDietWater, DIET_OPTIONS],
+              ['午睡情况', napStatus, setNapStatus, NAP_OPTIONS],
+              ['大便情况', stoolStatus, setStoolStatus, STOOL_OPTIONS],
+            ] as [string, string, (v: string) => void, string[]][]).map(([label, value, setter, options]) => (
+              <View key={label} className="w-[31%] m-[1%]">
+                <Text className="block text-sm text-muted-foreground mb-2">{label}</Text>
+                <View className="bg-gray-50 rounded-xl border border-gray-200 px-4 py-3">
+                  <Picker
+                    mode="selector"
+                    range={options}
+                    onChange={(e) => setter(options[Number(e.detail.value)])}
+                  >
+                    <Text className="block text-base text-foreground truncate">{value || '请选择'}</Text>
+                  </Picker>
+                </View>
               </View>
-            </View>
-          ))}
-          <View>
-            <Text className="block text-sm text-muted-foreground mb-2">午睡情况</Text>
-            <View className="bg-gray-50 rounded-xl px-4 py-3">
-              <Picker
-                mode="selector"
-                range={NAP_OPTIONS}
-                onChange={(e) => setNapStatus(NAP_OPTIONS[Number(e.detail.value)])}
-              >
-                <Text className="block text-base text-foreground">{napStatus || '请选择'}</Text>
-              </Picker>
-            </View>
-          </View>
-          <View>
-            <Text className="block text-sm text-muted-foreground mb-2">大便情况</Text>
-            <View className="bg-gray-50 rounded-xl px-4 py-3">
-              <Picker
-                mode="selector"
-                range={STOOL_OPTIONS}
-                onChange={(e) => setStoolStatus(STOOL_OPTIONS[Number(e.detail.value)])}
-              >
-                <Text className="block text-base text-foreground">{stoolStatus || '请选择'}</Text>
-              </Picker>
-            </View>
+            ))}
           </View>
         </View>
 

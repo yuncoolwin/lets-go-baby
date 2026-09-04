@@ -673,30 +673,88 @@ export class EnrollmentsService {
     return data || [];
   }
 
-  async findByCourse(courseId: string): Promise<{ child_id: string; child_name: string }[]> {
+  async findByCourse(courseId: string, date?: string): Promise<{ child_id: string; child_name: string; class_id?: string | null; is_drop_in?: boolean }[]> {
     await this.syncExpiredStatus();
+
+    // 课程名：临时来园记录以课程名作为 course_type 匹配
+    let courseName = '';
+    {
+      const { data: course, error } = await this.client
+        .from('courses')
+        .select('name')
+        .eq('id', courseId)
+        .maybeSingle();
+      if (!error && course) courseName = (course as any).name || '';
+    }
+
     const { data: enrollments, error } = await this.client
       .from('enrollments')
-      .select('child_id')
+      .select('child_id, class_id')
       .eq('course_id', courseId)
       .eq('status', '进行中');
 
     if (error) throw new Error(`查询课程报读失败: ${error.message}`);
 
     const childIds = Array.from(new Set((enrollments || []).map((e: any) => e.child_id as string).filter(Boolean)));
-    if (childIds.length === 0) return [];
+    const classMap = new Map<string, string | null>();
+    (enrollments || []).forEach((e: any) => classMap.set(e.child_id as string, (e as any).class_id ?? null));
 
-    const { data: children, error: childError } = await this.client
-      .from('children')
-      .select('id, name')
-      .in('id', childIds);
+    // 报读幼儿（不提前 return，保留后面的临时来园合并）
+    const result: { child_id: string; child_name: string; class_id: string | null; is_drop_in: boolean }[] = [];
 
-    if (childError) throw new Error(`查询幼儿失败: ${childError.message}`);
+    if (childIds.length > 0) {
+      const { data: children, error: childError } = await this.client
+        .from('children')
+        .select('id, name, class_id')
+        .in('id', childIds);
 
-    const nameMap = new Map<string, string>();
-    (children || []).forEach((c: any) => nameMap.set(c.id, c.name));
+      if (childError) throw new Error(`查询幼儿失败: ${childError.message}`);
 
-    return childIds.map((id) => ({ child_id: id, child_name: nameMap.get(id) || '' }));
+      (children || []).forEach((c: any) => {
+        result.push({
+          child_id: c.id,
+          child_name: c.name || '',
+          class_id: c.class_id ?? classMap.get(c.id) ?? null,
+          is_drop_in: false,
+        });
+      });
+    }
+
+    // 临时来园幼儿：drop_in_records 按 course_type=课程名、date=指定日期
+    if (date && courseName) {
+      const { data: dropIns, error: dropInError } = await this.client
+        .from('drop_in_records')
+        .select('child_id, class_id')
+        .eq('course_type', courseName)
+        .eq('date', date);
+      if (dropInError) throw new Error(`查询临时来园幼儿失败: ${dropInError.message}`);
+
+      // 补充幼儿姓名（drop_in_records 不存 child_name）
+      const dropChildIds = Array.from(new Set((dropIns || []).map((d: any) => d.child_id as string).filter(Boolean)));
+      const nameMap = new Map<string, string>();
+      if (dropChildIds.length > 0) {
+        const { data: dropChildren, error: dropChildError } = await this.client
+          .from('children')
+          .select('id, name')
+          .in('id', dropChildIds);
+        if (dropChildError) throw new Error(`查询临时来园幼儿姓名失败: ${dropChildError.message}`);
+        (dropChildren || []).forEach((c: any) => nameMap.set(c.id, c.name || ''));
+      }
+
+      const existing = new Set(result.map(r => r.child_id));
+      (dropIns || []).forEach((d: any) => {
+        if (!d.child_id || existing.has(d.child_id)) return;
+        existing.add(d.child_id);
+        result.push({
+          child_id: d.child_id,
+          child_name: nameMap.get(d.child_id) || '',
+          class_id: d.class_id ?? null,
+          is_drop_in: true,
+        });
+      });
+    }
+
+    return result;
   }
 
   async create(userId: string, dto: CreateEnrollmentDto): Promise<Enrollment> {

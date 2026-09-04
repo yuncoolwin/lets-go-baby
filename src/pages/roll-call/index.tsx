@@ -143,6 +143,7 @@ export default function RollCallPage() {
               check_in_time: s.check_in_time || null,
               check_out_time: s.check_out_time || null,
               record_status: s.status || null,
+              is_drop_in: s.is_drop_in,
             })
             const status = s.attendance_status
             if (status === 'present' || status === 'absent' || status === 'leave' || status === 'full_day' || status === 'half_day') {
@@ -229,6 +230,7 @@ export default function RollCallPage() {
             check_in_time: s.check_in_time || null,
             check_out_time: s.check_out_time || null,
             record_status: s.attendance_status || null,
+            is_drop_in: s.is_drop_in,
           })
           const status = s.attendance_status
           if (status === 'present' || status === 'absent' || status === 'leave' || status === 'full_day' || status === 'half_day') {
@@ -967,7 +969,7 @@ function DropInModal({
         <Text className="block text-xs text-gray-500 mt-3 mb-1">选择幼儿</Text>
         <ScrollView scrollY style={{ maxHeight: '220px' }} className="border border-gray-100 rounded-lg">
           <View className="flex flex-wrap p-1" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
-            {allChildren.filter(c => c.name && c.name.includes(searchKw)).filter(c => c.id !== childId).filter(c => !pickedClassId || c.class_id === pickedClassId).map(c => (
+            {allChildren.filter(c => c.name && c.name.includes(searchKw)).filter(c => c.id !== childId).map(c => (
               <View
                 key={c.id}
                 className={`w-[31%] m-[1%] py-2 rounded-lg text-center ${pickedId === c.id ? 'bg-[#E8651A]' : 'bg-gray-100'}`}
@@ -976,7 +978,7 @@ function DropInModal({
                 <Text className={`block text-xs ${pickedId === c.id ? 'text-white' : 'text-gray-700'}`}>{c.name}</Text>
               </View>
             ))}
-            {allChildren.filter(c => c.name && c.name.includes(searchKw)).filter(c => c.id !== childId).filter(c => !pickedClassId || c.class_id === pickedClassId).length === 0 && (
+            {allChildren.filter(c => c.name && c.name.includes(searchKw)).filter(c => c.id !== childId).length === 0 && (
               <Text className="block text-xs text-gray-400 text-center py-4 w-full">暂无可选幼儿</Text>
             )}
           </View>
