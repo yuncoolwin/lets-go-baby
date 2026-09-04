@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
-import { refreshUnreadBadge } from '@/utils/unread-badge'
+import { refreshUnreadBadge, refreshGrowthUnreadBadge } from '@/utils/unread-badge'
 import { Camera } from 'lucide-react-taro'
 import TabBar from '@/components/tab-bar'
 import { useDialogBack } from '@/utils/use-dialog-back'
@@ -74,13 +74,17 @@ export default function GrowthPage() {
 
   const markGrowthRead = async () => {
     if (!currentRole?.id) return
+    const currentChild = children[currentChildIndex]
+    const childId = currentChild?.id || currentChild?.child_id
     try {
       await Network.request({
-        url: '/api/parent/growth-records/read',
+        url: childId
+          ? `/api/parent/growth-records/read?child_id=${encodeURIComponent(childId)}`
+          : '/api/parent/growth-records/read',
         method: 'POST',
-        data: { parent_role_id: currentRole.id },
       })
       refreshUnreadBadge(currentRole.id)
+      refreshGrowthUnreadBadge(currentRole.id, childId || undefined)
     } catch (err) {
       console.error('[Growth] mark read error:', err)
     }

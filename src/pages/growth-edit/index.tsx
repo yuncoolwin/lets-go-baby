@@ -55,7 +55,10 @@ const readFileAsBase64 = (filePath: string, fileObj?: File): Promise<string> => 
         const reader = new FileReader()
         reader.onload = () => {
           const result = reader.result as string
-          resolve(result.split(',')[1] || '')
+          // 保留完整 data:image/xxx;base64, 前缀（后端 uploadImage 白名单要求带前缀）
+          const base64 = result.split(',')[1] || ''
+          const type = fileObj?.type || (result.startsWith('data:') ? result.slice(5, result.indexOf(';')) : '') || 'image/png'
+          resolve(`data:${type};base64,${base64}`)
         }
         reader.onerror = () => reject(reader.error)
         reader.readAsDataURL(blob)
@@ -67,7 +70,12 @@ const readFileAsBase64 = (filePath: string, fileObj?: File): Promise<string> => 
     Taro.getFileSystemManager().readFile({
       filePath,
       encoding: 'base64',
-      success: (r) => resolve(r.data as string),
+      success: (r) => {
+        // 纯 base64 按扩展名补前缀（后端白名单只接受 data:image/(png|jpeg|jpg|webp);base64）
+        const ext = (filePath.split('.').pop() || 'png').toLowerCase()
+        const mime = ext === 'jpg' || ext === 'jpeg' ? 'jpeg' : ext === 'webp' ? 'webp' : 'png'
+        resolve(`data:image/${mime};base64,${r.data}`)
+      },
       fail: reject,
     })
   })
@@ -201,6 +209,13 @@ export default function GrowthEditPage() {
       setTitle(draft.title || '')
       setContent(draft.content || '')
       setImages(draft.photo_urls || [])
+      setDietOverall(draft.diet_overall || '')
+      setDietVegetable(draft.diet_vegetable || '')
+      setDietMeat(draft.diet_meat || '')
+      setDietSoup(draft.diet_soup || '')
+      setDietWater(draft.diet_water || '')
+      setNapStatus(draft.nap_status || '')
+      setStoolStatus(draft.stool_status || '')
       if (draft.record_date) setRecordDate(draft.record_date)
     }
   }
@@ -294,6 +309,13 @@ export default function GrowthEditPage() {
       content,
       photo_urls: images,
       record_date: recordDate,
+      diet_overall: dietOverall,
+      diet_vegetable: dietVegetable,
+      diet_meat: dietMeat,
+      diet_soup: dietSoup,
+      diet_water: dietWater,
+      nap_status: napStatus,
+      stool_status: stoolStatus,
       updated_at: new Date().toISOString(),
     }
     const idx = drafts.findIndex((d) => d.id === draft.id)

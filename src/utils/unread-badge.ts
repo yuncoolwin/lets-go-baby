@@ -1,4 +1,5 @@
 import { useAppStore } from '@/store/app'
+import { Network } from '@/network'
 import { notificationApi } from './api'
 
 /**
@@ -17,5 +18,27 @@ export async function refreshUnreadBadge(userRoleId?: string) {
     useAppStore.getState().setUnreadCount(count)
   } catch (err) {
     console.error('[refreshUnreadBadge] error:', err)
+  }
+}
+
+/**
+ * 拉取成长记录未读数并写入 store（底部成长 tab 角标用）
+ * - userRoleId 为空：清零
+ * - childId：超管代理场景指定幼儿（后端按 agentChildId 过滤）
+ */
+export async function refreshGrowthUnreadBadge(userRoleId?: string, childId?: string) {
+  if (!userRoleId) {
+    useAppStore.getState().setGrowthUnreadCount(0)
+    return
+  }
+  try {
+    const url = childId
+      ? `/api/parent/growth-records/unread-counts?child_id=${encodeURIComponent(childId)}`
+      : '/api/parent/growth-records/unread-counts'
+    const res = await Network.request({ url, method: 'GET' })
+    const count = res?.data?.data ?? 0
+    useAppStore.getState().setGrowthUnreadCount(Number(count) || 0)
+  } catch (e) {
+    console.error('[UnreadBadge] refresh growth unread error:', e)
   }
 }

@@ -680,11 +680,7 @@ export default function RollCallPage() {
                                       </View>
                                       <View className="flex-1 flex items-center gap-2" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                                         <Text className="block text-base font-medium text-gray-900 truncate">{child.name}</Text>
-                                        {child.is_drop_in && (
-                                          <View className="px-2 py-1 rounded-full bg-orange-100 flex-shrink-0">
-                                            <Text className="text-xs text-orange-600">临时来园</Text>
-                                          </View>
-                                        )}
+                                        {child.is_drop_in && <Text className="block text-xs text-orange-600">临时来园</Text>}
                                       </View>
                                       {child.check_out_time ? (
                                         <Text className="block text-xs text-gray-400 flex-shrink-0">已离园</Text>

@@ -245,7 +245,10 @@ export default function IndexPage() {
 
     // 拉取各幼儿未读成长记录数（角标）
     try {
-      const unreadRes = await Network.request({ url: '/api/parent/growth-records/unread-counts', method: 'GET' })
+      const unreadUrl = currentChildId
+        ? `/api/parent/growth-records/unread-counts?child_id=${currentChildId}`
+        : '/api/parent/growth-records/unread-counts'
+      const unreadRes = await Network.request({ url: unreadUrl, method: 'GET' })
       console.log('[Index] unread counts:', unreadRes.data)
       if (unreadRes.data?.code === 200 && unreadRes.data.data) {
         setUnreadCounts(unreadRes.data.data)
@@ -501,8 +504,10 @@ export default function IndexPage() {
                       </Text>
                       {currentChild?.nickname && <Text className="text-xs text-muted-foreground">（{currentChild.nickname}）</Text>}
                     </View>
-                    <Badge className={`${getStatusColor(babyStatus.attendance_status)} text-xs`}>
-                      <Text className="text-xs">{getStatusText(babyStatus.attendance_status)}</Text>
+                    <Badge className={`${babyStatus.check_out_time ? 'bg-orange-100 text-orange-700' : babyStatus.check_in_time ? 'bg-green-100 text-green-700' : getStatusColor(babyStatus.attendance_status)} text-xs`}>
+                      <Text className="text-xs">
+                        {babyStatus.check_out_time ? '已离园' : babyStatus.check_in_time ? '已入园' : getStatusText(babyStatus.attendance_status)}
+                      </Text>
                     </Badge>
                   </View>
                   {currentChild?.birth_date && (
@@ -534,7 +539,7 @@ export default function IndexPage() {
 
               {/* 今日记录 - 按课程分行 */}
               <View className="pt-3 border-t border-border">
-                <View className="flex items-center justify-between mb-2">
+                <View className="flex items-center gap-1 mb-2">
                   <Text className="block text-sm font-medium text-foreground">今日记录</Text>
                   <Info size={14} color="#9ca3af" onClick={() => setScoreInfoOpen(true)} />
                 </View>
@@ -555,20 +560,20 @@ export default function IndexPage() {
                           <View style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             {record.mood_status && parseInt(record.mood_status, 10) > 0 && (
                               <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                <Text className="text-xs text-gray-500">情绪</Text>
-                                <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.mood_status)}</Text>
+                                <Text className="text-sm text-gray-500">情绪</Text>
+                                <Text style={{ fontSize: 16, color: '#E8651A' }}>{renderStars(record.mood_status)}</Text>
                               </View>
                             )}
                             {record.meal_status && parseInt(record.meal_status, 10) > 0 && (
                               <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                <Text className="text-xs text-gray-500">餐食</Text>
-                                <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.meal_status)}</Text>
+                                <Text className="text-sm text-gray-500">餐食</Text>
+                                <Text style={{ fontSize: 16, color: '#E8651A' }}>{renderStars(record.meal_status)}</Text>
                               </View>
                             )}
                             {record.sleep_status && parseInt(record.sleep_status, 10) > 0 && (
                               <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                <Text className="text-xs text-gray-500">午睡</Text>
-                                <Text style={{ fontSize: 14, color: '#E8651A' }}>{renderStars(record.sleep_status)}</Text>
+                                <Text className="text-sm text-gray-500">午睡</Text>
+                                <Text style={{ fontSize: 16, color: '#E8651A' }}>{renderStars(record.sleep_status)}</Text>
                               </View>
                             )}
                           </View>
@@ -577,7 +582,7 @@ export default function IndexPage() {
                     })}
                   </View>
                 ) : (
-                  <Text className="block text-xs text-gray-400">今日暂无记录</Text>
+                  <Text className="block text-sm text-gray-400">今日暂无记录</Text>
                 )}
               </View>
 
@@ -873,13 +878,9 @@ export default function IndexPage() {
                                       <Text className="text-xs text-muted-foreground ml-1">
                                         {child.gender === 'male' ? '男' : '女'} {formatAge(child.birth_date)}
                                         {birthdayTag && <Text className={birthdayTag.className}>{birthdayTag.text}</Text>}
+                                        {child.is_drop_in && <Text className="text-xs text-orange-600"> 临时来园</Text>}
                                       </Text>
                                     </Text>
-                                    {child.is_drop_in && (
-                                      <View className="px-2 py-1 rounded-full bg-orange-100 mt-1 self-start">
-                                        <Text className="text-xs text-orange-600">临时来园</Text>
-                                      </View>
-                                    )}
                                     {dateRange && (
                                       <Text className="block text-xs text-muted-foreground mt-1">
                                         {dateRange}

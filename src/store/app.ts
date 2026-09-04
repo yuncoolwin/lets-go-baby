@@ -43,6 +43,8 @@ interface AppStore {
 
   // 消息未读数（custom tabBar 角标用）
   unreadCount: number
+  /** 成长记录未读数（底部成长 tab 角标用） */
+  growthUnreadCount: number
 
   // 当前 tab 路径（底部 tabBar 选中态）
   currentTabPath: string
@@ -72,6 +74,7 @@ interface AppStore {
   }) => void
   setCurrentRole: (index: number) => void
   setUnreadCount: (count: number) => void
+  setGrowthUnreadCount: (count: number) => void
   setCurrentTabPath: (path: string) => void
   setCurrentChild: (index: number) => void
   setChildren: (children: ChildInfo[]) => void
@@ -147,6 +150,7 @@ export const useAppStore = create<AppStore>()(
   currentRole: null,
   currentRoleIndex: 0,
   unreadCount: 0,
+  growthUnreadCount: 0,
   currentTabPath: '',
   children: [],
   currentChildIndex: 0,
@@ -184,6 +188,9 @@ export const useAppStore = create<AppStore>()(
 
   setUnreadCount: (count) => {
     set({ unreadCount: count })
+  },
+  setGrowthUnreadCount: (count) => {
+    set({ growthUnreadCount: count })
   },
 
   setCurrentTabPath: (path) => {
@@ -521,6 +528,7 @@ export const useAppStore = create<AppStore>()(
         currentRole: state.currentRole,
         currentRoleIndex: state.currentRoleIndex,
         unreadCount: state.unreadCount,
+        growthUnreadCount: state.growthUnreadCount,
         children: state.children,
         currentChildIndex: state.currentChildIndex,
         isLoggedIn: state.isLoggedIn,
