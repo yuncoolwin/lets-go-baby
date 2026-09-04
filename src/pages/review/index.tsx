@@ -24,6 +24,16 @@ interface BindingRequest {
   reject_reason?: string
   created_at: string
   approved_at?: string
+  request_nickname?: string
+  request_gender?: string
+  request_birth_date?: string
+  request_allergies?: string
+  request_parent_phone?: string
+  child_nickname?: string
+  child_gender?: string
+  child_birth_date?: string
+  child_allergies?: string
+  child_parent_phone?: string
 }
 
 const RELATION_OPTIONS = [
@@ -34,6 +44,17 @@ const RELATION_OPTIONS = [
   { value: 'other', label: '其他' },
 ]
 
+// 资料逐项审核：勾选要采纳的项（key 为字段英文名，req/cur 为申请值与当前值）
+const REVIEW_FIELDS: Array<{ key: string; label: string; reqKey: keyof BindingRequest; curKey: keyof BindingRequest }> = [
+  { key: 'nickname', label: '昵称', reqKey: 'request_nickname', curKey: 'child_nickname' },
+  { key: 'gender', label: '性别', reqKey: 'request_gender', curKey: 'child_gender' },
+  { key: 'birth_date', label: '出生日期', reqKey: 'request_birth_date', curKey: 'child_birth_date' },
+  { key: 'allergies', label: '过敏状况', reqKey: 'request_allergies', curKey: 'child_allergies' },
+  { key: 'parent_phone', label: '家长电话', reqKey: 'request_parent_phone', curKey: 'child_parent_phone' },
+]
+
+const GENDER_TEXT: Record<string, string> = { male: '男', female: '女' }
+
 export default function ReviewPage() {
   const userId = useAppStore((s) => s.userId)
   const currentRole = useAppStore((s) => s.currentRole)
@@ -42,6 +63,7 @@ export default function ReviewPage() {
   const [loading, setLoading] = useState(true)
   const [approvingId, setApprovingId] = useState<string | null>(null)
   const [rejectingId, setRejectingId] = useState<string | null>(null)
+  const [approvedFields, setApprovedFields] = useState<string[]>([])
   const [detailItem, setDetailItem] = useState<BindingRequest | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   useDialogBack(detailOpen, () => setDetailOpen(false))
@@ -75,14 +97,14 @@ export default function ReviewPage() {
     loadRequests()
   }, [loadRequests])
 
-  const handleApprove = async (requestId: string) => {
+  const handleApprove = async (requestId: string, fields: string[] = []) => {
     if (approvingId || rejectingId) return // 防止重复点击
     setApprovingId(requestId)
     try {
       const res = await Network.request({
         url: '/api/admin/binding-requests/approve',
         method: 'POST',
-        data: { request_id: requestId, operator_user_id: userId ?? undefined, operator_role_id: currentRole?.id },
+        data: { request_id: requestId, approved_fields: fields, operator_user_id: userId ?? undefined, operator_role_id: currentRole?.id },
       })
       // 检查响应是否成功
       if (res.data?.code === 200) {
@@ -161,6 +183,7 @@ export default function ReviewPage() {
 
   const openDetail = (req: BindingRequest) => {
     setDetailItem(req)
+    setApprovedFields([])
     setEditRelationship(req.relationship || '')
     setEditCustomRelationship(req.custom_relationship || '')
     setEditStatus(req.status === 'approved' ? 'approved' : req.status === 'rejected' ? 'rejected' : '')
@@ -369,6 +392,39 @@ export default function ReviewPage() {
                   </View>
                 </View>
               )}
+              {detailItem.status === 'pending' && (
+                <View className="space-y-2">
+                  <Text className="block text-sm text-foreground">资料逐项审核（勾选要采纳的项）</Text>
+                  {REVIEW_FIELDS.map((f) => {
+                    const checked = approvedFields.includes(f.key)
+                    const reqVal = detailItem[f.reqKey]
+                    const curVal = detailItem[f.curKey]
+                    const display = (v: unknown) => {
+                      if (f.key === 'gender') return GENDER_TEXT[String(v || '')] || '未填写'
+                      return v ? String(v) : '未填写'
+                    }
+                    return (
+                      <View
+                        key={f.key}
+                        className={`flex items-center justify-between px-3 py-2 rounded-xl border ${checked ? 'border-[#E8651A] bg-orange-50' : 'border-gray-200 bg-gray-50'}`}
+                        onClick={() => {
+                          setApprovedFields((prev) => (checked ? prev.filter((k) => k !== f.key) : [...prev, f.key]))
+                        }}
+                      >
+                        <View className="flex items-center gap-2 flex-1 min-w-0 mr-2">
+                          <Text className="text-sm text-foreground flex-shrink-0">{f.label}</Text>
+                          <Text className="text-xs text-gray-500 truncate flex-1">
+                            {display(reqVal)} → {display(curVal)}
+                          </Text>
+                        </View>
+                        <View className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 ${checked ? 'bg-primary border-primary' : 'bg-white border-gray-300'}`}>
+                          <Text className={`text-xs leading-none ${checked ? 'text-white' : 'text-transparent'}`}>✓</Text>
+                        </View>
+                      </View>
+                    )
+                  })}
+                </View>
+              )}
               {detailItem.status !== 'pending' && (
                 <View className="space-y-2">
                   <Text className="block text-sm text-foreground">审核状态</Text>
@@ -396,7 +452,7 @@ export default function ReviewPage() {
                   className="w-full bg-green-500 text-white"
                   disabled={approvingId === detailItem.id}
                   onClick={() => {
-                    handleApprove(detailItem.id).then(() => setDetailOpen(false))
+                    handleApprove(detailItem.id, approvedFields).then(() => setDetailOpen(false))
                   }}
                 >
                   <Text className="text-white">

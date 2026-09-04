@@ -48,19 +48,33 @@ export class AdminService {
       reject_reason: string | null;
       created_at: string;
       approved_at: string | null;
+      request_nickname?: string | null;
+      request_gender?: string | null;
+      request_birth_date?: string | null;
+      request_allergies?: string | null;
+      request_parent_phone?: string | null;
+      child_nickname?: string | null;
+      child_gender?: string | null;
+      child_birth_date?: string | null;
+      child_allergies?: string | null;
+      child_parent_phone?: string | null;
     }> = [];
     for (const req of (data || [])) {
       let childName = req.child_name || '未知幼儿';
       let parentName = '未知用户';
 
       // 通过 child_id 获取幼儿姓名
+      let child: any = null;
       if (req.child_id) {
-        const { data: child } = await this.client
+        const { data: childData } = await this.client
           .from('children')
-          .select('name')
+          .select('name, nickname, gender, birth_date, allergies, parent_phone')
           .eq('id', req.child_id)
           .maybeSingle();
-        if (child) childName = child.name;
+        if (childData) {
+          child = childData;
+          childName = childData.name;
+        }
       }
 
       // 通过 parent_role_id 关联 user_id 获取家长昵称
@@ -90,6 +104,16 @@ export class AdminService {
         reject_reason: req.reject_reason,
         created_at: req.created_at,
         approved_at: req.reviewed_at || req.approved_at,
+        request_nickname: req.nickname ?? null,
+        request_gender: req.gender ?? null,
+        request_birth_date: req.birth_date ?? null,
+        request_allergies: req.allergies ?? null,
+        request_parent_phone: req.parent_phone ?? null,
+        child_nickname: child?.nickname ?? null,
+        child_gender: child?.gender ?? null,
+        child_birth_date: child?.birth_date ?? null,
+        child_allergies: child?.allergies ?? null,
+        child_parent_phone: child?.parent_phone ?? null,
       });
     }
 
@@ -121,19 +145,33 @@ export class AdminService {
       reject_reason: string | null;
       created_at: string;
       approved_at: string | null;
+      request_nickname?: string | null;
+      request_gender?: string | null;
+      request_birth_date?: string | null;
+      request_allergies?: string | null;
+      request_parent_phone?: string | null;
+      child_nickname?: string | null;
+      child_gender?: string | null;
+      child_birth_date?: string | null;
+      child_allergies?: string | null;
+      child_parent_phone?: string | null;
     }> = [];
     for (const req of (data || [])) {
       let childName = req.child_name || '未知幼儿';
       let parentName = '未知用户';
 
       // 通过 child_id 获取幼儿姓名
+      let child: any = null;
       if (req.child_id) {
-        const { data: child } = await this.client
+        const { data: childData } = await this.client
           .from('children')
-          .select('name')
+          .select('name, nickname, gender, birth_date, allergies, parent_phone')
           .eq('id', req.child_id)
           .maybeSingle();
-        if (child) childName = child.name;
+        if (childData) {
+          child = childData;
+          childName = childData.name;
+        }
       }
 
       // 通过 parent_role_id 关联 user_id 获取家长昵称
@@ -163,13 +201,23 @@ export class AdminService {
         reject_reason: req.reject_reason,
         created_at: req.created_at,
         approved_at: req.reviewed_at || req.approved_at,
+        request_nickname: req.nickname ?? null,
+        request_gender: req.gender ?? null,
+        request_birth_date: req.birth_date ?? null,
+        request_allergies: req.allergies ?? null,
+        request_parent_phone: req.parent_phone ?? null,
+        child_nickname: child?.nickname ?? null,
+        child_gender: child?.gender ?? null,
+        child_birth_date: child?.birth_date ?? null,
+        child_allergies: child?.allergies ?? null,
+        child_parent_phone: child?.parent_phone ?? null,
       });
     }
 
     return results;
   }
 
-  async approveBindingRequest(requestId: string, operatorUserId: string) {
+  async approveBindingRequest(requestId: string, operatorUserId: string, approvedFields?: string[]) {
     const isSuperAdmin = await this.getActiveSuperAdmin(operatorUserId);
     if (!isSuperAdmin) {
       return { code: 403, msg: '无权限', data: null };
@@ -188,11 +236,12 @@ export class AdminService {
 
     // 2. 同步家长提交的幼儿信息到 children 表
     const updateChildData: Record<string, any> = {};
-    if (request.nickname) updateChildData.nickname = request.nickname;
-    if (request.allergies) updateChildData.allergies = request.allergies;
-    if (request.gender) updateChildData.gender = request.gender;
-    if (request.birth_date) updateChildData.birth_date = request.birth_date;
-    if (request.parent_phone) updateChildData.parent_phone = request.parent_phone;
+    const fields = approvedFields || [];
+    if (fields.includes('nickname') && request.nickname) updateChildData.nickname = request.nickname;
+    if (fields.includes('allergies') && request.allergies) updateChildData.allergies = request.allergies;
+    if (fields.includes('gender') && request.gender) updateChildData.gender = request.gender;
+    if (fields.includes('birth_date') && request.birth_date) updateChildData.birth_date = request.birth_date;
+    if (fields.includes('parent_phone') && request.parent_phone) updateChildData.parent_phone = request.parent_phone;
 
     if (request.child_id && Object.keys(updateChildData).length > 0) {
       const { error: childError } = await this.client

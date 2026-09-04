@@ -417,7 +417,18 @@ export class ParentService {
       .limit(20);
 
     if (error) throw new Error(`搜索失败: ${error.message}`);
-    return data || [];
+
+    // 标记该家长已提交过绑定申请的幼儿（不限状态，提交过即视为已绑定）
+    const parentRole = (await this.authz.getUserRoles(userId)).find(r => r.role_type === 'parent');
+    let boundIds = new Set<string>();
+    if (parentRole?.id) {
+      const { data: bindings } = await this.client
+        .from('binding_requests')
+        .select('child_id')
+        .eq('parent_role_id', parentRole.id);
+      boundIds = new Set((bindings || []).map(b => b.child_id));
+    }
+    return (data || []).map(child => ({ ...child, bound: boundIds.has(child.id) }));
   }
 
   // 查询单个幼儿的可回填资料（绑定表单用）

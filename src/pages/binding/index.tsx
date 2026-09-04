@@ -34,7 +34,7 @@ export default function BindingPage() {
   const [parentPhone, setParentPhone] = useState('')
   const [customRelationship, setCustomRelationship] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [searchResult, setSearchResult] = useState<Array<{ id: string; name: string; gender: string }> | null>(null)
+  const [searchResult, setSearchResult] = useState<Array<{ id: string; name: string; gender: string; bound?: boolean }> | null>(null)
 
   const handleSearch = async () => {
     const keyword = searchName.trim()
@@ -197,7 +197,13 @@ export default function BindingPage() {
                   <View
                     key={child.id}
                     className="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2"
-                    onClick={() => handleSelectChild(child)}
+                    onClick={() => {
+                      if (child.bound) {
+                        Taro.showToast({ title: '该幼儿已在您的绑定列表中', icon: 'none' })
+                        return
+                      }
+                      handleSelectChild(child)
+                    }}
                   >
                     <View className="flex items-center gap-3">
                       <View className="w-10 h-10 rounded-full bg-primary bg-opacity-10 flex items-center justify-center overflow-hidden">
@@ -208,7 +214,14 @@ export default function BindingPage() {
                         </View>
                       </View>
                       <View>
-                        <Text className="block text-sm font-medium text-foreground">{child.name}</Text>
+                        <View className="flex items-center gap-2">
+                          <Text className="block text-sm font-medium text-foreground">{child.name}</Text>
+                          {child.bound && (
+                            <View className="px-2 py-1 rounded bg-gray-100">
+                              <Text className="text-xs text-gray-500">已绑定</Text>
+                            </View>
+                          )}
+                        </View>
                         <Text className="block text-xs text-muted-foreground">
                           {child.gender === 'male' ? '男' : '女'}
                         </Text>

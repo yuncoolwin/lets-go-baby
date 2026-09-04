@@ -55,9 +55,9 @@ export class AdminController {
 
   @Post('binding-requests/approve')
   @HttpCode(200)
-  async approveBindingRequest(@Req() req: Request, @Body() body: { request_id: string }) {
+  async approveBindingRequest(@Req() req: Request, @Body() body: { request_id: string; approved_fields?: string[] }) {
     const userId = (req as any).user?.userId;
-    return this.adminService.approveBindingRequest(body.request_id, userId);
+    return this.adminService.approveBindingRequest(body.request_id, userId, body.approved_fields);
   }
 
   @Post('binding-requests/reject')

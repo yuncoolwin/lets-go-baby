@@ -1,0 +1,27 @@
+后端：
+
+- 文件 server/src/admin/admin.service.ts，getBindingRequests 方法（27 行起），59 到 60 行查 children 的 select('name') 改成 select('name, nickname, gender, birth_date, allergies, parent_phone')；83 行起的 results.push 对象里，在 approved_at 之后补 10 个字段：request_nickname 取 req.nickname、request_gender 取 req.gender、request_birth_date 取 req.birth_date、request_allergies 取 req.allergies、request_parent_phone 取 req.parent_phone、child_nickname 取 child.nickname、child_gender 取 child.gender、child_birth_date 取 child.birth_date、child_allergies 取 child.allergies、child_parent_phone 取 child.parent_phone
+
+- 同一文件 getPendingBindingRequests 方法（99 行起），132 到 133 行同样把 select('name') 改成上面那串，145 行起的 results.push 对象同样补上面那 10 个字段
+
+- 同一文件 approveBindingRequest 方法（172 行起），签名加第三个参数 approvedFields，类型 string 数组且可空：approveBindingRequest(requestId, operatorUserId, approvedFields)；189 到 195 行第 2 步同步幼儿信息的 5 个 if 判断，每个判断前面都加 approvedFields 包含该字段才同步，即 191 行昵称改成 if ((approvedFields || []).includes('nickname') && request.nickname)，192 行过敏改成 includes('allergies')，193 行性别改成 includes('gender')，194 行出生日期改成 includes('birth_date')，195 行电话改成 includes('parent_phone')，其余不动
+
+- 文件 server/src/admin/admin.controller.ts，56 到 60 行 approve 接口，body 类型从只有 request_id 改成同时接收 request_id 和可空数组 approved_fields，60 行调用 service 时把 body.approved_fields 作为第三个参数传进去
+
+- 文件 server/src/parent/parent.service.ts，searchChildren 方法（407 行起），在 424 行 return data 之前，先取当前 userId 的 parent 角色（用 this.authz.getUserRoles(userId) 找 role_type 为 parent 的那条），再用 parent_role_id 查 binding_requests 表 select child_id 且 status 不限，把所有 child_id 收进一个 Set；return 改成 data.map，每个幼儿对象加一个 bound 布尔字段，值为该 Set 里是否包含幼儿 id
+
+前端：
+
+- 文件 src/pages/review/index.tsx，17 行起的 BindingRequest 接口里补 10 个可选字段：request_nickname、request_gender、request_birth_date、request_allergies、request_parent_phone、child_nickname、child_gender、child_birth_date、child_allergies、child_parent_phone，都用问号标可选
+
+- 同一文件，在现有 useState 区加一个状态 approvedFields，类型 string 数组，初始空数组
+
+- 同一文件，78 行 handleApprove 函数签名改成接收两个参数（requestId 和 fields，fields 默认空数组），函数内 83 行左右的 data 对象里补一个 approved_fields 字段，值取 fields
+
+- 同一文件，162 行 openDetail 函数里加一行 setApprovedFields([])，打开详情弹窗时把已勾选的采纳项清空
+
+- 同一文件，详情弹窗里「自定义关系」区块（编辑关系之后）与「审核状态」区块之间，加一个「资料逐项审核」区块，仅当 detailItem.status 等于 pending 时显示：标题写资料逐项审核（勾选要采纳的项）；下面列 5 个字段，每项一行，左侧字段名、中间显示申请值箭头当前值、右侧可点击切换勾选；字段与取值映射为，昵称取 request_nickname 到 child_nickname、性别取 request_gender 到 child_gender、出生日期取 request_birth_date 到 child_birth_date、过敏状况取 request_allergies 到 child_allergies、家长电话取 request_parent_phone 到 child_parent_phone；性别值显示时 male 转男、female 转女、空转未填写；勾选状态写进 approvedFields，值为对应字段英文名（nickname、gender、birth_date、allergies、parent_phone），点击整行切换该项在数组里的有无；勾选中的行加主色边框高亮
+
+- 同一文件，399 行详情弹窗里「通过」按钮的 handleApprove(detailItem.id) 调用，改成 handleApprove(detailItem.id, approvedFields)，让通过时把勾选的采纳字段一起提交；列表卡片上的「通过」按钮保持原样不传第二个参数，即快速通过不采纳任何家长提交的资料
+
+- 文件 src/pages/binding/index.tsx，37 行 searchResult 的 useState 泛型里，数组元素类型加一个可选 bound 布尔字段；190 行起的搜索结果列表渲染里，每个幼儿根据 child.bound 为真时，在名字那行右侧加一个灰底小标签文字「已绑定」；200 行 onClick 进 handleSelectChild 之前，先判断 child.bound 为真时，用 Taro.showToast 提示「该幼儿已在您的绑定列表中」并直接 return 不进入表单步骤
