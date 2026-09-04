@@ -33,8 +33,8 @@ export async function refreshGrowthUnreadBadge(userRoleId?: string, childId?: st
   }
   try {
     const url = childId
-      ? `/api/parent/growth-records/unread-counts?child_id=${encodeURIComponent(childId)}`
-      : '/api/parent/growth-records/unread-counts'
+      ? `/api/parent/growth-records/unread-count?child_id=${encodeURIComponent(childId)}`
+      : '/api/parent/growth-records/unread-count'
     const res = await Network.request({ url, method: 'GET' })
     const count = res?.data?.data ?? 0
     useAppStore.getState().setGrowthUnreadCount(Number(count) || 0)

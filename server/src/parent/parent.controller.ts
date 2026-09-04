@@ -60,9 +60,9 @@ export class ParentController {
   // 按幼儿分组统计未读成长记录数（首页幼儿标签角标）
   @Get('growth-records/unread-counts')
   @HttpCode(200)
-  async getGrowthUnreadCounts(@Req() req: Request) {
+  async getGrowthUnreadCounts(@Req() req: Request, @Query('child_id') agentChildId?: string) {
     const userId = (req as any).user?.userId;
-    const data = await this.parentService.getGrowthUnreadCounts(userId);
+    const data = await this.parentService.getGrowthUnreadCounts(userId, agentChildId);
     return { code: 200, msg: 'success', data };
   }
 
