@@ -742,7 +742,7 @@ export class AdminService {
     // 查询 active 的家长绑定关系，用于过滤「有 parent 角色且有绑定」的用户
     const { data: relations, error: relationsError } = await this.client
       .from('parent_child_relations')
-      .select('parent_role_id')
+      .select('parent_role_id, relationship, custom_relationship')
       .eq('status', 'active');
 
     if (relationsError) {
@@ -750,7 +750,15 @@ export class AdminService {
     }
 
     const boundParentRoleIds = new Set<string>();
-    (relations || []).forEach((rel: any) => boundParentRoleIds.add(rel.parent_role_id));
+    // key: parent_role_id，value: 该绑定关系的 relationship / custom_relationship
+    const bindingRelationMap = new Map<string, { relationship?: string; custom_relationship?: string | null }>();
+    (relations || []).forEach((rel: any) => {
+      boundParentRoleIds.add(rel.parent_role_id);
+      bindingRelationMap.set(String(rel.parent_role_id), {
+        relationship: rel.relationship,
+        custom_relationship: rel.custom_relationship,
+      });
+    });
 
     const MANAGE_ROLE_TYPES = ['teacher', 'admin', 'superadmin'];
     const MANAGE_ROLE_PRIORITY = ['superadmin', 'admin', 'teacher'];
@@ -777,6 +785,14 @@ export class AdminService {
           displayName = hit.real_name;
           break;
         }
+      }
+
+      // 有 active 家长绑定关系时，名称拼上关系中文（如 潘刚爸爸）
+      const boundParentRole = parentRoles.find((r: any) => bindingRelationMap.has(String(r.id)));
+      if (boundParentRole) {
+        const rel = bindingRelationMap.get(String(boundParentRole.id));
+        const relLabel = this.getRelationshipLabel(rel?.relationship || '', rel?.custom_relationship);
+        displayName = `${displayName}${relLabel}`;
       }
 
       list.push({

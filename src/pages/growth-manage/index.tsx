@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { View, Text, Image, Picker, ScrollView } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
@@ -98,6 +98,9 @@ export default function GrowthManagePage() {
     setDraftCount(loadDraftCount())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  useDidShow(() => {
+    refreshAfterAction()
+  })
 
   useEffect(() => {
     if (currentRole?.id) {

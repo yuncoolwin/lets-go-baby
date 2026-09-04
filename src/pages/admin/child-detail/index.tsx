@@ -485,9 +485,8 @@ export default function ChildDetailPage() {
       // 拉取临时来园记录（按 date 倒序）
       try {
         const diRes: any = await dropInApi.list(id)
-        const diData = diRes.data || diRes
-        if (diRes.statusCode === 200 && diData?.code === 200 && Array.isArray(diData.data)) {
-          setDropIns(diData.data)
+        if (diRes?.code === 200 && Array.isArray(diRes.data)) {
+          setDropIns(diRes.data)
         } else {
           setDropIns([])
         }

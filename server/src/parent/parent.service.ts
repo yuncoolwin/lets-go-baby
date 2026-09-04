@@ -351,6 +351,14 @@ export class ParentService {
         teacher_name: teacherName,
         course_name: r.course_name,
         parent_read_at: r.parent_read_at,
+        record_date: r.record_date,
+        diet_overall: r.diet_overall,
+        diet_vegetable: r.diet_vegetable,
+        diet_meat: r.diet_meat,
+        diet_soup: r.diet_soup,
+        diet_water: r.diet_water,
+        nap_status: r.nap_status,
+        stool_status: r.stool_status,
       };
     });
   }
@@ -474,9 +482,18 @@ export class ParentService {
     parent_phone?: string;
   }) {
     // 家长角色由服务端 JWT 推导
-    const parentRole = (await this.authz.getUserRoles(userId)).find(r => r.role_type === 'parent');
+    let parentRole = (await this.authz.getUserRoles(userId)).find(r => r.role_type === 'parent') as { id: string } | undefined;
     if (!parentRole) {
-      return { error: true, code: 403, msg: '无家长角色' };
+      // 自动补建 parent 角色（superadmin 代理等无角色场景）
+      const inserted = await this.client
+        .from('user_roles')
+        .insert({ user_id: userId, role_type: 'parent', status: 'active' })
+        .select('id')
+        .single();
+      if (inserted.error || !inserted.data?.id) {
+        return { error: true, code: 403, msg: '无家长角色' };
+      }
+      parentRole = inserted.data as { id: string };
     }
 
     // child_id 必传，幼儿必须已存在（不再支持按姓名查找/创建）

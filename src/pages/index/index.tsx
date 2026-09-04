@@ -466,7 +466,7 @@ export default function IndexPage() {
                   <Text className="text-sm font-medium truncate max-w-24">
                     {child.name}
                   </Text>
-                  {(unreadCounts[child.id] || 0) > 0 && (
+                  {(index !== currentChildIndex && (unreadCounts[child.id] || 0) > 0) && (
                     <View className="min-w-4 h-4 px-1 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0">
                       <Text className="text-xs text-white">{unreadCounts[child.id]}</Text>
                     </View>

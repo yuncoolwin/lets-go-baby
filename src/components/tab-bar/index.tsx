@@ -37,6 +37,10 @@ export default function TabBar() {
   const currentRole = useAppStore((s) => s.currentRole)
   const unreadCount = useAppStore((s) => s.unreadCount)
   const growthUnreadCount = useAppStore((s) => s.growthUnreadCount)
+  const children = useAppStore((s) => s.children)
+  const currentChildIndex = useAppStore((s) => s.currentChildIndex)
+  const currentChild = children[currentChildIndex]
+  const currentChildId = currentChild?.id || currentChild?.child_id
   const current = useAppStore((s) => s.currentTabPath)
 
   useEffect(() => {
@@ -46,12 +50,9 @@ export default function TabBar() {
     if (role?.id) refreshUnreadBadge(role.id)
     const isParentRole = role?.role_type === 'parent'
     if (isParentRole) {
-      const children = useAppStore.getState().children
-      const currentChildIndex = useAppStore.getState().currentChildIndex
-      const child = children[currentChildIndex]
-      refreshGrowthUnreadBadge(role.id, (child?.id || child?.child_id) || undefined)
+      refreshGrowthUnreadBadge(role.id, currentChildId || undefined)
     }
-  }, [])
+  }, [currentChildId])
 
   const isParent = currentRole?.role_type === 'parent'
 
