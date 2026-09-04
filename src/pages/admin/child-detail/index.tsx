@@ -833,30 +833,24 @@ export default function ChildDetailPage() {
           </CardContent>
         </Card>
 
-        {/* 其他课程（临时来园） */}
+        {/* 临时课程 */}
         {dropIns.length > 0 && (
           <Card className="bg-white rounded-xl border-0 shadow-sm">
             <CardContent className="p-4">
               <View className="flex items-center gap-2 mb-3">
                 <BookOpen size={16} color="#666" />
-                <Text className="text-base font-semibold text-foreground">其他课程</Text>
+                <Text className="text-base font-semibold text-foreground">临时课程</Text>
               </View>
               {dropIns.map((d) => (
                 <View key={d.id} className="bg-gray-50 rounded-xl p-3 mb-2">
                   <View className="flex items-center justify-between mb-1">
                     <Text className="text-sm font-semibold text-foreground">{d.course_type}</Text>
-                    <Badge className="bg-orange-100 text-orange-700">
-                      <Text className="text-xs">临时来园</Text>
-                    </Badge>
                   </View>
                   <Text className="block text-xs text-gray-500 mt-1">
                     日期：{d.date || '--'}（考勤：{DROP_IN_STATUS_TEXT[d.status] || '未考勤'}）
                   </Text>
                   <Text className="block text-xs text-gray-500 mt-1">
-                    来园时间：{d.check_in_time ? String(d.check_in_time).slice(11, 16) : '未记录'}
-                  </Text>
-                  <Text className="block text-xs text-gray-500 mt-1">
-                    离园时间：{d.check_out_time ? String(d.check_out_time).slice(11, 16) : '未记录'}
+                    来园时间：{d.check_in_time ? String(d.check_in_time).slice(11, 16) : '未记录'}{'  '}离园时间：{d.check_out_time ? String(d.check_out_time).slice(11, 16) : '未记录'}
                   </Text>
                 </View>
               ))}

@@ -381,28 +381,40 @@ export default function GrowthManagePage() {
                     )}
                   </View>
                   {[
-                    ['总体', record.diet_overall],
-                    ['蔬菜', record.diet_vegetable],
-                    ['荤菜', record.diet_meat],
-                    ['汤', record.diet_soup],
-                    ['喝水', record.diet_water],
+                    ['总体评价', record.diet_overall],
+                    ['餐食蔬菜', record.diet_vegetable],
+                    ['餐食荤菜', record.diet_meat],
+                    ['餐食汤', record.diet_soup],
+                    ['日常喝水', record.diet_water],
                     ['午睡', record.nap_status],
                     ['大便', record.stool_status],
                   ].some(([, v]) => !!v) && (
                     <View className="flex flex-wrap gap-2 mb-2">
                       {([
-                        ['总体', record.diet_overall],
-                        ['蔬菜', record.diet_vegetable],
-                        ['荤菜', record.diet_meat],
-                        ['汤', record.diet_soup],
-                        ['喝水', record.diet_water],
+                        ['总体评价', record.diet_overall],
+                        ['餐食蔬菜', record.diet_vegetable],
+                        ['餐食荤菜', record.diet_meat],
+                        ['餐食汤', record.diet_soup],
+                        ['日常喝水', record.diet_water],
                         ['午睡', record.nap_status],
                         ['大便', record.stool_status],
-                      ] as [string, string][]).filter(([, v]) => !!v).map(([label, value]) => (
-                        <View key={label} className="px-2 py-1 rounded-md bg-gray-100">
-                          <Text className="text-xs text-gray-600">{label}：{value}</Text>
-                        </View>
-                      ))}
+                      ] as [string, string][]).filter(([, v]) => !!v).map(([label, value]) => {
+                        const colors: Record<string, [string, string]> = {
+                          总体评价: ['bg-blue-100', 'text-blue-700'],
+                          餐食蔬菜: ['bg-green-100', 'text-green-700'],
+                          餐食荤菜: ['bg-red-100', 'text-red-700'],
+                          餐食汤: ['bg-amber-100', 'text-amber-700'],
+                          日常喝水: ['bg-cyan-100', 'text-cyan-700'],
+                          午睡: ['bg-purple-100', 'text-purple-700'],
+                          大便: ['bg-rose-100', 'text-rose-700'],
+                        }
+                        const [bgCls, textCls] = colors[label] || ['bg-gray-100', 'text-gray-600']
+                        return (
+                          <View key={label} className={`px-2 py-1 rounded-md ${bgCls}`}>
+                            <Text className={`text-xs ${textCls}`}>{label}：{value}</Text>
+                          </View>
+                        )
+                      })}
                     </View>
                   )}
                   {record.content && (

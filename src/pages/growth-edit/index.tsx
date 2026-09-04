@@ -433,16 +433,16 @@ export default function GrowthEditPage() {
           </View>
         </View>
 
-        {/* 今日饮食反馈 */}
+        {/* 今日反馈 */}
         <View className="space-y-3">
-          <Text className="block text-sm font-medium text-foreground">今日饮食反馈（选填）</Text>
+          <Text className="block text-sm font-medium text-foreground">今日反馈（选填）</Text>
           <View className="flex flex-row flex-wrap">
             {([
-              ['总体', dietOverall, setDietOverall, DIET_OPTIONS],
-              ['蔬菜', dietVegetable, setDietVegetable, DIET_OPTIONS],
-              ['荤菜', dietMeat, setDietMeat, DIET_OPTIONS],
-              ['汤', dietSoup, setDietSoup, DIET_OPTIONS],
-              ['喝水', dietWater, setDietWater, DIET_OPTIONS],
+              ['总体评价', dietOverall, setDietOverall, DIET_OPTIONS],
+              ['餐食蔬菜', dietVegetable, setDietVegetable, DIET_OPTIONS],
+              ['餐食荤菜', dietMeat, setDietMeat, DIET_OPTIONS],
+              ['餐食汤', dietSoup, setDietSoup, DIET_OPTIONS],
+              ['日常喝水', dietWater, setDietWater, DIET_OPTIONS],
               ['午睡情况', napStatus, setNapStatus, NAP_OPTIONS],
               ['大便情况', stoolStatus, setStoolStatus, STOOL_OPTIONS],
             ] as [string, string, (v: string) => void, string[]][]).map(([label, value, setter, options]) => (

@@ -146,30 +146,30 @@ export default function GrowthPage() {
                   }}
                 >
                   {[
-                    ['总体', record.diet_overall],
-                    ['蔬菜', record.diet_vegetable],
-                    ['荤菜', record.diet_meat],
-                    ['汤', record.diet_soup],
-                    ['喝水', record.diet_water],
+                    ['总体评价', record.diet_overall],
+                    ['餐食蔬菜', record.diet_vegetable],
+                    ['餐食荤菜', record.diet_meat],
+                    ['餐食汤', record.diet_soup],
+                    ['日常喝水', record.diet_water],
                     ['午睡', record.nap_status],
                     ['大便', record.stool_status],
                   ].some(([, v]) => !!v) && (
                     <View className="flex flex-wrap gap-2 mt-2">
                       {([
-                        ['总体', record.diet_overall],
-                        ['蔬菜', record.diet_vegetable],
-                        ['荤菜', record.diet_meat],
-                        ['汤', record.diet_soup],
-                        ['喝水', record.diet_water],
+                        ['总体评价', record.diet_overall],
+                        ['餐食蔬菜', record.diet_vegetable],
+                        ['餐食荤菜', record.diet_meat],
+                        ['餐食汤', record.diet_soup],
+                        ['日常喝水', record.diet_water],
                         ['午睡', record.nap_status],
                         ['大便', record.stool_status],
                       ] as [string, string][]).filter(([, v]) => !!v).map(([label, value]) => {
                         const colors: Record<string, [string, string]> = {
-                          总体: ['bg-blue-100', 'text-blue-700'],
-                          蔬菜: ['bg-green-100', 'text-green-700'],
-                          荤菜: ['bg-red-100', 'text-red-700'],
-                          汤: ['bg-amber-100', 'text-amber-700'],
-                          喝水: ['bg-cyan-100', 'text-cyan-700'],
+                          总体评价: ['bg-blue-100', 'text-blue-700'],
+                          餐食蔬菜: ['bg-green-100', 'text-green-700'],
+                          餐食荤菜: ['bg-red-100', 'text-red-700'],
+                          餐食汤: ['bg-amber-100', 'text-amber-700'],
+                          日常喝水: ['bg-cyan-100', 'text-cyan-700'],
                           午睡: ['bg-purple-100', 'text-purple-700'],
                           大便: ['bg-rose-100', 'text-rose-700'],
                         }
