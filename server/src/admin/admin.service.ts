@@ -749,11 +749,9 @@ export class AdminService {
       throw new Error(`查询家长绑定关系失败: ${relationsError.message}`);
     }
 
-    const boundParentRoleIds = new Set<string>();
     // key: parent_role_id，value: 该绑定关系的 relationship / custom_relationship
     const bindingRelationMap = new Map<string, { relationship?: string; custom_relationship?: string | null }>();
     (relations || []).forEach((rel: any) => {
-      boundParentRoleIds.add(rel.parent_role_id);
       bindingRelationMap.set(String(rel.parent_role_id), {
         relationship: rel.relationship,
         custom_relationship: rel.custom_relationship,
@@ -768,15 +766,6 @@ export class AdminService {
       const userRoles = roleMap.get(user.id) || [];
       const hasManageRole = userRoles.some((r: any) => MANAGE_ROLE_TYPES.includes(r.role_type));
       const parentRoles = userRoles.filter((r: any) => r.role_type === 'parent');
-      const isParentWithBinding = parentRoles.some((r: any) => boundParentRoleIds.has(r.id));
-
-      const hasAnyActiveRole = userRoles.length > 0;
-
-      // 过滤：隐藏「只有 parent 角色且没有任何 active 绑定关系」的用户
-      if (hasAnyActiveRole && !hasManageRole && !isParentWithBinding) {
-        continue;
-      }
-
       // display_name：按 superadmin > admin > teacher 优先级取 real_name，否则 nickname
       let displayName: string = user.nickname || '';
       for (const rt of MANAGE_ROLE_PRIORITY) {
@@ -962,7 +951,7 @@ export class AdminService {
       .select('id, nickname, phone, avatar_url')
       .single();
 
-    if (error) return { code: 500, msg: '新增用户失败：' + error.message, data: null };
+    if (error) { return error.code === '23505' ? { code: 400, msg: '该手机号已被其他用户使用', data: null } : { code: 500, msg: '新增用户失败：' + error.message, data: null }; }
 
     await this.writeAuditLog({
       user_id: operatorUserId,
