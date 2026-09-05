@@ -962,7 +962,7 @@ export class AdminService {
       .select('id, nickname, phone, avatar_url')
       .single();
 
-    if (error) throw new Error(`新增用户失败: ${error.message}`);
+    if (error) return { code: 500, msg: '新增用户失败：' + error.message, data: null };
 
     await this.writeAuditLog({
       user_id: operatorUserId,
@@ -989,7 +989,7 @@ export class AdminService {
       .eq('id', userId)
       .maybeSingle();
 
-    if (userError) throw new Error(`查询用户失败: ${userError.message}`);
+    if (userError) return { code: 500, msg: '查询用户失败：' + userError.message, data: null };
     if (!user) {
       return { code: 400, msg: '用户不存在', data: null };
     }
@@ -1002,7 +1002,7 @@ export class AdminService {
       .eq('user_id', userId)
       .eq('status', 'active');
 
-    if (rolesError) throw new Error(`查询角色失败: ${rolesError.message}`);
+    if (rolesError) return { code: 500, msg: '查询角色失败：' + rolesError.message, data: null };
 
     let targetRoleId: string | null = null;
     for (const rt of MANAGE_ROLE_PRIORITY) {
