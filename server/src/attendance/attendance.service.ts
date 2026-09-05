@@ -549,38 +549,44 @@ export class AttendanceService {
     if (isPresent) {
       if (!existing || !existing.check_in_time) {
         if (existing) {
-          await this.client
+          const { error } = await this.client
             .from('attendance_records')
             .update({ check_in_time: now, status: 'present', check_out_time: null, course_type: courseType })
             .eq('id', existing.id);
+          if (error) return { code: 500, msg: '同步接送记录失败：' + error.message };
         } else {
-          await this.client
+          const { error } = await this.client
             .from('attendance_records')
             .insert({ child_id: childId, class_id: classId, record_date: date, course_type: courseType, check_in_time: now, status: 'present' });
+          if (error) return { code: 500, msg: '同步接送记录失败：' + error.message };
         }
       }
       // 已有 check_in_time -> 不覆盖
     } else if (isLeave) {
       if (existing) {
-        await this.client
+        const { error } = await this.client
           .from('attendance_records')
           .update({ status: 'leave', check_out_time: null, course_type: courseType })
           .eq('id', existing.id);
+        if (error) return { code: 500, msg: '同步接送记录失败：' + error.message };
       } else {
-        await this.client
+        const { error } = await this.client
           .from('attendance_records')
           .insert({ child_id: childId, class_id: classId, record_date: date, course_type: courseType, status: 'leave' });
+        if (error) return { code: 500, msg: '同步接送记录失败：' + error.message };
       }
     } else if (isAbsent) {
       if (existing) {
-        await this.client
+        const { error } = await this.client
           .from('attendance_records')
           .update({ status: 'absent', check_out_time: null, course_type: courseType })
           .eq('id', existing.id);
+        if (error) return { code: 500, msg: '同步接送记录失败：' + error.message };
       } else {
-        await this.client
+        const { error } = await this.client
           .from('attendance_records')
           .insert({ child_id: childId, class_id: classId, record_date: date, course_type: courseType, status: 'absent' });
+        if (error) return { code: 500, msg: '同步接送记录失败：' + error.message };
       }
     }
   }

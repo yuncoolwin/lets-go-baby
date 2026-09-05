@@ -330,6 +330,7 @@ export default function RollCallPage() {
       setAttendance(tempAttendance)
       setIsLocked(true)
       setHasUnsaved(false)
+      loadData()
       Taro.showToast({ title: '保存成功', icon: 'success' })
       if (!isAdmin) {
         setTimeout(() => Taro.navigateBack(), 1500)
