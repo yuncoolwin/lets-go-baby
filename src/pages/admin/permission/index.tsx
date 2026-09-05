@@ -206,11 +206,11 @@ export default function PermissionPage() {
         setShowDialog(false)
         loadUsers()
       } else {
-        Taro.showToast({ title: res.data?.msg || '操作失败', icon: 'none' })
+        Taro.showToast({ title: res.data?.msg || res.data?.message || '操作失败', icon: 'none' })
       }
     } catch (err) {
       console.error('[权限管理] 保存失败:', err)
-      Taro.showToast({ title: '操作失败', icon: 'none' })
+      Taro.showToast({ title: (err as any)?.message || '操作失败', icon: 'none' })
     }
   }
 

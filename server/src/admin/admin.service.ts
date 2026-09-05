@@ -725,7 +725,7 @@ export class AdminService {
       .select('id, user_id, role_type, real_name, status')
       .eq('status', 'active');
 
-    if (rolesError) throw new Error(`查询角色失败: ${rolesError.message}`);
+    if (rolesError) return { code: 500, msg: '查询角色失败：' + rolesError.message, data: null };
 
     const roleMap = new Map<string, any[]>();
     (roles || []).forEach((role: any) => {
@@ -825,7 +825,7 @@ export class AdminService {
       .eq('id', userId)
       .maybeSingle();
 
-    if (userError) throw new Error(`查询用户失败: ${userError.message}`);
+    if (userError) return { code: 500, msg: '查询用户失败：' + userError.message, data: null };
     if (!user) {
       return { code: 400, msg: '用户不存在', data: null };
     }
@@ -1019,7 +1019,7 @@ export class AdminService {
         .from('user_roles')
         .update({ real_name: nickname || '' })
         .eq('id', targetRoleId);
-      if (roleUpdateError) throw new Error(`更新角色真实姓名失败: ${roleUpdateError.message}`);
+      if (roleUpdateError) return { code: 500, msg: '更新角色真实姓名失败：' + roleUpdateError.message, data: null };
     }
 
     const userUpdatePayload: any = {
@@ -1037,7 +1037,7 @@ export class AdminService {
       .select('id, nickname, phone, avatar_url')
       .single();
 
-    if (updateError) throw new Error(`更新用户失败: ${updateError.message}`);
+    if (updateError) return { code: 500, msg: '更新用户失败：' + updateError.message, data: null };
 
     await this.writeAuditLog({
       user_id: operatorUserId,
