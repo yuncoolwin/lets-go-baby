@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { View, Text, Image, ScrollView } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -1217,6 +1217,7 @@ export default function ChildDetailPage() {
               padding: '20px 20px 16px',
               width: '88%',
               maxWidth: 400,
+              maxHeight: '75vh',
               transform: extendAnim === 'open' ? 'scale(1)' : 'scale(0.3)',
               opacity: extendAnim === 'idle' ? 0 : 1,
               transition: extendAnim === 'open'
@@ -1228,7 +1229,7 @@ export default function ChildDetailPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <Text className="block text-lg font-bold text-center mb-3">顺延原因</Text>
-            <ScrollView scrollY className="py-2" style={{ height: '40vh' }}>
+            <View className="py-2 flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
               {extendDetails.length === 0 ? (
                 <Text className="block text-sm text-gray-500 text-center py-4">暂无顺延假期</Text>
               ) : (
@@ -1249,7 +1250,7 @@ export default function ChildDetailPage() {
                   )
                 })
               )}
-            </ScrollView>
+            </View>
             <View className="pt-3" style={{ borderTop: '1px solid #e5e5e5' }}>
               <Text className="block text-sm text-gray-500 text-center">
                 共顺延 <Text className="font-bold text-orange-500">{extendTotalDays}</Text> 天，顺延至 <Text className="font-bold text-orange-500">{extendToDate}</Text>

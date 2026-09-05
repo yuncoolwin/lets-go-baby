@@ -349,7 +349,7 @@ export default function RollCallPage() {
   }
 
   const handleClear = async () => {
-    if (isLocked || selectedDate !== today) return
+    if (selectedDate !== today) return
     Taro.showModal({
       title: '确认清除',
       content: `确定要清除 ${className} ${selectedDate} 全部考勤记录吗？`,
@@ -362,11 +362,8 @@ export default function RollCallPage() {
               method: 'POST',
               data: { class_id: classId, date: selectedDate, operator_user_id: userId ?? undefined, operator_role_id: currentRole?.id },
             })
-            setAttendance({})
-            setTempAttendance({})
-            setIsLocked(false)
-            setHasUnsaved(false)
             Taro.showToast({ title: '已清除', icon: 'success' })
+            loadData()
           } catch (e) {
             Taro.showToast({ title: '清除失败', icon: 'none' })
           }
