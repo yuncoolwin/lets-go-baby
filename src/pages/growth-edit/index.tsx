@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { View, Text, Image, Picker } from '@tarojs/components'
+import { View, Text, Image, Picker, Video } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,7 +11,7 @@ import { useAppStore } from '@/store/app'
 import { childrenApi, teacherApi, growthApi, courseApi } from '@/utils/api'
 import { Network } from '@/network'
 import { isH5 } from '@/lib/platform'
-import { X, ImagePlus } from 'lucide-react-taro'
+import { X, ImagePlus, Video as VideoIcon } from 'lucide-react-taro'
 
 const DRAFT_KEY = 'growth_drafts'
 
@@ -115,6 +115,8 @@ export default function GrowthEditPage() {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [images, setImages] = useState<string[]>([])
+  const [videoUrls, setVideoUrls] = useState<string[]>([])
+  const [videoUploading, setVideoUploading] = useState(false)
   const [recordId, setRecordId] = useState('')
   const [draftId, setDraftId] = useState('')
   const [uploading, setUploading] = useState(false)
@@ -194,6 +196,7 @@ export default function GrowthEditPage() {
         setTitle(data.title || '')
         setContent(data.content || '')
         setImages(data.photo_urls || [])
+        setVideoUrls(data.video_urls || [])
         setSelectedChildId(data.child_id || '')
         setSelectedChildName(data.child_name || '')
         setRecordDate(data.record_date || formatToday())
@@ -224,6 +227,7 @@ export default function GrowthEditPage() {
       setTitle(draft.title || '')
       setContent(draft.content || '')
       setImages(draft.photo_urls || [])
+      setVideoUrls(draft.video_urls || [])
       setDietOverall(draft.diet_overall || '')
       setDietVegetable(draft.diet_vegetable || '')
       setDietMeat(draft.diet_meat || '')
@@ -311,6 +315,65 @@ export default function GrowthEditPage() {
     setImages((prev) => prev.filter((_, i) => i !== index))
   }
 
+  const removeVideo = (index: number) => {
+    setVideoUrls((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleChooseVideo = () => {
+    Taro.chooseVideo({
+      compressed: true,
+      maxDuration: 60,
+      sourceType: ['album', 'camera'],
+      success: async (res) => {
+        let tempFilePath = res.tempFilePath
+        let size: number = res.size || 0
+        setVideoUploading(true)
+        try {
+          // 大于 8MB 时依次降档压缩：high -> medium -> low
+          const qualities: { quality: 'high' | 'medium' | 'low'; bitrate: number; resolution: number }[] = [
+            { quality: 'high', bitrate: 1200, resolution: 0.8 },
+            { quality: 'medium', bitrate: 800, resolution: 0.6 },
+            { quality: 'low', bitrate: 500, resolution: 0.4 },
+          ]
+          for (const item of qualities) {
+            if (size <= 8 * 1024 * 1024) break
+            try {
+              const compressed = await Taro.compressVideo({
+                src: tempFilePath,
+                quality: item.quality,
+                bitrate: item.bitrate,
+                fps: 24,
+                resolution: item.resolution,
+              })
+              tempFilePath = compressed.tempFilePath
+              // compressVideo 返回 size 单位为 kB，换算为字节
+              size = compressed.size ? compressed.size * 1024 : size
+            } catch (e) {
+              console.warn('[GrowthEdit] compress error:', e)
+              break
+            }
+          }
+          if (size > 10 * 1024 * 1024) {
+            Taro.showToast({ title: '视频过长，请控制在60秒内', icon: 'none' })
+            return
+          }
+          const upload = await growthApi.uploadVideo(tempFilePath)
+          const url = upload?.data?.video_url
+          if (url) {
+            setVideoUrls((prev) => [...prev, url])
+          } else {
+            Taro.showToast({ title: '视频上传失败', icon: 'none' })
+          }
+        } catch (err) {
+          console.error('[GrowthEdit] upload video error:', err)
+          Taro.showToast({ title: '视频上传失败', icon: 'none' })
+        } finally {
+          setVideoUploading(false)
+        }
+      },
+    })
+  }
+
   const handleSaveDraft = () => {
     const drafts = loadDrafts()
     const selectedCourse = courses.find((c) => c.id === selectedCourseId)
@@ -323,6 +386,7 @@ export default function GrowthEditPage() {
       title,
       content,
       photo_urls: images,
+      video_urls: videoUrls,
       record_date: recordDate,
       diet_overall: dietOverall,
       diet_vegetable: dietVegetable,
@@ -361,7 +425,7 @@ export default function GrowthEditPage() {
         await growthApi.update(
           recordId,
           {
-            title, content, photo_urls: images, record_date: recordDate, course_name: courseName,
+            title, content, photo_urls: images, video_urls: videoUrls, record_date: recordDate, course_name: courseName,
             ...(dietOverall ? { diet_overall: dietOverall } : {}),
             ...(dietVegetable ? { diet_vegetable: dietVegetable } : {}),
             ...(dietMeat ? { diet_meat: dietMeat } : {}),
@@ -375,7 +439,7 @@ export default function GrowthEditPage() {
       } else {
         await growthApi.create(
           {
-            child_id: selectedChildId, title, content, photo_urls: images, record_date: recordDate, course_name: courseName,
+            child_id: selectedChildId, title, content, photo_urls: images, video_urls: videoUrls, record_date: recordDate, course_name: courseName,
             ...(dietOverall ? { diet_overall: dietOverall } : {}),
             ...(dietVegetable ? { diet_vegetable: dietVegetable } : {}),
             ...(dietMeat ? { diet_meat: dietMeat } : {}),
@@ -527,6 +591,35 @@ export default function GrowthEditPage() {
                 onClick={handleChooseImage}
               >
                 <ImagePlus size={24} color="#999999" />
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* 视频 */}
+        <View>
+          <Text className="block text-sm text-muted-foreground mb-2">
+            视频（{videoUrls.length}/2）{videoUploading && ' 上传中...'}
+          </Text>
+          <View className="flex flex-wrap gap-2">
+            {videoUrls.map((url, idx) => (
+              <View key={idx} className="relative">
+                <Video src={url} controls className="w-40 h-24 rounded-lg bg-black" />
+                <View
+                  className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-black bg-opacity-60 flex items-center justify-center"
+                  onClick={() => removeVideo(idx)}
+                >
+                  <X size={12} color="#fff" />
+                </View>
+              </View>
+            ))}
+            {videoUrls.length < 2 && (
+              <View
+                className="w-24 h-24 rounded-lg border border-dashed border-gray-300 flex items-center justify-center flex-col"
+                onClick={handleChooseVideo}
+              >
+                <VideoIcon size={24} color="#999999" />
+                <Text className="block text-xs text-gray-400 mt-1">添加视频</Text>
               </View>
             )}
           </View>

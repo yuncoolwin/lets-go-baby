@@ -311,8 +311,14 @@ export const growthApi = {
   uploadImage: (data: { image: string; name?: string }) =>
     request({ url: '/api/growth-records/upload', method: 'POST', data }),
 
+  // 视频上传（multipart，后端仅允许 video/mp4、10MB）
+  uploadVideo: async (filePath: string) => {
+    const res = await Network.uploadFile({ url: '/api/growth-records/upload-video', filePath, name: 'video' })
+    return (res.data as unknown) as ApiResponse<{ video_url?: string }>
+  },
+
   // 新建记录（role_id 为当前角色 id，用于权限校验与 teacher_id 落库）
-  create: (data: { child_id: string; title: string; content?: string; photo_urls?: string[]; record_date?: string; course_name?: string }, roleId?: string) =>
+  create: (data: { child_id: string; title: string; content?: string; photo_urls?: string[]; video_urls?: string[]; record_date?: string; course_name?: string }, roleId?: string) =>
     request({ url: roleId ? `/api/growth-records?role_id=${roleId}` : '/api/growth-records', method: 'POST', data }),
 
   // 记录列表（child_id/child_ids/record_date 筛选 + 分页 + 角色权限）
@@ -324,7 +330,7 @@ export const growthApi = {
     request({ url: roleId ? `/api/growth-records/${id}?role_id=${roleId}` : `/api/growth-records/${id}`, method: 'GET' }),
 
   // 编辑记录
-  update: (id: string, data: { title?: string; content?: string; photo_urls?: string[]; record_date?: string; course_name?: string }, roleId?: string) =>
+  update: (id: string, data: { title?: string; content?: string; photo_urls?: string[]; video_urls?: string[]; record_date?: string; course_name?: string }, roleId?: string) =>
     request({ url: roleId ? `/api/growth-records/${id}?role_id=${roleId}` : `/api/growth-records/${id}`, method: 'PUT', data }),
 
   // 删除记录（后端同步删除 Supabase Storage 图片）

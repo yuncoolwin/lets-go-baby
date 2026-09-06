@@ -133,6 +133,7 @@ export const growthRecords = pgTable("growth_records", {
 	title: varchar({ length: 128 }).notNull(),
 	content: text(),
 	photoUrls: jsonb("photo_urls"),
+	videoUrls: jsonb("video_urls"),
 	recordDate: date("record_date"),
 	courseName: varchar("course_name", { length: 200 }),
 	parentReadAt: timestamp("parent_read_at", { withTimezone: true, mode: 'string' }),

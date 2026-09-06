@@ -1,0 +1,1 @@
+ALTER TABLE growth_records ADD COLUMN IF NOT EXISTS video_urls jsonb NOT NULL DEFAULT '[]'::jsonb;

@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { AuthzService } from '@/auth/authz.service';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -10,6 +11,10 @@ const RECORD_TYPE = 'daily';
 const IMAGE_BASE64_MAX = 10 * 1024 * 1024;
 /** 签名 URL 有效期：24 小时 */
 const SIGNED_URL_TTL = 60 * 60 * 24;
+/** 视频签名 URL 有效期：7 天 */
+const VIDEO_SIGNED_URL_TTL = 24 * 60 * 60 * 7;
+/** 视频原文件上限：10MB */
+const VIDEO_SIZE_MAX = 10 * 1024 * 1024;
 
 @Injectable()
 export class GrowthService {
@@ -188,6 +193,59 @@ export class GrowthService {
     });
   }
 
+  /**
+   * 为存储的视频 URL 动态生成签名 URL（7 天有效，读端按需重新签名）
+   */
+  private async signVideoUrls(urls: string[]): Promise<string[]> {
+    const paths = this.extractStoragePaths(urls || []);
+    const signed = new Map<string, string>();
+    for (const p of paths) {
+      const { data } = await this.client.storage.from('growth').createSignedUrl(p, VIDEO_SIGNED_URL_TTL);
+      if (data?.signedUrl) signed.set(p, data.signedUrl);
+    }
+    return (urls || []).map((url) => {
+      const p = this.extractStoragePaths([url])[0];
+      return (p && signed.get(p)) || url;
+    });
+  }
+
+  async uploadVideo(userId: string, file: Express.Multer.File) {
+    // 鉴权：家长/未登录 403（教师与管理员可传）
+    const identity = await this.getUserIdentity(userId);
+    if (!identity || identity.role_type === 'parent') {
+      return { error: true, code: 403, msg: '家长无权上传成长档案视频' };
+    }
+
+    if (!file) {
+      return { error: true, code: 400, msg: 'video 文件不能为空' };
+    }
+
+    // 类型校验（FileInterceptor fileFilter 已兜底，这里二次校验）
+    if (file.mimetype !== 'video/mp4') {
+      return { error: true, code: 400, msg: '仅支持 video/mp4 格式视频' };
+    }
+
+    // 大小上限：10MB
+    if (file.size > 10 * 1024 * 1024) {
+      return { error: true, code: 413, msg: '视频过大，请控制在 10MB 以内' };
+    }
+
+    await this.ensureBucket();
+    const path = `growth/videos/${userId}/${Date.now()}-${crypto.randomBytes(4).toString('hex')}.mp4`;
+
+    const { error: uploadError } = await this.client.storage
+      .from('growth')
+      .upload(path, file.buffer, { contentType: 'video/mp4' });
+
+    if (uploadError) {
+      return { error: true, code: 500, msg: `上传失败: ${uploadError.message}` };
+    }
+
+    // private bucket：返回签名 URL（7 天有效，读端会按需重新签名）
+    const { data: signed } = await this.client.storage.from('growth').createSignedUrl(path, VIDEO_SIGNED_URL_TTL);
+    return { video_url: signed?.signedUrl || null };
+  }
+
   async uploadImage(userId: string, body: { image: string; name?: string }) {
     // 鉴权：家长/未登录 403（教师与管理员可传）
     const identity = await this.getUserIdentity(userId);
@@ -269,7 +327,7 @@ export class GrowthService {
     }
   }
 
-  async create(userId: string, dto: { child_id: string; title: string; content?: string; photo_urls?: string[]; record_date?: string; course_name?: string; diet_overall?: string; diet_vegetable?: string; diet_meat?: string; diet_soup?: string; diet_water?: string; nap_status?: string; stool_status?: string }) {
+  async create(userId: string, dto: { child_id: string; title: string; content?: string; photo_urls?: string[]; video_urls?: string[]; record_date?: string; course_name?: string; diet_overall?: string; diet_vegetable?: string; diet_meat?: string; diet_soup?: string; diet_water?: string; nap_status?: string; stool_status?: string }) {
     if (!dto.child_id || !dto.title) {
       return { error: true, code: 400, msg: 'child_id/title 不能为空' };
     }
@@ -311,6 +369,7 @@ export class GrowthService {
         title: dto.title,
         content: dto.content || null,
         photo_urls: dto.photo_urls || [],
+        video_urls: dto.video_urls || [],
         record_date: dto.record_date || this.shanghaiToday(),
         course_name: dto.course_name || null,
         diet_overall: dto.diet_overall || null,
@@ -377,6 +436,7 @@ export class GrowthService {
         teacher_name: teacherNames.get(r.teacher_id) || '',
         child_name: childNames.get(r.child_id) || '',
         photo_urls: await this.signPhotoUrls(r.photo_urls),
+        video_urls: await this.signVideoUrls(r.video_urls),
       })),
     );
 
@@ -416,6 +476,7 @@ export class GrowthService {
     return {
       ...record,
       photo_urls: await this.signPhotoUrls(record.photo_urls),
+      video_urls: await this.signVideoUrls(record.video_urls),
       teacher_name: teacherNames.get(record.teacher_id) || '',
       child_name: childNames.get(record.child_id) || '',
     };
@@ -424,7 +485,7 @@ export class GrowthService {
   async update(
     userId: string,
     id: string,
-    dto: { title?: string; content?: string; photo_urls?: string[]; record_date?: string; course_name?: string; diet_overall?: string; diet_vegetable?: string; diet_meat?: string; diet_soup?: string; diet_water?: string; nap_status?: string; stool_status?: string },
+    dto: { title?: string; content?: string; photo_urls?: string[]; video_urls?: string[]; record_date?: string; course_name?: string; diet_overall?: string; diet_vegetable?: string; diet_meat?: string; diet_soup?: string; diet_water?: string; nap_status?: string; stool_status?: string },
   ) {
     const { data: existing } = await this.client
       .from('growth_records')
@@ -450,6 +511,7 @@ export class GrowthService {
     if (dto.title !== undefined) updateData.title = dto.title;
     if (dto.content !== undefined) updateData.content = dto.content;
     if (dto.photo_urls !== undefined) updateData.photo_urls = dto.photo_urls;
+    if (dto.video_urls !== undefined) updateData.video_urls = dto.video_urls;
     if (dto.record_date !== undefined) updateData.record_date = dto.record_date;
     if (dto.course_name !== undefined) updateData.course_name = dto.course_name;
     if (dto.diet_overall !== undefined) updateData.diet_overall = dto.diet_overall;

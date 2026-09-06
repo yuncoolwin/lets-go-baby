@@ -1,6 +1,9 @@
-import { Controller, Get, Post, Put, Delete, Body, Query, Param, HttpCode, Req } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Query, Param, HttpCode, Req, BadRequestException, UseInterceptors, UploadedFile, UseFilters } from '@nestjs/common';
 import type { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { GrowthService } from './growth.service';
+import { MulterExceptionFilter } from '../common/filters/multer.filter';
 
 @Controller('growth-records')
 export class GrowthController {
@@ -17,12 +20,36 @@ export class GrowthController {
     return { code: 200, msg: 'success', data };
   }
 
+  @Post('upload-video')
+  @HttpCode(200)
+  @UseInterceptors(
+    FileInterceptor('video', {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (file.mimetype !== 'video/mp4') {
+          return cb(new BadRequestException('仅支持 video/mp4 格式视频'), false);
+        }
+        return cb(null, true);
+      },
+    }),
+  )
+  @UseFilters(MulterExceptionFilter)
+  async uploadVideo(@Req() req: Request, @UploadedFile() file: Express.Multer.File) {
+    const userId = (req as any).user?.userId;
+    const data = await this.growthService.uploadVideo(userId, file);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
+    return { code: 200, msg: 'success', data };
+  }
+
   @Post()
   @HttpCode(200)
   async create(
     @Req() req: Request,
     @Body()
-    dto: { child_id: string; title: string; content?: string; photo_urls?: string[]; record_date?: string; course_name?: string },
+    dto: { child_id: string; title: string; content?: string; photo_urls?: string[]; video_urls?: string[]; record_date?: string; course_name?: string },
   ) {
     const userId = (req as any).user?.userId;
     const data = await this.growthService.create(userId, dto);
@@ -59,7 +86,7 @@ export class GrowthController {
 
   @Put(':id')
   @HttpCode(200)
-  async update(@Req() req: Request, @Param('id') id: string, @Body() dto: { title?: string; content?: string; photo_urls?: string[]; record_date?: string }) {
+  async update(@Req() req: Request, @Param('id') id: string, @Body() dto: { title?: string; content?: string; photo_urls?: string[]; video_urls?: string[]; record_date?: string }) {
     const userId = (req as any).user?.userId;
     const data = await this.growthService.update(userId, id, dto);
     if (data?.error) {

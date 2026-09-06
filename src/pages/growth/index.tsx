@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, Image, ScrollView } from '@tarojs/components'
+import { View, Text, Image, ScrollView, Video } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -18,6 +18,7 @@ interface GrowthRecord {
   title: string
   content: string | null
   photo_urls: string[] | null
+  video_urls: string[] | null
   created_at: string
   teacher_name: string
   course_name?: string
@@ -201,6 +202,14 @@ export default function GrowthPage() {
                   </View>
                 )}
 
+                {record.video_urls && record.video_urls.length > 0 && (
+                  <View className="space-y-2 mt-3">
+                    {record.video_urls.map((url, idx) => (
+                      <Video key={idx} src={url} controls className="w-full rounded-lg bg-black" style={{ height: '180px' }} />
+                    ))}
+                  </View>
+                )}
+
                 <View className="flex justify-end mt-3">
                   <Text className="text-xs text-muted-foreground">
                     {record.teacher_name || '老师'}
@@ -235,6 +244,13 @@ export default function GrowthPage() {
                   <View className="space-y-2">
                     {detailRecord.photo_urls.map((url, idx) => (
                       <Image key={idx} src={url} className="w-full rounded-lg" mode="widthFix" onClick={() => previewImage(detailRecord.photo_urls as string[], url)} />
+                    ))}
+                  </View>
+                )}
+                {detailRecord.video_urls && detailRecord.video_urls.length > 0 && (
+                  <View className="space-y-2">
+                    {detailRecord.video_urls.map((url, idx) => (
+                      <Video key={idx} src={url} controls className="w-full rounded-lg bg-black" style={{ height: '180px' }} />
                     ))}
                   </View>
                 )}

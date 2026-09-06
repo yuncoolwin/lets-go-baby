@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text, Image, Picker, ScrollView } from '@tarojs/components'
+import { View, Text, Image, Picker, ScrollView, Video } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -19,6 +19,7 @@ interface GrowthRecord {
   title: string
   content: string | null
   photo_urls: string[] | null
+  video_urls: string[] | null
   created_at: string
   record_date: string | null
   teacher_name: string
@@ -449,6 +450,20 @@ export default function GrowthManagePage() {
                       ))}
                     </View>
                   )}
+                  {record.video_urls && record.video_urls.length > 0 && (
+                    <View className="space-y-2 mt-2">
+                      {record.video_urls.map((url, idx) => (
+                        <Video
+                          key={idx}
+                          src={url}
+                          controls
+                          className="w-full rounded-lg bg-black"
+                          style={{ height: '180px' }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ))}
+                    </View>
+                  )}
                   <View className="flex items-center justify-between mt-3">
                     <Text className="text-xs text-muted-foreground">
                       {record.parent_read_at ? '已读' : '未读'}
@@ -529,6 +544,13 @@ export default function GrowthManagePage() {
                   <View className="space-y-2">
                     {detailRecord.photo_urls.map((url, idx) => (
                       <Image key={idx} src={url} className="w-full rounded-lg" mode="widthFix" />
+                    ))}
+                  </View>
+                )}
+                {detailRecord.video_urls && detailRecord.video_urls.length > 0 && (
+                  <View className="space-y-2">
+                    {detailRecord.video_urls.map((url, idx) => (
+                      <Video key={idx} src={url} controls className="w-full rounded-lg bg-black" style={{ height: '180px' }} />
                     ))}
                   </View>
                 )}
