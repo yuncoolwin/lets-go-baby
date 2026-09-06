@@ -476,9 +476,9 @@ export default function ReviewPage() {
               将保存关系与状态变更，确认提交？
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmSave}>确认保存</AlertDialogAction>
+          <AlertDialogFooter className="flex gap-2">
+            <AlertDialogCancel className="flex-1">取消</AlertDialogCancel>
+            <AlertDialogAction className="flex-1" onClick={handleConfirmSave}>确认保存</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -491,10 +491,10 @@ export default function ReviewPage() {
               仅删除审核申请记录，不影响已绑定的家长绑定关系。
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogFooter className="flex gap-2">
+            <AlertDialogCancel className="flex-1">取消</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-500 text-white"
+              className="flex-1 bg-red-500 text-white"
               onClick={() => {
                 if (deleteTarget) {
                   handleDelete(deleteTarget.id)

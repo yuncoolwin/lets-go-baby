@@ -149,6 +149,7 @@ export default function TeacherNotificationPage() {
 
   const [sentList, setSentList] = useState<SentItem[]>([])
   const [sentLoading, setSentLoading] = useState(false)
+  const [detailItem, setDetailItem] = useState<SentItem | null>(null)
 
   const isFirstRender = useRef(true)
 
@@ -327,19 +328,30 @@ export default function TeacherNotificationPage() {
     }
   }
 
+  const previewImage = (urls: string[], current: string) => {
+    Taro.previewImage({ urls, current })
+  }
+
   const handleRevoke = async (id: string) => {
-    try {
-      const res = await notificationApi.revoke(id)
-      if (res?.code === 200) {
-        Taro.showToast({ title: '已撤回', icon: 'success' })
-        loadSent()
-      } else {
-        Taro.showToast({ title: res?.msg || '撤回失败', icon: 'none' })
-      }
-    } catch (err) {
-      console.error('[TeacherNotification] revoke error:', err)
-      Taro.showToast({ title: '撤回失败', icon: 'none' })
-    }
+    Taro.showModal({
+      title: '确认撤回',
+      content: '确认撤回该通知？撤回后家长端将无法查看',
+      success: async (res) => {
+        if (!res.confirm) return
+        try {
+          const r = await notificationApi.revoke(id)
+          if (r?.code === 200) {
+            Taro.showToast({ title: '已撤回', icon: 'success' })
+            loadSent()
+          } else {
+            Taro.showToast({ title: r?.msg || '撤回失败', icon: 'none' })
+          }
+        } catch (err) {
+          console.error('[TeacherNotification] revoke error:', err)
+          Taro.showToast({ title: '撤回失败', icon: 'none' })
+        }
+      },
+    })
   }
 
   const handleRepublish = async (id: string) => {
@@ -674,7 +686,7 @@ export default function TeacherNotificationPage() {
             <View className="space-y-3">
               {sentList.map((item) => (
                 <Card key={item.id} className="bg-white rounded-xl border-0 shadow-sm">
-                  <CardContent className="p-4">
+                  <CardContent className="p-4" onClick={() => item.status === 'published' && setDetailItem(item)}>
                     <View className="flex items-center justify-between mb-1">
                       <View className="flex items-center gap-2 flex-1 min-w-0">
                         <Text className="text-base font-semibold text-foreground truncate">{item.title}</Text>
@@ -707,7 +719,7 @@ export default function TeacherNotificationPage() {
                           已读 {item.read_count ?? 0}/{item.recipient_count ?? 0}
                         </Text>
                         {!isAgentAdmin && (
-                        <Button variant="secondary" size="sm" onClick={() => handleRevoke(item.id)}>
+                        <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); handleRevoke(item.id) }}>
                           <Text className="text-xs">撤回</Text>
                         </Button>
                         )}
@@ -877,6 +889,35 @@ export default function TeacherNotificationPage() {
             >
               <Text>确定（已选 {selectedTargetIds.length} 个）</Text>
             </Button>
+          </View>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!detailItem} onOpenChange={(open) => !open && setDetailItem(null)}>
+        <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+          <DialogHeader>
+            <DialogTitle className="text-base font-semibold text-foreground">{detailItem?.title || '通知详情'}</DialogTitle>
+          </DialogHeader>
+          {(detailItem?.target_labels || []).length > 0 && (
+            <View className="mt-2">
+              <Text className="text-xs text-muted-foreground">发送对象：{(detailItem?.target_labels || []).join('、')}</Text>
+            </View>
+          )}
+          <View className="mt-3">
+            <Text className="block text-sm text-foreground leading-relaxed whitespace-pre-wrap">{detailItem?.content}</Text>
+          </View>
+          {detailItem?.images && detailItem.images.length > 0 && (
+            <View className="space-y-2 mt-3">
+              {detailItem.images.map((url, idx) => (
+                <Image key={idx} src={url} className="w-full rounded-lg" mode="widthFix" onClick={() => previewImage(detailItem!.images as string[], url)} />
+              ))}
+            </View>
+          )}
+          <View className="flex justify-between items-center mt-4 pt-3 border-t border-gray-100">
+            <Text className="text-xs text-muted-foreground">
+              已读 {detailItem?.read_count ?? 0}/{detailItem?.recipient_count ?? 0}
+            </Text>
+            <Text className="text-xs text-muted-foreground">{detailItem ? formatTime(detailItem.created_at) : ''}</Text>
           </View>
         </DialogContent>
       </Dialog>

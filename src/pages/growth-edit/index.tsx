@@ -373,11 +373,11 @@ export default function GrowthEditPage() {
         )
         if (draftId) removeDraftById(draftId)
       }
-      Taro.showToast({ title: '已保存', icon: 'success' })
+      Taro.showToast({ title: '已发布', icon: 'success' })
       setTimeout(() => Taro.navigateBack(), 600)
     } catch (err) {
       console.error('[GrowthEdit] save error:', err)
-      Taro.showToast({ title: '保存失败', icon: 'none' })
+      Taro.showToast({ title: '发布失败', icon: 'none' })
     }
     setSaving(false)
   }
@@ -520,7 +520,7 @@ export default function GrowthEditPage() {
         )}
         <View style={{ flex: 1 }}>
           <Button className="w-full" onClick={() => { if (!isAgentAdmin) handleSave() }} disabled={isAgentAdmin || saving || uploading}>
-            <Text className="text-white">{saving ? '保存中...' : '保存'}</Text>
+            <Text className="text-white">{saving ? '发布中...' : '发布'}</Text>
           </Button>
         </View>
       </View>
