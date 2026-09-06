@@ -1068,22 +1068,41 @@ export class AdminService {
       return { code: 403, msg: '无权限', data: null };
     }
 
-    // 1. 自动解除家长绑定关系（若存在 parent 角色，先删除其 parent_child_relations 绑定）
-    const { data: parentRoles, error: parentRolesError } = await this.client
+    // 1. 查询该用户全部角色 id（含 role_type），后续关联数据清理统一使用该列表
+    const { data: allRoles, error: allRolesError } = await this.client
       .from('user_roles')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('role_type', 'parent');
+      .select('id, role_type')
+      .eq('user_id', userId);
 
-    if (parentRolesError) throw new Error(`查询家长角色失败: ${parentRolesError.message}`);
+    if (allRolesError) throw new Error(`查询用户角色失败: ${allRolesError.message}`);
 
-    const parentRoleIds = (parentRoles || []).map((r: any) => r.id);
-    if (parentRoleIds.length > 0) {
-      const { error: unbindError } = await this.client
+    const allRoleIds = (allRoles || []).map((r: any) => r.id);
+    const teacherRoleIds = (allRoles || [])
+      .filter((r: any) => r.role_type === 'teacher')
+      .map((r: any) => r.id);
+
+    // 解除家长绑定关系：双条件清理 parent_child_relations
+    // （parent_role_id 属于该用户任意角色 或 user_id 为该用户），避免角色数据不一致时残留导致外键报错
+    if (allRoleIds.length > 0) {
+      const { error: unbindByRoleError } = await this.client
         .from('parent_child_relations')
         .delete()
-        .in('parent_role_id', parentRoleIds);
-      if (unbindError) throw new Error(`解除家长绑定失败: ${unbindError.message}`);
+        .in('parent_role_id', allRoleIds);
+      if (unbindByRoleError) throw new Error(`解除家长绑定失败: ${unbindByRoleError.message}`);
+    }
+    const { error: unbindByUserError } = await this.client
+      .from('parent_child_relations')
+      .delete()
+      .eq('user_id', userId);
+    if (unbindByUserError) throw new Error(`解除家长绑定失败: ${unbindByUserError.message}`);
+
+    // 清理绑定申请记录（parent_role_id 属于该用户任意角色）
+    if (allRoleIds.length > 0) {
+      const { error: bindingRequestError } = await this.client
+        .from('binding_requests')
+        .delete()
+        .in('parent_role_id', allRoleIds);
+      if (bindingRequestError) throw new Error(`清理绑定申请失败: ${bindingRequestError.message}`);
     }
 
     // 2. 教师表保护
@@ -1100,16 +1119,6 @@ export class AdminService {
     }
 
     // 3. 教师角色的成长记录引用保护
-    const { data: teacherRoles, error: teacherRolesError } = await this.client
-      .from('user_roles')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('role_type', 'teacher');
-
-    if (teacherRolesError) throw new Error(`查询教师角色失败: ${teacherRolesError.message}`);
-
-    const teacherRoleIds = (teacherRoles || []).map((r: any) => r.id);
-
     // 先判断 teachers 表是否存在该用户，区分真实教师与幽灵教师角色
     const { data: teacherRows, error: teacherRowsError } = await this.client
       .from('teachers')
@@ -1133,12 +1142,35 @@ export class AdminService {
           return { code: 400, msg: '该教师存在成长记录，无法删除', data: null };
         }
       } else {
-        // 幽灵教师角色：teachers 表无记录，跳过拦截，删除 user_roles 前将成长记录的 teacher_id 置空，避免悬空引用
-        const { error: nullifyError } = await this.client
+        // 幽灵教师角色：teachers 表无记录，跳过拦截。
+        // 尽量将 growth_records.teacher_id 置空以保留历史；若该列 NOT NULL 无法置空，则连同
+        // daily_feedbacks（其 teacher_id 非空且带外键）一并删除，避免悬空引用导致外键/非空报错
+        const { data: nulled, error: nullifyError } = await this.client
           .from('growth_records')
           .update({ teacher_id: null })
+          .in('teacher_id', teacherRoleIds)
+          .select('id');
+
+        if (nullifyError) {
+          const { error: deleteGrowthError } = await this.client
+            .from('growth_records')
+            .delete()
+            .in('teacher_id', teacherRoleIds);
+          if (deleteGrowthError) throw new Error(`清理成长记录失败: ${deleteGrowthError.message}`);
+        } else if (!Array.isArray(nulled) || (nulled as any[]).length === 0) {
+          // update 未实际影响任何行时也按删除处理兜底，确保引用被清理
+          const { error: deleteGrowthError } = await this.client
+            .from('growth_records')
+            .delete()
+            .in('teacher_id', teacherRoleIds);
+          if (deleteGrowthError) throw new Error(`清理成长记录失败: ${deleteGrowthError.message}`);
+        }
+
+        const { error: dailyFeedbackError } = await this.client
+          .from('daily_feedbacks')
+          .delete()
           .in('teacher_id', teacherRoleIds);
-        if (nullifyError) throw new Error(`清空成长记录教师引用失败: ${nullifyError.message}`);
+        if (dailyFeedbackError) throw new Error(`清理每日反馈失败: ${dailyFeedbackError.message}`);
       }
     }
 
