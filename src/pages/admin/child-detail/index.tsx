@@ -518,6 +518,12 @@ export default function ChildDetailPage() {
     loadData()
   })
 
+  useEffect(() => {
+    const handler = () => { loadData() }
+    Taro.eventCenter.on('refreshChildParents', handler)
+    return () => { Taro.eventCenter.off('refreshChildParents', handler) }
+  }, [loadData])
+
   const handleDelete = () => {
     Taro.showModal({
       title: '确认删除',

@@ -113,6 +113,8 @@ export default function ReviewPage() {
         await loadRequests(false)
         // 刷新首页红点（使用全局事件通知）
         Taro.eventCenter.trigger('refreshPendingCount')
+        // 通知幼儿详情页刷新家长绑定
+        Taro.eventCenter.trigger('refreshChildParents')
       } else {
         Taro.showToast({ title: res.data?.msg || '操作失败', icon: 'none' })
       }
