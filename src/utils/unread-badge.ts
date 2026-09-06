@@ -7,13 +7,14 @@ import { notificationApi } from './api'
  * 入参当前角色 id；无角色或 count=0 时清空角标
  * custom tabBar 下不再使用 Taro.setTabBarBadge，改为写入全局 store 状态
  */
-export async function refreshUnreadBadge(userRoleId?: string) {
+export async function refreshUnreadBadge(userRoleId?: string, childId?: string) {
   try {
     if (!userRoleId) {
       useAppStore.getState().setUnreadCount(0)
       return
     }
-    const res = await notificationApi.unreadCount(userRoleId)
+    // childId：超管代理家长场景指定幼儿（后端按 agent_child_id 过滤）
+    const res = await notificationApi.unreadCount(userRoleId, childId || undefined)
     const count = res?.data?.count ?? 0
     useAppStore.getState().setUnreadCount(count)
   } catch (err) {

@@ -171,8 +171,12 @@ export const notificationApi = {
   remove: (id: string, operatorRoleId?: string) =>
     request({ url: `/api/notifications/${id}`, method: 'DELETE', data: operatorRoleId ? { operator_role_id: operatorRoleId } : undefined }),
 
-  markRead: (id: string, userRoleId: string) =>
-    request({ url: `/api/notifications/${id}/read`, method: 'POST', data: { user_role_id: userRoleId } }),
+  markRead: (id: string, userRoleId: string, childId?: string) =>
+    request({
+      url: `/api/notifications/${id}/read`,
+      method: 'POST',
+      data: childId ? { user_role_id: userRoleId, agent_child_id: childId } : { user_role_id: userRoleId },
+    }),
 
   revoke: (id: string) =>
     request({ url: `/api/notifications/${id}/revoke`, method: 'POST' }),
@@ -181,8 +185,12 @@ export const notificationApi = {
     request({ url: '/api/notifications/stats', method: 'GET' }),
 
   // 底部导航未读数（当前角色未读且通知仍 published）
-  unreadCount: (userRoleId: string) =>
-    request({ url: '/api/notifications/unread-count', method: 'GET', data: { user_role_id: userRoleId } }),
+  unreadCount: (userRoleId: string, childId?: string) =>
+    request({
+      url: '/api/notifications/unread-count',
+      method: 'GET',
+      data: childId ? { user_role_id: userRoleId, agent_child_id: childId } : { user_role_id: userRoleId },
+    }),
 
   // 图片上传（base64 字符串 + 文件名）
   uploadImage: (data: { image: string; name?: string }) =>

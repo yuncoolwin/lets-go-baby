@@ -28,7 +28,7 @@ interface NotificationItem {
 }
 
 export default function MessagesPage() {
-  const { currentRole, children } = useAppStore()
+  const { currentRole, children, agentChildId } = useAppStore()
   const isParent = currentRole?.role_type === 'parent'
 
   const [receivedList, setReceivedList] = useState<NotificationItem[]>([])
@@ -39,7 +39,7 @@ export default function MessagesPage() {
   useDialogBack(detailOpen, () => setDetailOpen(false))
 
   useDidShow(() => {
-    if (currentRole?.id) refreshUnreadBadge(currentRole.id)
+    if (currentRole?.id) refreshUnreadBadge(currentRole.id, agentChildId || undefined)
   })
 
   useEffect(() => {
@@ -49,7 +49,11 @@ export default function MessagesPage() {
   const loadReceived = async () => {
     setLoading(true)
     try {
-      const res = await notificationApi.list({ scope: 'received', user_role_id: currentRole?.id })
+      const res = await notificationApi.list({
+        scope: 'received',
+        user_role_id: currentRole?.id,
+        ...(agentChildId ? { agent_child_id: agentChildId } : {}),
+      })
       console.log('[Messages] received:', res)
       setReceivedList(res?.data?.list || [])
     } catch (err) {
@@ -89,12 +93,12 @@ export default function MessagesPage() {
     setDetailOpen(true)
     if (!item.is_read) {
       try {
-        await notificationApi.markRead(item.id, currentRole?.id || '')
+        await notificationApi.markRead(item.id, currentRole?.id || '', agentChildId || undefined)
         setReceivedList((prev) =>
           prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
         )
         setDetailItem((prev) => (prev && prev.id === item.id ? { ...prev, is_read: true } : prev))
-        refreshUnreadBadge(currentRole?.id)
+        refreshUnreadBadge(currentRole?.id, agentChildId || undefined)
       } catch (err) {
         console.error('[Messages] markRead error:', err)
       }

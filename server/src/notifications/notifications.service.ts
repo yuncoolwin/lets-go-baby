@@ -61,6 +61,29 @@ export class NotificationsService {
   }
 
   /**
+   * 判断 JWT 用户是否 superadmin
+   */
+  private async isSuperadminUser(userId: string): Promise<boolean> {
+    const roles = await this.authz.getUserRoles(userId);
+    return roles.some((r) => r.role_type === 'superadmin');
+  }
+
+  /**
+   * 根据单个幼儿 id 查其全部家长的家长角色 id（parent_role_id）
+   * 口径：parent_child_relations.status = 'active'
+   * 超管代理家长模式按此解析真实家长角色，替代前端伪造的 agent_ 假 id
+   */
+  private async getParentRoleIdsByChildId(childId: string): Promise<string[]> {
+    if (!childId) return [];
+    const { data } = await this.client
+      .from('parent_child_relations')
+      .select('parent_role_id')
+      .eq('child_id', childId)
+      .eq('status', 'active');
+    return [...new Set((data || []).map((r) => r.parent_role_id).filter(Boolean))];
+  }
+
+  /**
    * 根据角色 id 查询角色
    */
   private async getRole(roleId: string) {
@@ -356,6 +379,7 @@ export class NotificationsService {
       keyword?: string;
       scope?: string;
       user_role_id?: string;
+      agent_child_id?: string;
     },
   ) {
     const page = Number(query.page) || 1;
@@ -364,6 +388,15 @@ export class NotificationsService {
     const to = from + pageSize - 1;
 
     if (query.scope === 'received') {
+      // 超管代理家长模式：按幼儿维度解析真实家长角色，替代前端伪造的 agent_ 假 id
+      if (query.agent_child_id && (await this.isSuperadminUser(userId))) {
+        const roleIds = await this.getParentRoleIdsByChildId(query.agent_child_id);
+        if (!roleIds.length) {
+          console.log('[Notifications] 代理态：幼儿未绑定家长', query.agent_child_id);
+          return { list: [], total: 0, page, page_size: pageSize, total_pages: 0 };
+        }
+        return this.findReceived(roleIds, query, page, pageSize, from, to);
+      }
       const roleIds = await this.resolveRoleIds(userId, query.user_role_id);
       return this.findReceived(roleIds, query, page, pageSize, from, to);
     }
@@ -816,8 +849,13 @@ export class NotificationsService {
   /**
    * 标记已读
    */
-  async markRead(userId: string, notificationId: string, agentRoleId?: string) {
-    const roleIds = await this.resolveRoleIds(userId, agentRoleId);
+  async markRead(userId: string, notificationId: string, agentRoleId?: string, agentChildId?: string) {
+    let roleIds: string[];
+    if (agentChildId && (await this.isSuperadminUser(userId))) {
+      roleIds = await this.getParentRoleIdsByChildId(agentChildId);
+    } else {
+      roleIds = await this.resolveRoleIds(userId, agentRoleId);
+    }
     if (!roleIds.length) return { success: true };
 
     const { error } = await this.client
@@ -913,11 +951,19 @@ export class NotificationsService {
   /**
    * 未读数：当前角色未读且通知仍为 published 的数量
    */
-  async getUnreadCount(userId: string, agentRoleId?: string) {
+  async getUnreadCount(userId: string, agentRoleId?: string, agentChildId?: string) {
     const roles = await this.authz.getUserRoles(userId);
     const isSuperadmin = roles.some((r) => r.role_type === 'superadmin');
-    // 代理态（超管指定身份）：仅按目标角色统计，跳过家长成长记录累计
-    const roleIds = agentRoleId && isSuperadmin ? [agentRoleId] : await this.getRoleIdsForUser(userId);
+    // 代理态（超管指定身份/幼儿）：仅按目标角色统计，跳过家长成长记录累计
+    const agentMode = isSuperadmin && (!!agentRoleId || !!agentChildId);
+    let roleIds: string[];
+    if (agentChildId && isSuperadmin) {
+      roleIds = await this.getParentRoleIdsByChildId(agentChildId);
+    } else if (agentRoleId && isSuperadmin) {
+      roleIds = [agentRoleId];
+    } else {
+      roleIds = await this.getRoleIdsForUser(userId);
+    }
     if (!roleIds.length) return { count: 0 };
 
     const { data: unreadRecipients, error } = await this.client
@@ -943,7 +989,7 @@ export class NotificationsService {
 
     // 家长角色：追加成长记录未读数（多家长角色累计；代理态下跳过）
     let growthUnread = 0;
-    if (!(agentRoleId && isSuperadmin)) {
+    if (!agentMode) {
       const parentRoleIds = roles.filter((r) => r.role_type === 'parent').map((r) => r.id).filter(Boolean);
       for (const parentRoleId of parentRoleIds) {
         const { data: relations } = await this.client

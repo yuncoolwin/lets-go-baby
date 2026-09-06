@@ -42,6 +42,7 @@ export class NotificationsController {
       scope?: string;
       user_role_id?: string;
       author_id?: string;
+      agent_child_id?: string;
     },
   ) {
     const userId = (req as any).user?.userId;
@@ -65,9 +66,13 @@ export class NotificationsController {
 
   @Get('unread-count')
   @HttpCode(200)
-  async unreadCount(@Req() req: Request, @Query('user_role_id') userRoleId?: string) {
+  async unreadCount(
+    @Req() req: Request,
+    @Query('user_role_id') userRoleId?: string,
+    @Query('agent_child_id') agentChildId?: string,
+  ) {
     const userId = (req as any).user?.userId;
-    const data = await this.notificationsService.getUnreadCount(userId, userRoleId);
+    const data = await this.notificationsService.getUnreadCount(userId, userRoleId, agentChildId);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
@@ -110,9 +115,14 @@ export class NotificationsController {
 
   @Post(':id/read')
   @HttpCode(200)
-  async markRead(@Req() req: Request, @Param('id') id: string, @Body('user_role_id') userRoleId?: string) {
+  async markRead(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body('user_role_id') userRoleId?: string,
+    @Body('agent_child_id') agentChildId?: string,
+  ) {
     const userId = (req as any).user?.userId;
-    const data = await this.notificationsService.markRead(userId, id, userRoleId);
+    const data = await this.notificationsService.markRead(userId, id, userRoleId, agentChildId);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
