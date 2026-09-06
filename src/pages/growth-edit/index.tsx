@@ -41,8 +41,22 @@ const loadDrafts = (): any[] => {
 }
 
 const DIET_OPTIONS = ['一般', '正常', '很好']
-const NAP_OPTIONS = ['半小时以下', '1小时-2小时', '2小时']
+const NAP_OPTIONS = ['半小时内', '1小时内', '2小时内', '2小时以上']
 const STOOL_OPTIONS = ['有', '无']
+const STOOL_TIMES_OPTIONS = ['1次', '2次', '多次']
+
+const formatStool = (s: string, t: string) => (s === '有' ? `有（${t}）` : s)
+const parseStool = (v: string, setStatus: (s: string) => void, setTimes: (t: string) => void) => {
+  if (!v) { setStatus(''); setTimes(''); return }
+  if (v.startsWith('有')) {
+    const m = v.match(/有（(.+?)）/)
+    setStatus('有')
+    setTimes(m ? m[1] : '')
+  } else {
+    setStatus(v)
+    setTimes('')
+  }
+}
 
 const saveDrafts = (drafts: any[]) => {
   Taro.setStorageSync(DRAFT_KEY, drafts)
@@ -120,6 +134,7 @@ export default function GrowthEditPage() {
   const [dietWater, setDietWater] = useState('')
   const [napStatus, setNapStatus] = useState('')
   const [stoolStatus, setStoolStatus] = useState('')
+  const [stoolTimes, setStoolTimes] = useState('')
   const [dateOverlayVisible, setDateOverlayVisible] = useState(false)
 
   // 教师端本班幼儿 id 集合（用于在该课程在读幼儿基础上过滤本班）
@@ -188,7 +203,7 @@ export default function GrowthEditPage() {
         setDietSoup(data.diet_soup || '')
         setDietWater(data.diet_water || '')
         setNapStatus(data.nap_status || '')
-        setStoolStatus(data.stool_status || '')
+        parseStool(data.stool_status || '', setStoolStatus, setStoolTimes)
         if (data.course_name) {
           const courseList = extractList(await courseApi.list())
           const matched = courseList.find((c) => c.name === data.course_name)
@@ -215,7 +230,7 @@ export default function GrowthEditPage() {
       setDietSoup(draft.diet_soup || '')
       setDietWater(draft.diet_water || '')
       setNapStatus(draft.nap_status || '')
-      setStoolStatus(draft.stool_status || '')
+      parseStool(draft.stool_status || '', setStoolStatus, setStoolTimes)
       if (draft.record_date) setRecordDate(draft.record_date)
     }
   }
@@ -315,7 +330,7 @@ export default function GrowthEditPage() {
       diet_soup: dietSoup,
       diet_water: dietWater,
       nap_status: napStatus,
-      stool_status: stoolStatus,
+      stool_status: formatStool(stoolStatus, stoolTimes),
       updated_at: new Date().toISOString(),
     }
     const idx = drafts.findIndex((d) => d.id === draft.id)
@@ -353,7 +368,7 @@ export default function GrowthEditPage() {
             ...(dietSoup ? { diet_soup: dietSoup } : {}),
             ...(dietWater ? { diet_water: dietWater } : {}),
             ...(napStatus ? { nap_status: napStatus } : {}),
-            ...(stoolStatus ? { stool_status: stoolStatus } : {}),
+            ...(stoolStatus ? { stool_status: formatStool(stoolStatus, stoolTimes) } : {}),
           },
           currentRole?.id,
         )
@@ -367,7 +382,7 @@ export default function GrowthEditPage() {
             ...(dietSoup ? { diet_soup: dietSoup } : {}),
             ...(dietWater ? { diet_water: dietWater } : {}),
             ...(napStatus ? { nap_status: napStatus } : {}),
-            ...(stoolStatus ? { stool_status: stoolStatus } : {}),
+            ...(stoolStatus ? { stool_status: formatStool(stoolStatus, stoolTimes) } : {}),
           },
           currentRole?.id,
         )
@@ -444,7 +459,6 @@ export default function GrowthEditPage() {
               ['餐食汤', dietSoup, setDietSoup, DIET_OPTIONS],
               ['日常喝水', dietWater, setDietWater, DIET_OPTIONS],
               ['午睡情况', napStatus, setNapStatus, NAP_OPTIONS],
-              ['大便情况', stoolStatus, setStoolStatus, STOOL_OPTIONS],
             ] as [string, string, (v: string) => void, string[]][]).map(([label, value, setter, options]) => (
               <View key={label} className="w-[31%] m-[1%]">
                 <Text className="block text-sm text-muted-foreground mb-2">{label}</Text>
@@ -460,6 +474,36 @@ export default function GrowthEditPage() {
               </View>
             ))}
           </View>
+        </View>
+
+        {/* 大便情况（两级选择） */}
+        <View className="flex flex-row flex-wrap">
+          <View key="stool" className="w-[31%] m-[1%]">
+            <Text className="block text-sm text-muted-foreground mb-2">大便情况</Text>
+            <View className="bg-gray-50 rounded-xl border border-gray-200 px-4 py-3">
+              <Picker
+                mode="selector"
+                range={STOOL_OPTIONS}
+                onChange={(e) => setStoolStatus(STOOL_OPTIONS[Number(e.detail.value)])}
+              >
+                <Text className="block text-base text-foreground truncate">{stoolStatus || '请选择'}</Text>
+              </Picker>
+            </View>
+          </View>
+          {stoolStatus === '有' && (
+            <View key="stool-times" className="w-[31%] m-[1%]">
+              <Text className="block text-sm text-muted-foreground mb-2">次数</Text>
+              <View className="bg-gray-50 rounded-xl border border-gray-200 px-4 py-3">
+                <Picker
+                  mode="selector"
+                  range={STOOL_TIMES_OPTIONS}
+                  onChange={(e) => setStoolTimes(STOOL_TIMES_OPTIONS[Number(e.detail.value)])}
+                >
+                  <Text className="block text-base text-foreground truncate">{stoolTimes || '请选择'}</Text>
+                </Picker>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* 图片 */}

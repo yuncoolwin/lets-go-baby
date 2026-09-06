@@ -389,21 +389,46 @@ export class AttendanceService {
   /**
    * 新增临时来园（drop_in_records），教师仅限本班
    */
-  async addDropIn(userId: string, dto: { child_id: string; class_id: string; course_type: string; date: string }) {
+  async addDropIn(userId: string, dto: { child_id?: string; new_child_name?: string; class_id: string; course_type: string; date: string }) {
     const denied = await this.canAccessClass(userId, dto.class_id);
     if (denied) return { code: 403, msg: denied };
+
+    // 未建档新幼儿：优先复用已存在的临时档案，否则新建 is_temp 档案
+    let childId = dto.child_id;
+    if (!childId && dto.new_child_name && dto.new_child_name.trim()) {
+      const name = dto.new_child_name.trim();
+      const { data: club } = await this.client
+        .from('children')
+        .select('id')
+        .eq('is_temp', true)
+        .eq('name', name)
+        .eq('status', 'active')
+        .limit(1);
+      if (club && club.length > 0) {
+        childId = club[0].id;
+      } else {
+        const { data: created, error: cErr } = await this.client
+          .from('children')
+          .insert({ name, gender: 'unknown', status: 'active', is_temp: true })
+          .select('id')
+          .single();
+        if (cErr || !created?.id) return { code: 500, msg: `创建临时档案失败: ${cErr?.message || '未知错误'}` };
+        childId = created.id;
+      }
+    }
+    if (!childId) return { code: 400, msg: 'child_id 与 new_child_name 不能同时为空' };
 
     const { data: dup } = await this.client
       .from('drop_in_records')
       .select('id')
-      .eq('child_id', dto.child_id)
+      .eq('child_id', childId)
       .eq('date', dto.date)
       .eq('course_type', dto.course_type)
       .limit(1);
     if (dup && dup.length > 0) return { code: 409, msg: '该幼儿当天已添加过此课程' };
 
     const record = {
-      child_id: dto.child_id,
+      child_id: childId,
       class_id: dto.class_id,
       course_type: dto.course_type,
       date: dto.date,

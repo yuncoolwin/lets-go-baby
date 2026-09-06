@@ -18,6 +18,7 @@ export interface CreateChildDto {
   start_date?: string;
   end_date?: string;
   custom_days?: string;
+  is_temp?: boolean;
 }
 
 export interface UpdateChildDto {
@@ -38,6 +39,7 @@ export interface UpdateChildDto {
   start_date?: string;
   end_date?: string;
   custom_days?: string;
+  is_temp?: boolean;
 }
 
 export interface ChildQueryDto {

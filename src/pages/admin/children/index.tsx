@@ -36,6 +36,7 @@ interface Child {
   parent_name: string | null
   allergies: string | null
   status: string
+  is_temp?: boolean
   teacher_names: string[]
   created_at: string
   enrollments: Enrollment[]
@@ -183,6 +184,11 @@ export default function ChildrenManagePage() {
                     <Text className="text-sm text-muted-foreground">
                       {calculateAge(child.birth_date)}
                     </Text>
+                    {child.is_temp && (
+                      <Badge className="bg-orange-100 text-orange-700 text-xs">
+                        <Text className="text-xs">临时</Text>
+                      </Badge>
+                    )}
                     <Badge className={`${statusMap[child.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
                       <Text className="text-xs">{statusMap[child.status]?.label || child.status}</Text>
                     </Badge>

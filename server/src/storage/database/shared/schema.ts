@@ -307,6 +307,7 @@ export const children = pgTable("children", {
 	customDays: varchar("custom_days", { length: 20 }).default(''),
 	paymentAmount: numeric("payment_amount", { precision: 10, scale:  2 }).default('0'),
 	paymentChannel: varchar("payment_channel", { length: 20 }).default(''),
+	isTemp: boolean("is_temp").default(false).notNull(),
 }, (table) => [
 	index("children_family_id_idx").using("btree", table.familyId.asc().nullsLast().op("text_ops")),
 	index("children_name_idx").using("btree", table.name.asc().nullsLast().op("text_ops")),

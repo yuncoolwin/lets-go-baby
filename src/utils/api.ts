@@ -219,7 +219,7 @@ export const attendanceApi = {
 
 export const dropInApi = {
   // 新增临时来园
-  add: (data: { child_id: string; class_id: string; course_type: string; date: string }) =>
+  add: (data: { child_id?: string; new_child_name?: string; class_id: string; course_type: string; date: string }) =>
     request({ url: '/api/attendance/drop-in', method: 'POST', data }),
 
   // 按幼儿查询临时来园记录（date 倒序）

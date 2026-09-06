@@ -855,12 +855,16 @@ function DropInModal({
   const [courses, setCourses] = useState<Array<{ id: string; name: string }>>([])
   const [classList, setClassList] = useState<Array<{ id: string; name: string }>>([])
   const [pickedClassId, setPickedClassId] = useState('')
+  const [isNewChild, setIsNewChild] = useState(false)
+  const [newChildName, setNewChildName] = useState('')
 
   useEffect(() => {
     if (!visible) return
     setPickedId('')
     setActiveCourses([])
     setSubmitting(false)
+    setIsNewChild(false)
+    setNewChildName('')
     ;(async () => {
       try {
         const url = '/api/children'
@@ -905,6 +909,32 @@ function DropInModal({
   }
 
   const submit = async () => {
+    if (isNewChild) {
+      if (!newChildName.trim()) {
+        Taro.showToast({ title: '请输入幼儿姓名', icon: 'none' })
+        return
+      }
+      if (!pickedClassId) {
+        Taro.showToast({ title: '缺少班级信息', icon: 'none' })
+        return
+      }
+      setSubmitting(true)
+      try {
+        const res: any = await dropInApi.add({ new_child_name: newChildName.trim(), class_id: pickedClassId, course_type: courseType, date })
+        if (res.code === 200) {
+          Taro.showToast({ title: '已添加临时来园', icon: 'success' })
+          onSuccess()
+          onClose()
+        } else {
+          Taro.showToast({ title: res.msg || '添加失败', icon: 'none' })
+        }
+      } catch {
+        Taro.showToast({ title: '添加失败', icon: 'none' })
+      } finally {
+        setSubmitting(false)
+      }
+      return
+    }
     if (!pickedId) {
       Taro.showToast({ title: '请选择幼儿', icon: 'none' })
       return
@@ -950,17 +980,36 @@ function DropInModal({
           <Text className="text-gray-400 text-lg" onClick={onClose}>×</Text>
         </View>
 
-                {/* 幼儿搜索 */}
-                <View className="mb-3">
-                  <Input
-                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                    placeholder="搜索幼儿姓名"
-                    value={searchKw}
-                    onInput={(e) => setSearchKw(e.detail.value)}
-                  />
+                {/* 新增入口：切换未建档新幼儿 */}
+                <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }} className="mb-2">
+                  <Text className="block text-xs text-gray-500">范围</Text>
+                  <View style={{ display: 'flex', flexDirection: 'row', gap: '8px' }}>
+                    <Text
+                      className={`text-xs rounded-full px-3 py-1 ${!isNewChild ? 'bg-[#E8651A] text-white' : 'bg-gray-100 text-gray-600'}`}
+                      onClick={() => setIsNewChild(false)}
+                    >
+                      已有幼儿
+                    </Text>
+                    <Text
+                      className={`text-xs rounded-full px-3 py-1 ${isNewChild ? 'bg-[#E8651A] text-white' : 'bg-gray-100 text-gray-600'}`}
+                      onClick={() => setIsNewChild(true)}
+                    >
+                      未建档新幼儿
+                    </Text>
+                  </View>
                 </View>
 
+        {!isNewChild ? (
+        <>
         <Text className="block text-xs text-gray-500 mt-3 mb-1">选择幼儿</Text>
+        <View className="mb-3">
+          <Input
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            placeholder="搜索幼儿姓名"
+            value={searchKw}
+            onInput={(e) => setSearchKw(e.detail.value)}
+          />
+        </View>
         <ScrollView scrollY style={{ maxHeight: '220px' }} className="border border-gray-100 rounded-lg">
           <View className="flex flex-wrap p-1" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
             {allChildren.filter(c => c.name && c.name.includes(searchKw)).filter(c => c.id !== childId).map(c => (
@@ -977,6 +1026,21 @@ function DropInModal({
             )}
           </View>
         </ScrollView>
+        </>
+        ) : (
+        <>
+        <Text className="block text-xs text-gray-500 mt-3 mb-1">输入新幼儿姓名</Text>
+        <View className="border border-gray-200 rounded-lg px-3 py-2">
+          <Input
+            className="text-sm bg-transparent"
+            style={{ width: '100%' }}
+            placeholder="请输入姓名"
+            value={newChildName}
+            onInput={(e) => setNewChildName(e.detail.value)}
+          />
+        </View>
+        </>
+        )}
 
         <Text className="block text-xs text-gray-500 mt-3 mb-1">选择所在班级</Text>
         <ScrollView scrollY style={{ maxHeight: '96px' }} className="border border-gray-100 rounded-lg">
@@ -1020,10 +1084,10 @@ function DropInModal({
         </View>
 
         <View
-          className={`rounded-full py-2 mt-4 text-center ${submitting || !pickedId ? 'bg-gray-200' : 'bg-[#E8651A]'}`}
-          onClick={submitting || !pickedId ? undefined : submit}
+          className={`rounded-full py-2 mt-4 text-center ${submitting || (isNewChild ? !newChildName.trim() : !pickedId) ? 'bg-gray-200' : 'bg-[#E8651A]'}`}
+          onClick={submitting || (isNewChild ? !newChildName.trim() : !pickedId) ? undefined : submit}
         >
-          <Text className={`block text-sm font-medium ${submitting || !pickedId ? 'text-gray-400' : 'text-white'}`}>
+          <Text className={`block text-sm font-medium ${submitting || (isNewChild ? !newChildName.trim() : !pickedId) ? 'text-gray-400' : 'text-white'}`}>
             {submitting ? '提交中...' : '确认添加'}
           </Text>
         </View>

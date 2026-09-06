@@ -110,7 +110,7 @@ export class AttendanceController {
   @HttpCode(200)
   async addDropIn(
     @Req() req: Request,
-    @Body() body: { child_id: string; class_id: string; course_type: string; date: string },
+    @Body() body: { child_id?: string; new_child_name?: string; class_id: string; course_type: string; date: string },
   ) {
     const userId = (req as any).user?.userId;
     const data = await this.attendanceService.addDropIn(userId, body);

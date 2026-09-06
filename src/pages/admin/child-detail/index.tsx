@@ -30,6 +30,7 @@ interface ChildDetail {
   health_info: string | null
   allergies: string | null
   status: string
+  is_temp?: boolean
   course_type: string | null
   enrollment_duration: string | null
   custom_days: string | null
@@ -206,6 +207,7 @@ export default function ChildDetailPage() {
         parent_phone: editParentPhone.trim(),
         allergies: editAllergies.trim(),
         health_info: editHealthInfo.trim(),
+        ...(child?.is_temp ? { is_temp: false } : {}),
       }
       const res = await childrenApi.update(id!, payload, { operator_user_id: userId ?? undefined, operator_role_id: currentRole?.id })
       if (res.code === 200) {
@@ -593,6 +595,11 @@ export default function ChildDetailPage() {
                   <Badge className={`${statusMap[child.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
                     <Text className="text-xs">{statusMap[child.status]?.label || child.status}</Text>
                   </Badge>
+                  {child.is_temp && (
+                    <Badge className="bg-orange-100 text-orange-700 text-xs flex-shrink-0">
+                      <Text className="text-xs">临时档案</Text>
+                    </Badge>
+                  )}
                 </View>
                 <Text className="block text-sm text-muted-foreground mt-1">
                   {child.gender === 'male' ? '男' : '女'} · {calculateAge(child.birth_date)}

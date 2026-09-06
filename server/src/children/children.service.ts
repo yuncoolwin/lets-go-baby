@@ -120,6 +120,7 @@ export class ChildrenService {
         start_date: dto.start_date || null,
         end_date: dto.end_date || null,
         custom_days: dto.custom_days || null,
+        is_temp: (dto as any).is_temp ?? false,
       })
       .select()
       .single();
@@ -474,6 +475,7 @@ export class ChildrenService {
       'course_type', 'enrollment_duration', 'start_date', 'end_date',
       'custom_days', 'date_calc_rule',
       'payment_amount', 'payment_channel', 'payment_status',
+      'is_temp',
     ] as const;
 
     const allowedFields: readonly string[] = level === 'teacher' ? teacherAllowedFields : adminAllowedFields;
