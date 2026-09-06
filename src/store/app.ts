@@ -403,8 +403,18 @@ export const useAppStore = create<AppStore>()(
       })
       console.log('[Auth] fetchUserInfo response:', res.data)
 
-      const data = res.data?.data
-      if (data) {
+      const statusCode = (res as any)?.statusCode
+      const body = (res as any).data
+      const data = body?.data
+
+      // 请求结束后无论成功失败一律复位 isLoading（并在这条主流程统一处理登录失效）
+      if (statusCode === 401 || !data) {
+        console.warn('[Auth] fetchUserInfo 未登录或无用户数据，清空登录态并跳转登录页', { statusCode, body })
+        get().logout()
+        Taro.reLaunch({ url: '/pages/login/index' })
+        return
+      }
+      {
         const roles = (data.roles || []) as UserRole[]
         const children = (data.children || []) as ChildInfo[]
         // 保留当前已选择的角色，不覆盖用户手动切换的角色
