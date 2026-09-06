@@ -1068,6 +1068,7 @@ export class AdminService {
       return { code: 403, msg: '无权限', data: null };
     }
 
+    try {
     // 1. 查询该用户全部角色 id（含 role_type），后续关联数据清理统一使用该列表
     const { data: allRoles, error: allRolesError } = await this.client
       .from('user_roles')
@@ -1174,7 +1175,16 @@ export class AdminService {
       }
     }
 
-    // 4. 删除 user_roles 再删除 users
+    // 4. 清理通知接收人引用（user_role_id 属于该用户任意角色）
+    if (allRoleIds.length > 0) {
+      const { error: notificationError } = await this.client
+        .from('notification_recipients')
+        .delete()
+        .in('user_role_id', allRoleIds);
+      if (notificationError) throw new Error(`清理通知接收人失败: ${notificationError.message}`);
+    }
+
+    // 5. 删除 user_roles 再删除 users
     const { data: victim, error: victimError } = await this.client
       .from('users')
       .select('nickname')
@@ -1207,6 +1217,9 @@ export class AdminService {
     });
 
     return { code: 200, msg: 'success', data: { success: true } };
+    } catch (err: any) {
+      return { code: 500, msg: '删除失败: ' + (err?.message || '未知错误'), data: null };
+    }
   }
 
   // 查询操作日志（超管）
