@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import * as crypto from 'crypto';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { AuthzService } from '@/auth/authz.service';
@@ -15,6 +16,8 @@ const SIGNED_URL_TTL = 60 * 60 * 24;
 const VIDEO_SIGNED_URL_TTL = 24 * 60 * 60 * 7;
 /** 视频原文件上限：10MB */
 const VIDEO_SIZE_MAX = 10 * 1024 * 1024;
+/** 成长记录媒体保留天数：超过即清理文件并标记过期 */
+const MEDIA_RETENTION_DAYS = 60;
 
 @Injectable()
 export class GrowthService {
@@ -510,8 +513,15 @@ export class GrowthService {
     }
     if (dto.title !== undefined) updateData.title = dto.title;
     if (dto.content !== undefined) updateData.content = dto.content;
-    if (dto.photo_urls !== undefined) updateData.photo_urls = dto.photo_urls;
-    if (dto.video_urls !== undefined) updateData.video_urls = dto.video_urls;
+    if (dto.photo_urls !== undefined) {
+      updateData.photo_urls = dto.photo_urls;
+      // 重新提交了非空照片即清除过期标记
+      if (Array.isArray(dto.photo_urls) && dto.photo_urls.length > 0) updateData.photo_expired = false;
+    }
+    if (dto.video_urls !== undefined) {
+      updateData.video_urls = dto.video_urls;
+      if (Array.isArray(dto.video_urls) && dto.video_urls.length > 0) updateData.video_expired = false;
+    }
     if (dto.record_date !== undefined) updateData.record_date = dto.record_date;
     if (dto.course_name !== undefined) updateData.course_name = dto.course_name;
     if (dto.diet_overall !== undefined) updateData.diet_overall = dto.diet_overall;
@@ -566,5 +576,77 @@ export class GrowthService {
     if (error) return { error: true, code: 500, msg: `删除失败: ${error.message}` };
     await this.logAudit({ userId, action: 'growth_delete', targetType: 'growth', targetId: id, name: existing?.title || null, level: 'warn' });
     return { id };
+  }
+
+  /**
+   * 每日 03:00 清理超过保留期（60 天）的成长记录媒体文件。
+   * 照片与视频各自独立判断、独立清空并标记过期；单条失败仅记日志，不中断。
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  async cleanupExpiredGrowthMedia() {
+    // 截止日期 = 上海时区今天往前推 N 天（record_date 为 YYYY-MM-DD）
+    const cutoffMs = Date.now() + 8 * 60 * 60 * 1000 - MEDIA_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+    const cutoff = new Date(cutoffMs).toISOString().slice(0, 10);
+
+    const { data: records, error } = await this.client
+      .from('growth_records')
+      .select('id, record_date, photo_urls, video_urls')
+      .lt('record_date', cutoff);
+
+    if (error) {
+      console.error('[Growth] cleanupExpiredGrowthMedia query error:', error.message);
+      return;
+    }
+
+    const candidates = (records || []).filter(
+      (r) => (r.photo_urls && r.photo_urls.length > 0) || (r.video_urls && r.video_urls.length > 0),
+    );
+    if (!candidates.length) return;
+
+    for (const record of candidates) {
+      const photoPaths = this.extractStoragePaths(record.photo_urls || []);
+      const videoPaths = this.extractStoragePaths(record.video_urls || []);
+      const updateData: Record<string, any> = {};
+
+      // 照片：删除文件成功后清空数组并标记过期（失败仅告警，保留原数据下次再试）
+      if (photoPaths.length) {
+        try {
+          const { error: rmErr } = await this.client.storage.from('growth').remove(photoPaths);
+          if (rmErr) {
+            console.error(`[Growth] cleanup photos remove error (${record.id}):`, rmErr.message);
+          } else {
+            updateData.photo_urls = [];
+            updateData.photo_expired = true;
+          }
+        } catch (e) {
+          console.error(`[Growth] cleanup photos error (${record.id}):`, (e as Error)?.message);
+        }
+      }
+
+      // 视频：与照片独立
+      if (videoPaths.length) {
+        try {
+          const { error: rmErr } = await this.client.storage.from('growth').remove(videoPaths);
+          if (rmErr) {
+            console.error(`[Growth] cleanup videos remove error (${record.id}):`, rmErr.message);
+          } else {
+            updateData.video_urls = [];
+            updateData.video_expired = true;
+          }
+        } catch (e) {
+          console.error(`[Growth] cleanup videos error (${record.id}):`, (e as Error)?.message);
+        }
+      }
+
+      if (Object.keys(updateData).length === 0) continue;
+
+      const { error: updErr } = await this.client
+        .from('growth_records')
+        .update(updateData)
+        .eq('id', record.id);
+      if (updErr) {
+        console.error(`[Growth] cleanup update record error (${record.id}):`, updErr.message);
+      }
+    }
   }
 }

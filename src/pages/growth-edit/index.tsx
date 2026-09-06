@@ -116,6 +116,8 @@ export default function GrowthEditPage() {
   const [content, setContent] = useState('')
   const [images, setImages] = useState<string[]>([])
   const [videoUrls, setVideoUrls] = useState<string[]>([])
+  const [photoExpired, setPhotoExpired] = useState(false)
+  const [videoExpired, setVideoExpired] = useState(false)
   const [videoUploading, setVideoUploading] = useState(false)
   const [recordId, setRecordId] = useState('')
   const [draftId, setDraftId] = useState('')
@@ -195,8 +197,10 @@ export default function GrowthEditPage() {
       if (data) {
         setTitle(data.title || '')
         setContent(data.content || '')
-        setImages(data.photo_urls || [])
-        setVideoUrls(data.video_urls || [])
+        setImages(data.photo_expired ? [] : (data.photo_urls || []))
+        setVideoUrls(data.video_expired ? [] : (data.video_urls || []))
+        setPhotoExpired(!!data.photo_expired)
+        setVideoExpired(!!data.video_expired)
         setSelectedChildId(data.child_id || '')
         setSelectedChildName(data.child_name || '')
         setRecordDate(data.record_date || formatToday())
@@ -228,6 +232,8 @@ export default function GrowthEditPage() {
       setContent(draft.content || '')
       setImages(draft.photo_urls || [])
       setVideoUrls(draft.video_urls || [])
+      setPhotoExpired(false)
+      setVideoExpired(false)
       setDietOverall(draft.diet_overall || '')
       setDietVegetable(draft.diet_vegetable || '')
       setDietMeat(draft.diet_meat || '')
@@ -299,6 +305,7 @@ export default function GrowthEditPage() {
             const upload = await growthApi.uploadImage({ image: base64, name: 'growth.jpg' })
             const url = upload?.data?.url
             if (url) {
+              setPhotoExpired(false)
               setImages((prev) => [...prev, url])
             }
           } catch (err) {
@@ -360,6 +367,7 @@ export default function GrowthEditPage() {
           const upload = await growthApi.uploadVideo(tempFilePath)
           const url = upload?.data?.video_url
           if (url) {
+            setVideoExpired(false)
             setVideoUrls((prev) => [...prev, url])
           } else {
             Taro.showToast({ title: '视频上传失败', icon: 'none' })
@@ -593,6 +601,11 @@ export default function GrowthEditPage() {
                 <ImagePlus size={24} color="#999999" />
               </View>
             )}
+            {photoExpired && images.length === 0 && (
+              <View className="w-20 h-20 rounded-lg bg-gray-100 flex items-center justify-center">
+                <Text className="block text-xs text-gray-400">照片已过期</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -620,6 +633,11 @@ export default function GrowthEditPage() {
               >
                 <VideoIcon size={24} color="#999999" />
                 <Text className="block text-xs text-gray-400 mt-1">添加视频</Text>
+              </View>
+            )}
+            {videoExpired && videoUrls.length === 0 && (
+              <View className="w-24 h-24 rounded-lg bg-gray-100 flex items-center justify-center">
+                <Text className="block text-xs text-gray-400">视频已过期</Text>
               </View>
             )}
           </View>

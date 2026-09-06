@@ -19,6 +19,8 @@ interface GrowthRecord {
   content: string | null
   photo_urls: string[] | null
   video_urls: string[] | null
+  photo_expired?: boolean
+  video_expired?: boolean
   created_at: string
   teacher_name: string
   course_name?: string
@@ -188,7 +190,7 @@ export default function GrowthPage() {
                   )}
                 </View>
 
-                {record.photo_urls && record.photo_urls.length > 0 && (
+                {record.photo_urls && record.photo_urls.length > 0 && !record.photo_expired && (
                   <View className="flex flex-wrap gap-2 mt-3">
                     {record.photo_urls.map((url, idx) => (
                       <Image
@@ -201,12 +203,24 @@ export default function GrowthPage() {
                     ))}
                   </View>
                 )}
+                {record.photo_urls && record.photo_urls.length > 0 && record.photo_expired && (
+                  <View className="w-24 h-24 rounded-lg bg-gray-100 flex items-center justify-center mt-3">
+                    <Text className="block text-xs text-gray-400">照片已过期</Text>
+                  </View>
+                )}
 
-                {record.video_urls && record.video_urls.length > 0 && (
+                {record.video_urls && record.video_urls.length > 0 && !record.video_expired && (
                   <View className="space-y-2 mt-3">
                     {record.video_urls.map((url, idx) => (
                       <Video key={idx} src={url} controls className="w-full rounded-lg bg-black" style={{ height: '180px' }} />
                     ))}
+                  </View>
+                )}
+                {record.video_urls && record.video_urls.length > 0 && record.video_expired && (
+                  <View className="space-y-2 mt-3">
+                    <View className="w-full rounded-lg bg-gray-100 flex items-center justify-center" style={{ height: '120px' }}>
+                      <Text className="block text-xs text-gray-400">视频已过期</Text>
+                    </View>
                   </View>
                 )}
 
@@ -240,18 +254,28 @@ export default function GrowthPage() {
                 <Text className="block text-base text-foreground leading-relaxed whitespace-pre-wrap">
                   {detailRecord.content}
                 </Text>
-                {detailRecord.photo_urls && detailRecord.photo_urls.length > 0 && (
+                {detailRecord.photo_urls && detailRecord.photo_urls.length > 0 && !detailRecord.photo_expired && (
                   <View className="space-y-2">
                     {detailRecord.photo_urls.map((url, idx) => (
                       <Image key={idx} src={url} className="w-full rounded-lg" mode="widthFix" onClick={() => previewImage(detailRecord.photo_urls as string[], url)} />
                     ))}
                   </View>
                 )}
-                {detailRecord.video_urls && detailRecord.video_urls.length > 0 && (
+                {detailRecord.photo_urls && detailRecord.photo_urls.length > 0 && detailRecord.photo_expired && (
+                  <View className="w-full rounded-lg bg-gray-100 flex items-center justify-center" style={{ height: '140px' }}>
+                    <Text className="block text-xs text-gray-400">照片已过期</Text>
+                  </View>
+                )}
+                {detailRecord.video_urls && detailRecord.video_urls.length > 0 && !detailRecord.video_expired && (
                   <View className="space-y-2">
                     {detailRecord.video_urls.map((url, idx) => (
                       <Video key={idx} src={url} controls className="w-full rounded-lg bg-black" style={{ height: '180px' }} />
                     ))}
+                  </View>
+                )}
+                {detailRecord.video_urls && detailRecord.video_urls.length > 0 && detailRecord.video_expired && (
+                  <View className="w-full rounded-lg bg-gray-100 flex items-center justify-center" style={{ height: '140px' }}>
+                    <Text className="block text-xs text-gray-400">视频已过期</Text>
                   </View>
                 )}
                 <View className="flex justify-end pt-3">

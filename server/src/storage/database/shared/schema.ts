@@ -134,6 +134,8 @@ export const growthRecords = pgTable("growth_records", {
 	content: text(),
 	photoUrls: jsonb("photo_urls"),
 	videoUrls: jsonb("video_urls"),
+	photoExpired: boolean("photo_expired").default(false).notNull(),
+	videoExpired: boolean("video_expired").default(false).notNull(),
 	recordDate: date("record_date"),
 	courseName: varchar("course_name", { length: 200 }),
 	parentReadAt: timestamp("parent_read_at", { withTimezone: true, mode: 'string' }),

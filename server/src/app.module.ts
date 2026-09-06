@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from '@/app.controller';
 import { AppService } from '@/app.service';
 import { AuthController } from '@/auth/auth.controller';
@@ -33,7 +34,7 @@ import { GrowthController } from '@/growth/growth.controller';
 import { GrowthService } from '@/growth/growth.service';
 
 @Module({
-  imports: [],
+  imports: [ScheduleModule.forRoot()],
   controllers: [
     AppController,
     AuthController,
