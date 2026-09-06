@@ -739,32 +739,45 @@ export class AdminService {
       roleMap.set(role.user_id, list);
     });
 
-    // 查询 active 的家长绑定关系，用于过滤「有 parent 角色且有绑定」的用户
+    // 查询 active 的家长绑定关系
     const { data: relations, error: relationsError } = await this.client
       .from('parent_child_relations')
-      .select('parent_role_id, relationship, custom_relationship')
+      .select('parent_role_id, relationship, custom_relationship, child_id')
       .eq('status', 'active');
 
     if (relationsError) {
       throw new Error(`查询家长绑定关系失败: ${relationsError.message}`);
     }
 
-    // key: parent_role_id，value: 该绑定关系的 relationship / custom_relationship
-    const bindingRelationMap = new Map<string, { relationship?: string; custom_relationship?: string | null }>();
+    // key: parent_role_id，value: 该 parent 角色下的所有绑定关系（每条含 relationship / custom_relationship / child_id）
+    const bindingRelationMap = new Map<string, { relationship?: string; custom_relationship?: string | null; child_id?: string | null }[]>();
     (relations || []).forEach((rel: any) => {
-      bindingRelationMap.set(String(rel.parent_role_id), {
+      const list = bindingRelationMap.get(String(rel.parent_role_id)) || [];
+      list.push({
         relationship: rel.relationship,
         custom_relationship: rel.custom_relationship,
+        child_id: rel.child_id,
       });
+      bindingRelationMap.set(String(rel.parent_role_id), list);
     });
 
-    const MANAGE_ROLE_TYPES = ['teacher', 'admin', 'superadmin'];
+    // 收集绑定涉及的 child_id 去重，查 children 表建立 id -> 幼儿名 映射
+    const childNameMap = new Map<string, string>();
+    const childIds = Array.from(new Set((relations || []).map((r: any) => r.child_id).filter(Boolean)));
+    if (childIds.length > 0) {
+      const { data: children, error: childrenError } = await this.client
+        .from('children')
+        .select('id, name')
+        .in('id', childIds);
+      if (childrenError) throw new Error(`查询幼儿失败: ${childrenError.message}`);
+      (children || []).forEach((c: any) => childNameMap.set(String(c.id), c.name));
+    }
+
     const MANAGE_ROLE_PRIORITY = ['superadmin', 'admin', 'teacher'];
 
     const list: any[] = [];
     for (const user of users || []) {
       const userRoles = roleMap.get(user.id) || [];
-      const hasManageRole = userRoles.some((r: any) => MANAGE_ROLE_TYPES.includes(r.role_type));
       const parentRoles = userRoles.filter((r: any) => r.role_type === 'parent');
       // display_name：按 superadmin > admin > teacher 优先级取 real_name，否则 nickname
       let displayName: string = user.nickname || '';
@@ -776,12 +789,20 @@ export class AdminService {
         }
       }
 
-      // 有 active 家长绑定关系时，名称拼上关系中文（如 潘刚爸爸）
-      const boundParentRole = parentRoles.find((r: any) => bindingRelationMap.has(String(r.id)));
-      if (boundParentRole) {
-        const rel = bindingRelationMap.get(String(boundParentRole.id));
-        const relLabel = this.getRelationshipLabel(rel?.relationship || '', rel?.custom_relationship);
-        displayName = `${displayName}${relLabel}`;
+      // 有 active 家长绑定关系时，每条绑定独立拼接为「幼儿名+关系中文」，多条用顿号连接，不使用自身昵称
+      // 例如同时绑定两个幼儿：小明爸爸、小红爷爷；小明爸爸、小红爸爸（不合并相同关系）
+      const boundRelations = parentRoles.flatMap((r: any) => bindingRelationMap.get(String(r.id)) || []);
+      if (boundRelations.length > 0) {
+        const labels = boundRelations
+          .map((rel) => {
+            const relLabel = this.getRelationshipLabel(rel?.relationship || '', rel?.custom_relationship);
+            const childName = childNameMap.get(String(rel?.child_id)) || '';
+            return `${childName}${relLabel}`.trim();
+          })
+          .filter(Boolean);
+        if (labels.length > 0) {
+          displayName = labels.join('、');
+        }
       }
 
       list.push({
@@ -1047,17 +1068,22 @@ export class AdminService {
       return { code: 403, msg: '无权限', data: null };
     }
 
-    // 1. 家长绑定关系保护
-    const { data: pcr, error: pcrError } = await this.client
-      .from('parent_child_relations')
+    // 1. 自动解除家长绑定关系（若存在 parent 角色，先删除其 parent_child_relations 绑定）
+    const { data: parentRoles, error: parentRolesError } = await this.client
+      .from('user_roles')
       .select('id')
       .eq('user_id', userId)
-      .limit(1)
-      .maybeSingle();
+      .eq('role_type', 'parent');
 
-    if (pcrError) throw new Error(`查询家长绑定失败: ${pcrError.message}`);
-    if (pcr) {
-      return { code: 400, msg: '该用户存在家长绑定关系，无法删除', data: null };
+    if (parentRolesError) throw new Error(`查询家长角色失败: ${parentRolesError.message}`);
+
+    const parentRoleIds = (parentRoles || []).map((r: any) => r.id);
+    if (parentRoleIds.length > 0) {
+      const { error: unbindError } = await this.client
+        .from('parent_child_relations')
+        .delete()
+        .in('parent_role_id', parentRoleIds);
+      if (unbindError) throw new Error(`解除家长绑定失败: ${unbindError.message}`);
     }
 
     // 2. 教师表保护
@@ -1083,17 +1109,36 @@ export class AdminService {
     if (teacherRolesError) throw new Error(`查询教师角色失败: ${teacherRolesError.message}`);
 
     const teacherRoleIds = (teacherRoles || []).map((r: any) => r.id);
-    if (teacherRoleIds.length > 0) {
-      const { data: growth, error: growthError } = await this.client
-        .from('growth_records')
-        .select('id')
-        .in('teacher_id', teacherRoleIds)
-        .limit(1)
-        .maybeSingle();
 
-      if (growthError) throw new Error(`查询成长记录失败: ${growthError.message}`);
-      if (growth) {
-        return { code: 400, msg: '该教师存在成长记录，无法删除', data: null };
+    // 先判断 teachers 表是否存在该用户，区分真实教师与幽灵教师角色
+    const { data: teacherRows, error: teacherRowsError } = await this.client
+      .from('teachers')
+      .select('id')
+      .eq('user_id', userId);
+
+    if (teacherRowsError) throw new Error(`查询教师失败: ${teacherRowsError.message}`);
+
+    if (teacherRoleIds.length > 0) {
+      if ((teacherRows || []).length > 0) {
+        // 真实教师：存在成长记录时拦截
+        const { data: growth, error: growthError } = await this.client
+          .from('growth_records')
+          .select('id')
+          .in('teacher_id', teacherRoleIds)
+          .limit(1)
+          .maybeSingle();
+
+        if (growthError) throw new Error(`查询成长记录失败: ${growthError.message}`);
+        if (growth) {
+          return { code: 400, msg: '该教师存在成长记录，无法删除', data: null };
+        }
+      } else {
+        // 幽灵教师角色：teachers 表无记录，跳过拦截，删除 user_roles 前将成长记录的 teacher_id 置空，避免悬空引用
+        const { error: nullifyError } = await this.client
+          .from('growth_records')
+          .update({ teacher_id: null })
+          .in('teacher_id', teacherRoleIds);
+        if (nullifyError) throw new Error(`清空成长记录教师引用失败: ${nullifyError.message}`);
       }
     }
 
