@@ -1078,9 +1078,6 @@ export class AdminService {
     if (allRolesError) throw new Error(`查询用户角色失败: ${allRolesError.message}`);
 
     const allRoleIds = (allRoles || []).map((r: any) => r.id);
-    const teacherRoleIds = (allRoles || [])
-      .filter((r: any) => r.role_type === 'teacher')
-      .map((r: any) => r.id);
 
     // 解除家长绑定关系：双条件清理 parent_child_relations
     // （parent_role_id 属于该用户任意角色 或 user_id 为该用户），避免角色数据不一致时残留导致外键报错
@@ -1119,60 +1116,38 @@ export class AdminService {
       return { code: 400, msg: '该用户是教师，无法删除', data: null };
     }
 
-    // 3. 教师角色的成长记录引用保护
-    // 先判断 teachers 表是否存在该用户，区分真实教师与幽灵教师角色
-    const { data: teacherRows, error: teacherRowsError } = await this.client
-      .from('teachers')
-      .select('id')
-      .eq('user_id', userId);
+    // 3. 成长记录 / 每日反馈引用清理
+    // growth_records 与 daily_feedbacks 写入时 teacher_id 存的可能是任意操作者角色 id（含管理员），
+    // 故按该用户全部角色 id 清理，不限于 teacher 角色。
+    // 尽量将 growth_records.teacher_id 置空以保留历史；若该列 NOT NULL 无法置空或未影响任何行，
+    // 则连同 daily_feedbacks（其 teacher_id 非空且带外键）一并删除，避免悬空引用导致外键/非空报错
+    if (allRoleIds.length > 0) {
+      const { data: nulled, error: nullifyError } = await this.client
+        .from('growth_records')
+        .update({ teacher_id: null })
+        .in('teacher_id', allRoleIds)
+        .select('id');
 
-    if (teacherRowsError) throw new Error(`查询教师失败: ${teacherRowsError.message}`);
-
-    if (teacherRoleIds.length > 0) {
-      if ((teacherRows || []).length > 0) {
-        // 真实教师：存在成长记录时拦截
-        const { data: growth, error: growthError } = await this.client
+      if (nullifyError) {
+        const { error: deleteGrowthError } = await this.client
           .from('growth_records')
-          .select('id')
-          .in('teacher_id', teacherRoleIds)
-          .limit(1)
-          .maybeSingle();
-
-        if (growthError) throw new Error(`查询成长记录失败: ${growthError.message}`);
-        if (growth) {
-          return { code: 400, msg: '该教师存在成长记录，无法删除', data: null };
-        }
-      } else {
-        // 幽灵教师角色：teachers 表无记录，跳过拦截。
-        // 尽量将 growth_records.teacher_id 置空以保留历史；若该列 NOT NULL 无法置空，则连同
-        // daily_feedbacks（其 teacher_id 非空且带外键）一并删除，避免悬空引用导致外键/非空报错
-        const { data: nulled, error: nullifyError } = await this.client
-          .from('growth_records')
-          .update({ teacher_id: null })
-          .in('teacher_id', teacherRoleIds)
-          .select('id');
-
-        if (nullifyError) {
-          const { error: deleteGrowthError } = await this.client
-            .from('growth_records')
-            .delete()
-            .in('teacher_id', teacherRoleIds);
-          if (deleteGrowthError) throw new Error(`清理成长记录失败: ${deleteGrowthError.message}`);
-        } else if (!Array.isArray(nulled) || (nulled as any[]).length === 0) {
-          // update 未实际影响任何行时也按删除处理兜底，确保引用被清理
-          const { error: deleteGrowthError } = await this.client
-            .from('growth_records')
-            .delete()
-            .in('teacher_id', teacherRoleIds);
-          if (deleteGrowthError) throw new Error(`清理成长记录失败: ${deleteGrowthError.message}`);
-        }
-
-        const { error: dailyFeedbackError } = await this.client
-          .from('daily_feedbacks')
           .delete()
-          .in('teacher_id', teacherRoleIds);
-        if (dailyFeedbackError) throw new Error(`清理每日反馈失败: ${dailyFeedbackError.message}`);
+          .in('teacher_id', allRoleIds);
+        if (deleteGrowthError) throw new Error(`清理成长记录失败: ${deleteGrowthError.message}`);
+      } else if (!Array.isArray(nulled) || (nulled as any[]).length === 0) {
+        // update 未实际影响任何行时也按删除处理兜底，确保引用被清理
+        const { error: deleteGrowthError } = await this.client
+          .from('growth_records')
+          .delete()
+          .in('teacher_id', allRoleIds);
+        if (deleteGrowthError) throw new Error(`清理成长记录失败: ${deleteGrowthError.message}`);
       }
+
+      const { error: dailyFeedbackError } = await this.client
+        .from('daily_feedbacks')
+        .delete()
+        .in('teacher_id', allRoleIds);
+      if (dailyFeedbackError) throw new Error(`清理每日反馈失败: ${dailyFeedbackError.message}`);
     }
 
     // 4. 清理通知接收人引用（user_role_id 属于该用户任意角色）
