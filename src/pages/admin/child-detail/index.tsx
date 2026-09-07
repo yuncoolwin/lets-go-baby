@@ -1496,7 +1496,7 @@ export default function ChildDetailPage() {
                     </View>
 
                     {/* 图例 */}
-                    <View className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-gray-100 px-1">
+                    <View className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-gray-300 px-1">
                       {(currentAttendanceCalendar?.courseType === '全日托' || currentAttendanceCalendar?.courseType === '周六托') ? (
                         <>
                           <View className="flex items-center gap-1">
