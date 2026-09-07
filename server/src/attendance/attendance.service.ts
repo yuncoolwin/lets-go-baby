@@ -211,6 +211,7 @@ export class AttendanceService {
     }>>();
 
     for (const e of enrollmentList) {
+      if (!childrenMap[e.child_id]) continue; // 跳过非 active（已结课/暂停）幼儿，避免空名行
       const ct = e.course_type;
       if (queryDate && e.start_date && queryDate < e.start_date) continue;
       const effectiveEnd = e.extended_end_date || e.end_date;
