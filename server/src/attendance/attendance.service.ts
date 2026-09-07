@@ -209,10 +209,13 @@ export class AttendanceService {
       extended_end_date: string | null;
       is_drop_in?: boolean;
     }>>();
+    // 去重集合：同一幼儿同一课程类型只渲染一行（避免多条报读覆盖同日导致重复）
+    const seenChildCourseKeys = new Set<string>();
 
     for (const e of enrollmentList) {
       if (!childrenMap[e.child_id]) continue; // 跳过非 active（已结课/暂停）幼儿，避免空名行
       const ct = e.course_type;
+      const courseChildKey = e.child_id + '__' + ct;
       if (queryDate && e.start_date && queryDate < e.start_date) continue;
       const effectiveEnd = e.extended_end_date || e.end_date;
       if (queryDate && effectiveEnd && queryDate > effectiveEnd) continue;
@@ -222,6 +225,9 @@ export class AttendanceService {
       if (isSun) continue; // 周日不显示任何课程
       if (isSat && ct !== '周六托') continue; // 周六只显示周六托
       if (!isSat && ct === '周六托') continue; // 工作日不显示周六托
+      // 日期/星期过滤通过后再按“幼儿+课程类型”去重，避免已结束的旧报读占用 key 误杀有效报读
+      if (seenChildCourseKeys.has(courseChildKey)) continue;
+      seenChildCourseKeys.add(courseChildKey);
       if (!groupMap.has(ct)) groupMap.set(ct, []);
       groupMap.get(ct)!.push({
         child_id: e.child_id,
