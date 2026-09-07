@@ -104,4 +104,9 @@ export class EnrollmentsController {
     }
   }
 
+  @Post('recalc-extended')
+  async recalcAllExtendedAll() {
+    const result = await this.enrollmentsService.recalcAllExtendedEndDate();
+    return { code: 200, msg: 'success', data: result };
   }
+}

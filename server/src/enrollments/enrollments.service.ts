@@ -224,7 +224,11 @@ export class EnrollmentsService {
       }
     }
 
-    if (holidaySet.size === 0) return result;
+    // 全日托/半日托参与请假顺延（提前判断供下方门槛使用）
+    const isFullOrHalfDay = enr.course_type === '全日托' || enr.course_type === '半日托';
+
+    // 仅周六托依赖假期集合非空；全/半日托即使无假期也要继续（让请假顺延有机会执行）
+    if (!isFullOrHalfDay && holidaySet.size === 0) return result;
 
     if (isSaturdayCourse) {
       // 周六托专属顺延逻辑：只统计假期中落在周六的天数
@@ -360,9 +364,62 @@ export class EnrollmentsService {
     for (const dateStr of holidaySet) {
       if (!isWeekend(dateStr)) totalHolidayDays++;
     }
-    if (totalHolidayDays === 0) return result;
 
-    // 顺延结束日期若落在 end_date 之后的节假日（法定节假日 / 假期管理内节假日），需继续顺延至下一个工作日。
+    // ====== 请假查询与连续段分段（提前，供顺延触发判断，仅全日托/半日托参与） ======
+    let leaveSegments: { startDate: string; endDate: string; days: number }[] = [];
+    if (isFullOrHalfDay) {
+      // 查询该报读记录在课程区间内的请假记录（按 enrollment_id 精确匹配当前报读）
+      const { data: leaveRecords } = await this.client
+        .from('attendance')
+        .select('date')
+        .eq('enrollment_id', enr.id)
+        .eq('status', 'leave')
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .order('date', { ascending: true });
+
+      if (leaveRecords && leaveRecords.length > 0) {
+        // 按日期排序，识别连续请假段
+        const leaveDates = leaveRecords.map(r => r.date?.substring(0, 10)).filter(Boolean).sort() as string[];
+        let segStart = leaveDates[0];
+        let segEnd = leaveDates[0];
+        let segCount = 1;
+        for (let i = 1; i < leaveDates.length; i++) {
+          const prev = leaveDates[i - 1];
+          const curr = leaveDates[i];
+          // 判断是否连续（工作日连续：相邻日历日，或中间只隔周六日）
+          const diff = (new Date(curr).getTime() - new Date(prev).getTime()) / 86400000;
+          let isConsecutive = diff === 1;
+          if (!isConsecutive && diff > 1) {
+            let gapAllWeekend = true;
+            let d = addDays(prev, 1);
+            while (d < curr) {
+              if (!isWeekend(d)) { gapAllWeekend = false; break; }
+              d = addDays(d, 1);
+            }
+            isConsecutive = gapAllWeekend;
+          }
+          if (isConsecutive) {
+            segEnd = curr;
+            segCount++;
+          } else {
+            if (segCount >= 5) {
+              leaveSegments.push({ startDate: segStart, endDate: segEnd, days: segCount });
+            }
+            segStart = curr;
+            segEnd = curr;
+            segCount = 1;
+          }
+        }
+        // 处理最后一个段
+        if (segCount >= 5) {
+          leaveSegments.push({ startDate: segStart, endDate: segEnd, days: segCount });
+        }
+      }
+    }
+
+    // 无假期且无连续请假段时提前返回（请假顺延不再依赖 totalHolidayDays > 0）
+    if (totalHolidayDays === 0 && leaveSegments.length === 0) return result;
     // 预加载未来两年的节假日集合，供顺延落点时跳过。
     const futureHolidaySet = new Set<string>();
     const futureStart = addDays(endDate, 1);
@@ -411,85 +468,32 @@ export class EnrollmentsService {
     // 按开始日期排序：早的放前面
     result.details.sort((a, b) => a.startDate.localeCompare(b.startDate));
 
-    // ====== 请假顺延逻辑（仅全日托/半日托） ======
-    const isFullOrHalfDay = enr.course_type === '全日托' || enr.course_type === '半日托';
-    if (isFullOrHalfDay) {
-      // 查询该报读记录在课程区间内的请假记录（按 enrollment_id 精确匹配当前报读）
-      const { data: leaveRecords, error: leaveError } = await this.client
-        .from('attendance')
-        .select('date')
-        .eq('enrollment_id', enr.id)
-        .eq('status', 'leave')
-        .gte('date', startDate)
-        .lte('date', endDate)
-        .order('date', { ascending: true });
-
-      if (leaveRecords && leaveRecords.length > 0) {
-        // 按日期排序，识别连续请假段
-        const leaveDates = leaveRecords.map(r => r.date?.substring(0, 10)).filter(Boolean).sort() as string[];
-        const segments: { startDate: string; endDate: string; days: number }[] = [];
-        let segStart = leaveDates[0];
-        let segEnd = leaveDates[0];
-        let segCount = 1;
-        for (let i = 1; i < leaveDates.length; i++) {
-          const prev = leaveDates[i - 1];
-          const curr = leaveDates[i];
-          // 判断是否连续（工作日连续：相邻日历日，或中间只隔周六日）
-          const diff = (new Date(curr).getTime() - new Date(prev).getTime()) / 86400000;
-          let isConsecutive = diff === 1;
-          if (!isConsecutive && diff > 1) {
-            let gapAllWeekend = true;
-            let d = addDays(prev, 1);
-            while (d < curr) {
-              if (!isWeekend(d)) { gapAllWeekend = false; break; }
-              d = addDays(d, 1);
-            }
-            isConsecutive = gapAllWeekend;
-          }
-          if (isConsecutive) {
-            segEnd = curr;
-            segCount++;
-          } else {
-            if (segCount >= 5) {
-              segments.push({ startDate: segStart, endDate: segEnd, days: segCount });
-            }
-            segStart = curr;
-            segEnd = curr;
-            segCount = 1;
-          }
-        }
-        // 处理最后一个段
-        if (segCount >= 5) {
-          segments.push({ startDate: segStart, endDate: segEnd, days: segCount });
-        }
-
-        if (segments.length > 0) {
-          const totalLeaveDays = segments.reduce((sum, s) => sum + s.days, 0);
-          // 在已有顺延基础上再叠加请假天数
-          let currentExtDate = result.extended_end_date || endDate;
-          let remaining = totalLeaveDays;
-          while (remaining > 0) {
-            currentExtDate = addDays(currentExtDate, 1);
-            if (isWeekend(currentExtDate)) continue;
-            if (holidaySet.has(currentExtDate) || futureHolidaySet.has(currentExtDate)) continue;
-            remaining--;
-          }
-          result.extended_end_date = currentExtDate;
-
-          // 添加请假顺延详情
-          for (const seg of segments) {
-            result.details.push({
-              name: '请假',
-              type: '个人',
-              startDate: seg.startDate,
-              endDate: seg.endDate,
-              overlapDays: seg.days,
-            });
-          }
-          // 重新排序
-          result.details.sort((a, b) => a.startDate.localeCompare(b.startDate));
-        }
+    // ====== 请假顺延叠加（仅全日托/半日托，复用上方已计算的 leaveSegments） ======
+    if (leaveSegments.length > 0) {
+      const totalLeaveDays = leaveSegments.reduce((sum, s) => sum + s.days, 0);
+      // 在已有顺延基础上再叠加请假天数
+      let currentExtDate = result.extended_end_date || endDate;
+      let remaining = totalLeaveDays;
+      while (remaining > 0) {
+        currentExtDate = addDays(currentExtDate, 1);
+        if (isWeekend(currentExtDate)) continue;
+        if (holidaySet.has(currentExtDate) || futureHolidaySet.has(currentExtDate)) continue;
+        remaining--;
       }
+      result.extended_end_date = currentExtDate;
+
+      // 添加请假顺延详情
+      for (const seg of leaveSegments) {
+        result.details.push({
+          name: '请假',
+          type: '个人',
+          startDate: seg.startDate,
+          endDate: seg.endDate,
+          overlapDays: seg.days,
+        });
+      }
+      // 重新排序
+      result.details.sort((a, b) => a.startDate.localeCompare(b.startDate));
     }
 
     return result;
@@ -509,6 +513,22 @@ export class EnrollmentsService {
         .eq('id', enrollmentId);
     }
     return { extended_end_date: extendedDate, details };
+  }
+
+  async recalcAllExtendedEndDate(): Promise<{ total: number; updated: number; errors: number }> {
+    const { data, error } = await this.client.from('enrollments').select('id');
+    if (error) throw new Error(`查询报读失败: ${error.message}`);
+    let updated = 0;
+    let errors = 0;
+    for (const row of data || []) {
+      try {
+        const r = await this.calcExtendedEndDateAndPersist(row.id);
+        if (r && r.extended_end_date) updated += 1;
+      } catch (e: any) {
+        errors += 1;
+      }
+    }
+    return { total: (data || []).length, updated, errors };
   }
 
   async findByChild(userId: string, childId: string): Promise<Enrollment[]> {
