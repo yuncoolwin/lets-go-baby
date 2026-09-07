@@ -482,7 +482,9 @@ export default function ChildDetailPage() {
             return enr
           })
         )
-        setEnrollments(updated)
+        // 按课程开始日期倒序展示，开始时间越晚的卡片越靠上；start_date 为空排最后
+        const sorted = [...updated].sort((a, b) => (b.start_date || '').localeCompare(a.start_date || ''))
+        setEnrollments(sorted)
       }
       // 拉取临时来园记录（按 date 倒序）
       try {

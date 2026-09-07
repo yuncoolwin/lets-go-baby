@@ -199,28 +199,41 @@ export class ChildrenService {
     const childIds = (allChildren || []).map(c => c.id);
     const childCreatedAtMap = new Map((allChildren || []).map(c => [c.id, c.created_at]));
 
-    // Step 2: 查询所有 enrollments，获取每个幼儿的最新报读时间
-    let enrollmentTimeMap = new Map<string, string>();
+    // Step 2: 查询所有 enrollments，获取每个幼儿最早的入园时间（课程实际开始日期 start_date 最小）
+    let enrollmentStartMap = new Map<string, string>();
     if (childIds.length > 0) {
-      // 查询所有 enrollments（不限状态），按 child_id 分组取最大 created_at
+      // 查询所有 enrollments（不限状态），按 child_id 分组取 start_date 最小、且非空
       const { data: enrollments } = await this.client
         .from('enrollments')
-        .select('child_id, created_at')
+        .select('child_id, start_date')
         .in('child_id', childIds);
 
       for (const e of enrollments || []) {
-        const existing = enrollmentTimeMap.get(e.child_id);
-        if (!existing || e.created_at > existing) {
-          enrollmentTimeMap.set(e.child_id, e.created_at);
+        const d = e.start_date;
+        if (!d) continue; // start_date 为空跳过
+        const existing = enrollmentStartMap.get(e.child_id);
+        if (!existing || d < existing) {
+          enrollmentStartMap.set(e.child_id, d);
         }
       }
     }
 
-    // Step 3: 按最新报读时间排序（降序），无报读的用幼儿 created_at 降序
+    // Step 3: 按入园时间排序（降序，越晚入园越靠前）；两方都有入园时间按 start_date 降序；仅一方有入园时间则有入园时间的排前面；双方都无入园时间按 created_at 降序兜底
     const sortedIds = childIds.sort((a, b) => {
-      const timeA = enrollmentTimeMap.get(a) || childCreatedAtMap.get(a) || '';
-      const timeB = enrollmentTimeMap.get(b) || childCreatedAtMap.get(b) || '';
-      return timeB.localeCompare(timeA);
+      const sa = enrollmentStartMap.get(a);
+      const sb = enrollmentStartMap.get(b);
+      if (sa && sb) {
+        return sb.localeCompare(sa); // 入园时间越晚越靠前
+      }
+      if (sa && !sb) {
+        return -1; // 仅有入园时间的一方排前面
+      }
+      if (!sa && sb) {
+        return 1;
+      }
+      const timeA = childCreatedAtMap.get(a) || '';
+      const timeB = childCreatedAtMap.get(b) || '';
+      return timeB.localeCompare(timeA); // 都无入园时间按 created_at 降序兜底
     });
 
     // Step 4: 分页
