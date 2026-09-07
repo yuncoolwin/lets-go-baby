@@ -157,11 +157,11 @@ export default function ChildDetailPage() {
   const [calendarDayInfo, setCalendarDayInfo] = useState<{ type: 'holiday' | 'leave'; name?: string; start: string; end: string } | null>(null)
   // 日期区间格式化：YYYY-MM-DD -> M月D日，跨年补年份
   const formatRange = (start: string, end: string) => {
-    const fmt = (d: string) => `M${Number(d.slice(5, 7))}月${Number(d.slice(8, 10))}日`
+    const fmt = (d: string) => `${Number(d.slice(5, 7))}月${Number(d.slice(8, 10))}日`
     if (!start || !end) return ''
     if (start.slice(0, 4) === end.slice(0, 4)) {
       if (start === end) return fmt(start)
-      return `${Number(start.slice(5, 7))}月${Number(start.slice(8, 10))}日-${fmt(end)}`
+      return `${fmt(start)}-${fmt(end)}`
     }
     return `${Number(start.slice(0, 4))}年${Number(start.slice(5, 7))}月${Number(start.slice(8, 10))}日-${Number(end.slice(0, 4))}年${Number(end.slice(5, 7))}月${Number(end.slice(8, 10))}日`
   }
@@ -1354,12 +1354,14 @@ export default function ChildDetailPage() {
                   return Array.from(groups.values())
                 })()
 
-                // 聚合请假区间：按自然日连续合并（相邻日期差 1 天视为同一段）
+                // 聚合请假区间：按实际上课日间隔合并，跨灰色日（非上课日/放假/无记录）不分段
                 const leaveRanges: { start: string; end: string }[] = (() => {
                   const leaveDates = (attendanceData || [])
                     .filter((item: any) => item.status === 'leave')
                     .map((item: any) => item.date)
                     .sort()
+                  // 实际上课日：is_class_day 为 true 且当天状态非请假（灰色日=is_class_day false 或 holiday 或无记录，均应跳过）
+                  const isEffectClassDay = (ds: string) => classDaySet[ds] === true && attendanceMap[ds] !== 'leave'
                   const ranges: { start: string; end: string }[] = []
                   let cur: { start: string; end: string } | null = null
                   for (const d of leaveDates) {
@@ -1367,13 +1369,24 @@ export default function ChildDetailPage() {
                       cur = { start: d, end: d }
                       continue
                     }
-                    const prev = new Date(cur.end)
-                    const diffDays = Math.round((new Date(d).getTime() - prev.getTime()) / 86400000)
-                    if (diffDays === 1) {
-                      cur.end = d
-                    } else {
+                    // 从 cur.end 次日迭代到 d 前一日的每一天
+                    let broke = false
+                    const ptr = new Date(cur.end)
+                    ptr.setDate(ptr.getDate() + 1)
+                    const targetDate = new Date(d)
+                    while (ptr < targetDate) {
+                      const ds = `${ptr.getFullYear()}-${String(ptr.getMonth() + 1).padStart(2, '0')}-${String(ptr.getDate()).padStart(2, '0')}`
+                      if (isEffectClassDay(ds)) {
+                        broke = true // 中间存在实际上课日，需分段
+                        break
+                      }
+                      ptr.setDate(ptr.getDate() + 1)
+                    }
+                    if (broke) {
                       ranges.push(cur)
                       cur = { start: d, end: d }
+                    } else {
+                      cur.end = d
                     }
                   }
                   if (cur) ranges.push(cur)
