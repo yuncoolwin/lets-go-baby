@@ -40,6 +40,7 @@ export default function TeacherEditPage() {
   const isSuperadmin = currentRole?.role_type === 'superadmin'
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [originalPhone, setOriginalPhone] = useState('')
   const [formData, setFormData] = useState({
     name: '',
     nickname: '',
@@ -89,6 +90,7 @@ export default function TeacherEditPage() {
         const presetTitles = TITLE_OPTIONS.filter(o => o.value !== '其他').map(o => o.value)
         const isPreset = data.title && presetTitles.includes(data.title)
 
+        setOriginalPhone(data.phone || '')
         setFormData({
           name: data.real_name || data.name || '',
           nickname: data.nickname || '',
@@ -136,39 +138,56 @@ export default function TeacherEditPage() {
       return
     }
 
-    try {
-      setSaving(true)
-      const payload = {
-        real_name: formData.name.trim(),
-        nickname: formData.nickname.trim(),
-        phone: String(formData.phone || '').trim(),
-        title: getEffectiveTitle(),
-        class_ids: formData.class_ids,
-        status: formData.status,
-        entry_date: formData.entry_date,
-        leave_date: formData.status === 'inactive' ? formData.leave_date : ''
-      }
+    const newPhone = String(formData.phone || '').trim()
+    const doSave = async () => {
+      try {
+        setSaving(true)
+        const payload = {
+          real_name: formData.name.trim(),
+          nickname: formData.nickname.trim(),
+          phone: newPhone,
+          title: getEffectiveTitle(),
+          class_ids: formData.class_ids,
+          status: formData.status,
+          entry_date: formData.entry_date,
+          leave_date: formData.status === 'inactive' ? formData.leave_date : ''
+        }
 
-      let res
-      if (isCreate) {
-        res = await teacherApi.create(payload)
-      } else {
-        res = await teacherApi.update(teacherId!, payload)
-      }
-      console.log('[TeacherEdit] save response:', res)
+        let res
+        if (isCreate) {
+          res = await teacherApi.create(payload)
+        } else {
+          res = await teacherApi.update(teacherId!, payload)
+        }
+        console.log('[TeacherEdit] save response:', res)
 
-      if (res.code === 200) {
-        Taro.showToast({ title: '保存成功', icon: 'success' })
-        setTimeout(() => Taro.navigateBack(), 1500)
-      } else {
-        Taro.showToast({ title: res.msg || '保存失败', icon: 'error' })
+        if (res.code === 200) {
+          Taro.showToast({ title: '保存成功', icon: 'success' })
+          setTimeout(() => Taro.navigateBack(), 1500)
+        } else {
+          Taro.showToast({ title: res.msg || '保存失败', icon: 'error' })
+        }
+      } catch (error) {
+        console.error('[TeacherEdit] handleSave error:', error)
+        Taro.showToast({ title: '保存失败', icon: 'error' })
+      } finally {
+        setSaving(false)
       }
-    } catch (error) {
-      console.error('[TeacherEdit] handleSave error:', error)
-      Taro.showToast({ title: '保存失败', icon: 'error' })
-    } finally {
-      setSaving(false)
     }
+
+    if (!isCreate && newPhone && originalPhone !== newPhone) {
+      Taro.showModal({
+        title: '修改手机号',
+        content: `教师手机号将修改为 ${newPhone}`,
+        confirmText: '确认修改',
+        cancelText: '取消',
+        success: (r) => {
+          if (r.confirm) doSave()
+        }
+      })
+      return
+    }
+    doSave()
   }
 
   const handleDelete = async () => {

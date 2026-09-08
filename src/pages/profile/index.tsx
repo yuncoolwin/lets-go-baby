@@ -26,6 +26,7 @@ export default function ProfilePage() {
   // 个人信息维护弹窗
   const [profileOpen, setProfileOpen] = useState(false)
   const [profileForm, setProfileForm] = useState({ nickname: '', phone: '' })
+  const [originalProfilePhone, setOriginalProfilePhone] = useState('')
 
   const openProfile = () => {
     const roleType = currentRole?.role_type || ''
@@ -40,6 +41,7 @@ export default function ProfilePage() {
       prefillNick = storeNick
     }
     setProfileForm({ nickname: (prefillNick || ''), phone: (phone || '') })
+    setOriginalProfilePhone(String(phone || ''))
     setProfileOpen(true)
   }
 
@@ -49,7 +51,9 @@ export default function ProfilePage() {
       Taro.showToast({ title: '请输入用户名', icon: 'none' })
       return
     }
-    try {
+    const newPhone = String(profileForm.phone || '').trim()
+    const doSaveProfile = async () => {
+      try {
       const res = await authApi.updateProfile({
         nickname: profileForm.nickname.trim(),
         phone: String(profileForm.phone || '').trim(),
@@ -68,6 +72,17 @@ export default function ProfilePage() {
       console.error('[Profile] updateProfile error:', err)
       Taro.showToast({ title: '保存失败', icon: 'none' })
     }
+    }
+    if (newPhone && originalProfilePhone !== newPhone) {
+      Taro.showModal({
+        title: '修改手机号',
+        content: `手机号将修改为 ${newPhone}`,
+        confirmText: '确认修改',
+        success: (r) => { if (r.confirm) { doSaveProfile() } },
+      })
+      return
+    }
+    doSaveProfile()
   }
 
   // 根据角色计算显示名称

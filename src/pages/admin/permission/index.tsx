@@ -76,6 +76,7 @@ export default function PermissionPage() {
   const [dialogUserId, setDialogUserId] = useState<string | null>(null)
   const [dialogNickname, setDialogNickname] = useState('')
   const [dialogPhone, setDialogPhone] = useState('')
+  const [dialogOriginalPhone, setDialogOriginalPhone] = useState('')
   const [dialogRoles, setDialogRoles] = useState<RoleItem[]>([])
 
   const loadUsers = useCallback(async () => {
@@ -113,33 +114,47 @@ export default function PermissionPage() {
 
   const handleAssign = async (targetUserId: string, roleType: string) => {
     if (!userId) return
-    try {
-      const url = '/api/admin/permission/assign'
-      const res = await Network.request({
-        url,
-        method: 'POST',
-        data: { operator_user_id: userId, user_id: targetUserId, role_type: roleType },
-      })
-      console.log('[权限管理] POST', url, { operator_user_id: userId, user_id: targetUserId, role_type: roleType }, '->', res.data)
-      if (res.data?.code === 200) {
-        const msg = res.data?.msg === 'success' ? '已分配' : (res.data?.msg || '已分配')
-        Taro.showToast({ title: msg, icon: res.data?.msg === 'success' ? 'success' : 'none' })
-        if (dialogMode === 'edit' && dialogUserId === targetUserId) {
-          const created = res.data?.data
-          if (created?.id && created?.role_type) {
-            setDialogRoles((prev) =>
-              prev.some((r) => r.id === created.id) ? prev : sortRoles([...prev, created]),
-            )
+    const doAssign = async () => {
+      try {
+        const url = '/api/admin/permission/assign'
+        const res = await Network.request({
+          url,
+          method: 'POST',
+          data: { operator_user_id: userId, user_id: targetUserId, role_type: roleType },
+        })
+        console.log('[权限管理] POST', url, { operator_user_id: userId, user_id: targetUserId, role_type: roleType }, '->', res.data)
+        if (res.data?.code === 200) {
+          const msg = res.data?.msg === 'success' ? '已分配' : (res.data?.msg || '已分配')
+          Taro.showToast({ title: msg, icon: res.data?.msg === 'success' ? 'success' : 'none' })
+          if (dialogMode === 'edit' && dialogUserId === targetUserId) {
+            const created = res.data?.data
+            if (created?.id && created?.role_type) {
+              setDialogRoles((prev) =>
+                prev.some((r) => r.id === created.id) ? prev : sortRoles([...prev, created]),
+              )
+            }
           }
+          loadUsers()
+        } else {
+          Taro.showToast({ title: res.data?.msg || '分配失败', icon: 'none' })
         }
-        loadUsers()
-      } else {
-        Taro.showToast({ title: res.data?.msg || '分配失败', icon: 'none' })
+      } catch (err) {
+        console.error('[权限管理] 分配失败:', err)
+        Taro.showToast({ title: '分配失败', icon: 'none' })
       }
-    } catch (err) {
-      console.error('[权限管理] 分配失败:', err)
-      Taro.showToast({ title: '分配失败', icon: 'none' })
     }
+    if (roleType === 'teacher') {
+      Taro.showModal({
+        title: '分配教师角色',
+        content: '确认给该用户分配教师角色？分配后将自动在教师管理页创建该教师的档案卡片，姓名为用户名称',
+        confirmText: '确认',
+        success: (res) => {
+          if (res.confirm) doAssign()
+        },
+      })
+      return
+    }
+    doAssign()
   }
 
   const handleRevoke = async (roleId: string) => {
@@ -181,6 +196,7 @@ export default function PermissionPage() {
     setDialogUserId(user.id)
     setDialogNickname(user.display_name || user.nickname || '')
     setDialogPhone(user.phone || '')
+    setDialogOriginalPhone(user.phone || '')
     setDialogRoles(user.roles || [])
     setShowDialog(true)
   }
@@ -192,17 +208,35 @@ export default function PermissionPage() {
       return
     }
     const isEdit = dialogMode === 'edit' && dialogUserId
-    const url = isEdit ? `/api/admin/permission/user/${dialogUserId}` : '/api/admin/permission/user'
-    const method = isEdit ? 'PUT' : 'POST'
+    const newPhone = String(dialogPhone || '').trim()
+    if (isEdit && newPhone && dialogOriginalPhone !== newPhone) {
+      Taro.showModal({
+        title: '修改手机号',
+        content: `手机号将修改为 ${newPhone}`,
+        confirmText: '确认修改',
+        success: (res) => {
+          if (res.confirm) doDialogSave(isEdit, dialogUserId, newPhone)
+        },
+      })
+      return
+    }
+    doDialogSave(isEdit, dialogUserId, newPhone)
+  }
+
+  const doDialogSave = async (isEdit: boolean | string | null, uid: string | null, newPhone: string) => {
+    if (!userId) return
+    const editing = !!isEdit
+    const url = editing ? `/api/admin/permission/user/${uid}` : '/api/admin/permission/user'
+    const method = editing ? 'PUT' : 'POST'
     try {
       const res = await Network.request({
         url,
         method,
-        data: { operator_user_id: userId, nickname: dialogNickname.trim(), phone: String(dialogPhone || '').trim() },
+        data: { operator_user_id: userId, nickname: dialogNickname.trim(), phone: newPhone },
       })
-      console.log('[权限管理]', method, url, { operator_user_id: userId, nickname: dialogNickname, phone: dialogPhone }, '->', res.data)
+      console.log('[权限管理]', method, url, { operator_user_id: userId, nickname: dialogNickname, phone: newPhone }, '->', res.data)
       if (res.data?.code === 200) {
-        Taro.showToast({ title: isEdit ? '已更新' : '已新增', icon: 'success' })
+        Taro.showToast({ title: editing ? '已更新' : '已新增', icon: 'success' })
         setShowDialog(false)
         loadUsers()
       } else {

@@ -221,8 +221,11 @@ export default function ChildDetailPage() {
       Taro.showToast({ title: '请选择出生日期', icon: 'none' })
       return
     }
-    setEditSubmitting(true)
-    try {
+    const newParentPhone = editParentPhone.trim()
+    const originalParentPhone = (child?.parent_phone || '').trim()
+    const doSaveChild = async () => {
+      setEditSubmitting(true)
+      try {
       const payload: Record<string, any> = {
         name: editName.trim(),
         nickname: editNickname.trim(),
@@ -230,7 +233,7 @@ export default function ChildDetailPage() {
         birth_date: editBirthDate,
         status: editStatus,
         parent_name: editParentName.trim(),
-        parent_phone: editParentPhone.trim(),
+        parent_phone: newParentPhone,
         allergies: editAllergies.trim(),
         health_info: editHealthInfo.trim(),
         ...(child?.is_temp ? { is_temp: false } : {}),
@@ -248,6 +251,18 @@ export default function ChildDetailPage() {
     } finally {
       setEditSubmitting(false)
     }
+      } // end doSaveChild
+    // 家长手机号变更二次确认（仅手机号有变化且非空时弹窗）
+    if (newParentPhone && originalParentPhone !== newParentPhone) {
+      Taro.showModal({
+        title: '修改手机号',
+        content: `家长手机号将修改为 ${newParentPhone}`,
+        confirmText: '确认修改',
+        success: (r) => { if (r.confirm) doSaveChild() },
+      })
+      return
+    }
+    doSaveChild()
   }
 
 

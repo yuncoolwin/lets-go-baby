@@ -831,7 +831,7 @@ export class AdminService {
 
     const { data: user, error: userError } = await this.client
       .from('users')
-      .select('nickname')
+      .select('nickname, phone')
       .eq('id', userId)
       .maybeSingle();
 
@@ -866,6 +866,26 @@ export class AdminService {
       .single();
 
     if (createError) throw new Error(`分配角色失败: ${createError.message}`);
+
+    // 分配教师角色时：若该用户尚无教师档案，自动创建教师卡片
+    if (roleType === 'teacher') {
+      const { data: teacherExisting } = await this.client
+        .from('teachers')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (!teacherExisting) {
+        const userName = user.nickname || '';
+        await this.client.from('teachers').insert({
+          user_id: userId,
+          real_name: userName,
+          nickname: userName,
+          phone: (user as { phone?: string } | null)?.phone || null,
+          status: 'active',
+          created_at: new Date().toISOString(),
+        });
+      }
+    }
 
     await this.writeAuditLog({
       user_id: operatorUserId,
