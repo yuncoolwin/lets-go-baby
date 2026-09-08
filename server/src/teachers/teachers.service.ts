@@ -302,7 +302,35 @@ export class TeachersService {
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (dto.real_name !== undefined) updateData.real_name = dto.real_name;
     if (dto.nickname !== undefined) updateData.nickname = dto.nickname;
-    if (dto.phone !== undefined) updateData.phone = dto.phone;
+    if (dto.phone !== undefined) updateData.phone = String(dto.phone || '').trim();
+
+    // 手机号双向同步：先查当前教师绑定的 user_id，做 users.phone 唯一性校验
+    let teacherUserId: string | null = null;
+    let oldPhone = '';
+    let phoneChanged = false;
+    const newPhone = dto.phone !== undefined ? String(dto.phone || '').trim() : undefined;
+    if (newPhone !== undefined) {
+      const { data: curTeacher } = await this.client
+        .from('teachers')
+        .select('id, phone, user_id')
+        .eq('id', id)
+        .maybeSingle();
+      teacherUserId = curTeacher?.user_id || null;
+      oldPhone = (curTeacher as any)?.phone || '';
+      phoneChanged = newPhone !== oldPhone;
+      if (phoneChanged && teacherUserId && newPhone) {
+        const { data: dupPhone } = await this.client
+          .from('users')
+          .select('id')
+          .eq('phone', newPhone)
+          .neq('id', teacherUserId)
+          .maybeSingle();
+        if (dupPhone) {
+          return { error: true, code: 400, msg: '该手机号已被其他用户使用' };
+        }
+      }
+    }
+
     if (dto.title !== undefined) updateData.title = dto.title;
     if (dto.qualification !== undefined) updateData.qualification = dto.qualification;
     if (dto.specialty !== undefined) updateData.specialty = dto.specialty;
@@ -320,6 +348,11 @@ export class TeachersService {
 
     if (error) {
       return { error: true, code: 500, msg: `更新失败: ${error.message}` };
+    }
+
+    // 手机号双向同步：同步更新 users.phone
+    if (phoneChanged && teacherUserId && newPhone !== undefined) {
+      await this.client.from('users').update({ phone: newPhone }).eq('id', teacherUserId);
     }
 
     // 同步多班级关联表（全量替换）

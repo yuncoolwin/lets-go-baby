@@ -52,7 +52,7 @@ export default function ProfilePage() {
     try {
       const res = await authApi.updateProfile({
         nickname: profileForm.nickname.trim(),
-        phone: profileForm.phone.trim(),
+        phone: String(profileForm.phone || '').trim(),
         role_type: roleType,
       })
       console.log('[Profile] updateProfile response:', res.data)
@@ -312,7 +312,7 @@ export default function ProfilePage() {
               <Label>手机号</Label>
               <Input
                 value={profileForm.phone}
-                onInput={(e) => setProfileForm(prev => ({ ...prev, phone: e.detail.value }))}
+                onInput={(e) => setProfileForm(prev => ({ ...prev, phone: String(e.detail.value || '') }))}
                 placeholder="请输入手机号"
                 type="number"
               />

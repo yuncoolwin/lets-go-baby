@@ -435,6 +435,31 @@ export class AuthService {
         return { error: true, code: 400, msg: '该手机号已被其他用户使用' };
       }
       await this.client.from('users').update({ phone: phoneInput }).eq('id', userId);
+
+      // 双向同步：若该用户存在 active teacher 角色，同步 teachers.phone
+      const teacherRolesNow = activeRoles.filter(r => r.role_type === 'teacher');
+      let teacherIdNow: string | null = null;
+      const { data: tByUserNow } = await this.client
+        .from('teachers')
+        .select('id')
+        .eq('user_id', userId)
+        .limit(1);
+      if (tByUserNow && tByUserNow.length > 0) {
+        teacherIdNow = tByUserNow[0].id;
+      } else {
+        const roleRealNameNow = teacherRolesNow[0]?.real_name || '';
+        if (roleRealNameNow) {
+          const { data: tByNameNow } = await this.client
+            .from('teachers')
+            .select('id')
+            .eq('real_name', roleRealNameNow)
+            .limit(1);
+          if (tByNameNow && tByNameNow.length > 0) teacherIdNow = tByNameNow[0].id;
+        }
+      }
+      if (teacherIdNow) {
+        await this.client.from('teachers').update({ phone: phoneInput }).eq('id', teacherIdNow);
+      }
     }
 
     const teacherRoles = activeRoles.filter(r => r.role_type === 'teacher');

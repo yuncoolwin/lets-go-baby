@@ -198,7 +198,7 @@ export default function PermissionPage() {
       const res = await Network.request({
         url,
         method,
-        data: { operator_user_id: userId, nickname: dialogNickname.trim(), phone: dialogPhone.trim() },
+        data: { operator_user_id: userId, nickname: dialogNickname.trim(), phone: String(dialogPhone || '').trim() },
       })
       console.log('[权限管理]', method, url, { operator_user_id: userId, nickname: dialogNickname, phone: dialogPhone }, '->', res.data)
       if (res.data?.code === 200) {
@@ -371,7 +371,7 @@ export default function PermissionPage() {
                 type="number"
                 maxlength={11}
                 value={dialogPhone}
-                onInput={(e) => setDialogPhone(e.detail.value)}
+                onInput={(e) => setDialogPhone(String(e.detail.value || ''))}
               />
             </View>
             {dialogMode === 'edit' && (

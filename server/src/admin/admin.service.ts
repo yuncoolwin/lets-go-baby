@@ -1008,11 +1008,25 @@ export class AdminService {
     const MANAGE_ROLE_PRIORITY = ['superadmin', 'admin', 'teacher'];
     const { data: activeRoles, error: rolesError } = await this.client
       .from('user_roles')
-      .select('id, role_type')
+      .select('id, role_type, real_name')
       .eq('user_id', userId)
       .eq('status', 'active');
 
     if (rolesError) return { code: 500, msg: '查询角色失败：' + rolesError.message, data: null };
+
+    // 手机号唯一性校验：传入非空手机号时，排除当前用户
+    const permNewPhone = String(phone || '').trim();
+    if (permNewPhone) {
+      const { data: dupPhone } = await this.client
+        .from('users')
+        .select('id')
+        .eq('phone', permNewPhone)
+        .neq('id', userId)
+        .maybeSingle();
+      if (dupPhone) {
+        return { error: true, code: 400, msg: '该手机号已被其他用户使用', data: null };
+      }
+    }
 
     let targetRoleId: string | null = null;
     for (const rt of MANAGE_ROLE_PRIORITY) {
@@ -1048,6 +1062,33 @@ export class AdminService {
       .single();
 
     if (updateError) return { code: 500, msg: '更新用户失败：' + updateError.message, data: null };
+
+    // 双向同步：若目标用户存在 active teacher 角色，同步 teachers.phone
+    const teacherRole = (activeRoles || []).find((r: any) => r.role_type === 'teacher');
+    if (teacherRole && permNewPhone) {
+      let teacherSyncId: string | null = null;
+      const { data: tByUserSync } = await this.client
+        .from('teachers')
+        .select('id')
+        .eq('user_id', userId)
+        .limit(1);
+      if (tByUserSync && tByUserSync.length > 0) {
+        teacherSyncId = tByUserSync[0].id;
+      } else {
+        const roleRealNameSync = (teacherRole as any).real_name || '';
+        if (roleRealNameSync) {
+          const { data: tByNameSync } = await this.client
+            .from('teachers')
+            .select('id')
+            .eq('real_name', roleRealNameSync)
+            .limit(1);
+          if (tByNameSync && tByNameSync.length > 0) teacherSyncId = tByNameSync[0].id;
+        }
+      }
+      if (teacherSyncId) {
+        await this.client.from('teachers').update({ phone: permNewPhone }).eq('id', teacherSyncId);
+      }
+    }
 
     // 实际写入角色类型（从 activeRoles 按 MANAGE_ROLE_PRIORITY 命中项取）
     let actualRoleType: string | null = null;

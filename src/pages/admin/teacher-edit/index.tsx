@@ -141,7 +141,7 @@ export default function TeacherEditPage() {
       const payload = {
         real_name: formData.name.trim(),
         nickname: formData.nickname.trim(),
-        phone: formData.phone.trim(),
+        phone: String(formData.phone || '').trim(),
         title: getEffectiveTitle(),
         class_ids: formData.class_ids,
         status: formData.status,
@@ -243,7 +243,7 @@ export default function TeacherEditPage() {
               <Label>手机号</Label>
               <Input
                 value={formData.phone}
-                onInput={(e) => setFormData(prev => ({ ...prev, phone: e.detail.value }))}
+                onInput={(e) => setFormData(prev => ({ ...prev, phone: String(e.detail.value || '') }))}
                 placeholder="请输入手机号"
                 type="number"
               />
