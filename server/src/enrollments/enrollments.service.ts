@@ -939,7 +939,14 @@ export class EnrollmentsService {
         .maybeSingle();
       if (course?.date_calc_rule) return course.date_calc_rule;
     }
-    if (enr.date_calc_rule) return enr.date_calc_rule;
+    if (enr.date_calc_rule) {
+      // 兜底：周六托报读若冗余字段错误存成「工作日」，忽略冗余字段按课程类型推断为「周六」
+      // 仅当类型为「周六托」且冗余字段是无效的「工作日」时生效；全日托/半日托推断仍为「工作日」，不受影响
+      if (enr.course_type === '周六托' && enr.date_calc_rule === '工作日') {
+        return '周六';
+      }
+      return enr.date_calc_rule;
+    }
     return enr.course_type === '周六托' ? '周六' : '工作日';
   }
 
