@@ -103,10 +103,4 @@ export class EnrollmentsController {
       return { code: 500, msg: e.message || '计算失败', data: null };
     }
   }
-
-  @Post('recalc-extended')
-  async recalcAllExtendedAll() {
-    const result = await this.enrollmentsService.recalcAllExtendedEndDate();
-    return { code: 200, msg: 'success', data: result };
-  }
 }

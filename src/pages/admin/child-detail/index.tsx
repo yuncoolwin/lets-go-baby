@@ -153,18 +153,6 @@ export default function ChildDetailPage() {
   const [calDisplayYear, setCalDisplayYear] = useState(new Date().getFullYear())
   const [calDisplayMonth, setCalDisplayMonth] = useState(new Date().getMonth() + 1)
   const [attendanceDayFeedback, setAttendanceDayFeedback] = useState<any>(null)
-  // 日历点击非出勤日信息（放假/请假区间）
-  const [calendarDayInfo, setCalendarDayInfo] = useState<{ type: 'holiday' | 'leave'; name?: string; start: string; end: string } | null>(null)
-  // 日期区间格式化：YYYY-MM-DD -> M月D日，跨年补年份
-  const formatRange = (start: string, end: string) => {
-    const fmt = (d: string) => `${Number(d.slice(5, 7))}月${Number(d.slice(8, 10))}日`
-    if (!start || !end) return ''
-    if (start.slice(0, 4) === end.slice(0, 4)) {
-      if (start === end) return fmt(start)
-      return `${fmt(start)}-${fmt(end)}`
-    }
-    return `${Number(start.slice(0, 4))}年${Number(start.slice(5, 7))}月${Number(start.slice(8, 10))}日-${Number(end.slice(0, 4))}年${Number(end.slice(5, 7))}月${Number(end.slice(8, 10))}日`
-  }
   const [editAllergies, setEditAllergies] = useState('')
   const [editHealthInfo, setEditHealthInfo] = useState('')
   const [editSubmitting, setEditSubmitting] = useState(false)
@@ -494,9 +482,7 @@ export default function ChildDetailPage() {
             return enr
           })
         )
-        // 按课程开始日期倒序展示，开始时间越晚的卡片越靠上；start_date 为空排最后
-        const sorted = [...updated].sort((a, b) => (b.start_date || '').localeCompare(a.start_date || ''))
-        setEnrollments(sorted)
+        setEnrollments(updated)
       }
       // 拉取临时来园记录（按 date 倒序）
       try {
@@ -1290,7 +1276,7 @@ export default function ChildDetailPage() {
 
       {/* ========== 考勤日历弹窗 ========== */}
       {showAttendanceCalendar && (
-        <View className="fixed inset-0 z-[200] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }} onClick={() => { setShowAttendanceCalendar(false); setCurrentAttendanceCalendar(null); setCalendarDayInfo(null) }}>
+        <View className="fixed inset-0 z-[200] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }} onClick={() => { setShowAttendanceCalendar(false); setCurrentAttendanceCalendar(null) }}>
           <View className="rounded-3xl w-[95%] max-w-md max-h-[85vh] flex flex-col overflow-hidden shadow-2xl" style={{ backgroundColor: '#FFF8EE', zIndex: 1 }} onClick={e => e.stopPropagation()}>
             {/* 标题栏 */}
             <View className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
@@ -1337,62 +1323,6 @@ export default function ChildDetailPage() {
                   }
                 })
 
-                // 聚合假期区间：按 name 分组，取最早为 start、最晚为 end（后端按日期升序返回，同假期连续展开）
-                const holidayRanges: { name: string; start: string; end: string }[] = (() => {
-                  const groups = new Map<string, { name: string; start: string; end: string }>()
-                  for (const item of attendanceData || []) {
-                    if (item.status === 'holiday' && item.name) {
-                      const g = groups.get(item.name)
-                      if (!g) {
-                        groups.set(item.name, { name: item.name, start: item.date, end: item.date })
-                      } else {
-                        if (item.date < g.start) g.start = item.date
-                        if (item.date > g.end) g.end = item.date
-                      }
-                    }
-                  }
-                  return Array.from(groups.values())
-                })()
-
-                // 聚合请假区间：按实际上课日间隔合并，跨灰色日（非上课日/放假/无记录）不分段
-                const leaveRanges: { start: string; end: string }[] = (() => {
-                  const leaveDates = (attendanceData || [])
-                    .filter((item: any) => item.status === 'leave')
-                    .map((item: any) => item.date)
-                    .sort()
-                  // 实际上课日：is_class_day 为 true 且当天状态非请假（灰色日=is_class_day false 或 holiday 或无记录，均应跳过）
-                  const isEffectClassDay = (ds: string) => classDaySet[ds] === true && attendanceMap[ds] !== 'leave'
-                  const ranges: { start: string; end: string }[] = []
-                  let cur: { start: string; end: string } | null = null
-                  for (const d of leaveDates) {
-                    if (!cur) {
-                      cur = { start: d, end: d }
-                      continue
-                    }
-                    // 从 cur.end 次日迭代到 d 前一日的每一天
-                    let broke = false
-                    const ptr = new Date(cur.end)
-                    ptr.setDate(ptr.getDate() + 1)
-                    const targetDate = new Date(d)
-                    while (ptr < targetDate) {
-                      const ds = `${ptr.getFullYear()}-${String(ptr.getMonth() + 1).padStart(2, '0')}-${String(ptr.getDate()).padStart(2, '0')}`
-                      if (isEffectClassDay(ds)) {
-                        broke = true // 中间存在实际上课日，需分段
-                        break
-                      }
-                      ptr.setDate(ptr.getDate() + 1)
-                    }
-                    if (broke) {
-                      ranges.push(cur)
-                      cur = { start: d, end: d }
-                    } else {
-                      cur.end = d
-                    }
-                  }
-                  if (cur) ranges.push(cur)
-                  return ranges
-                })()
-
                 const getDayClass = (ds: string) => {
                   if (ds < startDate || ds > endDate) return 'text-gray-300'
                   if (!classDaySet[ds] && !holidayMap[ds]) return 'text-gray-300'
@@ -1410,25 +1340,8 @@ export default function ChildDetailPage() {
                 const handleDayClick = async (d: number) => {
                   const ds = `${displayYear}-${String(displayMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`
                   if (ds < startDate || ds > endDate) return
-                  // 放假日期：显示假期名称与区间
-                  const holidayHit = holidayRanges.find(r => ds >= r.start && ds <= r.end)
-                  if (holidayHit) {
-                    setCurrentAttendanceCalendar(prev => prev ? { ...prev, selectedDate: ds } : null)
-                    setCalendarDayInfo({ type: 'holiday', name: holidayHit.name, start: holidayHit.start, end: holidayHit.end })
-                    setAttendanceDayFeedback(null)
-                    return
-                  }
-                  // 请假日期：显示请假区间
-                  if (attendanceMap[ds] === 'leave') {
-                    const leaveHit = leaveRanges.find(r => ds >= r.start && ds <= r.end)
-                    setCurrentAttendanceCalendar(prev => prev ? { ...prev, selectedDate: ds } : null)
-                    setCalendarDayInfo({ type: 'leave', start: leaveHit ? leaveHit.start : ds, end: leaveHit ? leaveHit.end : ds })
-                    setAttendanceDayFeedback(null)
-                    return
-                  }
                   if (!classDaySet[ds]) return
                   setCurrentAttendanceCalendar(prev => prev ? { ...prev, selectedDate: ds } : null)
-                  setCalendarDayInfo(null)
                   console.log('>>> handleDayClick 被调用, childId:', child.id, ', date:', ds)
                   try {
                     const res: any = await dailyApi.getDailyFeedback(child.id, ds)
@@ -1581,7 +1494,7 @@ export default function ChildDetailPage() {
                     </View>
 
                     {/* 图例 */}
-                    <View className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-gray-300 px-1">
+                    <View className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-gray-100 px-1">
                       {(currentAttendanceCalendar?.courseType === '全日托' || currentAttendanceCalendar?.courseType === '周六托') ? (
                         <>
                           <View className="flex items-center gap-1">
@@ -1630,32 +1543,22 @@ export default function ChildDetailPage() {
         <View
           className="fixed inset-0 z-[210] flex items-center justify-center"
           style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
-          onClick={() => { setCurrentAttendanceCalendar(prev => prev ? { ...prev, selectedDate: undefined } : null); setCalendarDayInfo(null) }}
+          onClick={() => setCurrentAttendanceCalendar(prev => prev ? { ...prev, selectedDate: undefined } : null)}
         >
           <View className="bg-white rounded-2xl w-[90%] max-w-sm flex flex-col overflow-hidden shadow-2xl" style={{ zIndex: 1 }} onClick={(e) => e.stopPropagation()}>
             <View className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <Text className="text-sm font-medium text-gray-700">
-                {calendarDayInfo?.type === 'holiday' ? '假期信息' : calendarDayInfo?.type === 'leave' ? '请假信息' : `${currentAttendanceCalendar?.selectedDate?.replace(/^\d{4}-(\d{2})-(\d{2})$/, '$1月$2日')}日常记录`}
+                {currentAttendanceCalendar?.selectedDate?.replace(/^\d{4}-(\d{2})-(\d{2})$/, '$1月$2日')}日常记录
               </Text>
               <View
-                onClick={() => { setCurrentAttendanceCalendar(prev => prev ? { ...prev, selectedDate: undefined } : null); setCalendarDayInfo(null) }}
+                onClick={() => setCurrentAttendanceCalendar(prev => prev ? { ...prev, selectedDate: undefined } : null)}
                 className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100"
               >
                 <Text className="text-gray-500 text-base leading-none">✕</Text>
               </View>
             </View>
             <View className="p-4">
-              {calendarDayInfo?.type === 'holiday' ? (
-                <View className="py-6 flex flex-col items-center space-y-3">
-                  <Text className="text-xl font-semibold text-gray-800">{calendarDayInfo.name || '假期'}</Text>
-                  <Text className="text-sm text-gray-500">{formatRange(calendarDayInfo.start, calendarDayInfo.end)}</Text>
-                </View>
-              ) : calendarDayInfo?.type === 'leave' ? (
-                <View className="py-6 flex flex-col items-center space-y-3">
-                  <Text className="text-xl font-semibold text-gray-800">请假</Text>
-                  <Text className="text-sm text-gray-500">{formatRange(calendarDayInfo.start, calendarDayInfo.end)}</Text>
-                </View>
-              ) : attendanceDayFeedback ? (
+              {attendanceDayFeedback ? (
                 <View className="space-y-3">
                   {attendanceDayFeedback.emotion ? (
                     <View className="flex items-center gap-2">
