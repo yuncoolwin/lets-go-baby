@@ -77,7 +77,7 @@ const ACTION_LABELS: Record<string, string> = {
   binding_approve: '通过了绑定申请',
   binding_reject: '拒绝了绑定申请',
   user_create: '新增了用户「{name}」',
-  user_update: '编辑了用户「{name}」',
+  user_update: '编辑了用户「{name}」的{changes}',
   user_delete: '删除了用户「{name}」',
   role_assign: '给「{name}」分配了{role}',
   role_revoke: '撤销了「{name}」的{role}',
@@ -97,7 +97,7 @@ const ROLE_LABELS: Record<string, string> = {
 // name 为空时的降级文案
 const ACTION_FALLBACKS: Record<string, string> = {
   user_create: '新增了用户',
-  user_update: '编辑了用户',
+  user_update: '编辑了用户的{changes}',
   user_delete: '删除了用户',
   role_assign: '分配了{role}',
   role_revoke: '撤销了{role}',

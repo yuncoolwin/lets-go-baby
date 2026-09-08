@@ -241,6 +241,13 @@ export const authApi = {
       data,
     });
   },
+  updateProfile(data: { nickname: string; phone: string; role_type: string }) {
+    return Network.request({
+      url: '/api/auth/update-profile',
+      method: 'POST',
+      data,
+    });
+  },
 };
 
 // ============ 报读记录 API ============

@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { WechatService } from './wechat.service';
+import { AdminService } from '@/admin/admin.service';
 import { signToken } from './jwt.util';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly wechat: WechatService) {}
+  constructor(
+    private readonly wechat: WechatService,
+    private readonly adminService: AdminService,
+  ) {}
 
   private get client() {
     return getSupabaseClient();
@@ -385,6 +389,125 @@ export class AuthService {
       user,
       roles: roles || [],
       children,
+    };
+  }
+
+  /**
+   * 更新个人信息（用户名/手机号，按当前端角色生效）
+   */
+  async updateProfile(userId: string, body: { nickname?: string; phone?: string; role_type?: string }) {
+    const nicknameInput = (body?.nickname || '').trim();
+    const phoneInput = (body?.phone || '').trim();
+    const roleType = body?.role_type || '';
+
+    // 1. 查当前用户旧值
+    const { data: user, error: userError } = await this.client
+      .from('users')
+      .select('id, nickname, phone')
+      .eq('id', userId)
+      .maybeSingle();
+    if (userError) throw new Error(`查询用户失败: ${userError.message}`);
+    if (!user) throw new Error('用户不存在');
+
+    const oldNickname = user.nickname || '';
+    const oldPhone = user.phone || '';
+    const nicknameChanged = !!nicknameInput && nicknameInput !== oldNickname;
+    const phoneChanged = !!phoneInput && phoneInput !== oldPhone;
+
+    // 2. 查该用户 active 角色列表
+    const { data: roles, error: rolesError } = await this.client
+      .from('user_roles')
+      .select('id, user_id, role_type, real_name, status')
+      .eq('user_id', userId)
+      .eq('status', 'active');
+    if (rolesError) throw new Error(`查询角色失败: ${rolesError.message}`);
+    const activeRoles = roles || [];
+
+    // 3. 手机号唯一性校验并写入
+    if (phoneChanged) {
+      const { data: dupPhone } = await this.client
+        .from('users')
+        .select('id')
+        .eq('phone', phoneInput)
+        .neq('id', userId)
+        .maybeSingle();
+      if (dupPhone) {
+        return { error: true, code: 400, msg: '该手机号已被其他用户使用' };
+      }
+      await this.client.from('users').update({ phone: phoneInput }).eq('id', userId);
+    }
+
+    const teacherRoles = activeRoles.filter(r => r.role_type === 'teacher');
+
+    // 4. 用户名按角色分支
+    if (roleType === 'teacher' && nicknameChanged) {
+      // 写 users.nickname
+      await this.client.from('users').update({ nickname: nicknameInput }).eq('id', userId);
+      // 写 teachers.nickname：按 user_id 查，查不到按 role real_name 反查
+      let teacherId: string | null = null;
+      const { data: tByUser } = await this.client
+        .from('teachers')
+        .select('id')
+        .eq('user_id', userId)
+        .limit(1);
+      if (tByUser && tByUser.length > 0) {
+        teacherId = tByUser[0].id;
+      } else {
+        const roleRealName = teacherRoles[0]?.real_name || '';
+        if (roleRealName) {
+          const { data: tByName } = await this.client
+            .from('teachers')
+            .select('id')
+            .eq('real_name', roleRealName)
+            .limit(1);
+          if (tByName && tByName.length > 0) teacherId = tByName[0].id;
+        }
+      }
+      if (teacherId) {
+        await this.client.from('teachers').update({ nickname: nicknameInput }).eq('id', teacherId);
+      }
+    } else if ((roleType === 'admin' || roleType === 'superadmin') && nicknameChanged) {
+      // 找该 role_type 且 active 的首条记录更新 real_name
+      const targetRole = activeRoles.find(r => r.role_type === roleType) || null;
+      if (targetRole) {
+        await this.client.from('user_roles').update({ real_name: nicknameInput }).eq('id', targetRole.id);
+      }
+    } else if (nicknameChanged) {
+      // parent 或其它：只写 users.nickname
+      await this.client.from('users').update({ nickname: nicknameInput }).eq('id', userId);
+    }
+
+    // 5. 操作日志（用户名或手机号任一变化才记录）
+    const changes: string[] = [];
+    if (nicknameChanged) changes.push(`用户名从「${oldNickname}」修改成「${nicknameInput}」`);
+    if (phoneChanged) changes.push(`手机号从「${oldPhone}」修改成「${phoneInput}」`);
+    if (changes.length > 0) {
+      const updatedName = (roleType === 'admin' || roleType === 'superadmin')
+        ? (activeRoles.find(r => r.role_type === roleType)?.real_name || nicknameInput)
+        : nicknameInput;
+      await this.adminService.writeAuditLog({
+        user_id: userId,
+        action: 'user_update',
+        target_type: 'user',
+        target_id: userId,
+        detail: { name: updatedName, role_type: roleType, changes },
+      });
+    }
+
+    // 6. 返回更新后的 user（id、nickname、phone）
+    const { data: updatedUser } = await this.client
+      .from('users')
+      .select('id, nickname, phone')
+      .eq('id', userId)
+      .maybeSingle();
+
+    return {
+      data: updatedUser || {
+        id: userId,
+        nickname: nicknameChanged ? nicknameInput : oldNickname,
+        phone: phoneChanged ? phoneInput : oldPhone,
+      },
+      error: false,
     };
   }
 

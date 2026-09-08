@@ -5,6 +5,9 @@ import { AuthzService } from '@/auth/authz.service';
 /** 教师列表/详情可见字段（不含手机号） */
 const TEACHER_SAFE_FIELDS = 'id, real_name, nickname, qualification, specialty, status, user_id, class_id, title, entry_date, leave_date, created_at, updated_at';
 
+/** 教师详情全量字段（管理员/超管可见，在 SAFE 基础上于 real_name 后加入 phone） */
+const TEACHER_FULL_FIELDS = 'id, real_name, phone, nickname, qualification, specialty, status, user_id, class_id, title, entry_date, leave_date, created_at, updated_at';
+
 @Injectable()
 export class TeachersService {
   constructor(private readonly authz: AuthzService) {}
@@ -239,11 +242,14 @@ export class TeachersService {
       return { error: true, code: 403, msg: '无权访问' };
     }
 
-    const { data: teacher, error } = await this.client
+    // 管理员/超管可查看手机号，其他角色脱敏
+    const fields: string = ['admin', 'superadmin'].includes(level) ? TEACHER_FULL_FIELDS : TEACHER_SAFE_FIELDS;
+
+    const { data: teacher, error } = (await this.client
       .from('teachers')
-      .select(TEACHER_SAFE_FIELDS)
+      .select(fields as never)
       .eq('id', id)
-      .single();
+      .single()) as { data: any; error: any };
 
     if (error || !teacher) {
       return { error: true, code: 404, msg: '教师不存在' };

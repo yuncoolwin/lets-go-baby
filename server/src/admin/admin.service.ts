@@ -995,7 +995,7 @@ export class AdminService {
 
     const { data: user, error: userError } = await this.client
       .from('users')
-      .select('id')
+      .select('id, nickname, phone')
       .eq('id', userId)
       .maybeSingle();
 
@@ -1049,13 +1049,34 @@ export class AdminService {
 
     if (updateError) return { code: 500, msg: '更新用户失败：' + updateError.message, data: null };
 
+    // 实际写入角色类型（从 activeRoles 按 MANAGE_ROLE_PRIORITY 命中项取）
+    let actualRoleType: string | null = null;
+    for (const rt of MANAGE_ROLE_PRIORITY) {
+      const hit = (activeRoles || []).find((r: any) => r.role_type === rt);
+      if (hit) {
+        actualRoleType = rt;
+        break;
+      }
+    }
+
+    // 组装 changes：用户名/手机号旧值改新值（只放实际变化的项）
+    const changes: string[] = [];
+    const oldNickname = (user as any).nickname || '';
+    const oldPhone = (user as any).phone || '';
+    if (nickname !== undefined && nickname !== oldNickname) {
+      changes.push(`用户名从「${oldNickname}」修改成「${nickname}」`);
+    }
+    if (phone !== undefined && phone !== oldPhone) {
+      changes.push(`手机号从「${oldPhone}」修改成「${phone || ''}」`);
+    }
+
     await this.writeAuditLog({
       user_id: operatorUserId,
       user_role_id: isSuperAdmin.id,
       action: 'user_update',
       target_type: 'user',
       target_id: userId,
-      detail: { name: updated.nickname || null },
+      detail: { name: updated.nickname || null, role_type: actualRoleType, changes },
     });
 
     return { code: 200, msg: 'success', data: updated };

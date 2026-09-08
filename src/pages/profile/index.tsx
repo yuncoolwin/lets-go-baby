@@ -1,22 +1,74 @@
 import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 import { Separator } from '@/components/ui/separator'
 import { useAppStore, type RoleType } from '@/store/app'
+import { authApi } from '@/utils/api'
 import { getRelationshipLabel } from '@/utils/helpers'
-import { User, ChevronRight, LogOut, Users, Shield, ShieldCheck } from 'lucide-react-taro'
+import { User, ChevronRight, LogOut, Users, Shield, ShieldCheck, Pencil } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import TabBar from '@/components/tab-bar'
 
 export default function ProfilePage() {
   const {
     nickname, roles, currentRole, currentRoleIndex, agentOriginalRoleType,
-    children, currentChildIndex, isLoggedIn, setCurrentRole, logout, fetchUserInfo,
+    children, currentChildIndex, isLoggedIn, setCurrentRole, logout, fetchUserInfo, phone,
   } = useAppStore()
 
   const currentChild = children[currentChildIndex] || null
+
+  // 个人信息维护弹窗
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [profileForm, setProfileForm] = useState({ nickname: '', phone: '' })
+
+  const openProfile = () => {
+    const roleType = currentRole?.role_type || ''
+    const storeNick = nickname || ''
+    const roleRealName = currentRole?.real_name || ''
+    let prefillNick = ''
+    if (roleType === 'teacher') {
+      prefillNick = storeNick || roleRealName
+    } else if (roleType === 'admin' || roleType === 'superadmin') {
+      prefillNick = roleRealName || storeNick
+    } else {
+      prefillNick = storeNick
+    }
+    setProfileForm({ nickname: (prefillNick || ''), phone: (phone || '') })
+    setProfileOpen(true)
+  }
+
+  const saveProfile = async () => {
+    const roleType = currentRole?.role_type || ''
+    if (!profileForm.nickname.trim()) {
+      Taro.showToast({ title: '请输入用户名', icon: 'none' })
+      return
+    }
+    try {
+      const res = await authApi.updateProfile({
+        nickname: profileForm.nickname.trim(),
+        phone: profileForm.phone.trim(),
+        role_type: roleType,
+      })
+      console.log('[Profile] updateProfile response:', res.data)
+      const body = (res as any).data
+      if (body?.code === 200) {
+        Taro.showToast({ title: '保存成功', icon: 'success' })
+        setProfileOpen(false)
+        await fetchUserInfo()
+      } else {
+        Taro.showToast({ title: body?.msg || '保存失败', icon: 'none' })
+      }
+    } catch (err) {
+      console.error('[Profile] updateProfile error:', err)
+      Taro.showToast({ title: '保存失败', icon: 'none' })
+    }
+  }
 
   // 根据角色计算显示名称
   const getDisplayName = () => {
@@ -28,6 +80,10 @@ export default function ProfilePage() {
           return nickname || '管理员'
         }
         if (currentChild) {
+          // 已设置自定义用户名时优先展示，否则展示 幼儿名+关系
+          if (nickname && nickname.trim() && nickname !== '新用户') {
+            return nickname
+          }
           const relText = currentChild.relationship === 'other' && currentChild.custom_relationship
             ? currentChild.custom_relationship
             : (getRelationshipLabel(currentChild.relationship) || '家长')
@@ -117,6 +173,15 @@ export default function ProfilePage() {
             <Text className="block text-sm text-muted-foreground mt-1">{subTitle}</Text>
           )}
         </View>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 px-2"
+          onClick={openProfile}
+        >
+          <Pencil size={14} color="#666" className="mr-1" />
+          <Text className="text-sm text-muted-foreground">编辑</Text>
+        </Button>
       </View>
 
       {/* 角色切换 */}
@@ -227,6 +292,50 @@ export default function ProfilePage() {
         <LogOut size={16} className="mr-2" color="#666" />
         <Text>退出登录</Text>
       </Button>
+
+      {/* 个人信息维护弹窗 */}
+      <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
+        <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base font-semibold">个人信息</DialogTitle>
+          </DialogHeader>
+          <View className="space-y-4 mt-4">
+            <View>
+              <Label>用户名</Label>
+              <Input
+                value={profileForm.nickname}
+                onInput={(e) => setProfileForm(prev => ({ ...prev, nickname: e.detail.value }))}
+                placeholder="请输入用户名"
+              />
+            </View>
+            <View>
+              <Label>手机号</Label>
+              <Input
+                value={profileForm.phone}
+                onInput={(e) => setProfileForm(prev => ({ ...prev, phone: e.detail.value }))}
+                placeholder="请输入手机号"
+                type="number"
+              />
+            </View>
+          </View>
+          <View className="flex gap-3 mt-6">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setProfileOpen(false)}
+            >
+              <Text>取消</Text>
+            </Button>
+            <Button
+              className="flex-1 bg-primary text-primary-foreground"
+              onClick={saveProfile}
+            >
+              <Text>保存</Text>
+            </Button>
+          </View>
+        </DialogContent>
+      </Dialog>
+
       <TabBar />
     </View>
   )

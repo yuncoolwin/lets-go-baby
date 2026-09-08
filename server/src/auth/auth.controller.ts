@@ -48,6 +48,31 @@ export class AuthController {
   }
 
   /**
+   * 更新个人信息（用户名/手机号，按角色生效；JWT 鉴权）
+   * POST /api/auth/update-profile
+   */
+  @Post('update-profile')
+  @HttpCode(200)
+  async updateProfile(
+    @Req() req: any,
+    @Body() body: { nickname?: string; phone?: string; role_type?: string },
+  ) {
+    const userId = req?.user?.userId;
+    if (!userId) {
+      return { code: 401, msg: '未登录', data: null };
+    }
+    try {
+      const result = await this.authService.updateProfile(userId, body || {});
+      if ((result as any)?.error) {
+        return { code: (result as any).code, msg: (result as any).msg, data: null };
+      }
+      return { code: 200, msg: 'success', data: (result as any).data };
+    } catch (e: any) {
+      return { code: 400, msg: e?.message || '更新失败', data: null };
+    }
+  }
+
+  /**
    * 选择角色（多角色用户）
    * POST /api/auth/select-role
    */

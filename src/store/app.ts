@@ -417,11 +417,19 @@ export const useAppStore = create<AppStore>()(
       {
         const roles = (data.roles || []) as UserRole[]
         const children = (data.children || []) as ChildInfo[]
-        // 保留当前已选择的角色，不覆盖用户手动切换的角色
-        const { currentRole: existingRole, currentRoleIndex: existingIndex } = get()
-        let currentRole: UserRole | null = existingRole
-        let currentRoleIndex = existingIndex
-        if (!currentRole || !roles.find(r => r.id === currentRole!.id)) {
+        const user = data.user || {}
+        // 从最新 roles 中按 id 匹配替换 currentRole（避免保留旧引用，修改用户名后实时刷新），匹配不到再取 roles[0]
+        const { currentRole: existingRole } = get()
+        let currentRole: UserRole | null = null
+        let currentRoleIndex = 0
+        if (existingRole) {
+          const idx = roles.findIndex(r => r.id === existingRole.id)
+          if (idx >= 0) {
+            currentRole = roles[idx]
+            currentRoleIndex = idx
+          }
+        }
+        if (!currentRole) {
           currentRole = roles.length > 0 ? roles[0] : null
           currentRoleIndex = 0
         }
@@ -433,6 +441,9 @@ export const useAppStore = create<AppStore>()(
           roles,
           currentRole,
           currentRoleIndex,
+          nickname: user.nickname || get().nickname || '',
+          phone: user.phone != null ? user.phone : (get().phone ?? null),
+          avatarUrl: user.avatar_url != null ? user.avatar_url : (get().avatarUrl ?? null),
           children,
           currentChildIndex,
           isLoading: false,
