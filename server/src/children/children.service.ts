@@ -199,27 +199,40 @@ export class ChildrenService {
     const childIds = (allChildren || []).map(c => c.id);
     const childCreatedAtMap = new Map((allChildren || []).map(c => [c.id, c.created_at]));
 
-    // Step 2: 查询所有 enrollments，获取每个幼儿的最新报读时间
+    // Step 2: 查询所有 enrollments，获取每个幼儿最早的入园时间（课程实际开始日期 start_date 最小）
     let enrollmentTimeMap = new Map<string, string>();
     if (childIds.length > 0) {
-      // 查询所有 enrollments（不限状态），按 child_id 分组取最大 created_at
+      // 查询所有 enrollments（不限状态），按 child_id 分组取最早 start_date
       const { data: enrollments } = await this.client
         .from('enrollments')
-        .select('child_id, created_at')
+        .select('child_id, start_date')
         .in('child_id', childIds);
 
       for (const e of enrollments || []) {
+        if (!e.start_date) continue; // 无开课时间的报读不参与入园时间计算
         const existing = enrollmentTimeMap.get(e.child_id);
-        if (!existing || e.created_at > existing) {
-          enrollmentTimeMap.set(e.child_id, e.created_at);
+        if (!existing || e.start_date < existing) {
+          enrollmentTimeMap.set(e.child_id, e.start_date);
         }
       }
     }
 
-    // Step 3: 按最新报读时间排序（降序），无报读的用幼儿 created_at 降序
+    // Step 3: 按最早入园时间（start_date 最小）降序（越晚入园越靠前）；
+    // 仅一方有入园时间则有入园时间的排前面；双方都无入园时间按 created_at 降序兜底
     const sortedIds = childIds.sort((a, b) => {
-      const timeA = enrollmentTimeMap.get(a) || childCreatedAtMap.get(a) || '';
-      const timeB = enrollmentTimeMap.get(b) || childCreatedAtMap.get(b) || '';
+      const startA = enrollmentTimeMap.get(a);
+      const startB = enrollmentTimeMap.get(b);
+      const hasA = !!startA;
+      const hasB = !!startB;
+      if (hasA !== hasB) {
+        return hasA ? -1 : 1; // 有入园时间的排前
+      }
+      if (hasA && hasB) {
+        return startB.localeCompare(startA); // 入园时间降序（越晚入园越靠前）
+      }
+      // 双方都无入园时间：created_at 降序兜底
+      const timeA = childCreatedAtMap.get(a) || '';
+      const timeB = childCreatedAtMap.get(b) || '';
       return timeB.localeCompare(timeA);
     });
 

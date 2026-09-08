@@ -67,6 +67,31 @@ const getNextSaturday = (): string => {
   return next.toISOString().split('T')[0]
 }
 
+/** YYYY-MM-DD 加 n 天，返回 YYYY-MM-DD */
+const addDays = (ds: string, n: number): string => {
+  const d = new Date(`${ds}T00:00:00`)
+  d.setDate(d.getDate() + n)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** YYYY-MM-DD → M月D日（去除前导零，禁止字符串拼接） */
+const fmtDate = (ds: string): string => `${Number(ds.slice(5, 7))}月${Number(ds.slice(8, 10))}日`
+
+/** 日期区间格式化：同月/同年显示 M月D日-M月D日；跨年补年份 */
+const formatRange = (start: string, end: string): string => {
+  if (!start || !end) return ''
+  if (start === end) return fmtDate(start)
+  const sy = Number(start.slice(0, 4))
+  const ey = Number(end.slice(0, 4))
+  if (sy === ey) {
+    return `${fmtDate(start)}-${fmtDate(end)}`
+  }
+  return `${sy}年${fmtDate(start)}-${ey}年${fmtDate(end)}`
+}
+
 export default function ChildDetailPage() {
   const router = useRouter()
   const { id, readonly } = router.params
@@ -153,6 +178,7 @@ export default function ChildDetailPage() {
   const [calDisplayYear, setCalDisplayYear] = useState(new Date().getFullYear())
   const [calDisplayMonth, setCalDisplayMonth] = useState(new Date().getMonth() + 1)
   const [attendanceDayFeedback, setAttendanceDayFeedback] = useState<any>(null)
+  const [calendarDayInfo, setCalendarDayInfo] = useState<{ type: 'holiday' | 'leave'; name?: string; start: string; end: string } | null>(null)
   const [editAllergies, setEditAllergies] = useState('')
   const [editHealthInfo, setEditHealthInfo] = useState('')
   const [editSubmitting, setEditSubmitting] = useState(false)
@@ -482,6 +508,8 @@ export default function ChildDetailPage() {
             return enr
           })
         )
+        // 按课程开始日期倒序，开始时间越晚越靠上，start_date 为空排最后
+        updated.sort((a: any, b: any) => (b.start_date || '').localeCompare(a.start_date || ''))
         setEnrollments(updated)
       }
       // 拉取临时来园记录（按 date 倒序）
@@ -1276,7 +1304,7 @@ export default function ChildDetailPage() {
 
       {/* ========== 考勤日历弹窗 ========== */}
       {showAttendanceCalendar && (
-        <View className="fixed inset-0 z-[200] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }} onClick={() => { setShowAttendanceCalendar(false); setCurrentAttendanceCalendar(null) }}>
+        <View className="fixed inset-0 z-[200] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }} onClick={() => { setShowAttendanceCalendar(false); setCurrentAttendanceCalendar(null); setCalendarDayInfo(null) }}>
           <View className="rounded-3xl w-[95%] max-w-md max-h-[85vh] flex flex-col overflow-hidden shadow-2xl" style={{ backgroundColor: '#FFF8EE', zIndex: 1 }} onClick={e => e.stopPropagation()}>
             {/* 标题栏 */}
             <View className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
@@ -1287,6 +1315,7 @@ export default function ChildDetailPage() {
                 onClick={() => {
                   setShowAttendanceCalendar(false)
                   setCurrentAttendanceCalendar(null)
+                  setCalendarDayInfo(null)
                 }}
                 className="w-9 h-9 flex items-center justify-center rounded-full"
                 style={{ backgroundColor: '#FFF8EE' }}
@@ -1323,6 +1352,65 @@ export default function ChildDetailPage() {
                   }
                 })
 
+                // 聚合假期区间：按假期名称分组，同组取最早为 start、最晚为 end
+                const holidayRanges: Record<string, { name: string; start: string; end: string }> = {}
+                ;(attendanceData || []).forEach((item: any) => {
+                  if (item.status === 'holiday' && item.name) {
+                    const existing = holidayRanges[item.name]
+                    if (!existing) {
+                      holidayRanges[item.name] = { name: item.name, start: item.date, end: item.date }
+                    } else {
+                      if (item.date < existing.start) existing.start = item.date
+                      if (item.date > existing.end) existing.end = item.date
+                    }
+                  }
+                })
+
+                // 判读某天是否为实际上课日（is_class_day 为 true 且当天状态非请假；放假/无记录等灰色日返回 false）
+                const isActualClassDay = (ds: string): boolean => {
+                  return classDaySet[ds] === true && !holidayMap[ds] && !!attendanceMap[ds] && attendanceMap[ds] !== 'leave'
+                }
+
+                // 聚合请假区间：请假日期按升序排列，中间只隔灰色日（非实际上课日）则合并为一段，存在实际上课日则分段
+                const leaveDates = (attendanceData || [])
+                  .filter((item: any) => item.status === 'leave')
+                  .map((item: any) => item.date)
+                  .filter(Boolean)
+                  .sort()
+                const leaveRanges: { start: string; end: string }[] = []
+                {
+                  let curStart: string | null = null
+                  let curEnd: string | null = null
+                  for (const ld of leaveDates) {
+                    if (curStart === null) {
+                      curStart = ld
+                      curEnd = ld
+                      continue
+                    }
+                    // 从当前段末次日迭代到本请假日前一天，检查是否存在实际上课日
+                            let hasClassDay = false
+                            let cursor = addDays(curEnd!, 1)
+                            while (cursor < ld) {
+                              if (isActualClassDay(cursor)) { hasClassDay = true; break }
+                              cursor = addDays(cursor, 1)
+                            }
+                            if (hasClassDay) {
+                              leaveRanges.push({ start: curStart!, end: curEnd! })
+                              curStart = ld
+                              curEnd = ld
+                            } else {
+                              curEnd = ld
+                            }
+                          }
+                          if (curStart !== null) leaveRanges.push({ start: curStart, end: curEnd! })
+                }
+
+                // 查找某日期所属的请假区间
+                const findLeaveRange = (ds: string) => {
+                  const found = leaveRanges.find(r => ds >= r.start && ds <= r.end)
+                  return found || { start: ds, end: ds }
+                }
+
                 const getDayClass = (ds: string) => {
                   if (ds < startDate || ds > endDate) return 'text-gray-300'
                   if (!classDaySet[ds] && !holidayMap[ds]) return 'text-gray-300'
@@ -1340,9 +1428,27 @@ export default function ChildDetailPage() {
                 const handleDayClick = async (d: number) => {
                   const ds = `${displayYear}-${String(displayMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`
                   if (ds < startDate || ds > endDate) return
-                  if (!classDaySet[ds]) return
+                  // 灰色日（非上课日、非放假、无记录）不可点击
+                  if (!classDaySet[ds] && !holidayMap[ds] && !attendanceMap[ds]) return
                   setCurrentAttendanceCalendar(prev => prev ? { ...prev, selectedDate: ds } : null)
                   console.log('>>> handleDayClick 被调用, childId:', child.id, ', date:', ds)
+                  // 切换日期时同步清空上次的假期/请假信息
+                  setCalendarDayInfo(null)
+
+                  // 放假日期 → 假期信息弹窗
+                  if (holidayMap[ds]) {
+                    const info = holidayRanges[holidayMap[ds]] || { name: holidayMap[ds], start: ds, end: ds }
+                    setCalendarDayInfo({ type: 'holiday', name: info.name, start: info.start, end: info.end })
+                    return
+                  }
+                  // 请假日期 → 请假信息弹窗
+                  if (attendanceMap[ds] === 'leave') {
+                    const leaveRange = findLeaveRange(ds)
+                    setCalendarDayInfo({ type: 'leave', start: leaveRange.start, end: leaveRange.end })
+                    return
+                  }
+                  // 出勤日期 → 日常记录
+                  setAttendanceDayFeedback(null)
                   try {
                     const res: any = await dailyApi.getDailyFeedback(child.id, ds)
                     console.log('>>> API返回:', JSON.stringify(res))
@@ -1494,7 +1600,7 @@ export default function ChildDetailPage() {
                     </View>
 
                     {/* 图例 */}
-                    <View className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-gray-100 px-1">
+                    <View className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-gray-300 px-1">
                       {(currentAttendanceCalendar?.courseType === '全日托' || currentAttendanceCalendar?.courseType === '周六托') ? (
                         <>
                           <View className="flex items-center gap-1">
@@ -1528,7 +1634,7 @@ export default function ChildDetailPage() {
 
                     {/* 底部说明 */}
                     <View className="mt-2 px-1">
-                      <Text className="text-sm text-gray-400">点击任意日期查看当日日常记录详情</Text>
+                      <Text className="text-sm text-gray-400">点击日期查看出勤日常记录，放假/请假可查看区间详情</Text>
                     </View>
                   </View>
                 )
@@ -1543,22 +1649,33 @@ export default function ChildDetailPage() {
         <View
           className="fixed inset-0 z-[210] flex items-center justify-center"
           style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
-          onClick={() => setCurrentAttendanceCalendar(prev => prev ? { ...prev, selectedDate: undefined } : null)}
+          onClick={() => { setCurrentAttendanceCalendar(prev => prev ? { ...prev, selectedDate: undefined } : null); setCalendarDayInfo(null) }}
         >
           <View className="bg-white rounded-2xl w-[90%] max-w-sm flex flex-col overflow-hidden shadow-2xl" style={{ zIndex: 1 }} onClick={(e) => e.stopPropagation()}>
             <View className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <Text className="text-sm font-medium text-gray-700">
-                {currentAttendanceCalendar?.selectedDate?.replace(/^\d{4}-(\d{2})-(\d{2})$/, '$1月$2日')}日常记录
+                {calendarDayInfo?.type === 'holiday' ? '假期信息'
+                  : calendarDayInfo?.type === 'leave' ? '请假信息'
+                  : `${currentAttendanceCalendar?.selectedDate?.replace(/^\d{4}-(\d{2})-(\d{2})$/, '$1月$2日')}日常记录`}
               </Text>
               <View
-                onClick={() => setCurrentAttendanceCalendar(prev => prev ? { ...prev, selectedDate: undefined } : null)}
+                onClick={() => { setCurrentAttendanceCalendar(prev => prev ? { ...prev, selectedDate: undefined } : null); setCalendarDayInfo(null) }}
                 className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100"
               >
                 <Text className="text-gray-500 text-base leading-none">✕</Text>
               </View>
             </View>
             <View className="p-4">
-              {attendanceDayFeedback ? (
+              {calendarDayInfo?.type === 'holiday' && calendarDayInfo.name ? (
+                <View className="space-y-2">
+                  <Text className="text-base font-semibold text-gray-800">{calendarDayInfo.name}{formatRange(calendarDayInfo.start, calendarDayInfo.end)}</Text>
+                </View>
+              ) : calendarDayInfo?.type === 'leave' ? (
+                <View className="space-y-2">
+                  <Text className="text-base font-semibold text-gray-800">请假区间</Text>
+                  <Text className="text-sm text-gray-500">{formatRange(calendarDayInfo.start, calendarDayInfo.end)}</Text>
+                </View>
+              ) : attendanceDayFeedback ? (
                 <View className="space-y-3">
                   {attendanceDayFeedback.emotion ? (
                     <View className="flex items-center gap-2">

@@ -66,7 +66,10 @@ export default function HolidayManagePage() {
       const res = await Network.request({ url: '/api/holidays', method: 'GET' })
       console.log('[假期管理] 加载数据:', res.data)
       if (res.data?.code === 200) {
-        setHolidays(res.data.data || [])
+        const list = (res.data.data || []) as HolidayRecord[]
+        // 按假期开始日期倒序，start_date 为空排最后
+        const sorted = [...list].sort((a, b) => (b.start_date || '').localeCompare(a.start_date || ''))
+        setHolidays(sorted)
       }
     } catch (err) {
       console.error('[假期管理] 加载失败:', err)
