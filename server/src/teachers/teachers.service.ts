@@ -255,25 +255,33 @@ export class TeachersService {
       return { error: true, code: 404, msg: '教师不存在' };
     }
 
-    // 查询该教师负责的班级
-    const { data: classMembers } = await this.client
-      .from('class_members')
+    // 查询该教师负责的班级（teacher_classes 多班 + 原 class_id 兜底并集）
+    const teacherClasses: string[] = [];
+    const { data: tcRows } = await this.client
+      .from('teacher_classes')
       .select('class_id')
-      .eq('member_id', id)
-      .eq('member_type', 'teacher');
+      .eq('teacher_id', id);
+    if (tcRows && tcRows.length > 0) {
+      tcRows.forEach(row => { if (row.class_id) teacherClasses.push(row.class_id); });
+    }
+    if (teacher.class_id) teacherClasses.push(teacher.class_id);
+    const classIds = [...new Set(teacherClasses.filter(Boolean))];
 
+    let class_ids: string[] = [];
+    let class_names: string[] = [];
     let classes: Array<{ id: string; name: string; level: string | null; room: string | null }> | null = null;
-    if (classMembers && classMembers.length > 0) {
-      const classIds = classMembers.map(m => m.class_id);
+    if (classIds.length > 0) {
       const { data: classData } = await this.client
         .from('classes')
         .select('id, name, level, room')
         .in('id', classIds)
         .eq('status', 'active');
-      classes = classData || null;
+      classes = classData || [];
+      class_ids = classes.map(c => c.id);
+      class_names = classes.map(c => c.name);
     }
 
-    return { ...teacher, classes: classes || [] };
+    return { ...teacher, classes: classes || [], class_ids, class_names };
   }
 
   /**

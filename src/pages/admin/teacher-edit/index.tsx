@@ -142,8 +142,7 @@ export default function TeacherEditPage() {
     const doSave = async () => {
       try {
         setSaving(true)
-        const payload = {
-          real_name: formData.name.trim(),
+        const payload: Record<string, any> = {
           nickname: formData.nickname.trim(),
           phone: newPhone,
           title: getEffectiveTitle(),
@@ -151,6 +150,10 @@ export default function TeacherEditPage() {
           status: formData.status,
           entry_date: formData.entry_date,
           leave_date: formData.status === 'inactive' ? formData.leave_date : ''
+        }
+        // 新建时才传姓名；编辑模式姓名只读，不传 real_name 避免覆盖
+        if (isCreate) {
+          payload.real_name = formData.name.trim()
         }
 
         let res
@@ -242,11 +245,22 @@ export default function TeacherEditPage() {
           <CardContent className="space-y-4">
             <View>
               <Label>姓名 *</Label>
-              <Input
-                value={formData.name}
-                onInput={(e) => setFormData(prev => ({ ...prev, name: e.detail.value }))}
-                placeholder="请输入教师姓名"
-              />
+              {isCreate ? (
+                <Input
+                  value={formData.name}
+                  onInput={(e) => setFormData(prev => ({ ...prev, name: e.detail.value }))}
+                  placeholder="请输入教师姓名"
+                />
+              ) : (
+                <View className="rounded-lg bg-gray-50 px-4 py-3">
+                  <Text className="block text-gray-900">{formData.name}</Text>
+                </View>
+              )}
+              {!isCreate && (
+                <Text className="block mt-1 text-xs text-gray-400">
+                  姓名请在教师端「我的-个人信息编辑」或超管「权限管理页-编辑用户」中修改
+                </Text>
+              )}
             </View>
 
             <View>

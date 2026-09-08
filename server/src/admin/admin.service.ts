@@ -1070,8 +1070,9 @@ export class AdminService {
       phone: phone || null,
       updated_at: new Date().toISOString(),
     };
-    if (!targetRoleId) {
-      userUpdatePayload.nickname = nickname || '';
+    // 用户名有变化时同步 users.nickname（teacher 与管理/超管分支均需保持一致）
+    if (String(nickname || '').trim() !== (user as any).nickname) {
+      userUpdatePayload.nickname = String(nickname || '').trim();
     }
 
     const { data: updated, error: updateError } = await this.client

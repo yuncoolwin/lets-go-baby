@@ -239,6 +239,11 @@ export default function PermissionPage() {
         Taro.showToast({ title: editing ? '已更新' : '已新增', icon: 'success' })
         setShowDialog(false)
         loadUsers()
+        // 刷新当前登录态：超管在权限管理页修改自己用户名后，主页欢迎语与我的页立即同步
+        const store = useAppStore.getState()
+        if (store.fetchUserInfo) {
+          store.fetchUserInfo().catch(() => {})
+        }
       } else {
         Taro.showToast({ title: res.data?.msg || res.data?.message || '操作失败', icon: 'none' })
       }

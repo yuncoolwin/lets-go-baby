@@ -489,13 +489,23 @@ export class AuthService {
         }
       }
       if (teacherId) {
-        await this.client.from('teachers').update({ nickname: nicknameInput }).eq('id', teacherId);
+        // 同步 teachers.nickname 与 teachers.real_name，保证教师编辑页姓名一致
+        await this.client
+          .from('teachers')
+          .update({ nickname: nicknameInput, real_name: nicknameInput })
+          .eq('id', teacherId);
+      }
+      // 同步 user_roles 中该用户 active teacher 角色的 real_name
+      for (const r of teacherRoles) {
+        await this.client.from('user_roles').update({ real_name: nicknameInput }).eq('id', r.id);
       }
     } else if ((roleType === 'admin' || roleType === 'superadmin') && nicknameChanged) {
       // 找该 role_type 且 active 的首条记录更新 real_name
       const targetRole = activeRoles.find(r => r.role_type === roleType) || null;
       if (targetRole) {
         await this.client.from('user_roles').update({ real_name: nicknameInput }).eq('id', targetRole.id);
+        // 保证 users.nickname 与管理/超管角色名两处一致
+        await this.client.from('users').update({ nickname: nicknameInput }).eq('id', userId);
       }
     } else if (nicknameChanged) {
       // parent 或其它：只写 users.nickname
