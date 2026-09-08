@@ -355,6 +355,18 @@ export class TeachersService {
       await this.client.from('users').update({ phone: newPhone }).eq('id', teacherUserId);
     }
 
+    // 教师姓名（real_name）变更时，同步 users.nickname 与 user_roles.real_name（仅 teacher 角色）
+    if (dto.real_name !== undefined && teacherUserId && String(dto.real_name).trim()) {
+      const newRealName = String(dto.real_name).trim();
+      await this.client.from('users').update({ nickname: newRealName }).eq('id', teacherUserId);
+      await this.client
+        .from('user_roles')
+        .update({ real_name: newRealName })
+        .eq('user_id', teacherUserId)
+        .eq('role_type', 'teacher')
+        .eq('status', 'active');
+    }
+
     // 同步多班级关联表（全量替换）
     if (Array.isArray(dto.class_ids)) {
       await this.client.from('teacher_classes').delete().eq('teacher_id', id);

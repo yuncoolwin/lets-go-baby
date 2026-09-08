@@ -138,7 +138,7 @@ export const teacherApi = {
 
   // 根据 teacher_id 获取教师信息（含班级）
   getById: (id: string) =>
-    request({ url: `/api/teachers/${id}`, method: 'GET' }),
+    request({ url: `/api/teachers/detail/${id}`, method: 'GET' }),
 
   remove: (id: string, operator_role_id?: string) =>
     request({ url: `/api/teachers/${id}`, method: 'DELETE', data: operator_role_id ? { operator_role_id } : undefined }),

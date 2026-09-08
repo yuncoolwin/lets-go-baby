@@ -1090,6 +1090,33 @@ export class AdminService {
       }
     }
 
+    // 反向同步：用户名（nickname）变化且存在 active teacher 角色时，同步 teachers.real_name
+    if (teacherRole && String(nickname || '').trim() && String(nickname || '').trim() !== (user as any).nickname) {
+      const newRealName = String(nickname || '').trim();
+      let teacherNameId: string | null = null;
+      const { data: nameByUser } = await this.client
+        .from('teachers')
+        .select('id')
+        .eq('user_id', userId)
+        .limit(1);
+      if (nameByUser && nameByUser.length > 0) {
+        teacherNameId = nameByUser[0].id;
+      } else {
+        const roleRealNameSync = (teacherRole as any).real_name || '';
+        if (roleRealNameSync) {
+          const { data: nameByName } = await this.client
+            .from('teachers')
+            .select('id')
+            .eq('real_name', roleRealNameSync)
+            .limit(1);
+          if (nameByName && nameByName.length > 0) teacherNameId = nameByName[0].id;
+        }
+      }
+      if (teacherNameId) {
+        await this.client.from('teachers').update({ real_name: newRealName }).eq('id', teacherNameId);
+      }
+    }
+
     // 实际写入角色类型（从 activeRoles 按 MANAGE_ROLE_PRIORITY 命中项取）
     let actualRoleType: string | null = null;
     for (const rt of MANAGE_ROLE_PRIORITY) {
