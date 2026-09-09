@@ -102,16 +102,6 @@ export class AuthService {
         userId = newUser.id;
         user = newUser;
         console.log('[AuthService] Created new user:', userId);
-
-        // 自动创建parent角色
-        const { error: roleError } = await this.client.from('user_roles').insert({
-          user_id: userId,
-          role_type: 'parent',
-          status: 'active',
-        });
-        if (roleError) {
-          console.error('[AuthService] Create parent role error:', roleError);
-        }
       }
     }
 
@@ -261,7 +251,7 @@ export class AuthService {
           userId = byOpenid.id;
           user = { ...byOpenid, phone };
         } else {
-          // c) 都未命中：insert 用户 + parent 角色
+          // c) 都未命中：insert 用户
           const { data: newUser, error } = await this.client
             .from('users')
             .insert({ openid, nickname: '新用户', phone })
@@ -270,14 +260,9 @@ export class AuthService {
           if (error) throw new Error(`创建用户失败: ${error.message}`);
           userId = newUser.id;
           user = newUser;
-          await this.client.from('user_roles').insert({
-            user_id: userId,
-            role_type: 'parent',
-            status: 'active',
-          });
         }
       } else {
-        // 手机号未命中且 openid 无值：insert 用户（无 openid）+ parent 角色
+        // 手机号未命中且 openid 无值：insert 用户（无 openid）
         const { data: newUser, error } = await this.client
           .from('users')
           .insert({ nickname: '新用户', phone })
@@ -286,11 +271,6 @@ export class AuthService {
         if (error) throw new Error(`创建用户失败: ${error.message}`);
         userId = newUser.id;
         user = newUser;
-        await this.client.from('user_roles').insert({
-          user_id: userId,
-          role_type: 'parent',
-          status: 'active',
-        });
       }
     } else if (openid) {
       // 无手机号：按 openid 查
@@ -312,11 +292,6 @@ export class AuthService {
         if (error) throw new Error(`创建用户失败: ${error.message}`);
         userId = newUser.id;
         user = newUser;
-        await this.client.from('user_roles').insert({
-          user_id: userId,
-          role_type: 'parent',
-          status: 'active',
-        });
       }
     } else {
       throw new Error('登录参数缺失');

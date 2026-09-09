@@ -731,9 +731,16 @@ export class AdminService {
     try {
       const activeUserIds = new Set((roles || []).map((r: any) => r.user_id));
       const cutoff30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const candidates = (users || []).filter(
-        (u: any) => !activeUserIds.has(u.id) && u.last_login_at && new Date(u.last_login_at) < cutoff30
-      );
+      // 候选：无任何 active 角色，且（从未登录但创建早于30天前，或有登录但最后登录早于30天前）
+      const candidates = (users || []).filter((u: any) => {
+        if (activeUserIds.has(u.id)) return false; // 有 active 角色保留
+        const lastLogin = u.last_login_at ? new Date(u.last_login_at) : null;
+        if (lastLogin) {
+          return lastLogin < cutoff30; // 有登录记录且最后登录早于30天前
+        }
+        // 从未登录：创建时间早于30天前才清理，30天内注册保留
+        return new Date(u.created_at) < cutoff30;
+      });
       for (const u of candidates) {
         // 全部角色 id（含非 active）用于引用清理判定
         const { data: allRoles } = await this.client

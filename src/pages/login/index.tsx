@@ -120,11 +120,11 @@ export default function LoginPage() {
       // 家长但未绑定孩子
       Taro.redirectTo({ url: '/pages/binding/index' })
     } else if (result.targetRole) {
-      // 有目标角色，正常进入首页
+      // 有目标角色（教师/管理员/已绑定家长），正常进入首页
       Taro.switchTab({ url: '/pages/index/index' })
     } else {
-      // targetRole 为 null 且没有 error，兜底进首页
-      Taro.switchTab({ url: '/pages/index/index' })
+      // targetRole 为 null 且没有 error（新用户无任何角色），引导跳转绑定页绑定幼儿
+      Taro.redirectTo({ url: '/pages/binding/index' })
     }
   }
 
