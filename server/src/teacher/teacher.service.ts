@@ -346,14 +346,13 @@ export class TeacherService {
     // 收集所有 child_id
     const childIds = [...new Set(filteredEnrollments.map(e => e.child_id))];
 
-    // 查询幼儿信息（仅 active 状态）
+    // 查询幼儿信息
     let childrenMap: Record<string, { name: string; gender: string; birth_date: string; nickname: string }> = {};
     if (childIds.length > 0) {
       const { data: childrenData } = await this.client
         .from('children')
         .select('id, name, gender, birth_date, nickname')
-        .in('id', childIds)
-        .eq('status', 'active');
+        .in('id', childIds);
       childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date, nickname: c.nickname || "" }; });
     }
 
@@ -598,8 +597,7 @@ export class TeacherService {
       const { data: childrenData } = await this.client
         .from('children')
         .select('id, name, gender, birth_date, nickname')
-        .in('id', childIds)
-        .eq('status', 'active');
+        .in('id', childIds);
       childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date, nickname: c.nickname || "" }; });
     }
 
@@ -794,8 +792,7 @@ export class TeacherService {
     const { data: children, error: childError } = await this.client
       .from('children')
       .select('id, name, gender, birth_date, nickname')
-      .in('id', activeChildIds)
-      .eq('status', 'active');
+      .in('id', activeChildIds);
 
     if (childError) throw new Error(`查询幼儿失败: ${childError.message}`);
     if (!children || children.length === 0) return [];

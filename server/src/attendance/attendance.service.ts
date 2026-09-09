@@ -192,8 +192,7 @@ export class AttendanceService {
       const { data: childrenData } = await this.client
         .from('children')
         .select('id, name, gender, birth_date')
-        .in('id', childIds)
-        .eq('status', 'active');
+        .in('id', childIds);
       childrenData?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date }; });
     }
     console.log(`[AdminOverview] Children found: ${Object.keys(childrenMap).length}`);
