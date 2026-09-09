@@ -85,6 +85,34 @@ export class AttendanceController {
     return { code: 200, msg: 'success', data };
   }
 
+  @Post('update-record-times')
+  @HttpCode(200)
+  async updateRecordTimes(
+    @Req() req: Request,
+    @Body() body: {
+      child_id: string;
+      class_id: string;
+      date: string;
+      course_type?: string;
+      check_in_time?: string;
+      check_out_time?: string;
+    },
+  ) {
+    const userId = (req as any).user?.userId;
+    const data = await this.attendanceService.updateRecordTimes(userId, {
+      child_id: body.child_id,
+      class_id: body.class_id,
+      date: body.date,
+      course_type: body.course_type,
+      check_in_time: body.check_in_time,
+      check_out_time: body.check_out_time,
+    });
+    if ((data as any)?.error) {
+      return { code: (data as any).code, msg: (data as any).msg, data: null };
+    }
+    return { code: 200, msg: 'success', data };
+  }
+
   @Post('clear')
   @HttpCode(200)
   async clearByClassAndDate(

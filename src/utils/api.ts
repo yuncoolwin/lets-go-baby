@@ -213,6 +213,17 @@ export const attendanceApi = {
     status: 'present' | 'absent' | 'leave'
   }) =>
     request({ url: '/api/attendance', method: 'POST', data }),
+
+  // 更新/新增某幼儿的入园/离园时间（接送时间编辑）
+  updateRecordTimes: (data: {
+    child_id: string
+    class_id: string
+    date: string
+    course_type: string
+    check_in_time?: string
+    check_out_time?: string
+  }) =>
+    request({ url: '/api/attendance/update-record-times', method: 'POST', data }),
 }
 
 // ============ 临时来园 API ============

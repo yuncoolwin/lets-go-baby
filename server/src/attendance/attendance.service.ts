@@ -698,6 +698,89 @@ export class AttendanceService {
     return { deleted: true };
   }
 
+  async updateRecordTimes(
+    userId: string,
+    body: {
+      child_id?: string;
+      class_id?: string;
+      date?: string;
+      course_type?: string;
+      check_in_time?: string;
+      check_out_time?: string;
+    },
+  ) {
+    const { child_id = '', class_id = '', date = '', course_type = '', check_in_time, check_out_time } = body;
+    if (!child_id || !class_id || !date || !course_type) {
+      return { error: true, code: 400, msg: '参数不完整' };
+    }
+
+    const denied = await this.canAccessClass(userId, class_id);
+    if (denied) {
+      return { error: true, code: 403, msg: denied };
+    }
+
+    const level = await this.authz.getRoleLevel(userId);
+    const isManager = level === 'admin' || level === 'superadmin';
+    if (!isManager) {
+      if (date !== getShanghaiToday()) {
+        return { error: true, code: 403, msg: '仅允许编辑当天的接送时间' };
+      }
+    }
+
+    const buildTs = (time?: string) => {
+      if (!time) return null;
+      return `${date}T${time}:00+08:00`;
+    };
+    const cin = buildTs(check_in_time);
+    const cout = buildTs(check_out_time);
+
+    const { error: listErr, data: rows } = await this.client
+      .from('attendance_records')
+      .select('id')
+      .eq('child_id', child_id)
+      .eq('record_date', date)
+      .eq('course_type', course_type);
+    if (listErr) throw listErr;
+
+    const record: Record<string, any> = {
+      class_id,
+      course_type,
+      check_in_time: cin,
+      check_out_time: cout,
+    };
+
+    if (rows && rows.length > 0) {
+      const { error } = await this.client
+        .from('attendance_records')
+        .update(record)
+        .eq('id', rows[0].id);
+      if (error) throw error;
+    } else {
+      const { error } = await this.client.from('attendance_records').insert({
+        child_id,
+        class_id,
+        record_date: date,
+        course_type,
+        status: 'present',
+        check_in_time: cin,
+        check_out_time: cout,
+      });
+      if (error) throw error;
+    }
+
+    const { error: logErr } = await this.client.from('audit_logs').insert({
+      user_id: userId,
+      action: 'attendance_record_update',
+      target_type: 'attendance_record',
+      detail: { child_id, class_id, date, course_type, check_in_time: cin, check_out_time: cout },
+      level: 'info',
+      created_at: new Date().toISOString(),
+    });
+    if (logErr) console.warn('[audit-log] attendance_record_update 写入失败:', logErr.message);
+
+    return { updated: true };
+  }
+
   async getDates(classId: string, courseType?: string) {
     let query = this.client
       .from('attendance')

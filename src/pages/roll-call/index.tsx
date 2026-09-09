@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text, ScrollView, Picker } from '@tarojs/components'
 import { Input } from '@/components/ui/input'
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
 import { format } from 'date-fns'
@@ -7,9 +7,9 @@ import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/app'
-import { ChevronDown, ChevronUp } from 'lucide-react-taro'
+import { ChevronDown, ChevronUp, RefreshCw } from 'lucide-react-taro'
 import { Network } from '@/network'
-import { dropInApi } from '@/utils/api'
+import { dropInApi, attendanceApi } from '@/utils/api'
 import TabBar from '@/components/tab-bar'
 
 
@@ -75,6 +75,7 @@ export default function RollCallPage() {
   const [dropInModal, setDropInModal] = useState(false)
   const [teacherClassList, setTeacherClassList] = useState<Array<{ class_id: string; class_name: string }>>([])
   const [activeClassId, setActiveClassId] = useState('')
+  const [editTimesChild, setEditTimesChild] = useState<ChildItem | null>(null)
 
   // 上海时区（UTC+8）口径的当天字符串，前后端一致
   const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -417,6 +418,14 @@ export default function RollCallPage() {
           {selectedDate !== today && !isAdmin && (
             <Text className="block text-xs text-orange-500">（历史记录，只读）</Text>
           )}
+          {/* 刷新按钮：重新加载当前选中日期的考勤与接送信息 */}
+          <View
+            className="flex items-center flex-row ml-1 px-2 py-1 rounded-full bg-gray-100"
+            onClick={loadData}
+          >
+            <RefreshCw size={13} color="#6b7280" />
+            <Text className="block text-xs text-gray-500 ml-1">刷新</Text>
+          </View>
         </View>
         {!isAgentAdmin && selectedDate === today && (
           <View
@@ -690,6 +699,14 @@ export default function RollCallPage() {
                                           <Text className="block text-sm text-orange-600">离园</Text>
                                         </View>
                                       ) : null}
+                                      {!isAgentAdmin && (isAdmin || selectedDate === today) && (
+                                        <View
+                                          className="px-2 py-2 rounded-lg border border-gray-200 flex-shrink-0"
+                                          onClick={() => setEditTimesChild(child)}
+                                        >
+                                          <Text className="block text-xs text-gray-500">编辑时间</Text>
+                                        </View>
+                                      )}
                                     </View>
 
                                     <View className="flex gap-2">
@@ -765,22 +782,37 @@ export default function RollCallPage() {
           borderTop: '1px solid #f3f4f6', zIndex: 100,
         }}
       >
-        {isAdmin ? (
-          <>
+        {isAdmin && isAgentAdmin ? (
+          // agent 代理管理员：只读灰态
+          <View style={{ flex: 1 }} className="py-3 rounded-xl text-center font-medium bg-gray-100">
+            <Text className="block text-base font-medium text-gray-400">管理员代理，只读查看</Text>
+          </View>
+        ) : isAdmin ? (
+          isLocked ? (
+            // 有考勤记录：显示修改按钮（管理员可对任意日期解锁修改）
+            <View
+              style={{ flex: 1 }}
+              className="py-3 rounded-xl text-center font-medium bg-blue-500 text-white"
+              onClick={handleUnlock}
+            >
+              <Text className="block text-base font-medium text-white">修改</Text>
+            </View>
+          ) : (
+            // 无记录：显示保存考勤按钮
             <View
               style={{ flex: 1 }}
               className={`py-3 rounded-xl text-center font-medium ${
-                hasUnsaved && !isAgentAdmin
+                hasUnsaved
                   ? 'bg-blue-500 text-white'
                   : 'bg-gray-100 text-gray-400'
               }`}
-              onClick={isAgentAdmin ? undefined : hasUnsaved ? handleSave : undefined}
+              onClick={hasUnsaved ? handleSave : undefined}
             >
-              <Text className={`block text-base font-medium ${hasUnsaved && !isAgentAdmin ? 'text-white' : 'text-gray-400'}`}>
-                保存考勤 {hasUnsaved && !isAgentAdmin ? '' : '(无变化)'}
+              <Text className={`block text-base font-medium ${hasUnsaved ? 'text-white' : 'text-gray-400'}`}>
+                保存考勤 {hasUnsaved ? '' : '(无变化)'}
               </Text>
             </View>
-          </>
+          )
         ) : selectedDate !== today || isAgentAdmin ? (
           <View style={{ flex: 1 }} className="py-3 rounded-xl text-center font-medium bg-gray-100">
             <Text className="block text-base font-medium text-gray-400">{isAgentAdmin ? '管理员代理，只读查看' : '历史记录，只读查看'}</Text>
@@ -820,6 +852,18 @@ export default function RollCallPage() {
         currentRole={currentRole}
         onSuccess={() => {
           Taro.showToast({ title: '已添加临时来园', icon: 'success' })
+          loadData()
+        }}
+      />
+      <TimeEditModal
+        visible={!!editTimesChild}
+        child={editTimesChild}
+        date={selectedDate}
+        classId={editTimesChild?.class_id || classId}
+        onClose={() => setEditTimesChild(null)}
+        onSuccess={() => {
+          Taro.showToast({ title: '已保存', icon: 'success' })
+          setEditTimesChild(null)
           loadData()
         }}
       />
@@ -1089,6 +1133,136 @@ function DropInModal({
         >
           <Text className={`block text-sm font-medium ${submitting || (isNewChild ? !newChildName.trim() : !pickedId) ? 'text-gray-400' : 'text-white'}`}>
             {submitting ? '提交中...' : '确认添加'}
+          </Text>
+        </View>
+      </View>
+    </View>
+  )
+}
+
+// ============ 入园/离园时间编辑弹窗 ============
+
+/** 将 "2026-09-09T16:56:00+08:00" 还原为 "HH:mm"，空/非法返回空字符串 */
+function toHm(iso?: string | null): string {
+  if (!iso) return ''
+  const m = String(iso).match(/(\d{2}):(\d{2})/)
+  return m ? `${m[1]}:${m[2]}` : ''
+}
+
+function TimeEditModal({
+  visible,
+  child,
+  date,
+  classId,
+  onClose,
+  onSuccess,
+}: {
+  visible: boolean
+  child: ChildItem | null
+  date: string
+  classId: string
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [inTime, setInTime] = useState('')
+  const [outTime, setOutTime] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!visible || !child) return
+    const ci = toHm(child.check_in_time)
+    const co = toHm(child.check_out_time)
+    // 入园未记录时默认取当前时间
+    setInTime(ci || new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(11, 16))
+    setOutTime(co)
+    setSubmitting(false)
+  }, [visible, child])
+
+  if (!visible || !child) return null
+
+  const canClearOut = !!outTime
+
+  const handleSave = async () => {
+    setSubmitting(true)
+    try {
+      const res: any = await attendanceApi.updateRecordTimes({
+        child_id: child.id,
+        class_id: classId,
+        date,
+        course_type: child.course_type || '',
+        check_in_time: inTime || '',
+        // 未设置离园时间则清空（未离园）
+        check_out_time: outTime || '',
+      })
+      if (res.code === 200) {
+        onSuccess()
+      } else {
+        Taro.showToast({ title: res.msg || '保存失败', icon: 'none' })
+        setSubmitting(false)
+      }
+    } catch {
+      Taro.showToast({ title: '保存失败', icon: 'none' })
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <View
+      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+      onClick={onClose}
+    >
+      <View
+        className="bg-white rounded-2xl p-5"
+        style={{ width: '300px', maxWidth: '90%' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text className="block text-base font-bold text-gray-900">编辑接送时间</Text>
+          <Text className="text-gray-400 text-lg" onClick={onClose}>×</Text>
+        </View>
+
+        <Text className="block text-sm text-gray-700 mt-1">{child.name} · {child.course_type || '未分课程'}</Text>
+        <Text className="block text-xs text-gray-400 mt-1">{date}</Text>
+
+        {/* 入园时间 */}
+        <Text className="block text-xs text-gray-500 mt-4 mb-1">入园时间</Text>
+        <Picker
+          mode="time"
+          value={inTime}
+          onChange={(e) => setInTime(e.detail.value)}
+        >
+          <View className="border border-gray-200 rounded-lg px-3 py-2">
+            <Text className={`block text-sm ${inTime ? 'text-gray-900' : 'text-gray-400'}`}>{inTime || '请选择入园时间'}</Text>
+          </View>
+        </Picker>
+
+        {/* 离园时间 */}
+        <Text className="block text-xs text-gray-500 mt-3 mb-1">离园时间（可清空表示未离园）</Text>
+        <Picker
+          mode="time"
+          value={outTime || inTime || '12:00'}
+          onChange={(e) => setOutTime(e.detail.value)}
+        >
+          <View className="border border-gray-200 rounded-lg px-3 py-2">
+            <Text className={`block text-sm ${outTime ? 'text-gray-900' : 'text-gray-400'}`}>{outTime ? `${outTime}（已离园）` : '未离园，可点击设置'}</Text>
+          </View>
+        </Picker>
+
+        {canClearOut && (
+          <Text
+            className="block text-xs text-red-500 mt-2 text-right"
+            onClick={() => setOutTime('')}
+          >
+            清空离园时间
+          </Text>
+        )}
+
+        <View
+          className={`rounded-full py-2 mt-4 text-center ${submitting ? 'bg-gray-200' : 'bg-[#E8651A]'}`}
+          onClick={submitting ? undefined : handleSave}
+        >
+          <Text className={`block text-sm font-medium ${submitting ? 'text-gray-400' : 'text-white'}`}>
+            {submitting ? '保存中...' : '确认保存'}
           </Text>
         </View>
       </View>
