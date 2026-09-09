@@ -903,18 +903,18 @@ export class AdminService {
     list.sort((a: any, b: any) => {
       const aActive = hasActiveRole(a);
       const bActive = hasActiveRole(b);
-      const aNewNoRole = !aActive && loginTime(a) >= now - 7 * DAY;
-      const bNewNoRole = !bActive && loginTime(b) >= now - 7 * DAY;
+      // 置顶区：无 active 角色且（从未登录 或 最近 7 天内有登录）
+      const aNewNoRole = !aActive && (loginTime(a) === 0 || loginTime(a) >= now - 7 * DAY);
+      const bNewNoRole = !bActive && (loginTime(b) === 0 || loginTime(b) >= now - 7 * DAY);
 
-      // 置顶区：无 active 角色且最近 7 天登录(或从未登录) 排最前
       if (aNewNoRole && bNewNoRole) return createdTime(b) - createdTime(a); // 组内 created_at 倒序
       if (aNewNoRole) return -1;
       if (bNewNoRole) return 1;
 
-      // 沉底区：无 active 角色且 7 天前登录 → 排超管之后(最后)
-      const aStaleNoRole = !aActive && !aNewNoRole;
-      const bStaleNoRole = !bActive && !bNewNoRole;
-      if (aStaleNoRole && bStaleNoRole) return loginTime(b) - loginTime(a);
+      // 沉底区：无 active 角色且有登录记录但登录时间早于 7 天前 → 排超管之后(列表最后)
+      const aStaleNoRole = !aActive && loginTime(a) !== 0 && loginTime(a) < now - 7 * DAY;
+      const bStaleNoRole = !bActive && loginTime(b) !== 0 && loginTime(b) < now - 7 * DAY;
+      if (aStaleNoRole && bStaleNoRole) return loginTime(b) - loginTime(a); // 组内最后登录时间倒序
       if (aStaleNoRole) return 1;
       if (bStaleNoRole) return -1;
 
