@@ -911,7 +911,7 @@ function DropInModal({
     setNewChildName('')
     ;(async () => {
       try {
-        const url = '/api/children'
+        const url = '/api/children?page=1&page_size=1000'
         const res: any = await Network.request({ url })
         const list = res.data?.data?.list || res.data?.data || []
         setAllChildren(list.map((c: any) => ({ id: c.id, name: c.name, gender: c.gender || '', class_id: c.class_id, course_type: '' })))
