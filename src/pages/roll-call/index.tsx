@@ -7,7 +7,7 @@ import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/app'
-import { ChevronDown, ChevronUp, RefreshCw } from 'lucide-react-taro'
+import { ChevronDown, ChevronUp, RefreshCw, Pencil } from 'lucide-react-taro'
 import { Network } from '@/network'
 import { dropInApi, attendanceApi } from '@/utils/api'
 import TabBar from '@/components/tab-bar'
@@ -699,12 +699,12 @@ export default function RollCallPage() {
                                           <Text className="block text-sm text-orange-600">离园</Text>
                                         </View>
                                       ) : null}
-                                      {!isAgentAdmin && (isAdmin || selectedDate === today) && (
+                                      {!isAgentAdmin && (isAdmin || selectedDate === today) && (child.check_in_time || child.check_out_time) && (
                                         <View
-                                          className="px-2 py-2 rounded-lg border border-gray-200 flex-shrink-0"
+                                          className="p-2 rounded-full bg-gray-100 flex-shrink-0"
                                           onClick={() => setEditTimesChild(child)}
                                         >
-                                          <Text className="block text-xs text-gray-500">编辑时间</Text>
+                                          <Pencil size={13} color="#6b7280" />
                                         </View>
                                       )}
                                     </View>
@@ -1170,17 +1170,20 @@ function TimeEditModal({
 
   useEffect(() => {
     if (!visible || !child) return
-    const ci = toHm(child.check_in_time)
-    const co = toHm(child.check_out_time)
-    // 入园未记录时默认取当前时间
-    setInTime(ci || new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(11, 16))
-    setOutTime(co)
+    // 直接还原成已记录的时间，无记录时不自动填充当前时间，保证清空后重新打开仍为空
+    setInTime(toHm(child.check_in_time))
+    setOutTime(toHm(child.check_out_time))
     setSubmitting(false)
   }, [visible, child])
 
   if (!visible || !child) return null
 
-  const canClearOut = !!outTime
+  const hasAnyTime = !!inTime || !!outTime
+
+  const handleClear = () => {
+    setInTime('')
+    setOutTime('')
+  }
 
   const handleSave = async () => {
     setSubmitting(true)
@@ -1228,7 +1231,7 @@ function TimeEditModal({
         <Text className="block text-xs text-gray-500 mt-4 mb-1">入园时间</Text>
         <Picker
           mode="time"
-          value={inTime}
+          value={inTime || '12:00'}
           onChange={(e) => setInTime(e.detail.value)}
         >
           <View className="border border-gray-200 rounded-lg px-3 py-2">
@@ -1248,12 +1251,12 @@ function TimeEditModal({
           </View>
         </Picker>
 
-        {canClearOut && (
+        {hasAnyTime && (
           <Text
             className="block text-xs text-red-500 mt-2 text-right"
-            onClick={() => setOutTime('')}
+            onClick={handleClear}
           >
-            清空离园时间
+            清空入园离园时间
           </Text>
         )}
 
