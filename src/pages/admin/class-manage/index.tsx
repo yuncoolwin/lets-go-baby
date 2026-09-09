@@ -9,11 +9,14 @@ import { MapPin, Pencil, ChevronDown, ChevronUp } from 'lucide-react-taro'
 import { classApi, courseApi } from '@/utils/api'
 
 const courseColorMap: Record<string, string> = {
-  '全日托': 'bg-green-50 text-green-700',
-  '半日托': 'bg-blue-50 text-blue-700',
-  '周六托': 'bg-purple-50 text-purple-700',
-  '晚间托': 'bg-indigo-50 text-indigo-700',
-  '兴趣班': 'bg-orange-50 text-orange-700',
+  '全日托': 'bg-orange-50 text-orange-700 border-orange-200',
+  '半日托': 'bg-sky-50 text-sky-700 border-sky-200',
+  '周六托': 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  '晚间托': 'bg-purple-50 text-purple-700 border-purple-200',
+  '暑假班': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  '寒假班': 'bg-amber-50 text-amber-700 border-amber-200',
+  '兴趣班': 'bg-pink-50 text-pink-700 border-pink-200',
+  '计日': 'bg-teal-50 text-teal-700 border-teal-200',
 }
 
 interface ClassItem {
@@ -265,7 +268,7 @@ export default function ClassManagePage() {
                             .filter(([courseType]) => activeCourseType === 'all' || courseType === activeCourseType)
                             .map(([courseType, count]) => (
                             <View key={courseType} className="flex items-center gap-1">
-                              <Badge className={`text-sm ${courseColorMap[courseType] || 'bg-gray-100 text-gray-600'}`}>
+                              <Badge className={`text-sm ${courseColorMap[courseType] || 'bg-cyan-50 text-cyan-700 border-cyan-200'}`}>
                                 {courseType}
                               </Badge>
                               <Text className="block text-xs text-gray-500">{count}/{cls.capacity}人</Text>
@@ -321,7 +324,7 @@ export default function ClassManagePage() {
                               <CardContent className="p-3">
                                 {/* 课程类型标题 */}
                                 <View className="flex items-center gap-2 mb-2">
-                                  <Badge className={`text-xs ${courseColorMap[group.course_type] || 'bg-gray-100 text-gray-600'}`}>
+                                  <Badge className={`text-xs ${courseColorMap[group.course_type] || 'bg-cyan-50 text-cyan-700 border-cyan-200'}`}>
                                     {group.course_type}
                                   </Badge>
                                   <Text className="block text-xs text-gray-500">{group.students.length}人</Text>

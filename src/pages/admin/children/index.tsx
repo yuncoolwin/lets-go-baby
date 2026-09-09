@@ -60,6 +60,8 @@ const courseTypeColors: Record<string, string> = {
   '半日托': 'bg-sky-50 text-sky-700 border-sky-200',
   '周六托': 'bg-indigo-50 text-indigo-700 border-indigo-200',
   '晚间托': 'bg-purple-50 text-purple-700 border-purple-200',
+  '暑假班': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  '寒假班': 'bg-amber-50 text-amber-700 border-amber-200',
   '兴趣班': 'bg-pink-50 text-pink-700 border-pink-200',
   '计日': 'bg-teal-50 text-teal-700 border-teal-200',
 }
@@ -208,7 +210,7 @@ export default function ChildrenManagePage() {
                     {child.enrollments.map((enr) => (
                       <View
                         key={enr.id}
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs ${courseTypeColors[enr.course_type] || 'bg-gray-50 text-gray-700 border-gray-200'}`}
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs ${courseTypeColors[enr.course_type] || 'bg-cyan-50 text-cyan-700 border-cyan-200'}`}
                       >
                         <Text className="text-xs font-medium">{enr.course_type}</Text>
                         {enr.class_name && (

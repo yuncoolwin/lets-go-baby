@@ -30,13 +30,15 @@ interface ClassItem {
 
 const durationOptions = ['一周体验', '1个月', '3个月', '6个月', '12个月', '计日', '一学期', '一学年']
 
-const allCourseNames = ['全日托', '半日托', '周六托', '晚间托', '兴趣班']
+const allCourseNames = ['全日托', '半日托', '周六托', '晚间托', '暑假班', '寒假班', '兴趣班']
 
 const courseTypeColors: Record<string, string> = {
   '全日托': 'bg-orange-50 text-orange-700 border-orange-200',
   '半日托': 'bg-sky-50 text-sky-700 border-sky-200',
   '周六托': 'bg-indigo-50 text-indigo-700 border-indigo-200',
   '晚间托': 'bg-purple-50 text-purple-700 border-purple-200',
+  '暑假班': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  '寒假班': 'bg-amber-50 text-amber-700 border-amber-200',
   '兴趣班': 'bg-pink-50 text-pink-700 border-pink-200',
 }
 
@@ -193,8 +195,27 @@ export default function CourseManagePage() {
   }
 
   const getColorClass = (name: string) => {
-    return courseTypeColors[name] || 'bg-gray-50 text-gray-700 border-gray-200'
+    return courseTypeColors[name] || 'bg-cyan-50 text-cyan-700 border-cyan-200'
   }
+
+  const COURSE_TYPE_ORDER: Record<string, number> = {
+    全日托: 0,
+    半日托: 1,
+    周六托: 2,
+    晚间托: 3,
+    暑假班: 4,
+    寒假班: 5,
+    兴趣班: 6,
+  }
+  // 启用课程按类型顺序排序，停用课程整体下沉（10 + 类型顺序），同组保持原相对顺序
+  const sortedCourses = [...courses].sort((a, b) => {
+    const aIsActive = a.status !== 'inactive'
+    const bIsActive = b.status !== 'inactive'
+    if (aIsActive !== bIsActive) return aIsActive ? -1 : 1
+    const ao = aIsActive ? (COURSE_TYPE_ORDER[a.name] ?? 7) : 10 + (COURSE_TYPE_ORDER[a.name] ?? 7)
+    const bo = bIsActive ? (COURSE_TYPE_ORDER[b.name] ?? 7) : 10 + (COURSE_TYPE_ORDER[b.name] ?? 7)
+    return ao - bo
+  })
 
   // 不需要 classPickerRange/classPickerValues 了，直接用按钮组
 
@@ -219,7 +240,7 @@ export default function CourseManagePage() {
         </View>
       ) : (
         <View className="space-y-3">
-          {courses.map((course) => (
+          {sortedCourses.map((course) => (
             <Card key={course.id} className="bg-white rounded-xl border-0 shadow-sm">
               <CardContent className="p-4">
                 <View className="flex items-start justify-between mb-3">

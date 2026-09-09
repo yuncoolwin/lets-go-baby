@@ -70,6 +70,8 @@ const courseTypeColors: Record<string, string> = {
   '半日托': 'bg-sky-50 text-sky-700 border-sky-200',
   '周六托': 'bg-indigo-50 text-indigo-700 border-indigo-200',
   '晚间托': 'bg-purple-50 text-purple-700 border-purple-200',
+  '暑假班': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  '寒假班': 'bg-amber-50 text-amber-700 border-amber-200',
   '兴趣班': 'bg-pink-50 text-pink-700 border-pink-200',
   '计日': 'bg-teal-50 text-teal-700 border-teal-200',
 }
@@ -319,11 +321,10 @@ export default function IndexPage() {
       if (courseRes.code === 200) {
         const list = Array.isArray(courseRes.data) ? courseRes.data : courseRes.data?.list || []
         setCourseList(list)
-        // 从 courses 表构建颜色映射
-        const colors = ['bg-orange-50 text-orange-700 border-orange-200','bg-sky-50 text-sky-700 border-sky-200','bg-indigo-50 text-indigo-700 border-indigo-200','bg-purple-50 text-purple-700 border-purple-200','bg-pink-50 text-pink-700 border-pink-200','bg-teal-50 text-teal-700 border-teal-200','bg-green-50 text-green-700 border-green-200','bg-rose-50 text-rose-700 border-rose-200']
+        // 从 courses 表构建颜色映射：命中预设类型用固定颜色，未命中统一用自定义青色
         const colorMap: Record<string, string> = {}
-        list.forEach((c: any, i: number) => {
-          colorMap[c.name] = colors[i % colors.length]
+        list.forEach((c: any) => {
+          colorMap[c.name] = courseTypeColors[c.name] || 'bg-cyan-50 text-cyan-700 border-cyan-200'
         })
         setCourseColors(colorMap)
       }
@@ -779,7 +780,7 @@ export default function IndexPage() {
                     >
                       <View className="flex-1">
                         <View className="flex items-center gap-2 mb-1">
-                          <View className={`text-sm px-3 py-2 rounded-full border ${courseColors[group.course_type] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                          <View className={`text-sm px-3 py-2 rounded-full border ${courseColors[group.course_type] || 'bg-cyan-50 text-cyan-700 border-cyan-200'}`}>
                             <Text className="text-sm font-semibold">{group.course_type}</Text>
                           </View>
                         </View>
