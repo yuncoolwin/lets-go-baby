@@ -12,6 +12,7 @@ import { CalendarOverlay } from '@/components/ui/calendar-overlay'
 
 const statusOptions = [
   { value: 'active', label: '在读' },
+  { value: 'finished', label: '结课' },
   { value: 'graduated', label: '毕业' },
   { value: 'suspended', label: '休学' },
 ]

@@ -30,6 +30,7 @@ interface ChildDetail {
 
 const statusMap: Record<string, { label: string; className: string }> = {
   active: { label: '在读', className: 'bg-green-100 text-green-700' },
+  finished: { label: '结课', className: 'bg-gray-100 text-gray-700' },
   graduated: { label: '毕业', className: 'bg-blue-100 text-blue-700' },
   suspended: { label: '休学', className: 'bg-yellow-100 text-yellow-700' }
 }

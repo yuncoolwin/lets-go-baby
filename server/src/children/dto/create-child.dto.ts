@@ -12,7 +12,7 @@ export interface CreateChildDto {
   parent_phone?: string;
   health_info?: string;
   allergies?: string;
-  status?: 'active' | 'graduated' | 'suspended';
+  status?: 'active' | 'graduated' | 'suspended' | 'finished';
   course_type?: string;
   enrollment_duration?: string;
   start_date?: string;
@@ -31,7 +31,7 @@ export interface UpdateChildDto {
   parent_phone?: string;
   health_info?: string;
   allergies?: string;
-  status?: 'active' | 'graduated' | 'suspended';
+  status?: 'active' | 'graduated' | 'suspended' | 'finished';
   avatar_url?: string;
   notes?: string;
   course_type?: string;

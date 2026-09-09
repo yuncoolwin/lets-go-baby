@@ -541,8 +541,8 @@ export class ChildrenService {
       }
     }
 
-    // 如果状态改为毕业或休学，自动清除班级
-    if (updateData.status === 'graduated' || updateData.status === 'suspended') {
+    // 如果状态改为毕业、休学或结课，自动清除班级
+    if (updateData.status === 'graduated' || updateData.status === 'suspended' || updateData.status === 'finished') {
       updateData.class_id = null;
     }
 
@@ -749,6 +749,11 @@ export class ChildrenService {
       .select('*', { count: 'exact', head: true })
       .eq('status', 'suspended');
 
+    const { count: finishedCount } = await this.client
+      .from('children')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'finished');
+
     return {
       total_children: totalChildren || 0,
       active_children: activeChildren || 0,
@@ -756,6 +761,7 @@ export class ChildrenService {
       unassigned_children: unassignedChildren,
       graduated_children: graduatedCount || 0,
       suspended_children: suspendedCount || 0,
+      finished_children: finishedCount || 0,
     };
   }
 }
