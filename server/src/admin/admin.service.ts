@@ -716,7 +716,7 @@ export class AdminService {
 
     const { data: users, error: usersError } = await this.client
       .from('users')
-      .select('id, nickname, phone, avatar_url');
+      .select('id, nickname, phone, avatar_url, last_login_at, created_at');
 
     if (usersError) throw new Error(`查询用户失败: ${usersError.message}`);
 
@@ -726,6 +726,67 @@ export class AdminService {
       .eq('status', 'active');
 
     if (rolesError) return { code: 500, msg: '查询角色失败：' + rolesError.message, data: null };
+
+    // 过期账号清理：无任何 active 角色、且 last_login_at 非空并早于当前时间减 30 天的用户将被删除（带三层保护）
+    try {
+      const activeUserIds = new Set((roles || []).map((r: any) => r.user_id));
+      const cutoff30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const candidates = (users || []).filter(
+        (u: any) => !activeUserIds.has(u.id) && u.last_login_at && new Date(u.last_login_at) < cutoff30
+      );
+      for (const u of candidates) {
+        // 全部角色 id（含非 active）用于引用清理判定
+        const { data: allRoles } = await this.client
+          .from('user_roles')
+          .select('id')
+          .eq('user_id', u.id);
+        const allRoleIds = (allRoles || []).map((r: any) => r.id);
+
+        let protectedFlag = false;
+        // 保护 1：家长绑定
+        if (allRoleIds.length > 0) {
+          const { data: rel } = await this.client
+            .from('parent_child_relations')
+            .select('id')
+            .in('parent_role_id', allRoleIds)
+            .limit(1)
+            .maybeSingle();
+          if (rel) protectedFlag = true;
+        }
+        // 保护 2：教师档案
+        if (!protectedFlag) {
+          const { data: teacher } = await this.client
+            .from('teachers')
+            .select('id')
+            .eq('user_id', u.id)
+            .limit(1)
+            .maybeSingle();
+          if (teacher) protectedFlag = true;
+        }
+        // 保护 3：成长记录
+        if (!protectedFlag && allRoleIds.length > 0) {
+          const { data: gr } = await this.client
+            .from('growth_records')
+            .select('id')
+            .in('teacher_id', allRoleIds)
+            .limit(1)
+            .maybeSingle();
+          if (gr) protectedFlag = true;
+        }
+        if (protectedFlag) continue;
+
+        // 三层保护全部通过才删除：级联删除 user_roles 与 parent_child_relations，再删除 users
+        await this.client.from('user_roles').delete().eq('user_id', u.id);
+        if (allRoleIds.length > 0) {
+          await this.client.from('parent_child_relations').delete().in('parent_role_id', allRoleIds);
+        }
+        await this.client.from('users').delete().eq('id', u.id);
+      }
+    } catch (cleanupError: any) {
+      // 过期清理失败不应阻断整个列表查询，仅记录
+      // eslint-disable-next-line no-console
+      console.log('[admin] 过期账号清理失败: ' + cleanupError?.message);
+    }
 
     const roleMap = new Map<string, any[]>();
     (roles || []).forEach((role: any) => {
@@ -812,8 +873,51 @@ export class AdminService {
         avatar_url: user.avatar_url,
         display_name: displayName,
         roles: userRoles,
+        last_login_at: user.last_login_at || null,
       });
     }
+
+    // 排序：无 active 角色且 30 天内(含未登录)的新用户置顶；有 active 角色按 家长<教师<管理员<超管 分组；无 active 角色且长期未登录沉底
+    const now = Date.now();
+    const DAY = 24 * 60 * 60 * 1000;
+    const hasActiveRole = (item: any) => (item.roles || []).some((r: any) => r.status === 'active');
+    const roleWeight = (item: any) => {
+      let w = 0;
+      for (const r of item.roles || []) {
+        if (r.status !== 'active') continue;
+        const rw = { parent: 1, teacher: 2, admin: 3, superadmin: 4 }[r.role_type] || 0;
+        if (rw > w) w = rw;
+      }
+      return w;
+    };
+    const loginTime = (item: any) => (item.last_login_at ? new Date(item.last_login_at).getTime() : 0);
+    const createdTime = (item: any) => new Date(item.created_at || 0).getTime();
+
+    list.sort((a: any, b: any) => {
+      const aActive = hasActiveRole(a);
+      const bActive = hasActiveRole(b);
+      const aNewNoRole = !aActive && loginTime(a) >= now - 7 * DAY;
+      const bNewNoRole = !bActive && loginTime(b) >= now - 7 * DAY;
+
+      // 置顶区：无 active 角色且最近 7 天登录(或从未登录) 排最前
+      if (aNewNoRole && bNewNoRole) return createdTime(b) - createdTime(a); // 组内 created_at 倒序
+      if (aNewNoRole) return -1;
+      if (bNewNoRole) return 1;
+
+      // 沉底区：无 active 角色且 7 天前登录 → 排超管之后(最后)
+      const aStaleNoRole = !aActive && !aNewNoRole;
+      const bStaleNoRole = !bActive && !bNewNoRole;
+      if (aStaleNoRole && bStaleNoRole) return loginTime(b) - loginTime(a);
+      if (aStaleNoRole) return 1;
+      if (bStaleNoRole) return -1;
+
+      // 有 active 角色：按权重分组排序，组内 last_login_at 倒序
+      const aw = roleWeight(a);
+      const bw = roleWeight(b);
+      if (aw !== bw) return aw - bw;
+      if (loginTime(a) !== loginTime(b)) return loginTime(b) - loginTime(a);
+      return createdTime(b) - createdTime(a);
+    });
 
     return { code: 200, msg: 'success', data: list };
   }

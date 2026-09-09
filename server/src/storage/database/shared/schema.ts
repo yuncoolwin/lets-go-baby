@@ -84,6 +84,7 @@ export const users = pgTable("users", {
 	phone: varchar({ length: 20 }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
+	lastLoginAt: timestamp("last_login_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("users_openid_idx").using("btree", table.openid.asc().nullsLast().op("text_ops")),
 	unique("users_openid_unique").on(table.openid),

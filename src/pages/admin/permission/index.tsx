@@ -23,6 +23,7 @@ interface UserItem {
   avatar_url: string | null
   display_name: string | null
   roles: RoleItem[]
+  last_login_at: string | null
 }
 
 const ASSIGN_ROLE_TYPES = [
@@ -30,6 +31,14 @@ const ASSIGN_ROLE_TYPES = [
   { value: 'admin', label: '管理员' },
   { value: 'superadmin', label: '超管' },
 ]
+
+const formatLastLogin = (v: string | null | undefined) => {
+  if (!v) return '未登录'
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) return '未登录'
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
 
 const getRoleLabel = (roleType: string) => {
   switch (roleType) {
@@ -321,13 +330,16 @@ export default function PermissionPage() {
               <Card key={user.id} className="bg-white rounded-xl border-0 shadow-sm">
                 <CardContent className="p-4">
                   <View className="flex items-start justify-between mb-2">
-                    <View className="flex-1 min-w-0 mr-2">
-                      <Text className="block text-base font-medium text-foreground truncate">
+                    <View className="flex items-center gap-1 flex-1 min-w-0 mr-2">
+                      <Text className="block text-base font-medium text-foreground truncate flex-1 min-w-0">
                         {user.display_name || user.nickname || '未命名'}
                       </Text>
-                      <Text className="block text-sm text-muted-foreground mt-1">
-                        {user.phone || '未绑定手机号'}
-                      </Text>
+                      {user.roles.length > 0 &&
+                        sortRoles(user.roles).map((role) => (
+                          <Badge key={role.id} className={`${getRoleColor(role.role_type)} border-transparent shrink-0`}>
+                            {getRoleLabel(role.role_type)}
+                          </Badge>
+                        ))}
                     </View>
                     <View className="flex items-center gap-1 shrink-0">
                       <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => openEditDialog(user)}>编辑</Button>
@@ -335,17 +347,15 @@ export default function PermissionPage() {
                     </View>
                   </View>
 
-                  {/* 当前角色（只读展示） */}
-                  <View className="flex flex-wrap items-center gap-2 mb-3">
-                    {user.roles.length === 0 ? (
-                      <Text className="block text-xs text-gray-400">暂无角色</Text>
-                    ) : (
-                      sortRoles(user.roles).map((role) => (
-                        <Badge key={role.id} className={`${getRoleColor(role.role_type)} border-transparent`}>
-                          {getRoleLabel(role.role_type)}
-                        </Badge>
-                      ))
-                    )}
+                  <Text className="block text-sm text-muted-foreground mt-1">
+                    {user.phone || '未绑定手机号'}
+                  </Text>
+
+                  {/* 最后登录时间 */}
+                  <View className="flex justify-end mt-3">
+                    <Text className="block text-xs text-gray-400">
+                      最后登录 {formatLastLogin(user.last_login_at)}
+                    </Text>
                   </View>
 
                   </CardContent>

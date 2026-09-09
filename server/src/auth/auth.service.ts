@@ -59,6 +59,8 @@ export class AuthService {
       userId = existingUser.id;
       user = existingUser;
       console.log('[AuthService] Using existing user:', userId);
+      // 更新最后登录时间
+      await this.client.from('users').update({ last_login_at: new Date().toISOString() }).eq('id', userId);
     } else {
       // 未注册，创建新用户
       // requirePhone 为 true 时不自动建号，返回 need_register 由前端引导手机号授权注册
@@ -71,6 +73,7 @@ export class AuthService {
         .insert({
           openid,
           nickname: '新用户',
+          last_login_at: new Date().toISOString(),
         })
         .select('id, openid, nickname, avatar_url, phone')
         .single();
@@ -607,6 +610,9 @@ export class AuthService {
 
     // 生成token
     const token = this.generateToken(user!.id);
+
+    // 更新最后登录时间
+    await this.client.from('users').update({ last_login_at: new Date().toISOString() }).eq('id', user!.id);
 
     // 查找班级名称
     let className = '';
