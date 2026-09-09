@@ -664,10 +664,14 @@ export class AttendanceService {
     const denied = await this.canAccessClass(userId, classId);
     if (denied) return { error: true, code: 403, msg: denied };
 
-    // 权限校验：仅允许清空服务器当天（上海时区）的考勤记录
-    const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    if (date !== todayStr) {
-      return { error: true, code: 403, msg: '仅允许清空当天的考勤记录' };
+    // 权限校验：管理/超管可清空任意日期；教师仅允许清空服务器当天（上海时区）的考勤记录
+    const level = await this.authz.getRoleLevel(userId);
+    const isManager = level === 'admin' || level === 'superadmin';
+    if (!isManager) {
+      const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      if (date !== todayStr) {
+        return { error: true, code: 403, msg: '仅允许清空当天的考勤记录' };
+      }
     }
 
     let query = this.client

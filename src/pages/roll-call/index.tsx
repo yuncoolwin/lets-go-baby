@@ -161,8 +161,8 @@ export default function RollCallPage() {
           const s = map[c.id + '__' + c.course_type]
           return s === 'present' || s === 'absent' || s === 'leave' || s === 'full_day' || s === 'half_day'
         })
-        // 统一锁定规则：非当天或有记录即锁定（管理员与教师一致）
-        setIsLocked(selectedDate !== today || hasRecords)
+        // 锁定规则：管理员仅在有考勤记录时锁定，历史日期可编辑；教师非当天或有记录即锁定
+        setIsLocked(isAdmin ? hasRecords : selectedDate !== today || hasRecords)
         setLoading(false)
         return
       }
@@ -249,8 +249,8 @@ export default function RollCallPage() {
         const s = map[c.id + '__' + c.course_type]
         return s === 'present' || s === 'absent' || s === 'leave' || s === 'full_day' || s === 'half_day'
       })
-      // 统一锁定规则：非当天或有记录即锁定（管理员与教师一致）
-      setIsLocked(selectedDate !== today || hasRecords)
+      // 锁定规则：管理员仅在有考勤记录时锁定，历史日期可编辑；教师非当天或有记录即锁定
+      setIsLocked(isAdmin ? hasRecords : selectedDate !== today || hasRecords)
     } catch (e) {
       console.error('[RollCall] load error:', e)
     }
@@ -341,7 +341,7 @@ export default function RollCallPage() {
   }
 
   const handleUnlock = () => {
-    if (selectedDate !== today) return
+    if (!isAdmin && selectedDate !== today) return
     if (isLocked) {
       setIsLocked(false)
       setTempAttendance(attendance)
@@ -349,7 +349,7 @@ export default function RollCallPage() {
   }
 
   const handleClear = async () => {
-    if (selectedDate !== today) return
+    if (!isAdmin && selectedDate !== today) return
     Taro.showModal({
       title: '确认清除',
       content: `确定要清除 ${className} ${selectedDate} 全部考勤记录吗？`,
