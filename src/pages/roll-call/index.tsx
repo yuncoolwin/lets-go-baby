@@ -470,9 +470,14 @@ export default function RollCallPage() {
           <View onClick={() => shiftDate(-1)}>
             <ChevronLeft size={20} color="#6b7280" />
           </View>
-          <View onClick={() => setCalendarVisible(true)} style={{ display: 'flex', alignItems: 'center', flexDirection: 'row' }}>
-            <Text className="block text-sm text-gray-500">{selectedDate === today ? '今天' : selectedDate}</Text>
-            <Text className="block text-xs text-gray-300 ml-1">▼</Text>
+          <View onClick={() => setCalendarVisible(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <View style={{ display: 'flex', alignItems: 'center', flexDirection: 'row' }}>
+              <Text className="block text-sm text-gray-500">{selectedDate === today ? '今天' : selectedDate}</Text>
+              <Text className="block text-xs text-gray-300 ml-1">▼</Text>
+            </View>
+            {selectedDate !== today && !isAdmin && (
+              <Text className="block text-xs text-orange-500">（历史记录，只读）</Text>
+            )}
           </View>
           <View onClick={() => shiftDate(1)}>
             <ChevronRight size={20} color="#6b7280" />
