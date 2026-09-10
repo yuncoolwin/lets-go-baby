@@ -849,6 +849,17 @@ export class EnrollmentsService {
     if (class_id !== undefined) updateData.class_id = class_id;
     updateData.updated_at = new Date().toISOString();
 
+    // 查询旧报读记录，保存旧值用于联动考勤
+    const { data: oldEnr } = await this.client
+      .from('enrollments')
+      .select('id, child_id, course_type, start_date, end_date, extended_end_date')
+      .eq('id', id)
+      .single();
+    const oldCourseType = oldEnr?.course_type;
+    const oldStartDate = oldEnr?.start_date;
+    const oldEndDate = oldEnr?.end_date;
+    const oldExtendedDate = oldEnr?.extended_end_date;
+
     if (course_id) {
       const { data: course } = await this.client
         .from('courses')
@@ -864,6 +875,7 @@ export class EnrollmentsService {
       .eq('id', id)
       .select()
       .single();
+    const newCourseType = data?.course_type;
 
     if (error) throw new Error(`更新报读记录失败: ${error.message}`);
 
@@ -886,6 +898,72 @@ export class EnrollmentsService {
 
     if (class_id) {
       await this.client.from('children').update({ class_id }).eq('id', data.child_id);
+    }
+
+    // 联动更新考勤：课程调整时同步该报读名下考勤的 course_type / status / is_half_day，并按新区间重算 enrollment_id
+    if (oldCourseType && newCourseType && oldCourseType !== newCourseType) {
+      // 1) 该报读名下（已关联 enrollment_id）考勤 course_type 更新为新值
+      await this.client
+        .from('attendance')
+        .update({ course_type: newCourseType })
+        .eq('enrollment_id', id);
+
+      // 2) 兼容历史未回填 enrollment_id 的考勤：按 child_id + 旧 course_type + 旧区间匹配更新
+      const oldEnd = oldExtendedDate || oldEndDate;
+      await this.client
+        .from('attendance')
+        .update({ course_type: newCourseType })
+        .eq('child_id', data.child_id)
+        .eq('course_type', oldCourseType)
+        .gte('date', data.start_date ? data.start_date : oldStartDate)
+        .lte('date', oldEnd || data.end_date)
+        .is('enrollment_id', null);
+    }
+
+    // 3) 联动转换考勤 status：仅当涉及全日托与其它课程互转时处理 full_day/half_day/present，absent/leave 一律保持
+    if (oldCourseType && newCourseType && oldCourseType !== newCourseType) {
+      const fromFullDay = oldCourseType === '全日托';
+      const toFullDay = newCourseType === '全日托';
+      if (fromFullDay && !toFullDay) {
+        // 全日托 → 其它：status full_day/half_day 统一改 present，清空 is_half_day
+        await this.client
+          .from('attendance')
+          .update({ status: 'present', is_half_day: null })
+          .eq('enrollment_id', id)
+          .in('status', ['full_day', 'half_day']);
+      } else if (toFullDay && !fromFullDay) {
+        // 其它 → 全日托：status present 统一改 full_day（全天出勤），half_day 保持
+        await this.client
+          .from('attendance')
+          .update({ status: 'full_day' })
+          .eq('enrollment_id', id)
+          .eq('status', 'present');
+      }
+      // 其它方向（非全日托互转）status 不变；absent/leave 一律不变
+    }
+
+    // 4) 按新区间重算 enrollment_id：先解除本报读原关联（区间外置 null），再按新区间归属
+    if (data.start_date && data.end_date) {
+      const newEnd = data.extended_end_date || data.end_date;
+      // 4a) 将本报读中不在新区间内的考勤 enrollment_id 置为 null
+      await this.client
+        .from('attendance')
+        .update({ enrollment_id: null, updated_at: new Date().toISOString() })
+        .eq('enrollment_id', id)
+        .lt('date', data.start_date);
+      await this.client
+        .from('attendance')
+        .update({ enrollment_id: null, updated_at: new Date().toISOString() })
+        .eq('enrollment_id', id)
+        .gt('date', newEnd || data.end_date);
+      // 4b) 按 child_id + 新 course_type + date 落在新区间 [start_date, COALESCE(extended, end)] 内匹配，更新 enrollment_id
+      await this.client
+        .from('attendance')
+        .update({ enrollment_id: id, updated_at: new Date().toISOString() })
+        .eq('child_id', data.child_id)
+        .eq('course_type', newCourseType)
+        .gte('date', data.start_date)
+        .lte('date', newEnd);
     }
 
     return data;
