@@ -242,6 +242,17 @@ export default function ClassManagePage() {
                       <View className="flex-1" onClick={() => toggleExpand(cls.id)}>
                         {/* 班级名称 + 展开图标 */}
                         <View className="flex items-center gap-2 mb-2">
+                          {(() => {
+                            const cn = cls.name.replace('班', '')
+                            const cCls = cls.name.startsWith('IC') ? 'bg-blue-100 text-blue-700'
+                              : cls.name.startsWith('CASA') ? 'bg-purple-100 text-purple-700'
+                              : 'bg-gray-200 text-gray-600'
+                            return (
+                              <View className={`w-7 h-7 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 ${cCls}`}>
+                                <Text className="block text-xs font-semibold leading-none text-center mx-1">{cn}</Text>
+                              </View>
+                            )
+                          })()}
                           <Text className="block text-base font-semibold text-foreground">
                             {cls.name}
                           </Text>

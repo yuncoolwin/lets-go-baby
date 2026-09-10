@@ -451,18 +451,12 @@ export default function RollCallPage() {
 
   return (
     <View className="h-full overflow-hidden bg-background" style={{ display: 'flex', flexDirection: 'column' }}>
-      {/* 头部信息：+ 临时来园（左） | 日期居中 + 前后切换（中） | 清除（右） */}
+      {/* 头部信息：清除（左） | 日期居中 + 前后切换（中） | + 临时来园（右） */}
       <View className="bg-background px-4 py-3 border-b border-gray-100" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
-        {/* 左侧：临时来园 "+" 按钮（仅非代理且当天） */}
+        {/* 左侧：清除按钮（仅非代理且当天或管理员） */}
         <View style={{ width: 56, display: 'flex', alignItems: 'flex-start' }}>
-          {!isAgentAdmin && selectedDate === today && (
-            <View
-              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              onClick={() => setDropInModal(true)}
-            >
-              <Text className="block text-xl leading-none text-gray-600">+</Text>
-            </View>
+          {!isAgentAdmin && (selectedDate === today || isAdmin) && (
+            <Text className="block text-sm text-red-500" onClick={handleClear}>清除</Text>
           )}
         </View>
         {/* 中间：日期居中（左箭头 + 日期 + 右箭头） */}
@@ -483,10 +477,16 @@ export default function RollCallPage() {
             <ChevronRight size={20} color="#6b7280" />
           </View>
         </View>
-        {/* 右侧：清除按钮 */}
+        {/* 右侧：临时来园 "+" 按钮（仅非代理且当天） */}
         <View style={{ width: 56, display: 'flex', alignItems: 'flex-end' }}>
-          {!isAgentAdmin && (selectedDate === today || isAdmin) && (
-            <Text className="block text-sm text-red-500" onClick={handleClear}>清除</Text>
+          {!isAgentAdmin && selectedDate === today && (
+            <View
+              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              onClick={() => setDropInModal(true)}
+            >
+              <Text className="block text-xl leading-none text-gray-600">+</Text>
+            </View>
           )}
         </View>
       </View>
@@ -774,7 +774,7 @@ export default function RollCallPage() {
                                         const cn = child.class_name || ''
                                         if (cn) {
                                           const short = cn.replace(/班$/, '')
-                                          const clsColor = cn === 'IC班' ? 'bg-blue-600 text-white' : cn === 'CASA班' ? 'bg-purple-600 text-white' : 'bg-gray-400 text-white'
+                                          const clsColor = cn === 'IC班' ? 'bg-blue-100 text-blue-700' : cn === 'CASA班' ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-600'
                                           const fontSize = short.length >= 3 ? 'text-xs' : 'text-sm'
                                           return (
                                             <View className={`w-10 h-10 rounded-full flex items-center justify-center font-bold flex-shrink-0 ${clsColor}`}>
