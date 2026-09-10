@@ -682,6 +682,17 @@ export default function IndexPage() {
 
   // 教师端首页
   if (currentRole?.role_type === 'teacher') {
+    const TEACHER_COURSE_ORDER: Record<string, number> = { 全日托: 0, 半日托: 1, 周六托: 2, 晚间托: 3, 暑假班: 4, 寒假班: 5, 兴趣班: 6 }
+    const TEACHER_CLASS_ORDER: Record<string, number> = { IC班: 0, CASA班: 1 }
+    const sortedTeacherGroups = [...(groupList || [])].sort((a, b) => {
+      const ca = TEACHER_COURSE_ORDER[a.course_type] ?? 999
+      const cb = TEACHER_COURSE_ORDER[b.course_type] ?? 999
+      if (ca !== cb) return ca - cb
+      const la = TEACHER_CLASS_ORDER[a.class_name] ?? 999
+      const lb = TEACHER_CLASS_ORDER[b.class_name] ?? 999
+      return la - lb
+    })
+    const effectiveGroupList = activeClassId ? sortedTeacherGroups.filter((g) => g.class_id === activeClassId) : sortedTeacherGroups
     return (
       <View className="min-h-screen bg-background p-4 pb-24">
         <View
@@ -718,12 +729,19 @@ export default function IndexPage() {
             }
           })
           if (uniqClasses.length === 0) return null
-          const effectiveActiveId = activeClassId || uniqClasses[0].class_id
           return (
             <View
               className="mb-3"
               style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '8px' }}
             >
+              <Text
+                className={`block text-sm rounded-full px-4 py-2 ${
+                  activeClassId === '' ? 'bg-[#E8651A] text-white' : 'bg-gray-100 text-gray-600'
+                }`}
+                onClick={() => setActiveClassId('')}
+              >
+                全部
+              </Text>
               {uniqClasses.map(tc => {
                 const clsGroups = groupList.filter(g => g.class_id === tc.class_id)
                 const allRecorded = clsGroups.length > 0 && clsGroups.every(g =>
@@ -732,7 +750,7 @@ export default function IndexPage() {
                     return !!st && st !== 'unknown'
                   })
                 )
-                const isActive = effectiveActiveId === tc.class_id
+                const isActive = activeClassId === tc.class_id
                 return (
                   <Text
                     key={tc.class_id}
@@ -756,11 +774,9 @@ export default function IndexPage() {
         })()}
 
         {/* 课程类型分组卡片 */}
-        {groupList.length > 0 ? (
+        {effectiveGroupList.length > 0 ? (
           <View className="mb-4">
-            {groupList.map((group) => {
-              const effectiveActiveId = activeClassId || groupList[0]?.class_id || ''
-              if (group.class_id !== effectiveActiveId) return null
+            {effectiveGroupList.map((group) => {
               const isExpanded = expandedGroupId.has(group.group_id)
               return (
                 <Card key={group.group_id} className="bg-white rounded-xl border-0 shadow-sm mb-3">
