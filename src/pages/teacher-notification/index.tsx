@@ -425,7 +425,14 @@ export default function TeacherNotificationPage() {
     } catch (err) {
       console.error('[TeacherNotification] chooseImage error:', err)
       setUploadingImage(false)
-      Taro.showToast({ title: '选择图片失败', icon: 'none' })
+      const msg = String((err as any)?.errMsg || (err as any)?.message || '')
+      if (msg.includes('privacy permission is not authorized')) {
+        Taro.showToast({ title: '请在微信后台配置相册/摄像头隐私声明', icon: 'none', duration: 2500 })
+      } else if (msg.includes('cancel')) {
+        // 用户主动取消选择，无需提示
+      } else {
+        Taro.showToast({ title: msg || '选择图片失败', icon: 'none' })
+      }
     }
   }
 

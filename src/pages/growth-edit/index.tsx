@@ -315,6 +315,14 @@ export default function GrowthEditPage() {
         }
         setUploading(false)
       },
+      fail: (err) => {
+        const msg = String((err as any)?.errMsg || (err as any)?.message || '')
+        if (msg.includes('privacy permission is not authorized')) {
+          Taro.showToast({ title: '请在微信后台配置相册/摄像头隐私声明', icon: 'none', duration: 2500 })
+        } else {
+          Taro.showToast({ title: msg || '选择图片失败', icon: 'none' })
+        }
+      },
     })
   }
 
@@ -377,6 +385,14 @@ export default function GrowthEditPage() {
           Taro.showToast({ title: '视频上传失败', icon: 'none' })
         } finally {
           setVideoUploading(false)
+        }
+      },
+      fail: (err) => {
+        const msg = String((err as any)?.errMsg || (err as any)?.message || '')
+        if (msg.includes('privacy permission is not authorized')) {
+          Taro.showToast({ title: '请在微信后台配置相册/摄像头隐私声明', icon: 'none', duration: 2500 })
+        } else {
+          Taro.showToast({ title: msg || '选择视频失败', icon: 'none' })
         }
       },
     })
