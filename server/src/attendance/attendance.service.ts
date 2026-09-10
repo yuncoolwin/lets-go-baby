@@ -522,19 +522,26 @@ export class AttendanceService {
     const denied = await this.canAccessClass(userId, dto.class_id);
     if (denied) return { error: true, code: 403, msg: denied };
 
-    // 根据 child_id + course_type 匹配"进行中"的报读记录，取得 enrollment_id
+    // 根据 child_id + course_type 匹配报读记录：日期落在报读区间 [start_date, COALESCE(extended_end_date, end_date, 考勤日期)] 内，
+    // 优先取状态为"进行中"的，其次取区间覆盖当天的，无匹配则保持 null（兼容历史/已结束报读）
     const courseType = dto.course_type || '';
     let enrollmentId: string | null = null;
-    const { data: enr } = await this.client
+    const { data: enrList } = await this.client
       .from('enrollments')
-      .select('id')
+      .select('id, status, start_date, end_date, extended_end_date, created_at')
       .eq('child_id', dto.child_id)
-      .eq('course_type', courseType)
-      .eq('status', '进行中')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    enrollmentId = enr?.id || null;
+      .eq('course_type', courseType);
+    const matched = (enrList || []).filter((e: any) => {
+      const end = e.extended_end_date || e.end_date || dto.date;
+      return e.start_date && e.start_date <= dto.date && dto.date <= end;
+    });
+    matched.sort((a: any, b: any) => {
+      const ia = a.status === '进行中' ? 0 : 1;
+      const ib = b.status === '进行中' ? 0 : 1;
+      if (ia !== ib) return ia - ib;
+      return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+    });
+    enrollmentId = matched[0]?.id || null;
 
     // 全天/半天标记：half_day -> true，full_day -> false，其余（present/absent/leave）-> null
     const isHalfDay = dto.status === 'half_day' ? true : dto.status === 'full_day' ? false : null;

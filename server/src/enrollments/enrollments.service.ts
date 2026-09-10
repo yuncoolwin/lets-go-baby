@@ -418,7 +418,8 @@ export class EnrollmentsService {
       const { data: leaveRecords, error: leaveError } = await this.client
         .from('attendance')
         .select('date')
-        .eq('enrollment_id', enr.id)
+        .eq('child_id', enr.child_id)
+        .eq('course_type', enr.course_type)
         .eq('status', 'leave')
         .gte('date', startDate)
         .lte('date', endDate)
@@ -630,7 +631,8 @@ export class EnrollmentsService {
     const { data: attendanceRecords } = await this.client
       .from('attendance')
       .select('status, date')
-      .eq('enrollment_id', enr.id)
+      .eq('child_id', enr.child_id)
+      .eq('course_type', enr.course_type)
       .gte('date', enr.start_date)
       .lte('date', attEndDate);
 
@@ -1031,11 +1033,12 @@ export class EnrollmentsService {
       }
     }
 
-    // 查询出勤记录（按 enrollment_id 精准关联），构建状态映射
+    // 查询出勤记录（按 child_id+course_type 关联，兼容 enrollment_id 为 null/错配的历史考勤），构建状态映射
     const records = await this.client
       .from('attendance')
       .select('date, status, is_half_day')
-      .eq('enrollment_id', enrollmentId)
+      .eq('child_id', enr.child_id)
+      .eq('course_type', enr.course_type)
       .gte('date', startDate)
       .lte('date', endDate)
       .order('date', { ascending: true });
