@@ -92,16 +92,23 @@ export class ChildrenService {
       return { error: true, code: 403, msg: '仅管理员可创建幼儿档案' };
     }
 
-    // 检查是否已存在同名幼儿
-    const { data: existing } = await this.client
+    // 检查是否已存在相同幼儿档案（name + gender + birth_date + parent_phone 四字段完全一致才算重复）
+    let q = this.client
       .from('children')
       .select('id')
       .eq('name', dto.name)
-      .eq('status', 'active')
-      .limit(1);
+      .eq('gender', dto.gender || '')
+      .eq('birth_date', dto.birth_date)
+      .eq('status', 'active');
+    if (dto.parent_phone) {
+      q = q.eq('parent_phone', dto.parent_phone);
+    } else {
+      q = q.is('parent_phone', null);
+    }
+    const { data: existing } = await q.limit(1);
 
     if (existing && existing.length > 0) {
-      return { error: true, code: 400, msg: '已存在同名幼儿档案' };
+      return { error: true, code: 400, msg: '已存在相同幼儿档案' };
     }
 
     const { data, error } = await this.client
@@ -114,6 +121,8 @@ export class ChildrenService {
         class_id: dto.class_id || null,
         health_info: dto.health_info || null,
         allergies: dto.allergies || null,
+        parent_name: dto.parent_name || null,
+        parent_phone: dto.parent_phone || null,
         status: dto.status || 'active',
         course_type: dto.course_type || null,
         enrollment_duration: dto.enrollment_duration || null,

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/app'
 import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Pencil } from 'lucide-react-taro'
 import { Network } from '@/network'
-import { dropInApi, attendanceApi } from '@/utils/api'
+import { dropInApi, attendanceApi, childrenApi } from '@/utils/api'
 import TabBar from '@/components/tab-bar'
 
 
@@ -454,7 +454,7 @@ export default function RollCallPage() {
       {/* 头部信息：清除（左） | 日期居中 + 前后切换（中） | + 临时来园（右） */}
       <View className="bg-background px-4 py-3 border-b border-gray-100" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
         {/* 左侧：清除按钮（仅非代理且当天或管理员） */}
-        <View style={{ width: 56, display: 'flex', alignItems: 'flex-start' }}>
+        <View style={{ width: 56, display: 'flex', alignItems: 'center' }}>
           {!isAgentAdmin && (selectedDate === today || isAdmin) && (
             <Text className="block text-sm text-red-500" onClick={handleClear}>清除</Text>
           )}
@@ -478,7 +478,7 @@ export default function RollCallPage() {
           </View>
         </View>
         {/* 右侧：临时来园 "+" 按钮（仅非代理且当天，管理员可历史日期） */}
-        <View style={{ width: 56, display: 'flex', alignItems: 'flex-end' }}>
+        <View style={{ width: 56, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
           {!isAgentAdmin && (selectedDate === today || isAdmin) && (
             <View
               className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
@@ -1008,6 +1008,10 @@ function DropInModal({
   const [pickedClassId, setPickedClassId] = useState('')
   const [isNewChild, setIsNewChild] = useState(false)
   const [newChildName, setNewChildName] = useState('')
+  const [newChildGender, setNewChildGender] = useState('male')
+  const [newChildBirthDate, setNewChildBirthDate] = useState('')
+  const [newChildPhone, setNewChildPhone] = useState('')
+  const [showBirthCalendar, setShowBirthCalendar] = useState(false)
 
   useEffect(() => {
     if (!visible) return
@@ -1016,6 +1020,10 @@ function DropInModal({
     setSubmitting(false)
     setIsNewChild(false)
     setNewChildName('')
+    setNewChildGender('male')
+    setNewChildBirthDate('')
+    setNewChildPhone('')
+    setShowBirthCalendar(false)
     ;(async () => {
       try {
         const url = '/api/children?page=1&page_size=1000'
@@ -1066,8 +1074,13 @@ function DropInModal({
 
   const submit = async () => {
     if (isNewChild) {
-      if (!newChildName.trim()) {
+      const name = newChildName.trim()
+      if (!name) {
         Taro.showToast({ title: '请输入幼儿姓名', icon: 'none' })
+        return
+      }
+      if (!newChildBirthDate) {
+        Taro.showToast({ title: '请选择出生日期', icon: 'none' })
         return
       }
       if (!pickedClassId) {
@@ -1076,13 +1089,32 @@ function DropInModal({
       }
       setSubmitting(true)
       try {
-        const res: any = await dropInApi.add({ new_child_name: newChildName.trim(), class_id: pickedClassId, course_type: courseType, date })
+        // 第一步：正式建档（性别默认男、家长电话选填）
+        const createRes: any = await childrenApi.create({
+          name,
+          gender: newChildGender,
+          birth_date: newChildBirthDate,
+          class_id: pickedClassId,
+          parent_phone: newChildPhone.trim() || undefined,
+          status: 'active',
+        })
+        if (createRes.code !== 200) {
+          Taro.showToast({ title: createRes.msg || '建档失败', icon: 'none' })
+          return
+        }
+        const newChildId = createRes.data?.id
+        if (!newChildId) {
+          Taro.showToast({ title: '建档失败', icon: 'none' })
+          return
+        }
+        // 第二步：写入当天临时来园记录
+        const res: any = await dropInApi.add({ child_id: newChildId, class_id: pickedClassId, course_type: courseType, date })
         if (res.code === 200) {
           Taro.showToast({ title: '已添加临时来园', icon: 'success' })
           onSuccess()
           onClose()
         } else {
-          Taro.showToast({ title: res.msg || '添加失败', icon: 'none' })
+          Taro.showToast({ title: '临时来园添加失败', icon: 'none' })
         }
       } catch {
         Taro.showToast({ title: '添加失败', icon: 'none' })
@@ -1136,8 +1168,8 @@ function DropInModal({
           <Text className="text-gray-400 text-lg" onClick={onClose}>×</Text>
         </View>
 
-                {/* 新增入口：切换未建档新幼儿 */}
-                <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' }} className="mb-2">
+                {/* 新增入口：切换新幼儿建档 */}
+                <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }} className="mb-2">
                   <View style={{ display: 'flex', flexDirection: 'row', gap: '8px' }}>
                     <Text
                       className={`text-xs rounded-full px-3 py-1 ${!isNewChild ? 'bg-[#E8651A] text-white' : 'bg-gray-100 text-gray-600'}`}
@@ -1149,7 +1181,7 @@ function DropInModal({
                       className={`text-xs rounded-full px-3 py-1 ${isNewChild ? 'bg-[#E8651A] text-white' : 'bg-gray-100 text-gray-600'}`}
                       onClick={() => setIsNewChild(true)}
                     >
-                      未建档新幼儿
+                      新幼儿建档
                     </Text>
                   </View>
                 </View>
@@ -1191,6 +1223,41 @@ function DropInModal({
             placeholder="请输入姓名"
             value={newChildName}
             onInput={(e) => setNewChildName(e.detail.value)}
+          />
+        </View>
+        <Text className="block text-xs text-gray-500 mt-3 mb-1">性别</Text>
+        <View style={{ display: 'flex', flexDirection: 'row', gap: '8px' }}>
+          {[['male', '男'], ['female', '女']].map(([val, label]) => (
+            <View
+              key={val}
+              className={`px-4 py-2 rounded-lg ${newChildGender === val ? 'bg-[#E8651A]' : 'bg-gray-100'}`}
+              onClick={() => setNewChildGender(val)}
+            >
+              <Text className={`block text-sm ${newChildGender === val ? 'text-white' : 'text-gray-700'}`}>{label}</Text>
+            </View>
+          ))}
+        </View>
+        <Text className="block text-xs text-gray-500 mt-3 mb-1">出生日期</Text>
+        <View className="border border-gray-200 rounded-lg px-3 py-2" onClick={() => setShowBirthCalendar(true)}>
+          <Text className={`block text-sm ${newChildBirthDate ? 'text-gray-900' : 'text-gray-400'}`}>
+            {newChildBirthDate || '请选择出生日期'}
+          </Text>
+        </View>
+        <CalendarOverlay
+          visible={showBirthCalendar}
+          onClose={() => setShowBirthCalendar(false)}
+          value={newChildBirthDate}
+          onChange={(d) => { setNewChildBirthDate(d); setShowBirthCalendar(false) }}
+        />
+        <Text className="block text-xs text-gray-500 mt-3 mb-1">家长电话</Text>
+        <View className="border border-gray-200 rounded-lg px-3 py-2">
+          <Input
+            className="text-sm bg-transparent"
+            style={{ width: '100%' }}
+            type="number"
+            placeholder="请输入家长电话（选填）"
+            value={newChildPhone}
+            onInput={(e) => setNewChildPhone(e.detail.value)}
           />
         </View>
         </>
@@ -1238,10 +1305,10 @@ function DropInModal({
         </View>
 
         <View
-          className={`rounded-full py-2 mt-4 text-center ${submitting || (isNewChild ? !newChildName.trim() : !pickedId) ? 'bg-gray-200' : 'bg-[#E8651A]'}`}
-          onClick={submitting || (isNewChild ? !newChildName.trim() : !pickedId) ? undefined : submit}
+          className={`rounded-full py-2 mt-4 text-center ${submitting || (isNewChild ? !newChildName.trim() || !newChildBirthDate : !pickedId) ? 'bg-gray-200' : 'bg-[#E8651A]'}`}
+          onClick={submitting || (isNewChild ? !newChildName.trim() || !newChildBirthDate : !pickedId) ? undefined : submit}
         >
-          <Text className={`block text-sm font-medium ${submitting || (isNewChild ? !newChildName.trim() : !pickedId) ? 'text-gray-400' : 'text-white'}`}>
+          <Text className={`block text-sm font-medium ${submitting || (isNewChild ? !newChildName.trim() || !newChildBirthDate : !pickedId) ? 'text-gray-400' : 'text-white'}`}>
             {submitting ? '提交中...' : '确认添加'}
           </Text>
         </View>
