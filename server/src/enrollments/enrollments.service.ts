@@ -422,7 +422,7 @@ export class EnrollmentsService {
         .eq('course_type', enr.course_type)
         .eq('status', 'leave')
         .gte('date', startDate)
-        .lte('date', endDate)
+        .lte('date', enr.extended_end_date || enr.end_date)
         .order('date', { ascending: true });
 
       if (leaveRecords && leaveRecords.length > 0) {
