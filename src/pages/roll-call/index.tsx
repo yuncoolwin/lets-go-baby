@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { View, Text, ScrollView, Picker } from '@tarojs/components'
 import { Input } from '@/components/ui/input'
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
@@ -76,6 +76,8 @@ export default function RollCallPage() {
   const [teacherClassList, setTeacherClassList] = useState<Array<{ class_id: string; class_name: string }>>([])
   const [activeClassId, setActiveClassId] = useState('')
   const [editTimesChild, setEditTimesChild] = useState<ChildItem | null>(null)
+  // 竞态保护：递增请求序号，丢弃旧日期迟到的响应
+  const loadSeqRef = useRef(0)
 
   // 上海时区（UTC+8）口径的当天字符串，前后端一致
   const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -85,6 +87,7 @@ export default function RollCallPage() {
   }, [selectedDate, selectedClassId])
 
   const loadData = async () => {
+    const seq = ++loadSeqRef.current
     setLoading(true)
     try {
       const isAdminUser = currentRole?.role_type === 'admin' || currentRole?.role_type === 'superadmin'
@@ -154,6 +157,8 @@ export default function RollCallPage() {
             }
           })
         })
+        // 竞态保护：若已发起更新的请求（序号不匹配），丢弃这次迟到响应
+        if (seq !== loadSeqRef.current) return
         setChildren(allChildren)
         setAttendance(map)
         setTempAttendance(map)
@@ -241,6 +246,8 @@ export default function RollCallPage() {
           }
         })
       })
+      // 竞态保护：若已发起更新的请求（序号不匹配），丢弃这次迟到响应
+      if (seq !== loadSeqRef.current) return
       setChildren(allChildren)
       setAttendance(map)
       setTempAttendance(map)
@@ -763,7 +770,6 @@ export default function RollCallPage() {
         onChange={(dateStr) => {
           setSelectedDate(dateStr)
           setCalendarVisible(false)
-          loadData()
         }}
         onClose={() => setCalendarVisible(false)}
         disabled={isAdmin ? undefined : (date) => {
