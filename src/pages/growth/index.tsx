@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { View, Text, Image, ScrollView, Video } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -49,6 +49,13 @@ export default function GrowthPage() {
     loadRecords()
     markGrowthRead()
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  })
+
+  // 页面下拉刷新
+  usePullDownRefresh(() => {
+    loadRecords()
+    markGrowthRead()
+    Taro.stopPullDownRefresh()
   })
 
   const loadRecords = async () => {

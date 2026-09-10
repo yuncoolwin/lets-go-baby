@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { usePullDownRefresh } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -131,6 +131,13 @@ export default function NotificationManagePage() {
   useEffect(() => {
     loadAll()
   }, [loadAll])
+
+  usePullDownRefresh(() => {
+    if (mainTab === 'all') loadAll(false)
+    else if (mainTab === 'received') loadReceived()
+    else loadSent()
+    Taro.stopPullDownRefresh()
+  })
 
   const handleTabChange = (v: MainTab) => {
     setMainTab(v)

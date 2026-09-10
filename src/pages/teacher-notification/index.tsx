@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { View, Text, Image } from '@tarojs/components'
-import Taro, { useDidShow, useRouter } from '@tarojs/taro'
+import Taro, { useDidShow, usePullDownRefresh, useRouter } from '@tarojs/taro'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -174,6 +174,15 @@ export default function TeacherNotificationPage() {
       loadChildren()
       if (isAdmin) loadTeachers()
     }
+  })
+
+  // 下拉刷新
+  usePullDownRefresh(() => {
+    loadClasses()
+    loadCourses()
+    loadChildren()
+    if (isAdmin) loadTeachers()
+    Taro.stopPullDownRefresh()
   })
 
   const loadClasses = async () => {

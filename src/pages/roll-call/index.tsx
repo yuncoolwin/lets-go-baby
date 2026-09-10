@@ -3,11 +3,11 @@ import { View, Text, ScrollView, Picker } from '@tarojs/components'
 import { Input } from '@/components/ui/input'
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
 import { format } from 'date-fns'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/app'
-import { ChevronDown, ChevronUp, RefreshCw, Pencil } from 'lucide-react-taro'
+import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Pencil } from 'lucide-react-taro'
 import { Network } from '@/network'
 import { dropInApi, attendanceApi } from '@/utils/api'
 import TabBar from '@/components/tab-bar'
@@ -94,6 +94,10 @@ export default function RollCallPage() {
   const [editTimesChild, setEditTimesChild] = useState<ChildItem | null>(null)
   // 竞态保护：递增请求序号，丢弃旧日期迟到的响应
   const loadSeqRef = useRef(0)
+  // 下拉刷新中
+  const [refreshing, setRefreshing] = useState(false)
+  // useDidShow 首次进入时跳过刷新（useEffect 已加载）
+  const didShowFirstRef = useRef(true)
 
   // 上海时区（UTC+8）口径的当天字符串，前后端一致
   const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -101,6 +105,22 @@ export default function RollCallPage() {
   useEffect(() => {
     loadData()
   }, [selectedDate, selectedClassId])
+
+  // 前后一天切换：基于当前 selectedDate 计算，改状态由 useEffect 自动重载（竞态保护生效）
+  const shiftDate = (delta: number) => {
+    const d = new Date(selectedDate + 'T00:00:00')
+    d.setDate(d.getDate() + delta)
+    setSelectedDate(format(d, 'yyyy-MM-dd'))
+  }
+
+  // tab 切换回到考勤页时自动刷新；首次进入跳过（useEffect 已加载）
+  useDidShow(() => {
+    if (didShowFirstRef.current) {
+      didShowFirstRef.current = false
+      return
+    }
+    loadData()
+  })
 
   const loadData = async () => {
     const seq = ++loadSeqRef.current
@@ -431,48 +451,39 @@ export default function RollCallPage() {
 
   return (
     <View className="h-full overflow-hidden bg-background" style={{ display: 'flex', flexDirection: 'column' }}>
-      {/* 头部信息 */}
-      <View className="bg-background px-4 py-3 flex items-center justify-between border-b border-gray-100">
-        <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
-          <View onClick={() => setCalendarVisible(true)}>
-            <View className="flex items-center flex-row">
-              <Text className="block text-sm text-gray-500">{selectedDate === today ? '今天' : selectedDate}</Text>
-              <Text className="block text-xs text-gray-300 ml-1">▼</Text>
-            </View>
-          </View>
-          {selectedDate !== today && !isAdmin && (
-            <Text className="block text-xs text-orange-500">（历史记录，只读）</Text>
-          )}
-          {/* 刷新按钮：重新加载当前选中日期的考勤与接送信息 */}
-          <View
-            className="flex items-center flex-row ml-1 px-2 py-1 rounded-full bg-gray-100"
-            onClick={loadData}
-          >
-            <RefreshCw size={13} color="#6b7280" />
-            <Text className="block text-xs text-gray-500 ml-1">刷新</Text>
-          </View>
-        </View>
-        {!isAgentAdmin && selectedDate === today && (
-          <View
-            className="flex-1 flex justify-center"
-            style={{ display: 'flex', justifyContent: 'center' }}
-          >
-            <Text
-              className="block text-sm text-gray-600 bg-gray-100 rounded-full px-3 py-1"
+      {/* 头部信息：+ 临时来园（左） | 日期居中 + 前后切换（中） | 清除（右） */}
+      <View className="bg-background px-4 py-3 border-b border-gray-100" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+        {/* 左侧：临时来园 "+" 按钮（仅非代理且当天） */}
+        <View style={{ width: 56, display: 'flex', alignItems: 'flex-start' }}>
+          {!isAgentAdmin && selectedDate === today && (
+            <View
+              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               onClick={() => setDropInModal(true)}
             >
-              添加临时来园
-            </Text>
+              <Text className="block text-xl leading-none text-gray-600">+</Text>
+            </View>
+          )}
+        </View>
+        {/* 中间：日期居中（左箭头 + 日期 + 右箭头） */}
+        <View style={{ flex: 1, display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+          <View onClick={() => shiftDate(-1)}>
+            <ChevronLeft size={20} color="#6b7280" />
           </View>
-        )}
-        {!isAgentAdmin && (selectedDate === today || isAdmin) && (
-          <Text
-            className="block text-sm text-red-500"
-            onClick={handleClear}
-          >
-            清除
-          </Text>
-        )}
+          <View onClick={() => setCalendarVisible(true)} style={{ display: 'flex', alignItems: 'center', flexDirection: 'row' }}>
+            <Text className="block text-sm text-gray-500">{selectedDate === today ? '今天' : selectedDate}</Text>
+            <Text className="block text-xs text-gray-300 ml-1">▼</Text>
+          </View>
+          <View onClick={() => shiftDate(1)}>
+            <ChevronRight size={20} color="#6b7280" />
+          </View>
+        </View>
+        {/* 右侧：清除按钮 */}
+        <View style={{ width: 56, display: 'flex', alignItems: 'flex-end' }}>
+          {!isAgentAdmin && (selectedDate === today || isAdmin) && (
+            <Text className="block text-sm text-red-500" onClick={handleClear}>清除</Text>
+          )}
+        </View>
       </View>
 
       {/* 管理员模式：班级选择器（含"全部"标签） */}
@@ -516,7 +527,17 @@ export default function RollCallPage() {
         </View>
       )}
 
-      <ScrollView scrollY style={{ flex: 1, height: 0, paddingBottom: '100rpx' }}>
+      <ScrollView
+        scrollY
+        style={{ flex: 1, height: 0, paddingBottom: '100rpx' }}
+        refresherEnabled
+        refresherDefaultStyle="black"
+        refresherTriggered={refreshing}
+        onRefresherRefresh={() => {
+          setRefreshing(true)
+          loadData().finally(() => setRefreshing(false))
+        }}
+      >
         {/* 教师多班级切换标签（考勤完成的班级显示绿色） */}
         {!isAdmin && teacherClassList.length > 0 && (
           <View
