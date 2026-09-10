@@ -477,9 +477,9 @@ export default function RollCallPage() {
             <ChevronRight size={20} color="#6b7280" />
           </View>
         </View>
-        {/* 右侧：临时来园 "+" 按钮（仅非代理且当天） */}
+        {/* 右侧：临时来园 "+" 按钮（仅非代理且当天，管理员可历史日期） */}
         <View style={{ width: 56, display: 'flex', alignItems: 'flex-end' }}>
-          {!isAgentAdmin && selectedDate === today && (
+          {!isAgentAdmin && (selectedDate === today || isAdmin) && (
             <View
               className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
