@@ -920,8 +920,11 @@ function DropInModal({
       }
       try {
         const wres: any = await Network.request({ url: `/api/courses?weekday=${new Date(`${date}T00:00:00`).getDay()}` })
+        const COURSE_ORDER = ['全日托', '半日托', '周六托', '晚间托', '暑假班', '寒假班', '兴趣班']
+        const sortIdx = (n: string) => { const i = COURSE_ORDER.indexOf(n); return i === -1 ? COURSE_ORDER.length : i }
         const clist: Array<{ id: string; name: string }> = ((wres.data?.data || []) as any[])
           .filter((c: any) => c.status !== '停用')
+          .sort((a: any, b: any) => sortIdx(a.name) - sortIdx(b.name))
           .map((c: any) => ({ id: c.id, name: c.name }))
         setCourses(clist)
         setCourseType(prev => (clist.some(c => c.name === prev) ? prev : clist[0]?.name || prev))
@@ -1027,8 +1030,7 @@ function DropInModal({
         </View>
 
                 {/* 新增入口：切换未建档新幼儿 */}
-                <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }} className="mb-2">
-                  <Text className="block text-xs text-gray-500">范围</Text>
+                <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' }} className="mb-2">
                   <View style={{ display: 'flex', flexDirection: 'row', gap: '8px' }}>
                     <Text
                       className={`text-xs rounded-full px-3 py-1 ${!isNewChild ? 'bg-[#E8651A] text-white' : 'bg-gray-100 text-gray-600'}`}
@@ -1047,7 +1049,6 @@ function DropInModal({
 
         {!isNewChild ? (
         <>
-        <Text className="block text-xs text-gray-500 mt-3 mb-1">选择幼儿</Text>
         <View className="mb-3">
           <Input
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm"

@@ -324,7 +324,7 @@ export default function HolidayManagePage() {
 
       {/* 新增/编辑弹窗 */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+        <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <DialogHeader>
             <DialogTitle>
               <Text className="block text-lg font-semibold text-foreground">
@@ -333,6 +333,7 @@ export default function HolidayManagePage() {
             </DialogTitle>
           </DialogHeader>
 
+          <ScrollView scrollY className="flex-1 min-h-0" style={{ flex: 1, minHeight: 0 }}>
           {/* 假期名称 */}
           <View className="mb-4">
             <Text className="block text-sm font-medium text-foreground mb-2">假期名称</Text>
@@ -447,8 +448,10 @@ export default function HolidayManagePage() {
             </View>
           </View>
 
+          </ScrollView>
+
           {/* 操作按钮 */}
-          <View className="flex items-center gap-3 mt-2">
+          <View className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100">
             <View className="flex-1">
               <Button className="w-full bg-gray-100 text-gray-600 rounded-xl" onClick={() => setDialogOpen(false)}>
                 <Text className="block">取消</Text>
