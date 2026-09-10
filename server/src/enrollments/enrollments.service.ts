@@ -224,7 +224,8 @@ export class EnrollmentsService {
       }
     }
 
-    if (holidaySet.size === 0) return result;
+    // 周六托无请假顺延块，无法定节假日时可直接返回；全日托/半日托需继续执行请假顺延
+    if (isSaturdayCourse && holidaySet.size === 0) return result;
 
     if (isSaturdayCourse) {
       // 周六托专属顺延逻辑：只统计假期中落在周六的天数
@@ -360,10 +361,9 @@ export class EnrollmentsService {
     for (const dateStr of holidaySet) {
       if (!isWeekend(dateStr)) totalHolidayDays++;
     }
-    if (totalHolidayDays === 0) return result;
 
     // 顺延结束日期若落在 end_date 之后的节假日（法定节假日 / 假期管理内节假日），需继续顺延至下一个工作日。
-    // 预加载未来两年的节假日集合，供顺延落点时跳过。
+    // 预加载未来两年的节假日集合，供顺延落点时跳过（请假顺延同样需要，故不在此提前 return）。
     const futureHolidaySet = new Set<string>();
     const futureStart = addDays(endDate, 1);
     const futureEnd = addDays(endDate, 730);
@@ -400,14 +400,16 @@ export class EnrollmentsService {
     let extendedDate = endDate;
     let remainingDays = totalHolidayDays;
 
-    while (remainingDays > 0) {
-      extendedDate = addDays(extendedDate, 1);
-      if (isWeekend(extendedDate)) continue;
-      if (holidaySet.has(extendedDate) || futureHolidaySet.has(extendedDate)) continue;
-      remainingDays--;
-    }
+    if (totalHolidayDays > 0) {
+      while (remainingDays > 0) {
+        extendedDate = addDays(extendedDate, 1);
+        if (isWeekend(extendedDate)) continue;
+        if (holidaySet.has(extendedDate) || futureHolidaySet.has(extendedDate)) continue;
+        remainingDays--;
+      }
 
-    result.extended_end_date = extendedDate;
+      result.extended_end_date = extendedDate;
+    }
     // 按开始日期排序：早的放前面
     result.details.sort((a, b) => a.startDate.localeCompare(b.startDate));
 
