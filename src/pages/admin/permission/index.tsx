@@ -410,6 +410,7 @@ export default function PermissionPage() {
                 className="w-full bg-transparent"
                 placeholder="用户名"
                 value={dialogNickname}
+                adjustPosition={false}
                 onInput={(e) => setDialogNickname(e.detail.value)}
               />
             </View>
@@ -420,6 +421,7 @@ export default function PermissionPage() {
                 type="number"
                 maxlength={11}
                 value={dialogPhone}
+                adjustPosition={false}
                 onInput={(e) => setDialogPhone(String(e.detail.value || ''))}
               />
             </View>

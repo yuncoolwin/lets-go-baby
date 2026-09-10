@@ -21,7 +21,7 @@ const Input = React.forwardRef<React.ElementRef<typeof TaroInput>, InputProps>(
     return (
       <View
         className={cn(
-          "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:border-ring focus-within:ring-4 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background",
+          "flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:border-ring focus-within:ring-4 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background",
           isFocused &&
             "border-ring ring-4 ring-ring ring-offset-2 ring-offset-background",
           className
@@ -33,7 +33,7 @@ const Input = React.forwardRef<React.ElementRef<typeof TaroInput>, InputProps>(
       >
         <TaroInput
           type={type}
-          className="w-full flex-1 bg-transparent text-sm text-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 selection:bg-selection selection:text-selection-foreground"
+          className="h-full w-full flex-1 bg-transparent text-sm text-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 selection:bg-selection selection:text-selection-foreground"
           placeholderClass="text-muted-foreground"
           ref={ref}
           focus={autoFocus || focus}

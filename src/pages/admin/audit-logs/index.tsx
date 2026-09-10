@@ -23,6 +23,7 @@ interface AuditLogItem {
 
 const TARGET_TYPE_LABELS: Record<string, string> = {
   attendance: '考勤管理',
+  attendance_record: '考勤记录',
   class: '班级管理',
   child: '幼儿管理',
   course: '课程管理',
@@ -38,6 +39,7 @@ const TARGET_TYPE_LABELS: Record<string, string> = {
 // 模块标签配色：10 类各配不同颜色（不用 orange 系，与「重要」标签的橙色区分）
 const TYPE_COLORS: Record<string, string> = {
   attendance: 'bg-blue-100 text-blue-700',
+  attendance_record: 'bg-cyan-50 text-cyan-700',
   class: 'bg-indigo-100 text-indigo-700',
   child: 'bg-pink-100 text-pink-700',
   course: 'bg-purple-100 text-purple-700',
@@ -53,6 +55,7 @@ const TYPE_COLORS: Record<string, string> = {
 const ACTION_LABELS: Record<string, string> = {
   attendance_upsert: '更新了考勤',
   attendance_clear: '清除了当天考勤',
+  attendance_record_update: '更新了接送时间',
   class_create: '新增了班级「{name}」',
   class_update: '编辑了班级「{name}」',
   class_delete: '删除了班级「{name}」',

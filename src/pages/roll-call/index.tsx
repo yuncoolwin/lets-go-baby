@@ -920,7 +920,9 @@ function DropInModal({
       }
       try {
         const wres: any = await Network.request({ url: `/api/courses?weekday=${new Date(`${date}T00:00:00`).getDay()}` })
-        const clist: Array<{ id: string; name: string }> = (wres.data?.data || []).map((c: any) => ({ id: c.id, name: c.name }))
+        const clist: Array<{ id: string; name: string }> = ((wres.data?.data || []) as any[])
+          .filter((c: any) => c.status !== '停用')
+          .map((c: any) => ({ id: c.id, name: c.name }))
         setCourses(clist)
         setCourseType(prev => (clist.some(c => c.name === prev) ? prev : clist[0]?.name || prev))
       } catch {

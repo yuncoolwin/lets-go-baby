@@ -92,7 +92,7 @@ export default function HolidayManagePage() {
 
   const loadChildren = useCallback(async () => {
     try {
-      const res = await Network.request({ url: '/api/children', method: 'GET' })
+      const res = await Network.request({ url: '/api/children?page=1&page_size=1000&status=active', method: 'GET' })
       console.log('[假期管理] 幼儿列表:', res.data)
       if (res.data?.code === 200) {
         const list = res.data.data?.list || res.data.data || []
@@ -400,24 +400,26 @@ export default function HolidayManagePage() {
           {formType === 'personal' && (
             <View className="mb-4">
               <Text className="block text-sm font-medium text-foreground mb-2">选择幼儿</Text>
-              <View className="flex flex-wrap gap-2">
-                {children.slice(0, 20).map((child) => (
-                  <View
-                    key={child.id}
-                    className={`px-3 py-2 rounded-xl text-sm ${
-                      formTargetId === child.id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}
-                    onClick={() => setFormTargetId(child.id)}
-                  >
-                    <Text className="block text-sm">{child.name}</Text>
-                  </View>
-                ))}
-                {children.length === 0 && (
-                  <Text className="block text-xs text-gray-400">暂无幼儿数据</Text>
-                )}
-              </View>
+              <ScrollView scrollY className="max-h-60">
+                <View className="flex flex-wrap gap-2">
+                  {children.map((child) => (
+                    <View
+                      key={child.id}
+                      className={`px-3 py-2 rounded-xl text-sm ${
+                        formTargetId === child.id
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                      onClick={() => setFormTargetId(child.id)}
+                    >
+                      <Text className="block text-sm">{child.name}</Text>
+                    </View>
+                  ))}
+                  {children.length === 0 && (
+                    <Text className="block text-xs text-gray-400">暂无幼儿数据</Text>
+                  )}
+                </View>
+              </ScrollView>
             </View>
           )}
 

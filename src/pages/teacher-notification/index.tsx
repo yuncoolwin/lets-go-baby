@@ -189,7 +189,23 @@ export default function TeacherNotificationPage() {
   const loadCourses = async () => {
     try {
       const res = await courseApi.list()
-      setCourseList(extractList(res))
+      const list = extractList(res)
+      // 按课程类型顺序排序：全日托、半日托、周六托、晚间托、暑假班、寒假班、兴趣班，未知类型排最后
+      const COURSE_TYPE_ORDER: Record<string, number> = {
+        全日托: 0,
+        半日托: 1,
+        周六托: 2,
+        晚间托: 3,
+        暑假班: 4,
+        寒假班: 5,
+        兴趣班: 6,
+      }
+      list.sort((a, b) => {
+        const ao = COURSE_TYPE_ORDER[a.name] ?? 7
+        const bo = COURSE_TYPE_ORDER[b.name] ?? 7
+        return ao - bo
+      })
+      setCourseList(list)
     } catch (err) {
       console.error('[TeacherNotification] loadCourses error:', err)
     }
