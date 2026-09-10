@@ -18,6 +18,7 @@ interface ChildItem {
   name: string
   gender: string
   class_id?: string
+  class_name?: string
   birth_date?: string
   allergy?: string
   avatar_url?: string
@@ -28,6 +29,20 @@ interface ChildItem {
   check_out_time?: string | null
   record_status?: string | null
 }
+
+// 课程类型排序序号（与课程管理一致，未知类型排最后）
+const COURSE_TYPE_ORDER: Record<string, number> = {
+  '全日托': 0,
+  '半日托': 1,
+  '周六托': 2,
+  '晚间托': 3,
+  '暑假班': 4,
+  '寒假班': 5,
+  '兴趣班': 6,
+}
+
+// 班级展示顺序（IC班在前、CASA班在后，未知班级排最后）
+const CLASS_ORDER = ['IC班', 'CASA班']
 
 const COURSE_TYPE_COLORS: Record<string, string> = {
   '全日托': 'bg-orange-100 text-orange-700',
@@ -72,6 +87,7 @@ export default function RollCallPage() {
   const [classList, setClassList] = useState<Array<{ id: string; name: string }>>([])
   const [selectedClassId, setSelectedClassId] = useState('')
   const [holidayInfo, setHolidayInfo] = useState<{ is_class_holiday: boolean; holiday_label: string | null; personal_holiday_child_ids: string[] }>({ is_class_holiday: false, holiday_label: null, personal_holiday_child_ids: [] })
+  const [allPersonalHolidayIds, setAllPersonalHolidayIds] = useState<string[]>([])
   const [dropInModal, setDropInModal] = useState(false)
   const [teacherClassList, setTeacherClassList] = useState<Array<{ class_id: string; class_name: string }>>([])
   const [activeClassId, setActiveClassId] = useState('')
@@ -98,40 +114,39 @@ export default function RollCallPage() {
         const classRes = await Network.request({ url: '/api/classes' })
         const allClasses: Array<{ id: string; name: string }> = classRes.data?.data?.list || classRes.data?.data || []
         setClassList(allClasses)
-        if (allClasses.length > 0 && !selectedClassId) {
-          setSelectedClassId(allClasses[0].id)
-          setClassName(allClasses[0].name)
-        }
 
-        const currentClassId = selectedClassId || (allClasses.length > 0 ? allClasses[0].id : '')
-        if (!currentClassId) {
-          setLoading(false)
-          return
-        }
-        setClassId(currentClassId)
+        // "全部"模式：selectedClassId 为空字符串表示查看所有班级；首屏默认选中"全部"
+        const currentClassId = selectedClassId || ''
 
-        // 加载该班级该日期的假期状态（四类假期）
-        await fetchHolidayStatus(currentClassId)
+        // 加载该班级该日期的假期状态（四类假期）——单班模式才需要
+        if (currentClassId) {
+          await fetchHolidayStatus(currentClassId)
+        }
 
         // 加载日期列表
-        try {
-          const dateRes = await Network.request({
-            url: `/api/attendance/dates/${currentClassId}`,
-          })
-          const dates: string[] = dateRes.data?.data || []
-          const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
-          if (!dates.includes(todayStr)) dates.unshift(todayStr)
-          setDateList(dates)
-        } catch (e) {
-          console.error('[RollCall] load dates error:', e)
+        if (currentClassId) {
+          try {
+            const dateRes = await Network.request({
+              url: `/api/attendance/dates/${currentClassId}`,
+            })
+            const dates: string[] = dateRes.data?.data || []
+            const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
+            if (!dates.includes(todayStr)) dates.unshift(todayStr)
+            setDateList(dates)
+          } catch (e) {
+            console.error('[RollCall] load dates error:', e)
+          }
         }
 
-        // 使用管理员专用接口查询考勤分组
+        // 使用管理员专用接口查询考勤分组；全部模式不带 class_id
         const groupedRes = await Network.request({
           url: '/api/attendance/admin/overview',
-          data: { class_id: currentClassId, date: selectedDate },
+          data: currentClassId ? { class_id: currentClassId, date: selectedDate } : { date: selectedDate },
         })
-        const groups: any[] = groupedRes.data?.data || []
+        const body = groupedRes.data?.data
+        const groups: any[] = currentClassId ? (body || []) : (body?.groups || [])
+        const allPersonalHoliday = currentClassId ? [] : (body?.all_personal_holiday_child_ids || [])
+        setAllPersonalHolidayIds(allPersonalHoliday)
 
         // 扁平化所有分组的幼儿数据
         const allChildren: ChildItem[] = []
@@ -142,6 +157,8 @@ export default function RollCallPage() {
               id: s.id,
               name: s.name,
               gender: s.gender,
+              class_id: g.class_id,
+              class_name: g.class_name,
               course_type: g.course_type,
               attendance_status: s.attendance_status || null,
               check_in_time: s.check_in_time || null,
@@ -230,6 +247,7 @@ export default function RollCallPage() {
             name: s.name,
             gender: s.gender,
             class_id: g.class_id,
+            class_name: g.class_name,
             birth_date: s.birth_date || undefined,
             course_type: g.course_type,
             attendance_status: s.attendance_status || null,
@@ -457,12 +475,26 @@ export default function RollCallPage() {
         )}
       </View>
 
-      {/* 管理员模式：班级选择器 */}
+      {/* 管理员模式：班级选择器（含"全部"标签） */}
       {isAdmin && classList.length > 0 && (
         <View className="bg-background px-4 py-2 border-b border-gray-100">
           <View style={{ display: 'flex', flexDirection: 'row', gap: '8px', overflowX: 'auto' }}>
+            {/* 全部标签：selectedClassId 为空字符串表示查看全部班级 */}
+            <View
+              className={`px-4 py-1 rounded-full text-sm whitespace-nowrap ${
+                selectedClassId === '' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
+              }`}
+              onClick={() => {
+                if (selectedClassId !== '') {
+                  setSelectedClassId('')
+                  setClassName('全部班级')
+                }
+              }}
+            >
+              <Text className="block text-sm">全部</Text>
+            </View>
             {classList.map(cls => {
-              const isSelected = cls.id === (selectedClassId || classId)
+              const isSelected = cls.id === selectedClassId
               return (
                 <View
                   key={cls.id}
@@ -491,6 +523,15 @@ export default function RollCallPage() {
             className="px-4 py-2"
             style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '8px' }}
           >
+            {/* 教师"全部"标签：点击查看全部班级 */}
+            <Text
+              className={`block text-sm rounded-full px-4 py-2 ${
+                activeClassId === '' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600'
+              }`}
+              onClick={() => setActiveClassId('')}
+            >
+              全部
+            </Text>
             {teacherClassList.map(tc => {
               const clsChildren = children.filter(c => c.class_id === tc.class_id)
               const allRecorded = clsChildren.length > 0 && clsChildren.every(c => {
@@ -557,7 +598,6 @@ export default function RollCallPage() {
         ) : (
           (() => {
             // 按课程类型分组（教师多班时仅分组当前选中班级）
-            const sortOrder = ['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日']
             const groupMap = new Map<string, ChildItem[]>()
             const visibleChildren = !isAdmin && activeClassId ? children.filter(c => c.class_id === activeClassId) : children
             visibleChildren.forEach(child => {
@@ -565,10 +605,28 @@ export default function RollCallPage() {
               if (!groupMap.has(ct)) groupMap.set(ct, [])
               groupMap.get(ct)!.push(child)
             })
+            // 分组内按班级排序（IC班在前、CASA班在后、未知班级排最后），同班保持后端顺序
+            groupMap.forEach(group => {
+              const ci = (c: ChildItem) => CLASS_ORDER.indexOf(c.class_name || '') === -1 ? 999 : CLASS_ORDER.indexOf(c.class_name || '')
+              group.sort((a, b) => ci(a) - ci(b))
+              // 已保存/锁定态时，缺席与请假的幼儿整体下沉到该课程分组底部
+              if (isLocked) {
+                const bottom: ChildItem[] = []
+                const top: ChildItem[] = []
+                group.forEach(c => {
+                  const st = currentDisplay[c.id + '__' + c.course_type] || 'unknown'
+                  if (st === 'absent' || st === 'leave') bottom.push(c)
+                  else top.push(c)
+                })
+                group.length = 0
+                top.forEach(c => group.push(c))
+                bottom.forEach(c => group.push(c))
+              }
+            })
             const sortedGroups = [...groupMap.entries()].sort((a, b) => {
-              const ai = sortOrder.indexOf(a[0])
-              const bi = sortOrder.indexOf(b[0])
-              return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
+              const ai = COURSE_TYPE_ORDER[a[0]]
+              const bi = COURSE_TYPE_ORDER[b[0]]
+              return (ai === undefined ? 999 : ai) - (bi === undefined ? 999 : bi)
             })
 
             return (
@@ -685,13 +743,28 @@ export default function RollCallPage() {
                                 return (
                                   <View key={child.id + '__' + child.course_type}>
                                     <View className="flex items-center gap-3 mb-3">
-                                      <View
-                                        className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                                          child.gender === 'female' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700'
-                                        }`}
-                                      >
-                                        {child.name.charAt(0)}
-                                      </View>
+                                      {(() => {
+                                        // 班级圆形标签：优先展示班级简称，无班级信息则保留姓氏头像
+                                        const cn = child.class_name || ''
+                                        if (cn) {
+                                          const short = cn.replace(/班$/, '')
+                                          const clsColor = cn === 'IC班' ? 'bg-blue-600 text-white' : cn === 'CASA班' ? 'bg-purple-600 text-white' : 'bg-gray-400 text-white'
+                                          const fontSize = short.length >= 3 ? 'text-xs' : 'text-sm'
+                                          return (
+                                            <View className={`w-10 h-10 rounded-full flex items-center justify-center font-bold flex-shrink-0 ${clsColor}`}>
+                                              <Text className={`block ${fontSize}`}>{short}</Text>
+                                            </View>
+                                          )
+                                        }
+                                        return (
+                                          <View className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
+                                            child.gender === 'female' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700'
+                                          }`}
+                                          >
+                                            <Text className="block text-sm">{child.name.charAt(0)}</Text>
+                                          </View>
+                                        )
+                                      })()}
                                       <View className="flex-1 flex items-center gap-2" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                                         <Text className="block text-base font-medium text-gray-900 truncate">{child.name}</Text>
                                         {child.is_drop_in && <Text className="block text-xs text-orange-600">临时来园</Text>}
@@ -720,7 +793,9 @@ export default function RollCallPage() {
                                       {((child.course_type === '全日托' || child.course_type === '周六托') ? ['full_day', 'half_day', 'absent', 'leave'] : ['present', 'absent', 'leave'] as const).map(status => {
                                         const isSelected = current === status
                                         const isAttendanceStatus = status === 'present' || status === 'full_day' || status === 'half_day'
-                                        const holidayDisabled = isAttendanceStatus && (holidayInfo.is_class_holiday || holidayInfo.personal_holiday_child_ids.includes(child.id))
+                                        // 全部模式下用合并后的 allPersonalHolidayIds，单班模式用 holidayInfo.personal_holiday_child_ids
+                                        const personalHolidayIds = !selectedClassId ? (allPersonalHolidayIds || []) : holidayInfo.personal_holiday_child_ids || []
+                                        const holidayDisabled = isAttendanceStatus && (holidayInfo.is_class_holiday || personalHolidayIds.includes(child.id))
                                         const isClickable = !isAgentAdmin && !isLocked && !holidayDisabled
                                         return (
                                           <View

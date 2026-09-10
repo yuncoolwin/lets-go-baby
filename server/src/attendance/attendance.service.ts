@@ -145,23 +145,52 @@ export class AttendanceService {
   /**
    * 管理员端：按班级获取考勤分组概览（仅 admin/superadmin 可访问）
    */
-  async getAdminOverview(userId: string, classId: string, date?: string) {
-    if (!classId) return [];
-
+  async getAdminOverview(userId: string, classId?: string, date?: string) {
     const level = await this.authz.getRoleLevel(userId);
     if (level !== 'admin' && level !== 'superadmin') {
       return { error: true, code: 403, msg: '仅管理员可查看考勤概览' };
     }
 
     const queryDate = date || getShanghaiToday();
-    console.log(`[AdminOverview] classId=${classId}, date=${queryDate}`);
+    console.log(`[AdminOverview] classId=${classId || 'ALL'}, date=${queryDate}`);
 
-    // 假期：全园/班级/法定假期时，不显示在读幼儿
+    // 全部班级模式：class_id 为空时查询全部非归档班级并合并
+    if (!classId) {
+      const { data: classes } = await this.client
+        .from('classes')
+        .select('id, name, room')
+        .eq('status', 'active');
+      if (!classes || classes.length === 0) return [];
+
+      const allGroups: Array<any> = [];
+      const allPersonalHolidayChildIds: string[] = [];
+      for (const cls of classes) {
+        // 每个班级独立判断假期：放假班级不返回幼儿
+        const holidayStatus = await this.getHolidayStatus(cls.id, queryDate);
+        if (holidayStatus.is_class_holiday) continue;
+        holidayStatus.personal_holiday_child_ids.forEach(id => allPersonalHolidayChildIds.push(id));
+        const groups = await this.buildClassGroups(cls.id, queryDate);
+        allGroups.push(...groups);
+      }
+      return {
+        groups: allGroups,
+        all_personal_holiday_child_ids: [...new Set(allPersonalHolidayChildIds)],
+      };
+    }
+
+    // 单班模式：维持现有行为，假期则返回空
     const holidayStatus = await this.getHolidayStatus(classId, queryDate);
     if (holidayStatus.is_class_holiday) {
       console.log(`[AdminOverview] Class holiday, return empty`);
       return [];
     }
+    return await this.buildClassGroups(classId, queryDate);
+  }
+
+  /**
+   * 构建单个班级的考勤分组（按课程类型分组）
+   */
+  private async buildClassGroups(classId: string, queryDate: string) {
 
     // 查询班级信息
     const { data: cls } = await this.client
@@ -297,7 +326,8 @@ export class AttendanceService {
       recordMap.set(key, r);
     });
 
-    const sortOrder = ['全日托', '半日托', '周六托', '晚间托', '兴趣班', '计日'];
+    // 按课程管理一致顺序排序（未知类型排最后）
+    const sortOrder = ['全日托', '半日托', '周六托', '晚间托', '暑假班', '寒假班', '兴趣班'];
     const groups: Array<{
       group_id: string;
       class_id: string;

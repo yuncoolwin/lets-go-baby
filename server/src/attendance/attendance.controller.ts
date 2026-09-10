@@ -10,7 +10,7 @@ export class AttendanceController {
   @HttpCode(200)
   async getAdminOverview(
     @Req() req: Request,
-    @Query('class_id') classId: string,
+    @Query('class_id') classId?: string,
     @Query('date') date?: string,
   ) {
     const userId = (req as any).user?.userId;
