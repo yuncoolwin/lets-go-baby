@@ -1689,8 +1689,7 @@ export default function ChildDetailPage() {
                 </View>
               ) : calendarDayInfo?.type === 'leave' ? (
                 <View className="space-y-2">
-                  <Text className="text-base font-semibold text-gray-800">请假区间</Text>
-                  <Text className="text-sm text-gray-500">{formatRange(calendarDayInfo.start, calendarDayInfo.end)}</Text>
+                  <Text className="text-base font-semibold text-gray-800">{formatRange(calendarDayInfo.start, calendarDayInfo.end)}</Text>
                 </View>
               ) : attendanceDayFeedback ? (
                 <View className="space-y-3">
