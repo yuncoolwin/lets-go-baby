@@ -241,12 +241,15 @@ export class EnrollmentsService {
         saturdayHolidayMap.get(key)!.dates.push(dateStr);
       }
 
-      // 请假周六：统计 [start_date, COALESCE(当前 extended_end_date, end_date)] 区间内的周六请假
-      // （无连续门槛，1 天请假顺延 1 个周六）。包含延伸区间内已发生的请假周六。
-      // 收敛性：请假为人工录入的有限集合，且顺延落点每次从原始 end_date 推进，结果为确定值，
-      // 不会因延伸区间请假产生无限叠加，故不把请假范围收窄回原始区间。
-      const leaveUpper =
-        enr.extended_end_date && enr.extended_end_date > endDate ? enr.extended_end_date : endDate;
+      // 请假周六：查询 [start_date, end_date+730] 区间内的周六请假（无连续门槛）。
+      // 按区间区分处理：
+      //  - 原始区间（date <= end_date）请假周六：属正常上课日缺课，计入 saturdayCount（欠课）参与顺延补课；
+      //  - 延伸区间（date >  end_date）请假周六：属补课日请假，不计入 saturdayCount，仅将日期加入
+      //    futureInvalidSaturdays 跳过集合，使落点跳过这些未补课的周六继续往后找合法周六。
+      // 收敛性：请假为人工录入的有限集合，顺延落点每次从原始 end_date 推进，结果确定；
+      // 延伸区间请假只做落点跳过、不计入欠课，天然保证不越补越多。
+      // 查询上限取 end_date + 730，与落点搜索范围一致，确保所有补课日请假周六都能纳入跳过集合。
+      const leaveUpper = addDays(endDate, 730);
       const { data: leaveSatRows } = await this.client
         .from('attendance')
         .select('date')
@@ -261,8 +264,10 @@ export class EnrollmentsService {
         if (dd && isSaturday(dd)) leaveSatDates.push(dd);
       }
       leaveSatDates.sort();
+      const originalLeaveSat = leaveSatDates.filter((d) => d <= endDate);
+      const extendedLeaveSat = leaveSatDates.filter((d) => d > endDate);
 
-      if (saturdayHolidayMap.size === 0 && leaveSatDates.length === 0) return result;
+      if (saturdayHolidayMap.size === 0 && originalLeaveSat.length === 0) return result;
 
       // 统计总顺延天数（假期周六 + 请假周六）
       let saturdayCount = 0;
@@ -278,14 +283,14 @@ export class EnrollmentsService {
           overlapDays: dates.length,
         });
       }
-      if (leaveSatDates.length > 0) {
-        saturdayCount += leaveSatDates.length;
+      if (originalLeaveSat.length > 0) {
+        saturdayCount += originalLeaveSat.length;
         details.push({
           name: '请假',
           type: '个人',
-          startDate: leaveSatDates[0],
-          endDate: leaveSatDates[leaveSatDates.length - 1],
-          overlapDays: leaveSatDates.length,
+          startDate: originalLeaveSat[0],
+          endDate: originalLeaveSat[originalLeaveSat.length - 1],
+          overlapDays: originalLeaveSat.length,
         });
       }
       // 按开始日期排序：早的放前面
@@ -329,10 +334,10 @@ export class EnrollmentsService {
         }
       }
 
-      // 延伸区间内（end_date 之后）已发生的请假周六：视为补课日请假未完成补课，
-      // 加入 futureInvalidSaturdays 跳过集合，继续往后找合法周六（原始区间内的请假周六不加入跳过集合）
-      for (const dd of leaveSatDates) {
-        if (dd > endDate && dd >= futureSStart && dd <= futureSEnd) {
+      // 延伸区间内（end_date 之后）的请假周六：属补课日请假未完成补课，加入 futureInvalidSaturdays
+      // 跳过集合继续往后找合法周六（原始区间内的请假周六不加入跳过集合，它们已被计为欠课参与顺延）
+      for (const dd of extendedLeaveSat) {
+        if (dd >= futureSStart && dd <= futureSEnd) {
           futureInvalidSaturdays.add(dd);
         }
       }
