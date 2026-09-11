@@ -852,13 +852,14 @@ export class EnrollmentsService {
     // 查询旧报读记录，保存旧值用于联动考勤
     const { data: oldEnr } = await this.client
       .from('enrollments')
-      .select('id, child_id, course_type, start_date, end_date, extended_end_date')
+      .select('id, child_id, course_type, start_date, end_date, extended_end_date, class_id')
       .eq('id', id)
       .single();
     const oldCourseType = oldEnr?.course_type;
     const oldStartDate = oldEnr?.start_date;
     const oldEndDate = oldEnr?.end_date;
     const oldExtendedDate = oldEnr?.extended_end_date;
+    const oldClassId = oldEnr?.class_id;
 
     if (course_id) {
       const { data: course } = await this.client
@@ -964,6 +965,26 @@ export class EnrollmentsService {
         .eq('course_type', newCourseType)
         .gte('date', data.start_date)
         .lte('date', newEnd);
+    }
+
+    // 5) 班级变更联动：报读班级变化时，同步该报读名下考勤的 class_id 到新班级
+    if (class_id && oldClassId && class_id !== oldClassId) {
+      // 5a) 已关联 enrollment_id 的考勤 class_id 更新为新班级
+      await this.client
+        .from('attendance')
+        .update({ class_id, updated_at: new Date().toISOString() })
+        .eq('enrollment_id', id);
+
+      // 5b) 兼容历史未回填 enrollment_id 的考勤：按 child_id + 旧课程类型 + 旧区间匹配更新
+      const oldEnd2 = oldExtendedDate || oldEndDate;
+      await this.client
+        .from('attendance')
+        .update({ class_id, updated_at: new Date().toISOString() })
+        .eq('child_id', data.child_id)
+        .eq('course_type', oldCourseType)
+        .gte('date', oldStartDate)
+        .lte('date', oldEnd2 || oldEndDate)
+        .is('enrollment_id', null);
     }
 
     return data;
