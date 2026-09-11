@@ -293,6 +293,16 @@ export class EnrollmentsService {
           overlapDays: originalLeaveSat.length,
         });
       }
+      // 延伸区间请假周六：不计入 saturdayCount（不新增欠课），仅作顺延原因展示
+      if (extendedLeaveSat.length > 0) {
+        details.push({
+          name: '请假',
+          type: '个人',
+          startDate: extendedLeaveSat[0],
+          endDate: extendedLeaveSat[extendedLeaveSat.length - 1],
+          overlapDays: extendedLeaveSat.length,
+        });
+      }
       // 按开始日期排序：早的放前面
       details.sort((a, b) => a.startDate.localeCompare(b.startDate));
 
