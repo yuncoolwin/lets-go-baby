@@ -241,8 +241,12 @@ export class EnrollmentsService {
         saturdayHolidayMap.get(key)!.dates.push(dateStr);
       }
 
-      // 请假周六：仅统计原始 [start_date, end_date] 区间内的周六请假（无连续门槛，1 天请假顺延 1 个周六）
-      // 严格限定在原始区间，避免把顺延区间的请假再次计入导致无限叠加
+      // 请假周六：统计 [start_date, COALESCE(当前 extended_end_date, end_date)] 区间内的周六请假
+      // （无连续门槛，1 天请假顺延 1 个周六）。包含延伸区间内已发生的请假周六。
+      // 收敛性：请假为人工录入的有限集合，且顺延落点每次从原始 end_date 推进，结果为确定值，
+      // 不会因延伸区间请假产生无限叠加，故不把请假范围收窄回原始区间。
+      const leaveUpper =
+        enr.extended_end_date && enr.extended_end_date > endDate ? enr.extended_end_date : endDate;
       const { data: leaveSatRows } = await this.client
         .from('attendance')
         .select('date')
@@ -250,7 +254,7 @@ export class EnrollmentsService {
         .eq('course_type', enr.course_type)
         .eq('status', 'leave')
         .gte('date', startDate)
-        .lte('date', endDate);
+        .lte('date', leaveUpper);
       const leaveSatDates: string[] = [];
       for (const r of leaveSatRows || []) {
         const dd = r.date?.substring(0, 10);
@@ -322,6 +326,14 @@ export class EnrollmentsService {
         while (c <= max) {
           if (isSaturday(c)) futureInvalidSaturdays.add(c);
           c = addDays(c, 1);
+        }
+      }
+
+      // 延伸区间内（end_date 之后）已发生的请假周六：视为补课日请假未完成补课，
+      // 加入 futureInvalidSaturdays 跳过集合，继续往后找合法周六（原始区间内的请假周六不加入跳过集合）
+      for (const dd of leaveSatDates) {
+        if (dd > endDate && dd >= futureSStart && dd <= futureSEnd) {
+          futureInvalidSaturdays.add(dd);
         }
       }
 
