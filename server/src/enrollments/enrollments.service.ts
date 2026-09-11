@@ -224,9 +224,6 @@ export class EnrollmentsService {
       }
     }
 
-    // 周六托无请假顺延块，无法定节假日时可直接返回；全日托/半日托需继续执行请假顺延
-    if (isSaturdayCourse && holidaySet.size === 0) return result;
-
     if (isSaturdayCourse) {
       // 周六托专属顺延逻辑：只统计假期中落在周六的天数
       // 按假期名称+来源类型分组，展示实际假期名称
@@ -244,9 +241,26 @@ export class EnrollmentsService {
         saturdayHolidayMap.get(key)!.dates.push(dateStr);
       }
 
-      if (saturdayHolidayMap.size === 0) return result;
+      // 请假周六：仅统计原始 [start_date, end_date] 区间内的周六请假（无连续门槛，1 天请假顺延 1 个周六）
+      // 严格限定在原始区间，避免把顺延区间的请假再次计入导致无限叠加
+      const { data: leaveSatRows } = await this.client
+        .from('attendance')
+        .select('date')
+        .eq('child_id', enr.child_id)
+        .eq('course_type', enr.course_type)
+        .eq('status', 'leave')
+        .gte('date', startDate)
+        .lte('date', endDate);
+      const leaveSatDates: string[] = [];
+      for (const r of leaveSatRows || []) {
+        const dd = r.date?.substring(0, 10);
+        if (dd && isSaturday(dd)) leaveSatDates.push(dd);
+      }
+      leaveSatDates.sort();
 
-      // 统计总顺延天数
+      if (saturdayHolidayMap.size === 0 && leaveSatDates.length === 0) return result;
+
+      // 统计总顺延天数（假期周六 + 请假周六）
       let saturdayCount = 0;
       const details: any[] = [];
       for (const [, group] of saturdayHolidayMap) {
@@ -258,6 +272,16 @@ export class EnrollmentsService {
           startDate: dates[0],
           endDate: dates[dates.length - 1],
           overlapDays: dates.length,
+        });
+      }
+      if (leaveSatDates.length > 0) {
+        saturdayCount += leaveSatDates.length;
+        details.push({
+          name: '请假',
+          type: '个人',
+          startDate: leaveSatDates[0],
+          endDate: leaveSatDates[leaveSatDates.length - 1],
+          overlapDays: leaveSatDates.length,
         });
       }
       // 按开始日期排序：早的放前面
@@ -546,90 +570,81 @@ export class EnrollmentsService {
       return { total_days: 0, attended_days: 0, leave_days: 0, absent_days: 0 };
     }
 
-    let totalDays = 0;
+    const dateCalcRule = await this.resolveDateCalcRule(enr);
+    const isSaturdayCourse = dateCalcRule === '周六';
+    const attEndDate = enr.extended_end_date || enr.end_date;
 
-    // 总课时按报读时长类型计算，不参与 date_calc_rule（date_calc_rule 仅用于日期字段与考勤日历上课日）
-    if (enr.duration_type === '一周体验') {
-      // 一周体验：固定 5 个工作日，不查数据库
-      totalDays = 5;
-    } else if (enr.duration_type === '计日') {
-      // 计日：直接取计日日数，不做任何日期计算
-      totalDays = enr.duration_days || 0;
-    } else {
-      // 1个月 / 3个月 / 6个月 / 12个月：遍历 start_date ~ end_date 逐日统计工作日天数
-      const holidaySet = new Set<string>();          // 法定节假日（不再排除假期管理内日期）
-      const transferWorkdaySet = new Set<string>();  // 调休补班日（视为工作日）
-
-      // 法定节假日（type=holiday）与调休补班日（type=work_weekend），跨年查询
-      const yearStart = parseInt(enr.start_date.substring(0, 4));
-      const yearEnd = parseInt(enr.end_date.substring(0, 4));
-      for (let y = yearStart; y <= yearEnd; y++) {
-        const { data: oldHolidays } = await this.client
-          .from('holidays_old')
-          .select('date, type')
-          .eq('year', y)
-          .in('type', ['holiday', 'work_weekend']);
-        for (const h of oldHolidays || []) {
-          const dateStr = h.date?.substring(0, 10);
-          if (!dateStr || dateStr < enr.start_date || dateStr > enr.end_date) continue;
-          if (h.type === 'holiday') holidaySet.add(dateStr);
-          else if (h.type === 'work_weekend') transferWorkdaySet.add(dateStr);
-        }
-      }
-
-      // 逐日统计工作日：排除周六日、法定节假日；调休补班日视为工作日；周六日与假期重叠只扣一次（周六日本身不算工作日）
-      let current = enr.start_date;
-      while (current <= enr.end_date) {
-        const dateStr = this.toDateStr(current);
-        const isWorkday = !isWeekend(dateStr) || transferWorkdaySet.has(dateStr);
-        const isHoliday = holidaySet.has(dateStr);
-        if (isWorkday && !isHoliday) {
-          totalDays++;
-        }
-        current = addDays(current, 1);
+    // 法定节假日（type=holiday）与调休补班日（type=work_weekend），跨 start~attEndDate 查询
+    // 注意：周六托在调休补班日（周末被调为工作日）不上课，故调休补班日在周六托中视为非法上课日
+    const legalHolidaySet = new Set<string>();
+    const transferWorkdaySet = new Set<string>();
+    const calStartYear = parseInt(enr.start_date.substring(0, 4));
+    const calEndYear = parseInt(attEndDate.substring(0, 4));
+    for (let y = calStartYear; y <= calEndYear; y++) {
+      const { data: oldHols } = await this.client
+        .from('holidays_old')
+        .select('date, type')
+        .eq('year', y)
+        .in('type', ['holiday', 'work_weekend']);
+      for (const h of oldHols || []) {
+        const dateStr = h.date?.substring(0, 10);
+        if (!dateStr || dateStr < enr.start_date || dateStr > attEndDate) continue;
+        if (h.type === 'holiday') legalHolidaySet.add(dateStr);
+        else if (h.type === 'work_weekend') transferWorkdaySet.add(dateStr);
       }
     }
 
-    const attEndDate = enr.extended_end_date || enr.end_date;
-
-    // 构建"假期日"集合（与 getAttendanceCalendar 完全一致的四类假期），用于扣除假期日的出勤记录
-    const attHolidaySet = new Set<string>();
-
-    // 假期管理内日期（全园/本班级/本幼儿个人）
-    const { data: attHolidays } = await this.client
+    // 假期管理内日期（全园/本班级/本幼儿个人），覆盖 start~attEndDate
+    const mgmtHolidaySet = new Set<string>();
+    const { data: mgmtHols } = await this.client
       .from('holidays')
       .select('*')
       .in('type', ['all', 'class', 'personal'])
       .lte('start_date', attEndDate)
       .gte('end_date', enr.start_date);
-    for (const h of attHolidays || []) {
+    for (const h of mgmtHols || []) {
       if (h.type === 'class' && h.target_id !== enr.class_id) continue;
       if (h.type === 'personal' && h.target_id !== enr.child_id) continue;
       let hCurrent = h.start_date > enr.start_date ? h.start_date : enr.start_date;
       const maxDate = h.end_date < attEndDate ? h.end_date : attEndDate;
       while (hCurrent <= maxDate) {
-        attHolidaySet.add(this.toDateStr(hCurrent));
+        mgmtHolidaySet.add(this.toDateStr(hCurrent));
         hCurrent = addDays(hCurrent, 1);
       }
     }
 
-    // 法定节假日（type=holiday）；调休补班日不算假期
-    const attStartYear = parseInt(enr.start_date.substring(0, 4));
-    const attEndYear = parseInt(attEndDate.substring(0, 4));
-    for (let y = attStartYear; y <= attEndYear; y++) {
-      const { data: oldAttHolidays } = await this.client
-        .from('holidays_old')
-        .select('date, type')
-        .eq('year', y)
-        .eq('type', 'holiday');
-      for (const h of oldAttHolidays || []) {
-        const dateStr = h.date?.substring(0, 10);
-        if (!dateStr || dateStr < enr.start_date || dateStr > attEndDate) continue;
-        attHolidaySet.add(dateStr);
+    let totalDays = 0;
+    // 总课时按报读时长类型计算
+    if (enr.duration_type === '一周体验') {
+      // 一周体验：固定 5 个上课日
+      totalDays = 5;
+    } else if (enr.duration_type === '计日') {
+      // 计日：直接取计日日数，不参与日期规则
+      totalDays = enr.duration_days || 0;
+    } else if (isSaturdayCourse) {
+      // 周六托固定月数/周数：按 date_calc_rule=周六 统计区间内合法周六（排除法定节假日、管理假期、调休补班日）
+      let cur = enr.start_date;
+      while (cur <= enr.end_date) {
+        const ds = this.toDateStr(cur);
+        if (isSaturday(ds) && !legalHolidaySet.has(ds) && !mgmtHolidaySet.has(ds) && !transferWorkdaySet.has(ds)) totalDays++;
+        cur = addDays(cur, 1);
+      }
+    } else {
+      // 工作日课程固定月数/周数：工作日 + 调休补班日，排除法定节假日（管理假期不参与总课时，保持原行为）
+      let cur = enr.start_date;
+      while (cur <= enr.end_date) {
+        const ds = this.toDateStr(cur);
+        const isWorkday = !isWeekend(ds) || transferWorkdaySet.has(ds);
+        const isHoliday = legalHolidaySet.has(ds);
+        if (isWorkday && !isHoliday) totalDays++;
+        cur = addDays(cur, 1);
       }
     }
 
-    // 精确按 enrollment_id 匹配当前报读（与 getAttendanceCalendar 保持一致）
+    // 出勤统计扣除集合 = 法定节假日 ∪ 管理假期
+    const attHolidaySet = new Set<string>(legalHolidaySet);
+    for (const d of mgmtHolidaySet) attHolidaySet.add(d);
+
     const { data: attendanceRecords } = await this.client
       .from('attendance')
       .select('status, date')
@@ -643,9 +658,17 @@ export class EnrollmentsService {
     let absentDays = 0;
     (attendanceRecords || []).forEach((r: any) => {
       const s = r.status;
-      // 落在四类假期日的考勤（present/leave/absent）一律剔除，与考勤日历假期标记对齐
       const dateStr = this.toDateStr(r.date);
+      // 落在假期日（法定节假日/管理假期）的考勤一律剔除，与考勤日历假期标记对齐
       if (attHolidaySet.has(dateStr)) return;
+      // 上课日规则过滤：只统计符合上课日的日期，与考勤日历口径一致
+      if (isSaturdayCourse) {
+        // 周六托：仅周六且非调休补班日
+        if (!isSaturday(dateStr) || transferWorkdaySet.has(dateStr)) return;
+      } else {
+        // 工作日托：工作日 + 调休补班日
+        if (isWeekend(dateStr) && !transferWorkdaySet.has(dateStr)) return;
+      }
       if (s === 'present' || s === 'full_day' || s === 'half_day') {
         attendedDays++;
       } else if (s === 'leave') {
