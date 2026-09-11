@@ -818,6 +818,70 @@ export class AttendanceService {
     return { updated: true };
   }
 
+  /**
+   * 删除单条考勤记录（取消点名）
+   * 归属校验同 upsert：教师仅能操作自己带教班级、管理/超管全部班级；
+   * 教师仅允许删除当天（上海时区）的记录，管理/超管可删除任意日期
+   */
+  async remove(userId: string, dto: {
+    child_id: string;
+    class_id: string;
+    date: string;
+    course_type: string;
+  }) {
+    const { child_id = '', class_id = '', date = '', course_type = '' } = dto;
+    if (!child_id || !class_id || !date || !course_type) {
+      return { error: true, code: 400, msg: '参数不完整' };
+    }
+
+    const denied = await this.canAccessClass(userId, class_id);
+    if (denied) return { error: true, code: 403, msg: denied };
+
+    const level = await this.authz.getRoleLevel(userId);
+    const isManager = level === 'admin' || level === 'superadmin';
+    if (!isManager) {
+      if (date !== getShanghaiToday()) {
+        return { error: true, code: 403, msg: '仅允许删除当天的考勤记录' };
+      }
+    }
+
+    // 删除 attendance 中 child_id + date + course_type 匹配的记录
+    const { data: target } = await this.client
+      .from('attendance')
+      .select('id')
+      .eq('child_id', child_id)
+      .eq('date', date)
+      .eq('course_type', course_type)
+      .maybeSingle();
+    if (!target) {
+      return { deleted: false };
+    }
+
+    const { error } = await this.client.from('attendance').delete().eq('id', target.id);
+    if (error) throw error;
+
+    // 同步删除接送记录
+    await this.client
+      .from('attendance_records')
+      .delete()
+      .eq('child_id', child_id)
+      .eq('record_date', date)
+      .eq('course_type', course_type);
+
+    const { error: logErr } = await this.client.from('audit_logs').insert({
+      user_id: userId,
+      action: 'attendance_remove',
+      target_type: 'attendance',
+      target_id: target.id,
+      detail: { child_id, class_id, date, course_type },
+      level: 'info',
+      created_at: new Date().toISOString(),
+    });
+    if (logErr) console.warn('[audit-log] attendance_remove 写入失败:', logErr.message);
+
+    return { deleted: true };
+  }
+
   async getDates(classId: string, courseType?: string) {
     let query = this.client
       .from('attendance')

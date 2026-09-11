@@ -320,7 +320,12 @@ export default function RollCallPage() {
   const handleStatusChange = (childId: string, status: AttendanceItem['status']) => {
     if (isLocked) return
     const prev = tempAttendance[childId]
-    if (prev === status) return
+    // 点击已选中的状态按钮：取消选择，恢复未考勤（仅更新草稿，不请求后端）
+    if (prev === status) {
+      setTempAttendance(prevAtt => ({ ...prevAtt, [childId]: 'unknown' }))
+      setHasUnsaved(true)
+      return
+    }
     setTempAttendance(prevAtt => ({ ...prevAtt, [childId]: status }))
     setHasUnsaved(true)
   }
@@ -356,8 +361,23 @@ export default function RollCallPage() {
       for (const child of children) {
         const key = child.id + '__' + child.course_type
         const status = tempAttendance[key]
-        // 未考勤的跳过
-        if (status === 'unknown') continue
+        // 未考勤的：若保存的考勤存在（原状态非 unknown，即取消原本考勤），则删除单条考勤记录；否则跳过
+        if (status === 'unknown') {
+          const savedStatus = attendance[key]
+          if (savedStatus && savedStatus !== 'unknown') {
+            await Network.request({
+              url: '/api/attendance/remove',
+              method: 'POST',
+              data: {
+                child_id: child.id,
+                class_id: child.class_id || classId,
+                date: selectedDate,
+                course_type: child.course_type,
+              },
+            })
+          }
+          continue
+        }
         await Network.request({
           url: '/api/attendance',
           method: 'POST',

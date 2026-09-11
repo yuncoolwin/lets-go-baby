@@ -127,6 +127,20 @@ export class AttendanceController {
     return { code: 200, msg: 'success', data };
   }
 
+  @Post('remove')
+  @HttpCode(200)
+  async remove(
+    @Req() req: Request,
+    @Body() body: { child_id: string; class_id: string; date: string; course_type: string },
+  ) {
+    const userId = (req as any).user?.userId;
+    const data = await this.attendanceService.remove(userId, body);
+    if ((data as any)?.error) {
+      return { code: (data as any).code, msg: (data as any).msg, data: null };
+    }
+    return { code: 200, msg: 'success', data };
+  }
+
   @Get('dates/:classId')
   @HttpCode(200)
   async getDates(@Param('classId') classId: string) {
