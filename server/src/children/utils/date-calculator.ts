@@ -83,12 +83,14 @@ export function createDateCalculator(
   }
 
   function addSaturdays(startDate: string, numDays: number): string {
+    // 按"是否为周六"（getUTCDay() === 6）计数：法定节假日周六计入计日天数不排除，
+    // 调休补班周六视为正常待处理日、计数判定统一按周六，与 addWorkingDaysWithoutHolidays 语义一致。
     const [y, m, d] = startDate.split('-').map(Number)
     const current = new Date(Date.UTC(y, m - 1, d))
     let count = 0
     while (count < numDays) {
-      const dateStr = current.toISOString().slice(0, 10)
-      if (isNonHolidaySaturday(dateStr)) {
+      const dayOfWeek = current.getUTCDay()
+      if (dayOfWeek === 6) {
         count++
         if (count === numDays) break
       }
