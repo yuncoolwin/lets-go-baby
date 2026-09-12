@@ -684,6 +684,7 @@ export class EnrollmentsService {
   }
 
   async saveManualExtensions(enrollmentId: string, details: Array<{ name: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>): Promise<{ extended_end_date: string | null; details: HolidayDetail[] }> {
+    console.log('[save-manual] 收到请求', enrollmentId, JSON.stringify(details));
     // 先确认报读存在
     const { data: enr, error: enrErr } = await this.client
       .from('enrollments')
@@ -713,6 +714,13 @@ export class EnrollmentsService {
       const { error: insErr } = await this.client.from('enrollment_extensions').insert(rows);
       if (insErr) throw new Error(`保存手动顺延明细失败: ${insErr.message}`);
     }
+
+    // 落库后回读校验 delete/insert 是否真正写入表（若为 0 需检查 RLS 是否放行 DELETE/INSERT）
+    const { count } = await this.client
+      .from('enrollment_extensions')
+      .select('*', { count: 'exact' })
+      .eq('enrollment_id', enrollmentId);
+    console.log('[save-manual] 落库后手动明细条数=', count);
 
     // 重算并写回 extended_end_date
     return this.calcExtendedEndDateAndPersist(enrollmentId);
