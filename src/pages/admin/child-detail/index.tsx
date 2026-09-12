@@ -279,7 +279,8 @@ export default function ChildDetailPage() {
       // 联动刷新报读列表与考勤信息
       loadData()
     } catch (e) {
-      console.error('保存手动顺延失败', e)
+      console.error('[save] 保存异常', e, (e as any)?.statusCode, (e as any)?.data)
+      Taro.showToast({ title: '保存失败: ' + ((e as any)?.data?.msg || '异常'), icon: 'none' })
     } finally {
       setSavingExtend(false)
     }
