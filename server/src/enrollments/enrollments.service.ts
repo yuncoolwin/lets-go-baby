@@ -650,16 +650,18 @@ export class EnrollmentsService {
       totalDays = enr.duration_days || 0;
     } else if (isSaturdayCourse) {
       // 周六托固定月数/周数：按 date_calc_rule=周六 统计区间内合法周六（排除法定节假日、管理假期、调休补班日）
+      // 区间统一覆盖到顺延结束日期 attEndDate，与出勤/请假统计口径一致，保证"出勤+请假+缺席 ≤ 总课时"恒成立
       let cur = enr.start_date;
-      while (cur <= enr.end_date) {
+      while (cur <= attEndDate) {
         const ds = this.toDateStr(cur);
         if (isSaturday(ds) && !legalHolidaySet.has(ds) && !mgmtHolidaySet.has(ds) && !transferWorkdaySet.has(ds)) totalDays++;
         cur = addDays(cur, 1);
       }
     } else {
       // 工作日课程固定月数/周数：工作日 + 调休补班日，排除法定节假日（管理假期不参与总课时，保持原行为）
+      // 区间统一覆盖到顺延结束日期 attEndDate，与出勤/请假统计口径一致
       let cur = enr.start_date;
-      while (cur <= enr.end_date) {
+      while (cur <= attEndDate) {
         const ds = this.toDateStr(cur);
         const isWorkday = !isWeekend(ds) || transferWorkdaySet.has(ds);
         const isHoliday = legalHolidaySet.has(ds);
