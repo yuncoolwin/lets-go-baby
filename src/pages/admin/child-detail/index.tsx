@@ -254,7 +254,7 @@ export default function ChildDetailPage() {
     }))
     setSavingExtend(true)
     try {
-      const res = await enrollmentApi.saveManualExtensions(extendEditEnrId, payload)
+      const res = await enrollmentApi.saveManualExtensions(extendEditEnrId, { details: payload })
       const body = (res as any).data || res
       const actual = body.data || body
       if (actual && actual.extended_end_date) {
@@ -601,7 +601,6 @@ export default function ChildDetailPage() {
     try {
       setExtendEditEnrId(enr.id)
       const res = await enrollmentApi.calcExtendedEndDate(enr.id)
-      console.log('calcExtendedEndDate res:', res)
       // res 是 Taro.request 返回的 { data, statusCode, header }
       // res.data 是 HTTP 响应体: { code, msg, data }
       const body = res.data || res

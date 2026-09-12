@@ -697,7 +697,6 @@ export class EnrollmentsService {
       .from('enrollment_extensions')
       .delete()
       .eq('enrollment_id', enrollmentId);
-    console.log('[dbg] delete err=', delErr);
     if (delErr) throw new Error(`清空手动顺延明细失败: ${delErr.message}`);
 
     const rows = (details || [])
@@ -712,16 +711,8 @@ export class EnrollmentsService {
       }));
     if (rows.length) {
       const { error: insErr } = await this.client.from('enrollment_extensions').insert(rows);
-      console.log('[dbg] insert err=', insErr);
       if (insErr) throw new Error(`保存手动顺延明细失败: ${insErr.message}`);
     }
-
-    // 回读确认落库条数
-    const { count } = await this.client
-      .from('enrollment_extensions')
-      .select('*', { count: 'exact' })
-      .eq('enrollment_id', enrollmentId);
-    console.log('[dbg] 落库条数=', count);
 
     // 重算并写回 extended_end_date
     return this.calcExtendedEndDateAndPersist(enrollmentId);
