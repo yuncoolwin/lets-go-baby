@@ -43,7 +43,7 @@ export class HolidaysService {
     }
   }
 
-  async create(userId: string | null, body: { name: string; type: string; target_id?: string; start_date: string; end_date: string }) {
+  async create(userId: string | null, body: { name: string; type: string; target_id?: string; start_date: string; end_date: string; calculate_extension?: boolean; makeup_start_date?: string | null; makeup_end_date?: string | null }) {
     const { data, error } = await this.supabase
       .from('holidays')
       .insert({
@@ -52,6 +52,9 @@ export class HolidaysService {
         target_id: body.type === 'all' ? null : (body.target_id || null),
         start_date: body.start_date,
         end_date: body.end_date,
+        calculate_extension: body.calculate_extension !== undefined ? body.calculate_extension : true,
+        makeup_start_date: body.makeup_start_date || null,
+        makeup_end_date: body.makeup_end_date || null,
       })
       .select()
       .single();
@@ -65,7 +68,7 @@ export class HolidaysService {
     return { code: 200, msg: 'success', data };
   }
 
-  async update(userId: string | null, id: string, body: { name?: string; type?: string; target_id?: string; start_date?: string; end_date?: string }) {
+  async update(userId: string | null, id: string, body: { name?: string; type?: string; target_id?: string; start_date?: string; end_date?: string; calculate_extension?: boolean; makeup_start_date?: string | null; makeup_end_date?: string | null }) {
     // 先获取旧数据
     const { data: oldData } = await this.supabase
       .from('holidays')
@@ -78,6 +81,9 @@ export class HolidaysService {
     if (body.type !== undefined) updateData.type = body.type;
     if (body.start_date !== undefined) updateData.start_date = body.start_date;
     if (body.end_date !== undefined) updateData.end_date = body.end_date;
+    if (body.calculate_extension !== undefined) updateData.calculate_extension = body.calculate_extension;
+    if (body.makeup_start_date !== undefined) updateData.makeup_start_date = body.makeup_start_date || null;
+    if (body.makeup_end_date !== undefined) updateData.makeup_end_date = body.makeup_end_date || null;
     if (body.type !== undefined) {
       updateData.target_id = body.type === 'all' ? null : (body.target_id || null);
     } else if (body.target_id !== undefined) {

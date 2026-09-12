@@ -19,6 +19,9 @@ interface HolidayRecord {
   start_date: string
   end_date: string
   created_at: string
+  calculate_extension?: boolean
+  makeup_start_date?: string | null
+  makeup_end_date?: string | null
 }
 
 interface ClassItem {
@@ -56,8 +59,16 @@ export default function HolidayManagePage() {
   const [formTargetId, setFormTargetId] = useState('')
   const [formStartDate, setFormStartDate] = useState('')
   const [formEndDate, setFormEndDate] = useState('')
+  // 计算顺延（默认是）
+  const [formCalculateExtension, setFormCalculateExtension] = useState(true)
+  // 补课（默认否）
+  const [formMakeup, setFormMakeup] = useState(false)
+  const [formMakeupStartDate, setFormMakeupStartDate] = useState('')
+  const [formMakeupEndDate, setFormMakeupEndDate] = useState('')
   const [showStartCalendar, setShowStartCalendar] = useState(false)
   const [showEndCalendar, setShowEndCalendar] = useState(false)
+  const [showMakeupStartCalendar, setShowMakeupStartCalendar] = useState(false)
+  const [showMakeupEndCalendar, setShowMakeupEndCalendar] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const loadHolidays = useCallback(async () => {
@@ -116,6 +127,10 @@ export default function HolidayManagePage() {
     setFormTargetId('')
     setFormStartDate('')
     setFormEndDate('')
+    setFormCalculateExtension(true)
+    setFormMakeup(false)
+    setFormMakeupStartDate('')
+    setFormMakeupEndDate('')
     setDialogOpen(true)
   }
 
@@ -126,6 +141,10 @@ export default function HolidayManagePage() {
     setFormTargetId(h.target_id || '')
     setFormStartDate(h.start_date)
     setFormEndDate(h.end_date)
+    setFormCalculateExtension(h.calculate_extension !== false)
+    setFormMakeup(!!h.makeup_start_date || !!h.makeup_end_date)
+    setFormMakeupStartDate(h.makeup_start_date || '')
+    setFormMakeupEndDate(h.makeup_end_date || '')
     setDialogOpen(true)
   }
 
@@ -154,6 +173,16 @@ export default function HolidayManagePage() {
       Taro.showToast({ title: '请选择幼儿', icon: 'none' })
       return
     }
+    if (formMakeup) {
+      if (!formMakeupStartDate || !formMakeupEndDate) {
+        Taro.showToast({ title: '请选择补课日期区间', icon: 'none' })
+        return
+      }
+      if (formMakeupEndDate < formMakeupStartDate) {
+        Taro.showToast({ title: '补课结束日期不能早于开始日期', icon: 'none' })
+        return
+      }
+    }
 
     setSaving(true)
     try {
@@ -163,6 +192,9 @@ export default function HolidayManagePage() {
         target_id: formTargetId || undefined,
         start_date: formStartDate,
         end_date: formEndDate,
+        calculate_extension: formCalculateExtension,
+        makeup_start_date: formMakeup ? formMakeupStartDate : null,
+        makeup_end_date: formMakeup ? formMakeupEndDate : null,
       }
       console.log('[假期管理] 保存表单:', body)
 
@@ -312,7 +344,8 @@ export default function HolidayManagePage() {
                       </Text>
                     </View>
                     <Text className="block text-xs text-muted-foreground mt-1">
-                      共 {daysCount} 天
+                      共 {daysCount} 天{h.calculate_extension === false ? ' · 不顺延' : ''}
+                      {h.makeup_start_date ? ` · 补课 ${formatDate(h.makeup_start_date)} ~ ${formatDate(h.makeup_end_date || h.makeup_start_date)}` : ''}
                     </Text>
                   </CardContent>
                 </Card>
@@ -448,6 +481,72 @@ export default function HolidayManagePage() {
             </View>
           </View>
 
+          {/* 计算顺延 */}
+          <View className="mb-4">
+            <Text className="block text-sm font-medium text-foreground mb-2">计算顺延</Text>
+            <View className="flex gap-2">
+              {[true, false].map((val) => (
+                <View
+                  key={String(val)}
+                  className={`flex-1 px-3 py-2 rounded-xl text-center ${
+                    formCalculateExtension === val
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}
+                  onClick={() => setFormCalculateExtension(val)}
+                >
+                  <Text className="block text-sm">{val ? '是' : '否'}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* 补课 */}
+          <View className="mb-4">
+            <Text className="block text-sm font-medium text-foreground mb-2">补课</Text>
+            <View className="flex gap-2">
+              {[true, false].map((val) => (
+                <View
+                  key={String(val)}
+                  className={`flex-1 px-3 py-2 rounded-xl text-center ${
+                    formMakeup === val
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}
+                  onClick={() => setFormMakeup(val)}
+                >
+                  <Text className="block text-sm">{val ? '是' : '否'}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* 补课日期区间（补课=是 时显示） */}
+          {formMakeup && (
+            <View className="mb-4">
+              <Text className="block text-sm font-medium text-foreground mb-2">补课日期区间</Text>
+              <View className="flex items-center gap-2">
+                <View
+                  className="flex-1 bg-gray-50 rounded-xl px-4 py-3 text-center"
+                  onClick={() => setShowMakeupStartCalendar(true)}
+                >
+                  <Text className={`block text-sm ${formMakeupStartDate ? 'text-foreground' : 'text-gray-400'}`}>
+                    {formMakeupStartDate ? `${formMakeupStartDate.replace(/-/g, '/')} ${getDayOfWeek(formMakeupStartDate)}` : '补课开始'}
+                  </Text>
+                </View>
+                <Text className="block text-sm text-gray-400">~</Text>
+                <View
+                  className="flex-1 bg-gray-50 rounded-xl px-4 py-3 text-center"
+                  onClick={() => setShowMakeupEndCalendar(true)}
+                >
+                  <Text className={`block text-sm ${formMakeupEndDate ? 'text-foreground' : 'text-gray-400'}`}>
+                    {formMakeupEndDate ? `${formMakeupEndDate.replace(/-/g, '/')} ${getDayOfWeek(formMakeupEndDate)}` : '补课结束'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
           </ScrollView>
 
           {/* 操作按钮 */}
@@ -487,6 +586,29 @@ export default function HolidayManagePage() {
         }}
         visible={showEndCalendar}
         onClose={() => setShowEndCalendar(false)}
+      />
+
+      {/* 补课开始日期日历 */}
+      <CalendarOverlay
+        value={formMakeupStartDate}
+        onChange={(date) => {
+          setFormMakeupStartDate(date)
+          if (formMakeupEndDate && date > formMakeupEndDate) {
+            setFormMakeupEndDate(date)
+          }
+        }}
+        visible={showMakeupStartCalendar}
+        onClose={() => setShowMakeupStartCalendar(false)}
+      />
+
+      {/* 补课结束日期日历 */}
+      <CalendarOverlay
+        value={formMakeupEndDate}
+        onChange={(date) => {
+          setFormMakeupEndDate(date)
+        }}
+        visible={showMakeupEndCalendar}
+        onClose={() => setShowMakeupEndCalendar(false)}
       />
 
       {/* 底部固定操作栏 */}

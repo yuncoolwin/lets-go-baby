@@ -38,6 +38,15 @@ export class AttendanceController {
     return { code: 200, msg: 'success', data: { workWeekend } };
   }
 
+  @Get('makeup-day')
+  @HttpCode(200)
+  async getMakeupDay(@Query('class_id') classId?: string, @Query('date') date?: string) {
+    const d = date || '';
+    const classIdRaw = classId || '';
+    const status = d ? await this.attendanceService.getMakeupDayStatus(classIdRaw, d) : { workday: false, saturday: false };
+    return { code: 200, msg: 'success', data: status };
+  }
+
   @Get()
   @HttpCode(200)
   async findByClass(

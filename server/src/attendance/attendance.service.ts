@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { getShanghaiToday, isSaturday, isWeekend } from '@/utils/date.util';
 import { AuthzService } from '@/auth/authz.service';
+import { evaluateMakeupRange } from '@/children/utils/holiday-helper';
 
 @Injectable()
 export class AttendanceService {
@@ -96,12 +97,13 @@ export class AttendanceService {
     const isSaturdayDate = isSaturday(targetDate);
     // 调休补班日（周六或周日被调休上班）按工作日处理，需在 isSun/isSat 判定之前查询
     const isMakeup = await this.isMakeupWorkWeekend(targetDate);
-    const isSun = isWeekend(targetDate) && !isSaturdayDate && !isMakeup;
-    const isSat = isSaturdayDate && !isMakeup;
+    // 补课日判定：假期管理配置的补课区间内，覆盖对应课程类型的日期按上课日处理（并入调休上课日）
+    const makeupStatus = await this.getMakeupDayStatus(classId, targetDate);
+    const allowWorkday = !isWeekend(targetDate) || isMakeup || makeupStatus.workday;
+    const allowSaturday = (isSaturdayDate && !isMakeup) || makeupStatus.saturday;
     const filteredEnrollmentList = enrollmentList.filter(e => {
-      if (isSun) return false; // 周日不显示任何课程
-      if (isSat) return e.course_type === '周六托'; // 普通周六只显示周六托
-      return e.course_type !== '周六托'; // 补班周六/工作日不显示周六托
+      if (e.course_type === '周六托') return allowSaturday; // 周六托仅在周六/周六补课日显示
+      return allowWorkday; // 非周六托（工作日/补班日/工作日补课日）显示
     });
 
     // 合并：每个幼儿按课程类型展开，每行一个 child_id + course_type 组合
@@ -162,6 +164,43 @@ export class AttendanceService {
     } catch (e) {
       return false;
     }
+  }
+
+  /**
+   * 判断目标日期是否为假期管理配置的补课日，并返回它覆盖的课程类别。
+   * 补课区间启用后（makeup_start_date/makeup_end_date 非空），区间内日期按上课日处理：
+   * 区间含工作日→覆盖工作日类课程；区间含周六→覆盖周六托。
+   * @param classId 班级 id（用于匹配 type='class' 的假期）
+   * @param date 目标日期
+   */
+  async getMakeupDayStatus(classId: string, date: string): Promise<{ workday: boolean; saturday: boolean }> {
+    const status = { workday: false, saturday: false };
+    try {
+      const { data } = await this.client
+        .from('holidays')
+        .select('type, target_id, makeup_start_date, makeup_end_date')
+        .not('makeup_start_date', 'is', null)
+        .not('makeup_end_date', 'is', null);
+      const rows = data || [];
+      for (const h of rows) {
+        // 作用域匹配：全园(all) 或 本班级(class) 或 默认
+        if (h.type === 'class' && h.target_id !== classId) continue;
+        const ms = h.makeup_start_date;
+        const me = h.makeup_end_date;
+        if (!ms || !me) continue;
+        if (date < ms || date > me) continue;
+        const ev = evaluateMakeupRange(ms, me);
+        if (isSaturday(date)) {
+          if (ev.coversSaturday) status.saturday = true;
+        } else {
+          if (ev.coversWorkday) status.workday = true;
+        }
+        if (status.workday && status.saturday) break;
+      }
+    } catch (e) {
+      console.warn('[getMakeupDayStatus] 查询补课日失败:', e);
+    }
+    return status;
   }
 
   /**
@@ -264,17 +303,21 @@ export class AttendanceService {
     const isSaturdayDate = isSaturday(queryDate);
     // 调休补班日需在 isSun/isSat 判定之前查询，否则补班周日会被误判为普通周日
     const isMakeup = await this.isMakeupWorkWeekend(queryDate);
-    const isSun = isWeekend(queryDate) && !isSaturdayDate && !isMakeup;
-    const isSat = isSaturdayDate && !isMakeup;
+    // 补课日判定：假期管理配置的补课区间内，覆盖对应课程类型的日期按上课日处理
+    const makeupStatus = await this.getMakeupDayStatus(classId, queryDate);
+    const allowWorkday = !isWeekend(queryDate) || isMakeup || makeupStatus.workday;
+    const allowSaturday = (isSaturdayDate && !isMakeup) || makeupStatus.saturday;
 
     for (const e of enrollmentList) {
       const ct = e.course_type;
       if (queryDate && e.start_date && queryDate < e.start_date) continue;
       const effectiveEnd = e.extended_end_date || e.end_date;
       if (queryDate && effectiveEnd && queryDate > effectiveEnd) continue;
-      if (isSun) continue; // 周日不显示任何课程
-      if (isSat && ct !== '周六托') continue; // 普通周六只显示周六托
-      if (!isSat && ct === '周六托') continue; // 补班周六/工作日不显示周六托
+      if (ct === '周六托') {
+        if (!allowSaturday) continue; // 周末/周六补课日才显示周六托
+      } else {
+        if (!allowWorkday) continue; // 工作日/补班日/工作日补课日才显示非周六托
+      }
       if (!groupMap.has(ct)) groupMap.set(ct, []);
       groupMap.get(ct)!.push({
         child_id: e.child_id,

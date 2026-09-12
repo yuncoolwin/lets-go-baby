@@ -12,7 +12,7 @@ export class HolidaysController {
   }
 
   @Post()
-  create(@Req() req: Request, @Body() body: { name: string; type: string; target_id?: string; start_date: string; end_date: string }) {
+  create(@Req() req: Request, @Body() body: { name: string; type: string; target_id?: string; start_date: string; end_date: string; calculate_extension?: boolean; makeup_start_date?: string | null; makeup_end_date?: string | null }) {
     const userId = (req as any).user?.userId;
     return this.holidaysService.create(userId, body);
   }

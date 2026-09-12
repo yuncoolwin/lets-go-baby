@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { AuthzService } from '@/auth/authz.service';
 import { addDays, isWeekend, isSaturday } from '@/utils/date.util';
+import { collectMakeupClassDays } from '@/children/utils/holiday-helper';
 
 export interface HolidayDetail {
   name: string;
@@ -165,8 +166,10 @@ export class EnrollmentsService {
     const holidaySourceMap = new Map<string, { name: string; type: string }>();
 
     // 展开 holidays type=all 的日期范围，并记录顺延原因
+    // 仅 calculate_extension===true 的假期参与顺延
     if (allHolidays) {
       for (const h of allHolidays) {
+        if (h.calculate_extension === false) continue;
         if (!h.start_date || !h.end_date) continue;
         const overlapStart = h.start_date > startDate ? h.start_date : startDate;
         const overlapEnd = h.end_date < endDate ? h.end_date : endDate;
@@ -385,6 +388,7 @@ export class EnrollmentsService {
     });
 
     for (const h of matchingHolidays) {
+      if (h.calculate_extension === false) continue;
       const overlapStart = h.start_date > startDate ? h.start_date : startDate;
       const overlapEnd = h.end_date < endDate ? h.end_date : endDate;
       let overlapCount = 0;
@@ -640,6 +644,19 @@ export class EnrollmentsService {
       }
     }
 
+    // 补课上课日集合：只有设置了补课区间的假期（本作用域内）才产生补课上课日。
+    // 补课区间覆盖本课程类型的日期作为实际上课日计入总课时与出勤；不因补课日是周末而被排除。
+    const makeupDaySet = collectMakeupClassDays(
+      (mgmtHols || []).filter((h: any) =>
+        (h.type === 'all') ||
+        (h.type === 'class' && h.target_id === enr.class_id) ||
+        (h.type === 'personal' && h.target_id === enr.child_id),
+      ),
+      isSaturdayCourse,
+      enr.start_date,
+      attEndDate,
+    );
+
     let totalDays = 0;
     // 总课时按报读时长类型计算
     if (enr.duration_type === '一周体验') {
@@ -654,7 +671,10 @@ export class EnrollmentsService {
       let cur = enr.start_date;
       while (cur <= attEndDate) {
         const ds = this.toDateStr(cur);
-        if (isSaturday(ds) && !legalHolidaySet.has(ds) && !mgmtHolidaySet.has(ds) && !transferWorkdaySet.has(ds)) totalDays++;
+        const regular = isSaturday(ds) && !legalHolidaySet.has(ds) && !mgmtHolidaySet.has(ds) && !transferWorkdaySet.has(ds);
+        // 补课上课日：区间覆盖周六托的补课周六，且非法定/管理假期（去重避免与 regular 重复计数）
+        const makeupExtra = makeupDaySet.has(ds) && !legalHolidaySet.has(ds) && !mgmtHolidaySet.has(ds) && !regular;
+        if (regular || makeupExtra) totalDays++;
         cur = addDays(cur, 1);
       }
     } else {
@@ -665,7 +685,10 @@ export class EnrollmentsService {
         const ds = this.toDateStr(cur);
         const isWorkday = !isWeekend(ds) || transferWorkdaySet.has(ds);
         const isHoliday = legalHolidaySet.has(ds);
-        if (isWorkday && !isHoliday) totalDays++;
+        const regular = isWorkday && !isHoliday;
+        // 补课上课日：区间覆盖工作日类的补课日（含周末），且非法定/管理假期（去重避免与 regular 重复计数）
+        const makeupExtra = makeupDaySet.has(ds) && !legalHolidaySet.has(ds) && !mgmtHolidaySet.has(ds) && !regular;
+        if (regular || makeupExtra) totalDays++;
         cur = addDays(cur, 1);
       }
     }
@@ -690,6 +713,14 @@ export class EnrollmentsService {
       const dateStr = this.toDateStr(r.date);
       // 落在假期日（法定节假日/管理假期）的考勤一律剔除，与考勤日历假期标记对齐
       if (attHolidaySet.has(dateStr)) return;
+      // 补课上课日：区间覆盖本课程类型的补课日，视为合法上课日，不受周末限制（否则补课日缺课无法体现）
+      if (makeupDaySet.has(dateStr)) {
+        if (!(['present', 'full_day', 'half_day', 'leave', 'absent'].includes(s as string))) return;
+        if (s === 'leave') leaveDays++;
+        else if (s === 'absent') absentDays++;
+        else attendedDays++;
+        return;
+      }
       // 上课日规则过滤：只统计符合上课日的日期，与考勤日历口径一致
       if (isSaturdayCourse) {
         // 周六托：仅周六且非调休补班日
@@ -1165,6 +1196,9 @@ export class EnrollmentsService {
       }
     }
 
+    // 补课上课日集合：区间覆盖本课程类型的日期作为实际上课日（可上课、不标放假），可显示考勤状态
+    const makeupDaySet = collectMakeupClassDays(matchingHolidays, rule === '周六', startDate, endDate);
+
     // 法定节假日（type=holiday）与调休补班日（type=work_weekend），跨年查询
     const startYear = parseInt(startDate.substring(0, 4));
     const endYear = parseInt(endDate.substring(0, 4));
@@ -1221,20 +1255,22 @@ export class EnrollmentsService {
       const dateStr = this.toDateStr(cursor);
       const matchesWeek = this.matchesWeekRule(dateStr, rule, transferWorkdaySet);
       const isHoliday = holidayNameMap.has(dateStr);
+      // 补课上课日：区间覆盖本课程类型，标记为可上课（即使其日期非规律上课日/在假期中），可显示考勤状态
+      const isMakeupDay = makeupDaySet.has(dateStr);
       let status: 'full' | 'half' | 'present' | 'leave' | 'absent' | 'holiday' | null = null;
       let isClassDay = false;
-      if (matchesWeek) {
-        if (isHoliday) {
-          // 符合上课日规律但因法定节假日/假期放假
+      if (matchesWeek || isMakeupDay) {
+        if (isHoliday && !isMakeupDay) {
+          // 符合上课日规律但非法定节假日/放假，且非补课日
           status = 'holiday';
         } else {
-          // 实际可上课日
+          // 实际可上课日（含补课上课日）
           isClassDay = true;
           status = statusMap.get(dateStr) || null;
         }
       }
-      // 非上课日（matchesWeek=false）无论是否假期，status 保持 null，前端置灰、不显示放假标签
-      result.push({ date: dateStr, status, is_class_day: isClassDay, name: matchesWeek && isHoliday ? holidayNameMap.get(dateStr) : undefined });
+      // 非上课日（matchesWeek=false 且非补课日）无论是否假期，status 保持 null，前端置灰、不显示放假标签
+      result.push({ date: dateStr, status, is_class_day: isClassDay, name: matchesWeek && isHoliday && !isMakeupDay ? holidayNameMap.get(dateStr) : undefined });
       cursor = addDays(cursor, 1);
     }
 

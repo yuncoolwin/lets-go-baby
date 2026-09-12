@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { isSaturday, isWeekend } from '@/utils/date.util';
+import { evaluateMakeupRange } from '@/children/utils/holiday-helper';
 
 @Injectable()
 export class TeacherService {
@@ -25,6 +26,38 @@ export class TeacherService {
     } catch (e) {
       return false;
     }
+  }
+
+  /**
+   * 判断目标日期是否为假期管理配置的补课日，并返回其覆盖的课程类别。
+   */
+  async getMakeupDayStatus(classId: string, date: string): Promise<{ workday: boolean; saturday: boolean }> {
+    const status = { workday: false, saturday: false };
+    try {
+      const { data } = await this.client
+        .from('holidays')
+        .select('type, target_id, makeup_start_date, makeup_end_date')
+        .not('makeup_start_date', 'is', null)
+        .not('makeup_end_date', 'is', null);
+      const rows = data || [];
+      for (const h of rows) {
+        if (h.type === 'class' && h.target_id !== classId) continue;
+        const ms = h.makeup_start_date;
+        const me = h.makeup_end_date;
+        if (!ms || !me) continue;
+        if (date < ms || date > me) continue;
+        const ev = evaluateMakeupRange(ms, me);
+        if (isSaturday(date)) {
+          if (ev.coversSaturday) status.saturday = true;
+        } else {
+          if (ev.coversWorkday) status.workday = true;
+        }
+        if (status.workday && status.saturday) break;
+      }
+    } catch (e) {
+      console.warn('[getMakeupDayStatus] 查询补课日失败:', e);
+    }
+    return status;
   }
 
   async getMe(teacherRoleId?: string) {
@@ -348,8 +381,14 @@ export class TeacherService {
     let weekdayRule = '';
     // 调休补班日（周六或周日被调休上班）按工作日处理，需优先判定
     const isMakeup = await this.isMakeupWorkWeekend(queryDate);
+    // 补课日判定：假期管理配置的补课区间内，覆盖对应课程类型的日期按上课日处理
+    const makeupStatus = await this.getMakeupDayStatus(teacherClassId, queryDate);
     if (isMakeup) {
       weekdayRule = '工作日';
+    } else if (makeupStatus.workday) {
+      weekdayRule = '工作日';
+    } else if (makeupStatus.saturday) {
+      weekdayRule = '周六';
     } else if (isSaturday(queryDate)) {
       weekdayRule = '周六';
     } else if (isWeekend(queryDate)) {
@@ -600,8 +639,14 @@ export class TeacherService {
     let weekdayRule = '';
     // 调休补班日（周六或周日被调休上班）按工作日处理，需优先判定
     const isMakeup = await this.isMakeupWorkWeekend(queryDate);
+    // 补课日判定：假期管理配置的补课区间内，覆盖对应课程类型的日期按上课日处理
+    const makeupStatus = await this.getMakeupDayStatus(classId, queryDate);
     if (isMakeup) {
       weekdayRule = '工作日';
+    } else if (makeupStatus.workday) {
+      weekdayRule = '工作日';
+    } else if (makeupStatus.saturday) {
+      weekdayRule = '周六';
     } else if (isSaturday(queryDate)) {
       weekdayRule = '周六';
     } else if (isWeekend(queryDate)) {

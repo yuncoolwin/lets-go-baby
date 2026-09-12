@@ -1054,7 +1054,7 @@ function DropInModal({
         setAllChildren([])
       }
       try {
-        // 计算课程筛选 weekday：补班周六/补班周日（调休上班）按工作日处理，传工作日 weekday（1-5）
+        // 计算课程筛选 weekday：补班周六/补班周日（调休上班）或补课日按对应课程类型处理，传工作日 weekday（1-5）或周六 weekday（6）
         let weekday = new Date(`${date}T00:00:00`).getDay()
         if (weekday === 6 || weekday === 0) {
           try {
@@ -1063,6 +1063,15 @@ function DropInModal({
           } catch {
             // 接口异常时保持默认周六筛选
           }
+        }
+        // 补课日判定：工作日补课日按工作日(5)筛选，周六补课日按周六(6)筛选
+        try {
+          const mkRes: any = await Network.request({ url: `/api/attendance/makeup-day?class_id=${classId || ''}&date=${date}` })
+          const mk = mkRes.data?.data || {}
+          if (mk.workday && !mk.saturday) weekday = 5
+          if (mk.saturday && (weekday === 0 || (new Date(`${date}T00:00:00`).getDay()) === 6)) weekday = 6
+        } catch {
+          // 接口异常时忽略补课日
         }
         const wres: any = await Network.request({ url: `/api/courses?weekday=${weekday}` })
         const COURSE_ORDER = ['全日托', '半日托', '周六托', '晚间托', '暑假班', '寒假班', '兴趣班']
