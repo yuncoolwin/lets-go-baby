@@ -227,13 +227,21 @@ export default function ChildDetailPage() {
 
   const saveExtendManual = async () => {
     const rows = extendEditList.filter((d) => d.name && d.startDate && d.endDate)
-    if (!rows.length) return
-    if (!extendEditEnrId) return
+    console.log('[save] 进入, rows长度=', rows.length, 'enrId=', extendEditEnrId)
+    if (!rows.length) {
+      console.log('[save] rows为空, 不保存')
+      return
+    }
+    if (!extendEditEnrId) {
+      console.log('[save] enrId为空, 不保存')
+      return
+    }
     Taro.showModal({
       title: '保存确认',
       content: `将保存 ${rows.length} 条手动顺延明细并重算结束日期，是否继续？`,
       confirmColor: '#EA7D23',
       success: async (r) => {
+        console.log('[save] modal confirm=', r.confirm)
         if (!r.confirm) return
         await doSaveExtendManual(rows)
       },
@@ -248,6 +256,7 @@ export default function ChildDetailPage() {
       endDate: d.endDate,
       overlapDays: Number(d.overlapDays) || 0,
     }))
+    console.log('[save] 调用保存接口 payload=', JSON.stringify(payload))
     setSavingExtend(true)
     try {
       const res = await enrollmentApi.saveManualExtensions(extendEditEnrId, payload)
