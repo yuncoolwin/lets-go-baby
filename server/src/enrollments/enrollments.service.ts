@@ -154,6 +154,7 @@ export class EnrollmentsService {
         .eq('enrollment_id', enrollmentId);
       manualRows = data || [];
     }
+    console.log('[calc] manualRows.length=', manualRows.length, 'enrollmentId=', enrollmentId);
     if (manualRows && manualRows.length) {
       manualDetails = manualRows.map((r: any) => ({
         name: r.name ?? '',
@@ -683,7 +684,7 @@ export class EnrollmentsService {
     return { extended_end_date: extendedDate };
   }
 
-  async saveManualExtensions(enrollmentId: string, details: Array<{ name: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>): Promise<{ extended_end_date: string | null; details: HolidayDetail[] }> {
+  async saveManualExtensions(enrollmentId: string, details: Array<{ name: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>): Promise<{ extended_end_date: string | null; details: HolidayDetail[]; manual_count?: number }> {
     console.log('[save-manual] 收到请求', enrollmentId, JSON.stringify(details));
     // 先确认报读存在
     const { data: enr, error: enrErr } = await this.client
@@ -723,10 +724,11 @@ export class EnrollmentsService {
     console.log('[save-manual] 落库后手动明细条数=', count);
 
     // 重算并写回 extended_end_date
-    return this.calcExtendedEndDateAndPersist(enrollmentId);
+    const r = await this.calcExtendedEndDateAndPersist(enrollmentId);
+    return { extended_end_date: r.extended_end_date, details: r.details, manual_count: count ?? 0 };
   }
 
-  async calcExtendedEndDateAndPersist(enrollmentId: string): Promise<{ extended_end_date: string | null; details: HolidayDetail[] }> {
+  async calcExtendedEndDateAndPersist(enrollmentId: string): Promise<{ extended_end_date: string | null; details: HolidayDetail[]; manual_count?: number }> {
     const { extended_end_date: extendedDate, details } = await this.calculateExtendedEndDate(enrollmentId);
     if (extendedDate) {
       await this.client
