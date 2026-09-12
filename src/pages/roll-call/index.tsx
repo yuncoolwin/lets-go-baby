@@ -1054,9 +1054,9 @@ function DropInModal({
         setAllChildren([])
       }
       try {
-        // 计算课程筛选 weekday：补班周六（调休上班）按工作日处理，传工作日 weekday（1-5）
+        // 计算课程筛选 weekday：补班周六/补班周日（调休上班）按工作日处理，传工作日 weekday（1-5）
         let weekday = new Date(`${date}T00:00:00`).getDay()
-        if (weekday === 6) {
+        if (weekday === 6 || weekday === 0) {
           try {
             const wwRes: any = await Network.request({ url: `/api/attendance/work-weekend?date=${date}` })
             if (wwRes.data?.data?.workWeekend) weekday = 5

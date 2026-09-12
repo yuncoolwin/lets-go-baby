@@ -8,6 +8,25 @@ export class TeacherService {
     return getSupabaseClient();
   }
 
+  /**
+   * 判断目标日期是否为调休补班日（holidays_old type='work_weekend'）
+   * 补班日即使落在周六或周日，也按工作日处理
+   */
+  async isMakeupWorkWeekend(date: string): Promise<boolean> {
+    try {
+      const year = parseInt(date.substring(0, 4));
+      const { data } = await this.client
+        .from('holidays_old')
+        .select('date')
+        .eq('year', year)
+        .eq('type', 'work_weekend');
+      const hit = (data || []).find(h => h.date?.substring(0, 10) === date);
+      return !!hit;
+    } catch (e) {
+      return false;
+    }
+  }
+
   async getMe(teacherRoleId?: string) {
     // teacherRoleId 即 teachers.id，先查 teachers 表
     let { data: teacher, error: teacherError } = teacherRoleId
@@ -327,7 +346,11 @@ export class TeacherService {
 
     // 按所选日期对应的星期过滤课程（根据 date_calc_rule）
     let weekdayRule = '';
-    if (isSaturday(queryDate)) {
+    // 调休补班日（周六或周日被调休上班）按工作日处理，需优先判定
+    const isMakeup = await this.isMakeupWorkWeekend(queryDate);
+    if (isMakeup) {
+      weekdayRule = '工作日';
+    } else if (isSaturday(queryDate)) {
       weekdayRule = '周六';
     } else if (isWeekend(queryDate)) {
       weekdayRule = '周日';
@@ -575,7 +598,11 @@ export class TeacherService {
 
     // 按所选日期对应的星期过滤课程（根据 date_calc_rule）
     let weekdayRule = '';
-    if (isSaturday(queryDate)) {
+    // 调休补班日（周六或周日被调休上班）按工作日处理，需优先判定
+    const isMakeup = await this.isMakeupWorkWeekend(queryDate);
+    if (isMakeup) {
+      weekdayRule = '工作日';
+    } else if (isSaturday(queryDate)) {
       weekdayRule = '周六';
     } else if (isWeekend(queryDate)) {
       weekdayRule = '周日';

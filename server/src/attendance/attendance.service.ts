@@ -92,11 +92,11 @@ export class AttendanceService {
       });
     }
 
-    // 按星期几过滤课程类型：普通周六只显示周六托，补班周六/工作日显示非周六托，周日报空
+    // 按星期几过滤课程类型：普通周六只显示周六托，补班周六/补班周日按工作日处理（显示非周六托），普通周日报空
     const isSaturdayDate = isSaturday(targetDate);
-    const isSun = isWeekend(targetDate) && !isSaturdayDate;
-    // 补班周六（调休上班的周六）按工作日处理
-    const isMakeup = isSun ? false : await this.isMakeupWorkWeekend(targetDate);
+    // 调休补班日（周六或周日被调休上班）按工作日处理，需在 isSun/isSat 判定之前查询
+    const isMakeup = await this.isMakeupWorkWeekend(targetDate);
+    const isSun = isWeekend(targetDate) && !isSaturdayDate && !isMakeup;
     const isSat = isSaturdayDate && !isMakeup;
     const filteredEnrollmentList = enrollmentList.filter(e => {
       if (isSun) return false; // 周日不显示任何课程
@@ -260,10 +260,11 @@ export class AttendanceService {
       is_drop_in?: boolean;
     }>>();
 
-    // 补班周六（调休上班的周六）按工作日处理；普通周六只显示周六托；周日报空
+    // 补班周六/补班周日（调休上班的周六或周日）按工作日处理；普通周六只显示周六托；普通周日报空
     const isSaturdayDate = isSaturday(queryDate);
-    const isSun = isWeekend(queryDate) && !isSaturdayDate;
-    const isMakeup = isSun ? false : await this.isMakeupWorkWeekend(queryDate);
+    // 调休补班日需在 isSun/isSat 判定之前查询，否则补班周日会被误判为普通周日
+    const isMakeup = await this.isMakeupWorkWeekend(queryDate);
+    const isSun = isWeekend(queryDate) && !isSaturdayDate && !isMakeup;
     const isSat = isSaturdayDate && !isMakeup;
 
     for (const e of enrollmentList) {
