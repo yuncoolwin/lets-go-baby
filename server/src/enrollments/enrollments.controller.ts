@@ -103,4 +103,29 @@ export class EnrollmentsController {
       return { code: 500, msg: e.message || '计算失败', data: null };
     }
   }
+
+  @Get(':id/manual-extensions')
+  @HttpCode(200)
+  async getManualExtensions(@Param('id') id: string) {
+    try {
+      const data = await this.enrollmentsService.getManualExtensions(id);
+      return { code: 200, msg: 'success', data: data };
+    } catch (e: any) {
+      return { code: 500, msg: e.message || '查询手动顺延明细失败', data: null };
+    }
+  }
+
+  @Post(':id/manual-extensions')
+  @HttpCode(200)
+  async saveManualExtensions(
+    @Param('id') id: string,
+    @Body() body: { details?: Array<{ name: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }> },
+  ) {
+    try {
+      const data = await this.enrollmentsService.saveManualExtensions(id, body?.details || []);
+      return { code: 200, msg: 'success', data: data };
+    } catch (e: any) {
+      return { code: 500, msg: e.message || '保存手动顺延明细失败', data: null };
+    }
+  }
 }

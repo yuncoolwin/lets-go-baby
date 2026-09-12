@@ -284,6 +284,12 @@ export const enrollmentApi = {
 
   getAttendanceCalendar: (enrollmentId: string) =>
     request({ url: `/api/enrollments/${enrollmentId}/attendance-calendar`, method: 'GET' }),
+
+  getManualExtensions: (id: string) =>
+    request({ url: `/api/enrollments/${id}/manual-extensions`, method: 'GET' }),
+
+  saveManualExtensions: (id: string, data: Record<string, any>) =>
+    request({ url: `/api/enrollments/${id}/manual-extensions`, method: 'POST', data }),
 }
 
 // ============ 管理员 API ============
