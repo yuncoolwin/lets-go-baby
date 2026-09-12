@@ -131,7 +131,8 @@ export function createDateCalculator(
       while (added < count) {
         const [y, m, d] = cur.split('-').map(Number)
         const dow = new Date(Date.UTC(y, m - 1, d)).getDay()
-        if (dow !== 0 && dow !== 6) added++
+        // 调休补班日（work_weekend）即使落在周末也按 1 个计日工作日计入
+        if (workWeekends.has(cur) || (dow !== 0 && dow !== 6)) added++
         const nd = new Date(Date.UTC(y, m - 1, d + 1))
         cur = nd.getUTCFullYear() + '-' + String(nd.getUTCMonth() + 1).padStart(2, '0') + '-' + String(nd.getUTCDate()).padStart(2, '0')
       }
