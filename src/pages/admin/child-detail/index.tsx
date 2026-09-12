@@ -227,13 +227,10 @@ export default function ChildDetailPage() {
 
   const saveExtendManual = async () => {
     const rows = extendEditList.filter((d) => d.name && d.startDate && d.endDate)
-    console.log('[save] 进入, rows长度=', rows.length, 'enrId=', extendEditEnrId)
     if (!rows.length) {
-      console.log('[save] rows为空, 不保存')
       return
     }
     if (!extendEditEnrId) {
-      console.log('[save] enrId为空, 不保存')
       return
     }
     Taro.showModal({
@@ -241,7 +238,6 @@ export default function ChildDetailPage() {
       content: `将保存 ${rows.length} 条手动顺延明细并重算结束日期，是否继续？`,
       confirmColor: '#EA7D23',
       success: async (r) => {
-        console.log('[save] modal confirm=', r.confirm)
         if (!r.confirm) return
         await doSaveExtendManual(rows)
       },
@@ -256,24 +252,20 @@ export default function ChildDetailPage() {
       endDate: d.endDate,
       overlapDays: Number(d.overlapDays) || 0,
     }))
-    console.log('[save] 调用保存接口 payload=', JSON.stringify(payload))
     setSavingExtend(true)
     try {
       const res = await enrollmentApi.saveManualExtensions(extendEditEnrId, payload)
       const body = (res as any).data || res
       const actual = body.data || body
-      console.log('[save] 保存返回 actual=', JSON.stringify(actual))
       if (actual && actual.extended_end_date) {
         setExtendToDate(actual.extended_end_date)
         setExtendTotalDays((actual.details || []).reduce((sum: number, x: any) => sum + (Number(x.overlapDays) || 0), 0))
         setExtendDetails(actual.details || payload)
-        console.log('[save] 已 setExtendDetails, 长度=', (actual.details || payload || []).length, '首条=', JSON.stringify((actual.details || payload || [])[0]))
       } else {
         // 后端未返回时刷新计算接口
         const calc = await enrollmentApi.calcExtendedEndDate(extendEditEnrId)
         const cbody = (calc as any).data || calc
         const cdata = cbody.data || cbody
-        console.log('[save] calc 兜底返回 cdata=', JSON.stringify(cdata))
         if (cdata && cdata.details) setExtendDetails(cdata.details)
         if (cdata && cdata.extended_end_date) setExtendToDate(cdata.extended_end_date)
       }
@@ -281,9 +273,7 @@ export default function ChildDetailPage() {
       setExtendEditList([])
       // 联动刷新报读列表与考勤信息
       loadData()
-      console.log('[save] 保存流程完成, 已触发 loadData')
     } catch (e) {
-      console.error('[save] 保存异常', e, (e as any)?.statusCode, (e as any)?.data)
       Taro.showToast({ title: '保存失败: ' + ((e as any)?.data?.msg || '异常'), icon: 'none' })
     } finally {
       setSavingExtend(false)

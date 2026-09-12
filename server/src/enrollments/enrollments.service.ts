@@ -154,7 +154,6 @@ export class EnrollmentsService {
         .eq('enrollment_id', enrollmentId);
       manualRows = data || [];
     }
-    console.log('[calc] manualRows.length=', manualRows.length, 'enrollmentId=', enrollmentId);
     if (manualRows && manualRows.length) {
       manualDetails = manualRows.map((r: any) => ({
         name: r.name ?? '',
@@ -684,8 +683,7 @@ export class EnrollmentsService {
     return { extended_end_date: extendedDate };
   }
 
-  async saveManualExtensions(enrollmentId: string, details: Array<{ name: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>): Promise<{ extended_end_date: string | null; details: HolidayDetail[]; manual_count?: number }> {
-    console.log('[save-manual] 收到请求', enrollmentId, JSON.stringify(details));
+  async saveManualExtensions(enrollmentId: string, details: Array<{ name: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>): Promise<{ extended_end_date: string | null; details: HolidayDetail[] }> {
     // 先确认报读存在
     const { data: enr, error: enrErr } = await this.client
       .from('enrollments')
@@ -713,23 +711,14 @@ export class EnrollmentsService {
       }));
     if (rows.length) {
       const { error: insErr } = await this.client.from('enrollment_extensions').insert(rows);
-      console.log('[save-manual] insert err=', insErr);
       if (insErr) throw new Error(`保存手动顺延明细失败: ${insErr.message}`);
     }
 
-    // 落库后回读校验 delete/insert 是否真正写入表（若为 0 需检查 RLS 是否放行 DELETE/INSERT）
-    const { count } = await this.client
-      .from('enrollment_extensions')
-      .select('*', { count: 'exact' })
-      .eq('enrollment_id', enrollmentId);
-    console.log('[save-manual] 落库后手动明细条数=', count);
-
     // 重算并写回 extended_end_date
-    const r = await this.calcExtendedEndDateAndPersist(enrollmentId);
-    return { extended_end_date: r.extended_end_date, details: r.details, manual_count: count ?? 0 };
+    return this.calcExtendedEndDateAndPersist(enrollmentId);
   }
 
-  async calcExtendedEndDateAndPersist(enrollmentId: string): Promise<{ extended_end_date: string | null; details: HolidayDetail[]; manual_count?: number }> {
+  async calcExtendedEndDateAndPersist(enrollmentId: string): Promise<{ extended_end_date: string | null; details: HolidayDetail[] }> {
     const { extended_end_date: extendedDate, details } = await this.calculateExtendedEndDate(enrollmentId);
     if (extendedDate) {
       await this.client

@@ -146,7 +146,6 @@ export class EnrollmentsController {
   ) {
     try {
       const data = await this.enrollmentsService.saveManualExtensions(id, body?.details || []);
-      console.log('[save-manual] 返回', JSON.stringify(data));
       return { code: 200, msg: 'success', data: data };
     } catch (e: any) {
       return { code: 500, msg: e.message || '保存手动顺延明细失败', data: null };

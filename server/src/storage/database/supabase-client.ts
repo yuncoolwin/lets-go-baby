@@ -93,7 +93,6 @@ function getSupabaseClient(token?: string): SupabaseClient {
   const { url, anonKey } = getSupabaseCredentials();
 
   const serviceRoleKey = getSupabaseServiceRoleKey();
-  console.log('[supabase] 使用 serviceRole=', !token && !!serviceRoleKey);
   let key: string;
   if (token) {
     key = anonKey;
