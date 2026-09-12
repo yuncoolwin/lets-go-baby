@@ -137,6 +137,41 @@ export default function ChildDetailPage() {
   const [extendEditCalendar, setExtendEditCalendar] = useState<{ row: number; field: 'startDate' | 'endDate' } | null>(null)
   const [parents, setParents] = useState<Array<{ id: string; parent_name: string; relationship: string }>>([])
 
+  // 编辑态实时预览顺延结果：任一顺延明细变化时防抖调用后端预览接口，返回顺延至日期
+  const extendPreviewTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  useEffect(() => {
+    if (!extendEditMode || !extendEditEnrId) return
+    const validRows = extendEditList.filter((d) => d && d.name && d.startDate && d.endDate)
+    if (extendEditList.length === 0) {
+      // 空列表时展示当前已保存口径以外的默认：无明细则顺延至为空（保持原有已计算值，避免闪烁）
+      return
+    }
+    clearTimeout(extendPreviewTimerRef.current)
+    extendPreviewTimerRef.current = setTimeout(async () => {
+      try {
+        const details = validRows.map((d) => ({
+          name: d.name,
+          type: d.type || '全园',
+          startDate: d.startDate,
+          endDate: d.endDate,
+          overlapDays: Number(d.overlapDays) || 0,
+        }))
+        // 无完整行时不请求预览，保留当前展示值
+        if (!details.length) return
+        const res = await enrollmentApi.previewManualExtensions(extendEditEnrId, details)
+        console.log('previewManualExtensions res:', res)
+        const body = res.data || res
+        const data = body.data || body
+        if (data && data.extended_end_date) {
+          setExtendToDate(data.extended_end_date)
+        }
+      } catch (e) {
+        console.warn('预览顺延结束日期失败', e)
+      }
+    }, 400)
+    return () => clearTimeout(extendPreviewTimerRef.current)
+  }, [extendEditMode, extendEditEnrId, extendEditList])
+
   useEffect(() => {
     if (showExtendDialog) {
       setExtendAnim('idle')
@@ -1508,7 +1543,7 @@ export default function ChildDetailPage() {
             )}
             <View className="pt-3" style={{ borderTop: '1px solid #e5e5e5' }}>
               <Text className="block text-sm text-gray-500 text-center">
-                共顺延 <Text className="font-bold text-orange-500">{extendTotalDays}</Text> 天，顺延至 <Text className="font-bold text-orange-500">{extendToDate}</Text>
+                共顺延 <Text className="font-bold text-orange-500">{extendEditMode ? extendEditList.reduce((s, d) => s + (Number((d as any).overlapDays) || 0), 0) : extendTotalDays}</Text> 天，顺延至 <Text className="font-bold text-orange-500">{extendToDate}</Text>
               </Text>
             </View>
           </View>

@@ -39,7 +39,7 @@ export class TeacherService {
     try {
       const { data } = await this.client
         .from('holidays')
-        .select('type, target_id, makeup_start_date, makeup_end_date')
+        .select('type, target_id, start_date, end_date, makeup_start_date, makeup_end_date')
         .not('makeup_start_date', 'is', null)
         .not('makeup_end_date', 'is', null);
       return buildMakeupLayers(data || [], classId, date);

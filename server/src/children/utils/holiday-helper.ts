@@ -35,7 +35,9 @@ export interface MakeupRangeInfo {
   daySet: Set<string>;
 }
 
-/** 解析一个假期记录的补课区间，判断其覆盖的课程类型与日期集合 */
+/**
+ * 解析一个假期记录的补课区间，判断其覆盖的课程类型与日期集合
+ */
 export function evaluateMakeupRange(
   startDate: string,
   endDate: string,
@@ -54,6 +56,15 @@ export function evaluateMakeupRange(
   return { coversWorkday, coversSaturday, daySet };
 }
 
+/** 基于原始假期区间判定覆盖的课程类型（工作日类课程 / 周六托） */
+function evaluateHolidayCoverage(
+  startDate?: string | null,
+  endDate?: string | null,
+): { coversWorkday: boolean; coversSaturday: boolean } {
+  if (!startDate || !endDate) return { coversWorkday: false, coversSaturday: false };
+  return evaluateMakeupRange(startDate, endDate);
+}
+
 /** 单日课程类型：workday=工作日类课程，saturday=周六托，rest=休息日(周日等不可上课) */
 export type DayCategory = 'workday' | 'saturday' | 'rest';
 
@@ -66,13 +77,20 @@ export function categorizeDay(dateStr: string): DayCategory {
 
 /**
  * 收集补课区间内属于指定课程类别的上课日集合（裁剪到 [clipStart, clipEnd]）。
- * 用于课时记录 total_days / 考勤日历：补课区间内覆盖该课程类别的日期作为实际上课日。
- * 覆盖判定为区间级：区间内含工作日→覆盖工作日类课程（则该区间内所有日期均为该类补课日，
- * 故周末补课日也计入，不因补课日是周末而被排除）；区间内含周六→覆盖周六托（仅周六计入）。
+ * 用于课时记录 total_days / 考勤日历。
+ * 覆盖判定为区间级且基于【原始假期区间】(start_date~end_date)：
+ * 原始假期覆盖工作日类课程 → 该假期补课区间内所有日期均按工作日类补课日（含周末补课日）；
+ * 原始假期覆盖周六托 → 该假期补课区间内仅周六作为周六托补课日。
+ * 日期收集仍裁剪到补课区间 (makeup_start~makeup_end)。
  * 注：合法节假日/管理假期的排除由调用方结合各自的假期集合处理。
  */
 export function collectMakeupClassDays(
-  holidays: Array<{ makeup_start_date?: string | null; makeup_end_date?: string | null }>,
+  holidays: Array<{
+    start_date?: string | null;
+    end_date?: string | null;
+    makeup_start_date?: string | null;
+    makeup_end_date?: string | null;
+  }>,
   isSaturdayCourse: boolean,
   clipStart: string,
   clipEnd: string,
@@ -82,11 +100,11 @@ export function collectMakeupClassDays(
     const ms = h.makeup_start_date;
     const me = h.makeup_end_date;
     if (!ms || !me) continue;
-    // 区间级覆盖判定（与 evaluateMakeupRange 一致，但不依赖调休集合）
-    const ev = evaluateMakeupRange(ms, me);
+    // 课程覆盖判定基于原始假期区间
+    const coverage = evaluateHolidayCoverage(h.start_date, h.end_date);
     if (isSaturdayCourse) {
-      if (!ev.coversSaturday) continue;
-      // 周六托：仅补课区间内落在周六的日期
+      if (!coverage.coversSaturday) continue;
+      // 周六托：补课区间内落在周六的日期
       const from = ms > clipStart ? ms : clipStart;
       const to = me < clipEnd ? me : clipEnd;
       if (from > to) continue;
@@ -96,7 +114,7 @@ export function collectMakeupClassDays(
         cur = addDays(cur, 1);
       }
     } else {
-      if (!ev.coversWorkday) continue;
+      if (!coverage.coversWorkday) continue;
       // 工作日类课程：补课区间内所有日期均为补课上课日（含周末补课日）
       const from = ms > clipStart ? ms : clipStart;
       const to = me < clipEnd ? me : clipEnd;
@@ -126,7 +144,10 @@ export interface MakeupLayers {
  * 一次查询全部命中目标日期的补课记录，避免为每个幼儿做 N+1 查询。
  * - all / 本班(class)：并入 global（对整班生效）
  * - personal：并入 personal[child_id]（仅对该幼儿生效）
- * 判断口径：role 对 course 判定覆盖 —— 区间命中本日且区间覆盖对应课程类别。
+ * 判断口径：补课日覆盖哪类课程由【原始假期区间】决定——
+ * 原始假期覆盖工作日 → 当天（无论是否周六）置 workday=true；
+ * 原始假期覆盖周六 → 当天置 saturday=true。
+ * 记录须命中补课区间（makeup_start~makeup_end）才算补课日。
  * @param rows 已做 makeup* 非空过滤的 holidays 原记录
  * @param classId 当前班级
  * @param dateStr 目标日期
@@ -135,6 +156,8 @@ export function buildMakeupLayers(
   rows: Array<{
     type?: string | null;
     target_id?: string | null;
+    start_date?: string | null;
+    end_date?: string | null;
     makeup_start_date?: string | null;
     makeup_end_date?: string | null;
   }>,
@@ -148,31 +171,22 @@ export function buildMakeupLayers(
     const me = h.makeup_end_date;
     if (!ms || !me) continue;
     if (dateStr < ms || dateStr > me) continue;
-    const ev = evaluateMakeupRange(ms, me);
-    const isSat = isSaturday(dateStr);
+    // 补课日覆盖课程类型由原始假期区间决定
+    const coverage = evaluateHolidayCoverage(h.start_date, h.end_date);
     if (h.type === 'personal') {
       if (!h.target_id) continue;
       const bucket = personal[h.target_id] || { workday: false, saturday: false };
-      if (isSat) {
-        if (ev.coversSaturday) bucket.saturday = true;
-      } else {
-        if (ev.coversWorkday) bucket.workday = true;
-      }
+      if (coverage.coversWorkday) bucket.workday = true;
+      if (coverage.coversSaturday) bucket.saturday = true;
       personal[h.target_id] = bucket;
     } else if (h.type === 'class') {
       if (h.target_id && h.target_id !== classId) continue;
-      if (isSat) {
-        if (ev.coversSaturday) global.saturday = true;
-      } else {
-        if (ev.coversWorkday) global.workday = true;
-      }
+      if (coverage.coversWorkday) global.workday = true;
+      if (coverage.coversSaturday) global.saturday = true;
     } else {
       // all
-      if (isSat) {
-        if (ev.coversSaturday) global.saturday = true;
-      } else {
-        if (ev.coversWorkday) global.workday = true;
-      }
+      if (coverage.coversWorkday) global.workday = true;
+      if (coverage.coversSaturday) global.saturday = true;
     }
   }
   return { global, personal };
@@ -181,22 +195,30 @@ export function buildMakeupLayers(
 /**
  * 判断某日期是否为补课日，并返回它覆盖的课程类别（工作日本/周六托）。
  * 用于考勤页在读幼儿判定：补课日当天按对应课程类型的上课日处理、允许点名。
+ * 覆盖课程类型由【原始假期区间】决定，与当天周几无关——
+ * 原始假期覆盖工作日 → 补课日当天按工作日类课程；覆盖周六 → 按周六托。
  * @param holidays 已按作用域(all/class/personal)过滤的假期记录
  * @param dateStr 目标日期
  */
 export function isMakeupDateFor(
-  holidays: Array<{ makeup_start_date?: string | null; makeup_end_date?: string | null; type?: string }>,
+  holidays: Array<{
+    start_date?: string | null;
+    end_date?: string | null;
+    makeup_start_date?: string | null;
+    makeup_end_date?: string | null;
+    type?: string;
+  }>,
   dateStr: string,
 ): DayCategory | 'none' {
-  const myCat = categorizeDay(dateStr);
-  if (myCat === 'rest') return 'none'; // 周日非调休补班，不因补课而成为周六托/工作日的上课日
   for (const h of holidays) {
     const ms = h.makeup_start_date;
     const me = h.makeup_end_date;
     if (!ms || !me) continue;
     if (dateStr >= ms && dateStr <= me) {
-      // 落入补课区间：该日期自身的课程类型即它覆盖的课程类别
-      return myCat;
+      // 落入补课区间：该类补课日由原始假期区间覆盖的课程类型决定
+      const coverage = evaluateHolidayCoverage(h.start_date, h.end_date);
+      if (coverage.coversWorkday) return 'workday';
+      if (coverage.coversSaturday) return 'saturday';
     }
   }
   return 'none';

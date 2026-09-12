@@ -133,26 +133,36 @@ export class EnrollmentsService {
   /**
    * 计算顺延结束日期
    */
-  async calculateExtendedEndDate(enrollmentId: string): Promise<{ extended_end_date: string | null; details: HolidayDetail[] }> {
+  async calculateExtendedEndDate(
+    enrollmentId: string,
+    previewManualRows?: Array<{ name?: string; source_type?: string; start_date?: string | null; end_date?: string | null; overlap_days?: number }>,
+  ): Promise<{ extended_end_date: string | null; details: HolidayDetail[] }> {
     const result = { extended_end_date: null as string | null, details: [] as HolidayDetail[] };
 
     // 手动顺延明细（基准）：用户在顺延原因弹窗中编辑保存的明细。
     // 提前查询，使下方所有提前 return 分支都能合并手动明细（保证再打开能回显）。
     let manualDays = 0;
     let manualDetails: HolidayDetail[] = [];
-    const { data: manualRows } = await this.client
-      .from('enrollment_extensions')
-      .select('*')
-      .eq('enrollment_id', enrollmentId);
+    let manualRows: any[] = [];
+    if (previewManualRows !== undefined) {
+      // 预览模式：使用前端编辑中的临时明细作为手动基准（不落库，仅计算）
+      manualRows = previewManualRows;
+    } else {
+      const { data } = await this.client
+        .from('enrollment_extensions')
+        .select('*')
+        .eq('enrollment_id', enrollmentId);
+      manualRows = data || [];
+    }
     if (manualRows && manualRows.length) {
-      manualDetails = (manualRows || []).map((r: any) => ({
+      manualDetails = manualRows.map((r: any) => ({
         name: r.name ?? '',
         type: r.source_type ?? 'manual',
         startDate: r.start_date,
         endDate: r.end_date,
-        overlapDays: r.overlap_days ?? 0,
+        overlapDays: Number(r.overlap_days || 0),
       }));
-      manualDays = (manualRows || []).reduce(
+      manualDays = manualRows.reduce(
         (s: number, r: any) => s + Number(r.overlap_days || 0),
         0,
       );
@@ -298,7 +308,13 @@ export class EnrollmentsService {
       const originalLeaveSat = leaveSatDates.filter((d) => d <= endDate);
       const extendedLeaveSat = leaveSatDates.filter((d) => d > endDate);
 
-      if (saturdayHolidayMap.size === 0 && originalLeaveSat.length === 0 && manualDays === 0) return result;
+      if (saturdayHolidayMap.size === 0 && originalLeaveSat.length === 0 && (!manualRows || manualRows.length === 0)) return result;
+
+      // 若存在手动明细行（即使天数为 0），合并回显并返回
+      if (saturdayHolidayMap.size === 0 && originalLeaveSat.length === 0 && manualDays === 0) {
+        result.details = [...manualDetails, ...(result.details as any[])];
+        return result;
+      }
 
       // 统计总顺延天数（假期周六 + 请假周六）
       let saturdayCount = 0;
@@ -518,6 +534,9 @@ export class EnrollmentsService {
       }
       const autoEnd = result.extended_end_date || extendedDate;
       if (m > autoEnd) result.extended_end_date = m;
+    }
+    // 手动明细始终并入 details 用于回显（即使 overlapDays 全为 0）
+    if (manualRows && manualRows.length > 0) {
       result.details = [...manualDetails, ...result.details];
     }
     // 按开始日期排序：早的放前面
@@ -623,6 +642,24 @@ export class EnrollmentsService {
       endDate: r.end_date,
       overlapDays: Number(r.overlap_days || 0),
     }));
+  }
+
+  async previewManualExtensions(
+    enrollmentId: string,
+    details: Array<{ name?: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>,
+  ): Promise<{ extended_end_date: string | null }> {
+    // 仅计算预览结果，不落库；以编辑中的临时明细作为手动基准
+    const rows = (details || [])
+      .filter((d) => d)
+      .map((d) => ({
+        name: d.name ?? '',
+        source_type: d.type || 'manual',
+        start_date: d.startDate || null,
+        end_date: d.endDate || null,
+        overlap_days: Number(d.overlapDays || 0),
+      }));
+    const { extended_end_date: extendedDate } = await this.calculateExtendedEndDate(enrollmentId, rows);
+    return { extended_end_date: extendedDate };
   }
 
   async saveManualExtensions(enrollmentId: string, details: Array<{ name: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>): Promise<{ extended_end_date: string | null; details: HolidayDetail[] }> {

@@ -290,6 +290,13 @@ export const enrollmentApi = {
 
   saveManualExtensions: (id: string, data: Record<string, any>) =>
     request({ url: `/api/enrollments/${id}/manual-extensions`, method: 'POST', data }),
+
+  previewManualExtensions: (id: string, details: Record<string, any>[]) =>
+    request({
+      url: `/api/enrollments/${id}/manual-extensions/preview`,
+      method: 'GET',
+      data: { details: JSON.stringify(details) },
+    }),
 }
 
 // ============ 管理员 API ============

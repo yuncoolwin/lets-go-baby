@@ -115,6 +115,29 @@ export class EnrollmentsController {
     }
   }
 
+  @Get(':id/manual-extensions/preview')
+  @HttpCode(200)
+  async previewManualExtensions(
+    @Param('id') id: string,
+    @Query('details') detailsRaw?: string,
+  ) {
+    try {
+      let details: any[] = [];
+      if (detailsRaw) {
+        try {
+          const parsed = JSON.parse(detailsRaw);
+          if (Array.isArray(parsed)) details = parsed;
+        } catch (_) {
+          // 忽略非法 JSON，按空明细处理
+        }
+      }
+      const data = await this.enrollmentsService.previewManualExtensions(id, details);
+      return { code: 200, msg: 'success', data: data };
+    } catch (e: any) {
+      return { code: 500, msg: e.message || '预览手动顺延结果失败', data: null };
+    }
+  }
+
   @Post(':id/manual-extensions')
   @HttpCode(200)
   async saveManualExtensions(
