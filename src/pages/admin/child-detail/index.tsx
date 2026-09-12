@@ -258,6 +258,7 @@ export default function ChildDetailPage() {
       const body = (res as any).data || res
       const actual = body.data || body
       if (actual && actual.extended_end_date) {
+        Taro.showToast({ title: '保存成功，顺延至 ' + actual.extended_end_date, icon: 'none', duration: 3000 })
         setExtendToDate(actual.extended_end_date)
         setExtendTotalDays((actual.details || []).reduce((sum: number, x: any) => sum + (Number(x.overlapDays) || 0), 0))
         setExtendDetails(actual.details || payload)
