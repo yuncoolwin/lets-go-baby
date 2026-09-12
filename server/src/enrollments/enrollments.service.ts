@@ -408,20 +408,23 @@ export class EnrollmentsService {
         if (futureInvalidSaturdays.has(extendedDate)) continue;
         satRemaining--;
       }
-      // 手动顺延基准：在自动结果之上再叠加手动明细天数（作为基准不丢手动结果）
-      if (manualDays > 0) {
-        let m = endDate;
-        let mr = manualDays;
-        while (mr > 0) {
-          m = addDays(m, 1);
-          if (!isSaturday(m)) continue;
-          if (futureInvalidSaturdays.has(m)) continue;
-          mr--;
+      // 手动覆盖：一旦该报读存在手动顺延明细（enrollment_extensions 非空），
+      // 顺延结束日期与明细展示完全以手动明细为准（覆盖自动，不叠加自动假期/自动请假）
+      if (manualRows && manualRows.length > 0) {
+        let mm = endDate;
+        let mmr = manualDays;
+        while (mmr > 0) {
+          mm = addDays(mm, 1);
+          if (!isSaturday(mm)) continue;
+          if (futureInvalidSaturdays.has(mm)) continue;
+          mmr--;
         }
-        if (m > extendedDate) extendedDate = m;
+        result.extended_end_date = mm;
+        result.details = [...manualDetails];
+        return result;
       }
       result.extended_end_date = extendedDate;
-      result.details = [...manualDetails, ...details];
+      result.details = [...details];
       return result;
     }
 
@@ -541,6 +544,24 @@ export class EnrollmentsService {
     }
     // 按开始日期排序：早的放前面
     result.details.sort((a, b) => a.startDate.localeCompare(b.startDate));
+
+    // ====== 手动覆盖短路 ======
+    // 一旦该报读存在手动顺延明细（enrollment_extensions 非空），
+    // 顺延结束日期与明细展示完全以手动明细为准（覆盖自动，不叠加自动假期/自动请假）
+    if (manualRows && manualRows.length > 0) {
+      let mm = endDate;
+      let mmr = manualDays;
+      while (mmr > 0) {
+        mm = addDays(mm, 1);
+        if (isWeekend(mm)) continue;
+        if (holidaySet.has(mm) || futureHolidaySet.has(mm)) continue;
+        mmr--;
+      }
+      result.extended_end_date = mm;
+      result.details = [...manualDetails];
+      result.details.sort((a, b) => a.startDate.localeCompare(b.startDate));
+      return result;
+    }
 
     // ====== 请假顺延逻辑（仅全日托/半日托） ======
     const isFullOrHalfDay = enr.course_type === '全日托' || enr.course_type === '半日托';
