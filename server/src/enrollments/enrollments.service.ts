@@ -713,6 +713,7 @@ export class EnrollmentsService {
       }));
     if (rows.length) {
       const { error: insErr } = await this.client.from('enrollment_extensions').insert(rows);
+      console.log('[save-manual] insert err=', insErr);
       if (insErr) throw new Error(`保存手动顺延明细失败: ${insErr.message}`);
     }
 
