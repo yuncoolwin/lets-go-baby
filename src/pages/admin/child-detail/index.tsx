@@ -199,8 +199,9 @@ export default function ChildDetailPage() {
   }
 
   const startExtendEdit = () => {
-    // 以当前展示明细作为编辑初始值（不覆盖自动结果的空编辑时进入空列表）
-    setExtendEditList(extendDetails.length ? extendDetails.map((d) => ({ ...d })) : [])
+    // 编辑态只取手动明细（type==='manual'），自动计算的假期/请假不进入编辑列表
+    const manualOnly = extendDetails.filter((d) => d.type === 'manual')
+    setExtendEditList(manualOnly.length ? manualOnly.map((d) => ({ ...d })) : [])
     setExtendEditMode(true)
   }
 
@@ -213,7 +214,7 @@ export default function ChildDetailPage() {
   const addExtendRow = () => {
     setExtendEditList((prev) => [
       ...prev,
-      { name: '', type: '全园', startDate: '', endDate: '', overlapDays: 0, _draft: true },
+      { name: '', type: 'manual', startDate: '', endDate: '', overlapDays: 0, _draft: true },
     ])
   }
 
@@ -1453,13 +1454,8 @@ export default function ChildDetailPage() {
                       <View className="flex-1 mr-2" style={{ backgroundColor: '#fff', borderRadius: 8, padding: '6px 10px', border: '1px solid #e5e5e5' }}>
                         <Input style={{ width: '100%', fontSize: 13 }} placeholder="假期名/原因" value={item.name} onInput={(e) => updateExtendRow(idx, { name: (e.detail as any).value || '' })} />
                       </View>
-                      <View className="px-2 py-1 rounded bg-blue-50 mr-1" onClick={() => {
-                        const order = ['全园', '班级', '个人']
-                        const next = order[(order.indexOf(item.type || '全园') + 1) % order.length]
-                        updateExtendRow(idx, { type: next })
-                      }}
-                      >
-                        <Text className="text-xs text-blue-600">{item.type || '全园'}</Text>
+                      <View className="px-2 py-1 rounded bg-orange-100 mr-1">
+                        <Text className="text-xs text-orange-600">手动</Text>
                       </View>
                       <View className="ml-1" onClick={() => removeExtendRow(idx)}>
                         <Text className="text-xs text-red-500">删除</Text>
@@ -1527,8 +1523,8 @@ export default function ChildDetailPage() {
                 <Text className="block text-sm text-gray-500 text-center py-4">暂无顺延假期</Text>
               ) : (
                 extendDetails.map((item, idx) => {
-                  const typeLabel = item.type === '全园' ? '全园' : item.type === '班级' ? '班级' : '个人'
-                  const typeColor = item.type === '全园' ? 'bg-blue-100 text-blue-700' : item.type === '班级' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                  const typeLabel = item.type === 'manual' ? '手动' : item.type === '全园' ? '全园' : item.type === '班级' ? '班级' : '个人'
+                  const typeColor = item.type === 'manual' ? 'bg-gray-200 text-gray-700' : item.type === '全园' ? 'bg-blue-100 text-blue-700' : item.type === '班级' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
                   return (
                     <View key={idx} className="flex flex-row items-center mb-3 pb-3 pr-3" style={{ borderBottom: '1px solid #f0f0f0' }}>
                       <View className="flex-1">

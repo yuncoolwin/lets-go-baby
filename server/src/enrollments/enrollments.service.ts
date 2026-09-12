@@ -151,7 +151,8 @@ export class EnrollmentsService {
       const { data } = await this.client
         .from('enrollment_extensions')
         .select('*')
-        .eq('enrollment_id', enrollmentId);
+        .eq('enrollment_id', enrollmentId)
+        .eq('source_type', 'manual');
       manualRows = data || [];
     }
     if (manualRows && manualRows.length) {
@@ -167,6 +168,20 @@ export class EnrollmentsService {
         0,
       );
     }
+
+    // 手动保存时刻：存在手动明细时取其最大 created_at，作为自动顺延源的时间分界。
+    // 归一为 'YYYY-MM-DD HH:MM:SS' 以便与 holidays/attendance 的 timestamp 比较。
+    let manualSetAt: string | null = null;
+    if (manualRows.length > 0) {
+      const normTs = (s: any) => (s ? String(s).replace('T', ' ').slice(0, 19) : '');
+      for (const r of manualRows) {
+        const ts = normTs(r.created_at);
+        if (ts && (!manualSetAt || ts > manualSetAt)) manualSetAt = ts;
+      }
+    }
+    // 仅当存在手动明细时，以下自动源查询追加 created_at > manualSetAt：
+    // 只统计"手动保存之后新增"的假期/请假，避免追溯改变手动保存前的自动顺延基准。
+    const manualCut = (q: any) => (manualSetAt ? q.gt('created_at', manualSetAt) : q);
 
     const { data: enr, error: enrError } = await this.client
       .from('enrollments')
@@ -193,10 +208,12 @@ export class EnrollmentsService {
     const isMonthlyDuration = ['1个月', '3个月', '6个月', '12个月'].includes(enr.duration_type);
 
     // 查询全园假期：holidays 表 type=all
-    const { data: allHolidays } = await this.client
-      .from('holidays')
-      .select('*')
-      .eq('type', 'all');
+    const { data: allHolidays } = await manualCut(
+      this.client
+        .from('holidays')
+        .select('*')
+        .eq('type', 'all'),
+    );
 
     // 构建全园假期日期集合（holidays type=all ∪ holidays_old type=holiday）
     const holidaySet = new Set<string>();
@@ -291,14 +308,16 @@ export class EnrollmentsService {
       // 延伸区间请假只做落点跳过、不计入欠课，天然保证不越补越多。
       // 查询上限取 end_date + 730，与落点搜索范围一致，确保所有补课日请假周六都能纳入跳过集合。
       const leaveUpper = addDays(endDate, 730);
-      const { data: leaveSatRows } = await this.client
-        .from('attendance')
-        .select('date')
-        .eq('child_id', enr.child_id)
-        .eq('course_type', enr.course_type)
-        .eq('status', 'leave')
-        .gte('date', startDate)
-        .lte('date', leaveUpper);
+      const { data: leaveSatRows } = await manualCut(
+        this.client
+          .from('attendance')
+          .select('date')
+          .eq('child_id', enr.child_id)
+          .eq('course_type', enr.course_type)
+          .eq('status', 'leave')
+          .gte('date', startDate)
+          .lte('date', leaveUpper),
+      );
       const leaveSatDates: string[] = [];
       for (const r of leaveSatRows || []) {
         const dd = r.date?.substring(0, 10);
@@ -374,11 +393,13 @@ export class EnrollmentsService {
           futureInvalidSaturdays.add(d);
         }
       }
-      const { data: futureSHolidays } = await this.client
-        .from('holidays')
-        .select('*')
-        .lte('start_date', futureSEnd)
-        .gte('end_date', futureSStart);
+      const { data: futureSHolidays } = await manualCut(
+        this.client
+          .from('holidays')
+          .select('*')
+          .lte('start_date', futureSEnd)
+          .gte('end_date', futureSStart),
+      );
       for (const h of futureSHolidays || []) {
         if (h.type === 'class' && h.target_id !== satClassId) continue;
         if (h.type === 'personal' && h.target_id !== enr.child_id) continue;
@@ -433,12 +454,14 @@ export class EnrollmentsService {
     const classId = enr.class_id || '';
 
     // 查询班级假期和个人假期
-    const { data: classPersonalHolidays } = await this.client
-      .from('holidays')
-      .select('*')
-      .in('type', ['class', 'personal'])
-      .lte('start_date', endDate)
-      .gte('end_date', startDate);
+    const { data: classPersonalHolidays } = await manualCut(
+      this.client
+        .from('holidays')
+        .select('*')
+        .in('type', ['class', 'personal'])
+        .lte('start_date', endDate)
+        .gte('end_date', startDate),
+    );
 
     const matchingHolidays = (classPersonalHolidays || []).filter((h: any) => {
       if (h.type === 'class') return h.target_id === classId;
@@ -494,11 +517,13 @@ export class EnrollmentsService {
         if (d && d >= futureStart && d <= futureEnd) futureHolidaySet.add(d);
       }
     }
-    const { data: futureHolidaysData } = await this.client
-      .from('holidays')
-      .select('*')
-      .lte('start_date', futureEnd)
-      .gte('end_date', futureStart);
+    const { data: futureHolidaysData } = await manualCut(
+      this.client
+        .from('holidays')
+        .select('*')
+        .lte('start_date', futureEnd)
+        .gte('end_date', futureStart),
+    );
     for (const h of futureHolidaysData || []) {
       if (h.type === 'class' && h.target_id !== classId) continue;
       if (h.type === 'personal' && h.target_id !== enr.child_id) continue;
@@ -567,15 +592,17 @@ export class EnrollmentsService {
     const isFullOrHalfDay = enr.course_type === '全日托' || enr.course_type === '半日托';
     if (isFullOrHalfDay) {
       // 查询该报读记录在课程区间内的请假记录（按 enrollment_id 精确匹配当前报读）
-      const { data: leaveRecords, error: leaveError } = await this.client
-        .from('attendance')
-        .select('date')
-        .eq('child_id', enr.child_id)
-        .eq('course_type', enr.course_type)
-        .eq('status', 'leave')
-        .gte('date', startDate)
-        .lte('date', enr.extended_end_date || enr.end_date)
-        .order('date', { ascending: true });
+      const { data: leaveRecords, error: leaveError } = await manualCut(
+        this.client
+          .from('attendance')
+          .select('date')
+          .eq('child_id', enr.child_id)
+          .eq('course_type', enr.course_type)
+          .eq('status', 'leave')
+          .gte('date', startDate)
+          .lte('date', enr.extended_end_date || enr.end_date)
+          .order('date', { ascending: true }),
+      );
 
       if (leaveRecords && leaveRecords.length > 0) {
         // 按日期排序，识别连续请假段
@@ -704,7 +731,7 @@ export class EnrollmentsService {
       .map((d) => ({
         enrollment_id: enrollmentId,
         name: d.name,
-        source_type: d.type || 'manual',
+        source_type: 'manual',
         start_date: d.startDate || null,
         end_date: d.endDate || null,
         overlap_days: Number(d.overlapDays || 0),
