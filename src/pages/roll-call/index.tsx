@@ -1054,7 +1054,17 @@ function DropInModal({
         setAllChildren([])
       }
       try {
-        const wres: any = await Network.request({ url: `/api/courses?weekday=${new Date(`${date}T00:00:00`).getDay()}` })
+        // 计算课程筛选 weekday：补班周六（调休上班）按工作日处理，传工作日 weekday（1-5）
+        let weekday = new Date(`${date}T00:00:00`).getDay()
+        if (weekday === 6) {
+          try {
+            const wwRes: any = await Network.request({ url: `/api/attendance/work-weekend?date=${date}` })
+            if (wwRes.data?.data?.workWeekend) weekday = 5
+          } catch {
+            // 接口异常时保持默认周六筛选
+          }
+        }
+        const wres: any = await Network.request({ url: `/api/courses?weekday=${weekday}` })
         const COURSE_ORDER = ['全日托', '半日托', '周六托', '晚间托', '暑假班', '寒假班', '兴趣班']
         const sortIdx = (n: string) => { const i = COURSE_ORDER.indexOf(n); return i === -1 ? COURSE_ORDER.length : i }
         const clist: Array<{ id: string; name: string }> = ((wres.data?.data || []) as any[])

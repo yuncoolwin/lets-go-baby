@@ -92,13 +92,16 @@ export class AttendanceService {
       });
     }
 
-    // 按星期几过滤课程类型：周六只显示周六托，工作日只显示非周六托，周日报空
-    const isSat = isSaturday(targetDate);
-    const isSun = isWeekend(targetDate) && !isSat;
+    // 按星期几过滤课程类型：普通周六只显示周六托，补班周六/工作日显示非周六托，周日报空
+    const isSaturdayDate = isSaturday(targetDate);
+    const isSun = isWeekend(targetDate) && !isSaturdayDate;
+    // 补班周六（调休上班的周六）按工作日处理
+    const isMakeup = isSun ? false : await this.isMakeupWorkWeekend(targetDate);
+    const isSat = isSaturdayDate && !isMakeup;
     const filteredEnrollmentList = enrollmentList.filter(e => {
       if (isSun) return false; // 周日不显示任何课程
-      if (isSat) return e.course_type === '周六托'; // 周六只显示周六托
-      return e.course_type !== '周六托'; // 工作日不显示周六托
+      if (isSat) return e.course_type === '周六托'; // 普通周六只显示周六托
+      return e.course_type !== '周六托'; // 补班周六/工作日不显示周六托
     });
 
     // 合并：每个幼儿按课程类型展开，每行一个 child_id + course_type 组合
@@ -140,6 +143,25 @@ export class AttendanceService {
       if (orderA !== orderB) return orderA - orderB;
       return a.name.localeCompare(b.name, 'zh');
     });
+  }
+
+  /**
+   * 判断目标日期是否为调休补班日（holidays_old type='work_weekend'）
+   * 补班日即使落在周六，也按工作日处理（不显示周六托）
+   */
+  async isMakeupWorkWeekend(date: string): Promise<boolean> {
+    try {
+      const year = parseInt(date.substring(0, 4));
+      const { data } = await this.client
+        .from('holidays_old')
+        .select('date')
+        .eq('year', year)
+        .eq('type', 'work_weekend');
+      const hit = (data || []).find(h => h.date?.substring(0, 10) === date);
+      return !!hit;
+    } catch (e) {
+      return false;
+    }
   }
 
   /**
@@ -238,17 +260,20 @@ export class AttendanceService {
       is_drop_in?: boolean;
     }>>();
 
+    // 补班周六（调休上班的周六）按工作日处理；普通周六只显示周六托；周日报空
+    const isSaturdayDate = isSaturday(queryDate);
+    const isSun = isWeekend(queryDate) && !isSaturdayDate;
+    const isMakeup = isSun ? false : await this.isMakeupWorkWeekend(queryDate);
+    const isSat = isSaturdayDate && !isMakeup;
+
     for (const e of enrollmentList) {
       const ct = e.course_type;
       if (queryDate && e.start_date && queryDate < e.start_date) continue;
       const effectiveEnd = e.extended_end_date || e.end_date;
       if (queryDate && effectiveEnd && queryDate > effectiveEnd) continue;
-      // 按星期几过滤课程类型
-      const isSat = isSaturday(queryDate);
-      const isSun = isWeekend(queryDate) && !isSat;
       if (isSun) continue; // 周日不显示任何课程
-      if (isSat && ct !== '周六托') continue; // 周六只显示周六托
-      if (!isSat && ct === '周六托') continue; // 工作日不显示周六托
+      if (isSat && ct !== '周六托') continue; // 普通周六只显示周六托
+      if (!isSat && ct === '周六托') continue; // 补班周六/工作日不显示周六托
       if (!groupMap.has(ct)) groupMap.set(ct, []);
       groupMap.get(ct)!.push({
         child_id: e.child_id,

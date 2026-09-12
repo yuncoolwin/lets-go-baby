@@ -31,6 +31,13 @@ export class AttendanceController {
     return { code: 200, msg: 'success', data };
   }
 
+  @Get('work-weekend')
+  @HttpCode(200)
+  async getWorkWeekend(@Query('date') date?: string) {
+    const workWeekend = await this.attendanceService.isMakeupWorkWeekend(date || '');
+    return { code: 200, msg: 'success', data: { workWeekend } };
+  }
+
   @Get()
   @HttpCode(200)
   async findByClass(
