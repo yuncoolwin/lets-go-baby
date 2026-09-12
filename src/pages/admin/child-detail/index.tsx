@@ -134,6 +134,7 @@ export default function ChildDetailPage() {
   const [extendEditList, setExtendEditList] = useState<any[]>([])
   const [extendEditEnrId, setExtendEditEnrId] = useState<string>('')
   const [savingExtend, setSavingExtend] = useState(false)
+  const [extendEditCalendar, setExtendEditCalendar] = useState<{ row: number; field: 'startDate' | 'endDate' } | null>(null)
   const [parents, setParents] = useState<Array<{ id: string; parent_name: string; relationship: string }>>([])
 
   useEffect(() => {
@@ -171,6 +172,7 @@ export default function ChildDetailPage() {
   const cancelExtendEdit = () => {
     setExtendEditMode(false)
     setExtendEditList([])
+    setExtendEditCalendar(null)
   }
 
   const addExtendRow = () => {
@@ -1347,6 +1349,18 @@ export default function ChildDetailPage() {
         onChange={(dateStr) => setFormEndDate(dateStr)}
       />
 
+      {/* 顺延编辑态日期日历浮层：记录第几行+哪个字段，控制单个弹窗归属 */}
+      <CalendarOverlay
+        visible={!!extendEditCalendar}
+        onClose={() => setExtendEditCalendar(null)}
+        value={
+          extendEditCalendar ? extendEditList[extendEditCalendar.row]?.[extendEditCalendar.field] || '' : ''
+        }
+        onChange={(dateStr) => {
+          if (extendEditCalendar) updateExtendRow(extendEditCalendar.row, { [extendEditCalendar.field]: dateStr })
+        }}
+      />
+
       {showExtendDialog && (
         <View
           catchMove
@@ -1413,11 +1427,21 @@ export default function ChildDetailPage() {
                       </View>
                     </View>
                     <View className="flex flex-row items-center mb-2">
-                      <View className="flex-1 mr-2" style={{ backgroundColor: '#fff', borderRadius: 8, padding: '6px 10px', border: '1px solid #e5e5e5' }}>
-                        <Input style={{ width: '100%', fontSize: 13 }} placeholder="开始日期" value={item.startDate} onInput={(e) => updateExtendRow(idx, { startDate: (e.detail as any).value || '' })} />
+                      <View
+                        className="flex flex-row items-center justify-between flex-1 mr-2"
+                        style={{ backgroundColor: '#fff', borderRadius: 8, padding: '8px 10px', border: '1px solid #e5e5e5' }}
+                        onClick={() => setExtendEditCalendar({ row: idx, field: 'startDate' })}
+                      >
+                        <Text className="block text-xs" style={{ color: item.startDate ? '#333' : '#bbb' }}>{item.startDate || '开始日期'}</Text>
+                        <Text className="text-xs text-orange-400">📅</Text>
                       </View>
-                      <View className="flex-1 ml-2" style={{ backgroundColor: '#fff', borderRadius: 8, padding: '6px 10px', border: '1px solid #e5e5e5' }}>
-                        <Input style={{ width: '100%', fontSize: 13 }} placeholder="结束日期" value={item.endDate} onInput={(e) => updateExtendRow(idx, { endDate: (e.detail as any).value || '' })} />
+                      <View
+                        className="flex flex-row items-center justify-between flex-1 ml-2"
+                        style={{ backgroundColor: '#fff', borderRadius: 8, padding: '8px 10px', border: '1px solid #e5e5e5' }}
+                        onClick={() => setExtendEditCalendar({ row: idx, field: 'endDate' })}
+                      >
+                        <Text className="block text-xs" style={{ color: item.endDate ? '#333' : '#bbb' }}>{item.endDate || '结束日期'}</Text>
+                        <Text className="text-xs text-orange-400">📅</Text>
                       </View>
                     </View>
                     <View className="flex flex-row items-center">
@@ -1440,6 +1464,14 @@ export default function ChildDetailPage() {
                   onClick={addExtendRow}
                 >
                   <Text className="block text-sm text-orange-500 text-center">+ 添加顺延明细</Text>
+                </View>
+                <View
+                  className="py-2 rounded-lg mb-2 text-center"
+                  style={{ border: '1px solid #FFE0C2', backgroundColor: '#FFF4EA' }}
+                >
+                  <Text className="block text-sm text-orange-600 font-medium">
+                    共顺延 {extendEditList.reduce((s, d) => s + (Number(d.overlapDays) || 0), 0)} 天
+                  </Text>
                 </View>
                 <View className="flex flex-row gap-2">
                   <View className="flex-1" onClick={cancelExtendEdit}>

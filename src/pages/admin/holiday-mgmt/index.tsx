@@ -484,7 +484,7 @@ export default function HolidayManagePage() {
           {/* 计算顺延 / 补课 并排一行 */}
           <View className="mb-4">
             <View className="flex items-center">
-              <View className="w-1/2 pr-2">
+              <View className="w-1/2 pr-2 border-r border-gray-200">
                 <Text className="block text-sm font-medium text-foreground">计算顺延</Text>
               </View>
               <View className="w-1/2 pl-2">
@@ -492,7 +492,7 @@ export default function HolidayManagePage() {
               </View>
             </View>
             <View className="mt-2 flex items-center">
-              <View className="w-1/2 pr-2">
+              <View className="w-1/2 pr-2 border-r border-gray-200">
                 <View className="flex gap-2">
                   {[true, false].map((val) => (
                     <View

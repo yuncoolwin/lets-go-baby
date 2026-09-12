@@ -136,23 +136,14 @@ export class EnrollmentsService {
   async calculateExtendedEndDate(enrollmentId: string): Promise<{ extended_end_date: string | null; details: HolidayDetail[] }> {
     const result = { extended_end_date: null as string | null, details: [] as HolidayDetail[] };
 
-    const { data: enr, error: enrError } = await this.client
-      .from('enrollments')
-      .select('*')
-      .eq('id', enrollmentId)
-      .single();
-
-    if (enrError || !enr) return result;
-    if (!enr.start_date || !enr.end_date) return result;
-
-    // 手动顺延明细（基准）：用户在顺延原因弹窗中编辑保存的明细
+    // 手动顺延明细（基准）：用户在顺延原因弹窗中编辑保存的明细。
+    // 提前查询，使下方所有提前 return 分支都能合并手动明细（保证再打开能回显）。
     let manualDays = 0;
     let manualDetails: HolidayDetail[] = [];
     const { data: manualRows } = await this.client
       .from('enrollment_extensions')
       .select('*')
-      .eq('enrollment_id', enrollmentId)
-      .eq('source_type', 'manual');
+      .eq('enrollment_id', enrollmentId);
     if (manualRows && manualRows.length) {
       manualDetails = (manualRows || []).map((r: any) => ({
         name: r.name ?? '',
@@ -165,6 +156,21 @@ export class EnrollmentsService {
         (s: number, r: any) => s + Number(r.overlap_days || 0),
         0,
       );
+    }
+
+    const { data: enr, error: enrError } = await this.client
+      .from('enrollments')
+      .select('*')
+      .eq('id', enrollmentId)
+      .single();
+
+    if (enrError || !enr) {
+      result.details = [...manualDetails, ...(result.details as any[])];
+      return result;
+    }
+    if (!enr.start_date || !enr.end_date) {
+      result.details = [...manualDetails, ...(result.details as any[])];
+      return result;
     }
 
     const startDate = enr.start_date;
@@ -292,7 +298,7 @@ export class EnrollmentsService {
       const originalLeaveSat = leaveSatDates.filter((d) => d <= endDate);
       const extendedLeaveSat = leaveSatDates.filter((d) => d > endDate);
 
-      if (saturdayHolidayMap.size === 0 && originalLeaveSat.length === 0) return result;
+      if (saturdayHolidayMap.size === 0 && originalLeaveSat.length === 0 && manualDays === 0) return result;
 
       // 统计总顺延天数（假期周六 + 请假周六）
       let saturdayCount = 0;
