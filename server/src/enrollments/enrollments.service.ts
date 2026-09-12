@@ -401,30 +401,16 @@ export class EnrollmentsService {
 
       // 从 end_date 之后逐个周六推进，跳过非法周六，数满 saturdayCount 个合法周六
       let extendedDate = endDate;
-      let satRemaining = saturdayCount;
+      let satRemaining = saturdayCount + manualDays;
       while (satRemaining > 0) {
         extendedDate = addDays(extendedDate, 1);
         if (!isSaturday(extendedDate)) continue;
         if (futureInvalidSaturdays.has(extendedDate)) continue;
         satRemaining--;
       }
-      // 手动覆盖：一旦该报读存在手动顺延明细（enrollment_extensions 非空），
-      // 顺延结束日期与明细展示完全以手动明细为准（覆盖自动，不叠加自动假期/自动请假）
-      if (manualRows && manualRows.length > 0) {
-        let mm = endDate;
-        let mmr = manualDays;
-        while (mmr > 0) {
-          mm = addDays(mm, 1);
-          if (!isSaturday(mm)) continue;
-          if (futureInvalidSaturdays.has(mm)) continue;
-          mmr--;
-        }
-        result.extended_end_date = mm;
-        result.details = [...manualDetails];
-        return result;
-      }
       result.extended_end_date = extendedDate;
-      result.details = [...details];
+      result.details = [...manualDetails, ...details];
+      result.details.sort((a, b) => a.startDate.localeCompare(b.startDate));
       return result;
     }
 
@@ -524,19 +510,17 @@ export class EnrollmentsService {
 
       result.extended_end_date = extendedDate;
     }
-    // 手动顺延基准：从 end_date 按手动天数推进（地域周末/节假日），作为顺延下限不丢手动结果；
-    // 新自动源若超出手动基准则取更晚者（在手动基准之上自动累加、不覆盖手动结果）
+    // 手动叠加：在已算出的自动顺延日期基础上，继续往前推 manualDays 个工作日（跳过周末与法定/管理/补班假期）
     if (manualDays > 0) {
-      let m = endDate;
-      let mr = manualDays;
-      while (mr > 0) {
-        m = addDays(m, 1);
-        if (isWeekend(m)) continue;
-        if (holidaySet.has(m) || futureHolidaySet.has(m)) continue;
-        mr--;
+      let current = result.extended_end_date || extendedDate;
+      let remaining = manualDays;
+      while (remaining > 0) {
+        current = addDays(current, 1);
+        if (isWeekend(current)) continue;
+        if (holidaySet.has(current) || futureHolidaySet.has(current)) continue;
+        remaining--;
       }
-      const autoEnd = result.extended_end_date || extendedDate;
-      if (m > autoEnd) result.extended_end_date = m;
+      result.extended_end_date = current;
     }
     // 手动明细始终并入 details 用于回显（即使 overlapDays 全为 0）
     if (manualRows && manualRows.length > 0) {
@@ -544,24 +528,6 @@ export class EnrollmentsService {
     }
     // 按开始日期排序：早的放前面
     result.details.sort((a, b) => a.startDate.localeCompare(b.startDate));
-
-    // ====== 手动覆盖短路 ======
-    // 一旦该报读存在手动顺延明细（enrollment_extensions 非空），
-    // 顺延结束日期与明细展示完全以手动明细为准（覆盖自动，不叠加自动假期/自动请假）
-    if (manualRows && manualRows.length > 0) {
-      let mm = endDate;
-      let mmr = manualDays;
-      while (mmr > 0) {
-        mm = addDays(mm, 1);
-        if (isWeekend(mm)) continue;
-        if (holidaySet.has(mm) || futureHolidaySet.has(mm)) continue;
-        mmr--;
-      }
-      result.extended_end_date = mm;
-      result.details = [...manualDetails];
-      result.details.sort((a, b) => a.startDate.localeCompare(b.startDate));
-      return result;
-    }
 
     // ====== 请假顺延逻辑（仅全日托/半日托） ======
     const isFullOrHalfDay = enr.course_type === '全日托' || enr.course_type === '半日托';
