@@ -678,17 +678,15 @@ export class EnrollmentsService {
         cur = addDays(cur, 1);
       }
     } else {
-      // 工作日课程固定月数/周数：工作日 + 调休补班日，排除法定节假日（管理假期不参与总课时，保持原行为）
-      // 区间统一覆盖到顺延结束日期 attEndDate，与出勤/请假统计口径一致
+      // 工作日课程固定月数/周数：仅统计纯工作日 + 调休补班日、排除法定节假日的天数。
+      // 补课日不计入总课时（与出勤统计口径一致，保证"出勤+请假+缺席 ≤ 总课时"恒成立）。
       let cur = enr.start_date;
       while (cur <= attEndDate) {
         const ds = this.toDateStr(cur);
         const isWorkday = !isWeekend(ds) || transferWorkdaySet.has(ds);
         const isHoliday = legalHolidaySet.has(ds);
         const regular = isWorkday && !isHoliday;
-        // 补课上课日：区间覆盖工作日类的补课日（含周末），且非法定/管理假期（去重避免与 regular 重复计数）
-        const makeupExtra = makeupDaySet.has(ds) && !legalHolidaySet.has(ds) && !mgmtHolidaySet.has(ds) && !regular;
-        if (regular || makeupExtra) totalDays++;
+        if (regular) totalDays++;
         cur = addDays(cur, 1);
       }
     }
@@ -713,8 +711,10 @@ export class EnrollmentsService {
       const dateStr = this.toDateStr(r.date);
       // 落在假期日（法定节假日/管理假期）的考勤一律剔除，与考勤日历假期标记对齐
       if (attHolidaySet.has(dateStr)) return;
-      // 补课上课日：区间覆盖本课程类型的补课日，视为合法上课日，不受周末限制（否则补课日缺课无法体现）
+      // 工作日课程（isSaturdayCourse=false）的补课日不计入出勤统计：
+      // 补课日已在 totalDays 中不含，若计入出勤会破坏"出勤+请假+缺席 ≤ 总课时"。仅周六托补课计入出勤。
       if (makeupDaySet.has(dateStr)) {
+        if (!isSaturdayCourse) return;
         if (!(['present', 'full_day', 'half_day', 'leave', 'absent'].includes(s as string))) return;
         if (s === 'leave') leaveDays++;
         else if (s === 'absent') absentDays++;

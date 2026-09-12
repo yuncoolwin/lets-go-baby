@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { isSaturday, isWeekend } from '@/utils/date.util';
-import { evaluateMakeupRange } from '@/children/utils/holiday-helper';
+import { buildMakeupLayers } from '@/children/utils/holiday-helper';
 
 @Injectable()
 export class TeacherService {
@@ -31,33 +31,30 @@ export class TeacherService {
   /**
    * 判断目标日期是否为假期管理配置的补课日，并返回其覆盖的课程类别。
    */
-  async getMakeupDayStatus(classId: string, date: string): Promise<{ workday: boolean; saturday: boolean }> {
-    const status = { workday: false, saturday: false };
+  /**
+   * 查询目标日期命中的全部补课区间假期记录（含 all/class/personal），
+   * 构建两层集合：global(all+本班class) + personal(按 child_id)。一次查询避免 N+1。
+   */
+  private async getMakeupLayers(classId: string, date: string): Promise<{ global: { workday: boolean; saturday: boolean }; personal: Record<string, { workday: boolean; saturday: boolean }> }> {
     try {
       const { data } = await this.client
         .from('holidays')
         .select('type, target_id, makeup_start_date, makeup_end_date')
         .not('makeup_start_date', 'is', null)
         .not('makeup_end_date', 'is', null);
-      const rows = data || [];
-      for (const h of rows) {
-        if (h.type === 'class' && h.target_id !== classId) continue;
-        const ms = h.makeup_start_date;
-        const me = h.makeup_end_date;
-        if (!ms || !me) continue;
-        if (date < ms || date > me) continue;
-        const ev = evaluateMakeupRange(ms, me);
-        if (isSaturday(date)) {
-          if (ev.coversSaturday) status.saturday = true;
-        } else {
-          if (ev.coversWorkday) status.workday = true;
-        }
-        if (status.workday && status.saturday) break;
-      }
+      return buildMakeupLayers(data || [], classId, date);
     } catch (e) {
-      console.warn('[getMakeupDayStatus] 查询补课日失败:', e);
+      console.warn('[getMakeupLayers] 查询补课日失败:', e);
+      return { global: { workday: false, saturday: false }, personal: {} };
     }
-    return status;
+  }
+
+  /**
+   * 判断目标日期是否为假期管理配置的补课日（仅全园/本班级作用域，不含 personal），返回其覆盖的课程类别。
+   */
+  async getMakeupDayStatus(classId: string, date: string): Promise<{ workday: boolean; saturday: boolean }> {
+    const layers = await this.getMakeupLayers(classId, date);
+    return layers.global;
   }
 
   async getMe(teacherRoleId?: string) {
@@ -377,33 +374,19 @@ export class TeacherService {
     // 考勤查询日期（优先使用所选日期，其次今天）
     const queryDate = date || new Date().toISOString().split('T')[0];
 
-    // 按所选日期对应的星期过滤课程（根据 date_calc_rule）
-    let weekdayRule = '';
-    // 调休补班日（周六或周日被调休上班）按工作日处理，需优先判定
+    // 补课日判定：一次查询命中目标日期的全部补课记录，构建两层集合（global all+class / personal per-child）
+    const isSaturdayDate = isSaturday(queryDate);
     const isMakeup = await this.isMakeupWorkWeekend(queryDate);
-    // 补课日判定：假期管理配置的补课区间内，覆盖对应课程类型的日期按上课日处理
-    const makeupStatus = await this.getMakeupDayStatus(teacherClassId, queryDate);
-    if (isMakeup) {
-      weekdayRule = '工作日';
-    } else if (makeupStatus.workday) {
-      weekdayRule = '工作日';
-    } else if (makeupStatus.saturday) {
-      weekdayRule = '周六';
-    } else if (isSaturday(queryDate)) {
-      weekdayRule = '周六';
-    } else if (isWeekend(queryDate)) {
-      weekdayRule = '周日';
-    } else {
-      weekdayRule = '工作日';
-    }
-    // 查询当天有排课的课程 ID
-    const { data: weekdayCourses } = await this.client
-      .from('courses')
-      .select('id, name')
-      .eq('date_calc_rule', weekdayRule);
-    const weekdayCourseIds = new Set((weekdayCourses || []).map(c => c.id));
-    // 过滤：只保留 course_id 匹配当天排课的报读
-    const filteredEnrollments = enrollmentList.filter(e => e.course_id && weekdayCourseIds.has(e.course_id));
+    const makeupLayers = await this.getMakeupLayers(teacherClassId, queryDate);
+    // 过滤：按课程类型 + 该幼儿合并后的补课覆盖（global 与 personal 取或、不重复计数）
+    const filteredEnrollments = enrollmentList.filter(e => {
+      if (!e.course_id) return false;
+      const personal = makeupLayers.personal[e.child_id] || { workday: false, saturday: false };
+      const allowWorkday = !isWeekend(queryDate) || isMakeup || makeupLayers.global.workday || personal.workday;
+      const allowSaturday = (isSaturdayDate && !isMakeup) || makeupLayers.global.saturday || personal.saturday;
+      if (e.course_type === '周六托') return allowSaturday; // 周六托仅在周六/周六补课日
+      return allowWorkday; // 非周六托（工作日/补班日/工作日补课日）
+    });
 
     // 收集所有 child_id
     const childIds = [...new Set(filteredEnrollments.map(e => e.child_id))];
@@ -635,31 +618,19 @@ export class TeacherService {
     // 考勤查询日期（优先使用所选日期，其次今天）
     const queryDate = date || new Date().toISOString().split('T')[0];
 
-    // 按所选日期对应的星期过滤课程（根据 date_calc_rule）
-    let weekdayRule = '';
-    // 调休补班日（周六或周日被调休上班）按工作日处理，需优先判定
+    // 补课日判定：一次查询命中目标日期的全部补课记录，构建两层集合（global all+class / personal per-child）
+    const isSaturdayDate = isSaturday(queryDate);
     const isMakeup = await this.isMakeupWorkWeekend(queryDate);
-    // 补课日判定：假期管理配置的补课区间内，覆盖对应课程类型的日期按上课日处理
-    const makeupStatus = await this.getMakeupDayStatus(classId, queryDate);
-    if (isMakeup) {
-      weekdayRule = '工作日';
-    } else if (makeupStatus.workday) {
-      weekdayRule = '工作日';
-    } else if (makeupStatus.saturday) {
-      weekdayRule = '周六';
-    } else if (isSaturday(queryDate)) {
-      weekdayRule = '周六';
-    } else if (isWeekend(queryDate)) {
-      weekdayRule = '周日';
-    } else {
-      weekdayRule = '工作日';
-    }
-    const { data: weekdayCourses } = await this.client
-      .from('courses')
-      .select('id, name')
-      .eq('date_calc_rule', weekdayRule);
-    const weekdayCourseIds = new Set((weekdayCourses || []).map(c => c.id));
-    const filteredEnrollments = enrollmentList.filter(e => e.course_id && weekdayCourseIds.has(e.course_id));
+    const makeupLayers = await this.getMakeupLayers(classId, queryDate);
+    // 过滤：按课程类型 + 该幼儿合并后的补课覆盖（global 与 personal 取或、不重复计数）
+    const filteredEnrollments = enrollmentList.filter(e => {
+      if (!e.course_id) return false;
+      const personal = makeupLayers.personal[e.child_id] || { workday: false, saturday: false };
+      const allowWorkday = !isWeekend(queryDate) || isMakeup || makeupLayers.global.workday || personal.workday;
+      const allowSaturday = (isSaturdayDate && !isMakeup) || makeupLayers.global.saturday || personal.saturday;
+      if (e.course_type === '周六托') return allowSaturday;
+      return allowWorkday;
+    });
 
     const childIds = [...new Set(filteredEnrollments.map(e => e.child_id))];
 

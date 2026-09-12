@@ -112,6 +112,73 @@ export function collectMakeupClassDays(
 }
 
 /**
+ * 补课作用域两层集合
+ * - global：全园(all) + 本班(class) 的补课类别，作用于整班在读判定
+ * - personal：按幼儿 child_id 的 personal 补课类别，仅作用于该幼儿在读判定
+ */
+export interface MakeupLayers {
+  global: { workday: boolean; saturday: boolean };
+  personal: Record<string, { workday: boolean; saturday: boolean }>;
+}
+
+/**
+ * 将已查出的补课区间假期记录（含 all/class/personal）构建为两层集合。
+ * 一次查询全部命中目标日期的补课记录，避免为每个幼儿做 N+1 查询。
+ * - all / 本班(class)：并入 global（对整班生效）
+ * - personal：并入 personal[child_id]（仅对该幼儿生效）
+ * 判断口径：role 对 course 判定覆盖 —— 区间命中本日且区间覆盖对应课程类别。
+ * @param rows 已做 makeup* 非空过滤的 holidays 原记录
+ * @param classId 当前班级
+ * @param dateStr 目标日期
+ */
+export function buildMakeupLayers(
+  rows: Array<{
+    type?: string | null;
+    target_id?: string | null;
+    makeup_start_date?: string | null;
+    makeup_end_date?: string | null;
+  }>,
+  classId: string,
+  dateStr: string,
+): MakeupLayers {
+  const global: { workday: boolean; saturday: boolean } = { workday: false, saturday: false };
+  const personal: Record<string, { workday: boolean; saturday: boolean }> = {};
+  for (const h of rows) {
+    const ms = h.makeup_start_date;
+    const me = h.makeup_end_date;
+    if (!ms || !me) continue;
+    if (dateStr < ms || dateStr > me) continue;
+    const ev = evaluateMakeupRange(ms, me);
+    const isSat = isSaturday(dateStr);
+    if (h.type === 'personal') {
+      if (!h.target_id) continue;
+      const bucket = personal[h.target_id] || { workday: false, saturday: false };
+      if (isSat) {
+        if (ev.coversSaturday) bucket.saturday = true;
+      } else {
+        if (ev.coversWorkday) bucket.workday = true;
+      }
+      personal[h.target_id] = bucket;
+    } else if (h.type === 'class') {
+      if (h.target_id && h.target_id !== classId) continue;
+      if (isSat) {
+        if (ev.coversSaturday) global.saturday = true;
+      } else {
+        if (ev.coversWorkday) global.workday = true;
+      }
+    } else {
+      // all
+      if (isSat) {
+        if (ev.coversSaturday) global.saturday = true;
+      } else {
+        if (ev.coversWorkday) global.workday = true;
+      }
+    }
+  }
+  return { global, personal };
+}
+
+/**
  * 判断某日期是否为补课日，并返回它覆盖的课程类别（工作日本/周六托）。
  * 用于考勤页在读幼儿判定：补课日当天按对应课程类型的上课日处理、允许点名。
  * @param holidays 已按作用域(all/class/personal)过滤的假期记录

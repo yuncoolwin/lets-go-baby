@@ -481,43 +481,51 @@ export default function HolidayManagePage() {
             </View>
           </View>
 
-          {/* 计算顺延 */}
+          {/* 计算顺延 / 补课 并排一行 */}
           <View className="mb-4">
-            <Text className="block text-sm font-medium text-foreground mb-2">计算顺延</Text>
-            <View className="flex gap-2">
-              {[true, false].map((val) => (
-                <View
-                  key={String(val)}
-                  className={`flex-1 px-3 py-2 rounded-xl text-center ${
-                    formCalculateExtension === val
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}
-                  onClick={() => setFormCalculateExtension(val)}
-                >
-                  <Text className="block text-sm">{val ? '是' : '否'}</Text>
-                </View>
-              ))}
+            <View className="flex items-center">
+              <View className="w-1/2 pr-2">
+                <Text className="block text-sm font-medium text-foreground">计算顺延</Text>
+              </View>
+              <View className="w-1/2 pl-2">
+                <Text className="block text-sm font-medium text-foreground">补课</Text>
+              </View>
             </View>
-          </View>
-
-          {/* 补课 */}
-          <View className="mb-4">
-            <Text className="block text-sm font-medium text-foreground mb-2">补课</Text>
-            <View className="flex gap-2">
-              {[true, false].map((val) => (
-                <View
-                  key={String(val)}
-                  className={`flex-1 px-3 py-2 rounded-xl text-center ${
-                    formMakeup === val
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}
-                  onClick={() => setFormMakeup(val)}
-                >
-                  <Text className="block text-sm">{val ? '是' : '否'}</Text>
+            <View className="mt-2 flex items-center">
+              <View className="w-1/2 pr-2">
+                <View className="flex gap-2">
+                  {[true, false].map((val) => (
+                    <View
+                      key={String(val)}
+                      className={`flex-1 px-2 py-2 rounded-xl text-center ${
+                        formCalculateExtension === val
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                      onClick={() => setFormCalculateExtension(val)}
+                    >
+                      <Text className="block text-sm">{val ? '是' : '否'}</Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
+              </View>
+              <View className="w-1/2 pl-2">
+                <View className="flex gap-2">
+                  {[true, false].map((val) => (
+                    <View
+                      key={String(val)}
+                      className={`flex-1 px-2 py-2 rounded-xl text-center ${
+                        formMakeup === val
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                      onClick={() => setFormMakeup(val)}
+                    >
+                      <Text className="block text-sm">{val ? '是' : '否'}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
             </View>
           </View>
 
