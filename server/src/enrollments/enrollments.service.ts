@@ -536,13 +536,27 @@ export class EnrollmentsService {
       }
     }
 
+    // 构建顺延落点区间内补班日集合（holidays_old type=work_weekend：周末补班日视为合法出勤落点，不算周末）
+    const futureWorkWeekendSet = new Set<string>();
+    for (let y = futureStartYear; y <= futureEndYear; y++) {
+      const { data: futureWorkWeekends } = await this.client
+        .from('holidays_old')
+        .select('date')
+        .eq('type', 'work_weekend')
+        .eq('year', y);
+      for (const w of futureWorkWeekends || []) {
+        const wd = w.date?.substring(0, 10);
+        if (wd && wd >= futureStart && wd <= futureEnd) futureWorkWeekendSet.add(wd);
+      }
+    }
+
     let extendedDate = endDate;
     let remainingDays = totalHolidayDays;
 
     if (totalHolidayDays > 0) {
       while (remainingDays > 0) {
         extendedDate = addDays(extendedDate, 1);
-        if (isWeekend(extendedDate)) continue;
+        if (isWeekend(extendedDate) && !futureWorkWeekendSet.has(extendedDate)) continue;
         if (holidaySet.has(extendedDate) || futureHolidaySet.has(extendedDate)) continue;
         remainingDays--;
       }
@@ -556,7 +570,7 @@ export class EnrollmentsService {
       let mr = manualDays;
       while (mr > 0) {
         m = addDays(m, 1);
-        if (isWeekend(m)) continue;
+        if (isWeekend(m) && !futureWorkWeekendSet.has(m)) continue;
         if (holidaySet.has(m) || futureHolidaySet.has(m)) continue;
         mr--;
       }
@@ -578,7 +592,7 @@ export class EnrollmentsService {
       let mmr = manualDays;
       while (mmr > 0) {
         mm = addDays(mm, 1);
-        if (isWeekend(mm)) continue;
+        if (isWeekend(mm) && !futureWorkWeekendSet.has(mm)) continue;
         if (holidaySet.has(mm) || futureHolidaySet.has(mm)) continue;
         mmr--;
       }
@@ -650,7 +664,7 @@ export class EnrollmentsService {
           let remaining = totalLeaveDays;
           while (remaining > 0) {
             currentExtDate = addDays(currentExtDate, 1);
-            if (isWeekend(currentExtDate)) continue;
+            if (isWeekend(currentExtDate) && !futureWorkWeekendSet.has(currentExtDate)) continue;
             if (holidaySet.has(currentExtDate) || futureHolidaySet.has(currentExtDate)) continue;
             remaining--;
           }
