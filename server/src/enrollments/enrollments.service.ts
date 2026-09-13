@@ -517,13 +517,12 @@ export class EnrollmentsService {
         if (d && d >= futureStart && d <= futureEnd) futureHolidaySet.add(d);
       }
     }
-    const { data: futureHolidaysData } = await manualCut(
-      this.client
-        .from('holidays')
-        .select('*')
-        .lte('start_date', futureEnd)
-        .gte('end_date', futureStart),
-    );
+    // 园区/班级/个人假期是既定的出勤日历事实（如台风停课），不受手动保存时间分界影响，始终完整纳入未来跳过集合
+    const { data: futureHolidaysData } = await this.client
+      .from('holidays')
+      .select('*')
+      .lte('start_date', futureEnd)
+      .gte('end_date', futureStart);
     for (const h of futureHolidaysData || []) {
       if (h.type === 'class' && h.target_id !== classId) continue;
       if (h.type === 'personal' && h.target_id !== enr.child_id) continue;
@@ -550,13 +549,27 @@ export class EnrollmentsService {
       }
     }
 
+    // 构建园区停课假期的补课日出勤集合（makeup 区间内的日期作为合法出勤落点，不算周末）
+    const makeupDaySet = new Set<string>();
+    for (const h of futureHolidaysData || []) {
+      if (h.type === 'class' && h.target_id !== classId) continue;
+      if (h.type === 'personal' && h.target_id !== enr.child_id) continue;
+      if (!h.makeup_start_date || !h.makeup_end_date) continue;
+      let mc = this.toDateStr(h.makeup_start_date > futureStart ? h.makeup_start_date : futureStart);
+      const mcMax = this.toDateStr(h.makeup_end_date < futureEnd ? h.makeup_end_date : futureEnd);
+      while (mc <= mcMax) {
+        makeupDaySet.add(mc);
+        mc = addDays(mc, 1);
+      }
+    }
+
     let extendedDate = endDate;
     let remainingDays = totalHolidayDays;
 
     if (totalHolidayDays > 0) {
       while (remainingDays > 0) {
         extendedDate = addDays(extendedDate, 1);
-        if (isWeekend(extendedDate) && !futureWorkWeekendSet.has(extendedDate)) continue;
+        if (isWeekend(extendedDate) && !futureWorkWeekendSet.has(extendedDate) && !makeupDaySet.has(extendedDate)) continue;
         if (holidaySet.has(extendedDate) || futureHolidaySet.has(extendedDate)) continue;
         remainingDays--;
       }
@@ -570,7 +583,7 @@ export class EnrollmentsService {
       let mr = manualDays;
       while (mr > 0) {
         m = addDays(m, 1);
-        if (isWeekend(m) && !futureWorkWeekendSet.has(m)) continue;
+        if (isWeekend(m) && !futureWorkWeekendSet.has(m) && !makeupDaySet.has(m)) continue;
         if (holidaySet.has(m) || futureHolidaySet.has(m)) continue;
         mr--;
       }
@@ -592,7 +605,7 @@ export class EnrollmentsService {
       let mmr = manualDays;
       while (mmr > 0) {
         mm = addDays(mm, 1);
-        if (isWeekend(mm) && !futureWorkWeekendSet.has(mm)) continue;
+        if (isWeekend(mm) && !futureWorkWeekendSet.has(mm) && !makeupDaySet.has(mm)) continue;
         if (holidaySet.has(mm) || futureHolidaySet.has(mm)) continue;
         mmr--;
       }
@@ -664,7 +677,7 @@ export class EnrollmentsService {
           let remaining = totalLeaveDays;
           while (remaining > 0) {
             currentExtDate = addDays(currentExtDate, 1);
-            if (isWeekend(currentExtDate) && !futureWorkWeekendSet.has(currentExtDate)) continue;
+            if (isWeekend(currentExtDate) && !futureWorkWeekendSet.has(currentExtDate) && !makeupDaySet.has(currentExtDate)) continue;
             if (holidaySet.has(currentExtDate) || futureHolidaySet.has(currentExtDate)) continue;
             remaining--;
           }
