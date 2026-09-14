@@ -141,7 +141,10 @@ export default function ChildDetailPage() {
   const extendPreviewTimerRef = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => {
     if (!extendEditMode || !extendEditEnrId) return
-    const validRows = extendEditList.filter((d) => d && d.name && d.startDate && d.endDate)
+    // 手动顺延预览只依赖 overlapDays（天数）即可推进顺延至日期；startDate/endDate 仅用于明细展示，不作为预览必要条件
+    const validRows = extendEditList.filter(
+      (d) => d && (Number((d as any).overlapDays) > 0 || (d.name && (d.startDate || d.endDate))),
+    )
     if (extendEditList.length === 0) {
       // 空列表时展示当前已保存口径以外的默认：无明细则顺延至为空（保持原有已计算值，避免闪烁）
       return
