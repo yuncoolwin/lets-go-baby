@@ -1608,7 +1608,7 @@ export default function ChildDetailPage() {
             )}
             <View className="pt-3" style={{ borderTop: '1px solid #e5e5e5' }}>
               <Text className="block text-sm text-gray-500 text-center">
-                共顺延 <Text className="font-bold text-orange-500">{extendEditMode ? extendEditList.reduce((s, d) => s + (Number((d as any).overlapDays) || 0), 0) : extendTotalDays}</Text> 天，顺延至 <Text className="font-bold text-orange-500">{extendToDate}</Text>
+                共顺延 <Text className="font-bold text-orange-500">{extendEditMode ? extendEditList.filter((d) => d && (d.isAuto === false || !d.isFrozen)).reduce((s, d) => s + (Number((d as any).overlapDays) || 0), 0) : extendTotalDays}</Text> 天，顺延至 <Text className="font-bold text-orange-500">{extendToDate}</Text>
               </Text>
             </View>
           </View>
