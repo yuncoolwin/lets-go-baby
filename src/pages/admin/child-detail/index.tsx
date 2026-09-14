@@ -299,7 +299,7 @@ export default function ChildDetailPage() {
       if (actual && actual.extended_end_date) {
         Taro.showToast({ title: '保存成功，顺延至 ' + actual.extended_end_date, icon: 'none', duration: 3000 })
         setExtendToDate(actual.extended_end_date)
-        setExtendTotalDays((actual.details || []).reduce((sum: number, x: any) => sum + (Number(x.overlapDays) || 0), 0))
+        setExtendTotalDays((actual.details || []).filter((x: any) => x && (x.isAuto === false || !x.isFrozen)).reduce((sum: number, x: any) => sum + (Number(x.overlapDays) || 0), 0))
         setExtendDetails(actual.details || payload)
       } else {
         // 后端未返回时刷新计算接口
@@ -646,7 +646,7 @@ export default function ChildDetailPage() {
       const actualData = body.data || body
       if (actualData && actualData.details) {
         setExtendDetails(actualData.details)
-        const total = actualData.details.reduce((sum: number, d: any) => sum + (d.overlapDays || 0), 0)
+        const total = actualData.details.filter((d: any) => d && (d.isAuto === false || !d.isFrozen)).reduce((sum: number, d: any) => sum + (d.overlapDays || 0), 0)
         setExtendTotalDays(total)
         setExtendToDate(actualData.extended_end_date || '')
         setShowExtendDialog(true)
