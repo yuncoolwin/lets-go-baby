@@ -100,6 +100,7 @@ export default function ChildDetailPage() {
   const userId = useAppStore((s) => s.userId)
   const currentRole = useAppStore((s) => s.currentRole)
   const isSuperadmin = currentRole?.role_type === 'superadmin'
+  const canEditExtension = isSuperadmin || currentRole?.role_type === 'admin'
   const canEdit = !isReadonly && currentRole?.role_type !== 'parent'
   const [child, setChild] = useState<ChildDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -1466,7 +1467,7 @@ export default function ChildDetailPage() {
           >
             <View className="flex flex-row items-center justify-between mb-3">
               <Text className="block text-lg font-bold flex-1 text-center">顺延原因</Text>
-              {!extendEditMode ? (
+              {!extendEditMode && canEditExtension ? (
                 <View
                   className="px-2 py-1 rounded text-xs"
                   style={{ backgroundColor: '#FFF1E6', color: '#EA7D23' }}
@@ -1474,7 +1475,7 @@ export default function ChildDetailPage() {
                 >
                   <Text className="text-xs">编辑</Text>
                 </View>
-              ) : (
+              ) : extendEditMode ? (
                 <View
                   className="px-2 py-1 rounded text-xs"
                   style={{ backgroundColor: '#f0f0f0', color: '#888' }}
@@ -1482,7 +1483,7 @@ export default function ChildDetailPage() {
                 >
                   <Text className="text-xs">放弃</Text>
                 </View>
-              )}
+              ) : null}
             </View>
             {extendEditMode ? (
               <ScrollView scrollY className="py-2" style={{ flex: 1, minHeight: 0 }}>
