@@ -158,7 +158,8 @@ export class EnrollmentsService {
     if (manualRows && manualRows.length) {
       manualDetails = manualRows.map((r: any) => ({
         name: r.name ?? '',
-        type: r.source_type ?? 'manual',
+        // 展示类型优先取 display_type（固化的原类型：全园/个人/...），无则回退 source_type
+        type: r.display_type ?? r.source_type ?? 'manual',
         startDate: r.start_date,
         endDate: r.end_date,
         overlapDays: Number(r.overlap_days || 0),
@@ -705,14 +706,14 @@ export class EnrollmentsService {
   async getManualExtensions(enrollmentId: string): Promise<any[]> {
     const { data, error } = await this.client
       .from('enrollment_extensions')
-      .select('id, name, source_type, start_date, end_date, overlap_days')
+      .select('id, name, source_type, display_type, start_date, end_date, overlap_days')
       .eq('enrollment_id', enrollmentId)
       .order('created_at', { ascending: true });
     if (error) throw new Error(`查询手动顺延明细失败: ${error.message}`);
     return (data || []).map((r: any) => ({
       id: r.id,
       name: r.name ?? '',
-      type: r.source_type ?? 'manual',
+      type: r.display_type ?? r.source_type ?? 'manual',
       startDate: r.start_date,
       endDate: r.end_date,
       overlapDays: Number(r.overlap_days || 0),
@@ -758,7 +759,9 @@ export class EnrollmentsService {
       .map((d) => ({
         enrollment_id: enrollmentId,
         name: d.name,
+        // source_type 固定 manual（区分手动基准），原展示类型单独存 display_type
         source_type: 'manual',
+        display_type: d.type || 'manual',
         start_date: d.startDate || null,
         end_date: d.endDate || null,
         overlap_days: Number(d.overlapDays || 0),

@@ -199,9 +199,8 @@ export default function ChildDetailPage() {
   }
 
   const startExtendEdit = () => {
-    // 编辑态只取手动明细（type==='manual'），自动计算的假期/请假不进入编辑列表
-    const manualOnly = extendDetails.filter((d) => d.type === 'manual')
-    setExtendEditList(manualOnly.length ? manualOnly.map((d) => ({ ...d })) : [])
+    // 方案A「所见即所编」：编辑基线 = 当前展示的全部顺延明细（含自动生成的假期/请假），保存时固化为手动明细
+    setExtendEditList(extendDetails.map((d) => ({ ...d })))
     setExtendEditMode(true)
   }
 
@@ -236,7 +235,7 @@ export default function ChildDetailPage() {
     }
     Taro.showModal({
       title: '保存确认',
-      content: `将保存 ${rows.length} 条手动顺延明细并重算结束日期，是否继续？`,
+      content: `将把当前 ${rows.length} 条明细固化为手动顺延明细（自动生成的假期/请假将变为手动快照，之后不再随假期配置自动更新），并重算结束日期，是否继续？`,
       confirmColor: '#EA7D23',
       success: async (r) => {
         if (!r.confirm) return
@@ -1454,8 +1453,10 @@ export default function ChildDetailPage() {
                       <View className="flex-1 mr-2" style={{ backgroundColor: '#fff', borderRadius: 8, padding: '6px 10px', border: '1px solid #e5e5e5' }}>
                         <Input style={{ width: '100%', fontSize: 13 }} placeholder="假期名/原因" value={item.name} onInput={(e) => updateExtendRow(idx, { name: (e.detail as any).value || '' })} />
                       </View>
-                      <View className="px-2 py-1 rounded bg-orange-100 mr-1">
-                        <Text className="text-xs text-orange-600">手动</Text>
+                      <View className={`px-2 py-1 rounded mr-1 ${item.type === '全园' ? 'bg-blue-100' : item.type === '班级' ? 'bg-green-100' : item.type === '个人' ? 'bg-orange-100' : 'bg-gray-200'}`}>
+                        <Text className={`text-xs ${item.type === '全园' ? 'text-blue-700' : item.type === '班级' ? 'text-green-700' : item.type === '个人' ? 'text-orange-700' : 'text-gray-600'}`}>
+                          {item.type === 'manual' ? '手动' : item.type === '全园' ? '全园' : item.type === '班级' ? '班级' : item.type === '个人' ? '个人' : (item.type || '手动')}
+                        </Text>
                       </View>
                       <View className="ml-1" onClick={() => removeExtendRow(idx)}>
                         <Text className="text-xs text-red-500">删除</Text>
