@@ -141,10 +141,7 @@ export default function ChildDetailPage() {
   const extendPreviewTimerRef = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => {
     if (!extendEditMode || !extendEditEnrId) return
-    // 手动顺延预览只依赖 overlapDays（天数）即可推进顺延至日期；startDate/endDate 仅用于明细展示，不作为预览必要条件
-    const validRows = extendEditList.filter(
-      (d) => d && (Number((d as any).overlapDays) > 0 || (d.name && (d.startDate || d.endDate))),
-    )
+    // 手动顺延预览只依赖 overlapDays（天数）；startDate/endDate 仅用于明细展示
     if (extendEditList.length === 0) {
       // 空列表时展示当前已保存口径以外的默认：无明细则顺延至为空（保持原有已计算值，避免闪烁）
       return
@@ -152,16 +149,27 @@ export default function ChildDetailPage() {
     clearTimeout(extendPreviewTimerRef.current)
     extendPreviewTimerRef.current = setTimeout(async () => {
       try {
-        const details = validRows.map((d) => ({
-          name: d.name,
-          type: d.type || '全园',
-          startDate: d.startDate,
-          endDate: d.endDate,
-          overlapDays: Number(d.overlapDays) || 0,
-        }))
-        // 无完整行时不请求预览，保留当前展示值
-        if (!details.length) return
-        const res = await enrollmentApi.previewManualExtensions(extendEditEnrId, details)
+        // 手动明细 + 本次冻结的自动明细分别传给后端，实时反映冻结/恢复
+        const manualDetails = extendEditList
+          .filter((d) => d && d.isAuto === false)
+          .map((d) => ({
+            name: d.name || '',
+            type: d.type || 'manual',
+            startDate: d.startDate || '',
+            endDate: d.endDate || '',
+            overlapDays: Number(d.overlapDays) || 0,
+          }))
+        const frozenAuto = extendEditList
+          .filter((d) => d && d.isAuto !== false && d.isFrozen)
+          .map((d) => ({
+            name: d.name || '',
+            type: d.type || '全园',
+            startDate: d.startDate || '',
+            endDate: d.endDate || '',
+            overlapDays: Number(d.overlapDays) || 0,
+          }))
+        if (!manualDetails.length && !frozenAuto.length) return
+        const res = await enrollmentApi.previewManualExtensions(extendEditEnrId, { manualDetails, frozenAuto })
         console.log('previewManualExtensions res:', res)
         const body = res.data || res
         const data = body.data || body
@@ -201,9 +209,19 @@ export default function ChildDetailPage() {
     }, 200)
   }
 
+  const sortExtendRows = (rows: any[]) =>
+    [...rows].sort((a, b) => {
+      // 按日期区间首天升序；日期为空（手动新增）置底
+      const as = a && a.startDate ? String(a.startDate) : ''
+      const bs = b && b.startDate ? String(b.startDate) : ''
+      if (!as) return 1
+      if (!bs) return -1
+      return as.localeCompare(bs)
+    })
+
   const startExtendEdit = () => {
-    // 方案A「所见即所编」：编辑基线 = 当前展示的全部顺延明细（含自动生成的假期/请假），保存时固化为手动明细
-    setExtendEditList(extendDetails.map((d) => ({ ...d })))
+    // 手动明细 + 自动明细共同作为编辑基线；自动明细动态计算、仅可冻结，手动明细独立维护
+    setExtendEditList(sortExtendRows(extendDetails.map((d) => ({ ...d }))))
     setExtendEditMode(true)
   }
 
@@ -216,8 +234,13 @@ export default function ChildDetailPage() {
   const addExtendRow = () => {
     setExtendEditList((prev) => [
       ...prev,
-      { name: '', type: 'manual', startDate: '', endDate: '', overlapDays: 0, _draft: true },
+      { name: '', type: 'manual', isAuto: false, startDate: '', endDate: '', overlapDays: 0, _draft: true },
     ])
+  }
+
+  const toggleFreezeExtendRow = (idx: number) => {
+    const cur = extendEditList[idx]
+    updateExtendRow(idx, { isFrozen: !(cur && cur.isFrozen) })
   }
 
   const updateExtendRow = (idx: number, patch: Partial<any>) => {
@@ -229,35 +252,48 @@ export default function ChildDetailPage() {
   }
 
   const saveExtendManual = async () => {
-    const rows = extendEditList.filter((d) => d.name && d.startDate && d.endDate)
-    if (!rows.length) {
+    if (!extendEditEnrId) {
       return
     }
-    if (!extendEditEnrId) {
+    const manualRows = extendEditList.filter((d) => d && d.isAuto === false)
+    const frozenAuto = extendEditList.filter((d) => d && d.isAuto !== false && d.isFrozen)
+    if (!manualRows.length && !frozenAuto.length) {
+      Taro.showToast({ title: '请添加手动顺延明细或冻结相关自动明细', icon: 'none' })
       return
     }
     Taro.showModal({
       title: '保存确认',
-      content: `将把当前 ${rows.length} 条明细固化为手动顺延明细（自动生成的假期/请假将变为手动快照，之后不再随假期配置自动更新），并重算结束日期，是否继续？`,
+      content: `将保存 ${manualRows.length} 条手动顺延明细，并冻结 ${frozenAuto.length} 条自动明细（冻结后不再计入本次顺延天数与顺延至日期）。未冻结的自动明细仍按假期配置动态计算。是否继续？`,
       confirmColor: '#EA7D23',
       success: async (r) => {
         if (!r.confirm) return
-        await doSaveExtendManual(rows)
+        await doSaveExtendManual({ manualDetails: manualRows, frozenAuto })
       },
     })
   }
 
-  const doSaveExtendManual = async (rows: any[]) => {
-    const payload = rows.map((d) => ({
-      name: d.name,
-      type: d.type || '全园',
-      startDate: d.startDate,
-      endDate: d.endDate,
-      overlapDays: Number(d.overlapDays) || 0,
-    }))
+  const doSaveExtendManual = async (payload: { manualDetails: any[]; frozenAuto: any[] }) => {
+    const manualDetails = (payload.manualDetails || [])
+      .filter((d) => d && d.name)
+      .map((d) => ({
+        name: d.name,
+        type: d.type || 'manual',
+        startDate: d.startDate || '',
+        endDate: d.endDate || '',
+        overlapDays: Number(d.overlapDays) || 0,
+      }))
+    const frozenAuto = (payload.frozenAuto || [])
+      .filter((d) => d && d.name)
+      .map((d) => ({
+        name: d.name,
+        type: d.type || '全园',
+        startDate: d.startDate || '',
+        endDate: d.endDate || '',
+        overlapDays: Number(d.overlapDays) || 0,
+      }))
     setSavingExtend(true)
     try {
-      const res = await enrollmentApi.saveManualExtensions(extendEditEnrId, { details: payload })
+      const res = await enrollmentApi.saveManualExtensions(extendEditEnrId, { manualDetails, frozenAuto })
       const body = (res as any).data || res
       const actual = body.data || body
       if (actual && actual.extended_end_date) {
@@ -1450,53 +1486,78 @@ export default function ChildDetailPage() {
             </View>
             {extendEditMode ? (
               <ScrollView scrollY className="py-2" style={{ flex: 1, minHeight: 0 }}>
-                {extendEditList.map((item, idx) => (
-                  <View key={idx} className="mb-3 p-3 rounded-lg" style={{ border: '1px solid #eee', backgroundColor: '#fafafa' }}>
-                    <View className="flex flex-row items-center mb-2">
-                      <View className="flex-1 mr-2" style={{ backgroundColor: '#fff', borderRadius: 8, padding: '6px 10px', border: '1px solid #e5e5e5' }}>
-                        <Input style={{ width: '100%', fontSize: 13 }} placeholder="假期名/原因" value={item.name} onInput={(e) => updateExtendRow(idx, { name: (e.detail as any).value || '' })} />
+                {extendEditList.map((item, idx) =>
+                  item.isAuto !== false ? (
+                    // ===== 自动明细行：只读展示 + 冻结/恢复 =====
+                    <View key={`a${idx}`} className="mb-3 p-3 rounded-lg" style={{ border: '1px solid #eee', backgroundColor: item.isFrozen ? '#f1f1f1' : '#fafafa' }}>
+                      <View className="flex flex-row items-center mb-1">
+                        <View className={`px-2 py-1 rounded mr-2 ${item.type === '全园' ? 'bg-blue-100' : item.type === '班级' ? 'bg-green-100' : item.type === '个人' ? 'bg-orange-100' : 'bg-gray-200'}`}>
+                          <Text className={`text-xs ${item.type === '全园' ? 'text-blue-700' : item.type === '班级' ? 'text-green-700' : item.type === '个人' ? 'text-orange-700' : 'text-gray-600'}`}>
+                            {item.type === '全园' ? '全园' : item.type === '班级' ? '班级' : '个人'}
+                          </Text>
+                        </View>
+                        <Text className="block text-sm font-medium flex-1" style={{ color: item.isFrozen ? '#aaa' : '#333', textDecoration: item.isFrozen ? 'line-through' : 'none' }}>{item.name}</Text>
+                        <Text className="block text-xs text-gray-400 mr-2 text-center">自动</Text>
+                        <View
+                          className="px-2 py-1 rounded"
+                          style={{ backgroundColor: item.isFrozen ? '#EA7D23' : '#f0f0f0' }}
+                          onClick={() => toggleFreezeExtendRow(idx)}
+                        >
+                          <Text className="text-xs" style={{ color: item.isFrozen ? '#fff' : '#666' }}>{item.isFrozen ? '恢复' : '冻结'}</Text>
+                        </View>
                       </View>
-                      <View className={`px-2 py-1 rounded mr-1 ${item.type === '全园' ? 'bg-blue-100' : item.type === '班级' ? 'bg-green-100' : item.type === '个人' ? 'bg-orange-100' : 'bg-gray-200'}`}>
-                        <Text className={`text-xs ${item.type === '全园' ? 'text-blue-700' : item.type === '班级' ? 'text-green-700' : item.type === '个人' ? 'text-orange-700' : 'text-gray-600'}`}>
-                          {item.type === 'manual' ? '手动' : item.type === '全园' ? '全园' : item.type === '班级' ? '班级' : item.type === '个人' ? '个人' : (item.type || '手动')}
-                        </Text>
-                      </View>
-                      <View className="ml-1" onClick={() => removeExtendRow(idx)}>
-                        <Text className="text-xs text-red-500">删除</Text>
-                      </View>
-                    </View>
-                    <View className="flex flex-row items-center mb-2">
-                      <View
-                        className="flex flex-row items-center justify-between flex-1 mr-2"
-                        style={{ backgroundColor: '#fff', borderRadius: 8, padding: '8px 10px', border: '1px solid #e5e5e5' }}
-                        onClick={() => setExtendEditCalendar({ row: idx, field: 'startDate' })}
-                      >
-                        <Text className="block text-xs" style={{ color: item.startDate ? '#333' : '#bbb' }}>{item.startDate || '开始日期'}</Text>
-                        <Text className="text-xs text-orange-400">📅</Text>
-                      </View>
-                      <View
-                        className="flex flex-row items-center justify-between flex-1 ml-2"
-                        style={{ backgroundColor: '#fff', borderRadius: 8, padding: '8px 10px', border: '1px solid #e5e5e5' }}
-                        onClick={() => setExtendEditCalendar({ row: idx, field: 'endDate' })}
-                      >
-                        <Text className="block text-xs" style={{ color: item.endDate ? '#333' : '#bbb' }}>{item.endDate || '结束日期'}</Text>
-                        <Text className="text-xs text-orange-400">📅</Text>
+                      <View className="flex flex-row items-center">
+                        <Text className="block text-xs text-gray-500 mr-2">{item.startDate || ''}{item.startDate && item.endDate ? ' ~ ' : ''}{item.endDate || ''}</Text>
+                        <Text className="block text-xs text-gray-500" style={{ color: item.isFrozen ? '#bbb' : '#666' }}>顺延{item.overlapDays ?? 0}天</Text>
                       </View>
                     </View>
-                    <View className="flex flex-row items-center">
-                      <Text className="block text-xs text-gray-500 mr-2 w-16">顺延天数</Text>
-                      <View className="flex-1" style={{ backgroundColor: '#fff', borderRadius: 8, padding: '6px 10px', border: '1px solid #e5e5e5' }}>
-                        <Input
-                          style={{ width: '100%', fontSize: 13 }}
-                          type="number"
-                          placeholder="0"
-                          value={String(item.overlapDays ?? '')}
-                          onInput={(e) => updateExtendRow(idx, { overlapDays: Number((e.detail as any).value) || 0 })}
-                        />
+                  ) : (
+                    // ===== 手动明细行：可编辑/删除 =====
+                    <View key={`m${idx}`} className="mb-3 p-3 rounded-lg" style={{ border: '1px solid #eee', backgroundColor: '#fafafa' }}>
+                      <View className="flex flex-row items-center mb-2">
+                        <View className="flex-1 mr-2" style={{ backgroundColor: '#fff', borderRadius: 8, padding: '6px 10px', border: '1px solid #e5e5e5' }}>
+                          <Input style={{ width: '100%', fontSize: 13 }} placeholder="假期名/原因" value={item.name} onInput={(e) => updateExtendRow(idx, { name: (e.detail as any).value || '' })} />
+                        </View>
+                        <View className="px-2 py-1 rounded mr-1 bg-gray-200">
+                          <Text className="text-xs text-gray-600">手动</Text>
+                        </View>
+                        <View className="ml-1" onClick={() => removeExtendRow(idx)}>
+                          <Text className="text-xs text-red-500">删除</Text>
+                        </View>
+                      </View>
+                      <View className="flex flex-row items-center mb-2">
+                        <View
+                          className="flex flex-row items-center justify-between flex-1 mr-2"
+                          style={{ backgroundColor: '#fff', borderRadius: 8, padding: '8px 10px', border: '1px solid #e5e5e5' }}
+                          onClick={() => setExtendEditCalendar({ row: idx, field: 'startDate' })}
+                        >
+                          <Text className="block text-xs" style={{ color: item.startDate ? '#333' : '#bbb' }}>{item.startDate || '开始日期'}</Text>
+                          <Text className="text-xs text-orange-400">📅</Text>
+                        </View>
+                        <View
+                          className="flex flex-row items-center justify-between flex-1 ml-2"
+                          style={{ backgroundColor: '#fff', borderRadius: 8, padding: '8px 10px', border: '1px solid #e5e5e5' }}
+                          onClick={() => setExtendEditCalendar({ row: idx, field: 'endDate' })}
+                        >
+                          <Text className="block text-xs" style={{ color: item.endDate ? '#333' : '#bbb' }}>{item.endDate || '结束日期'}</Text>
+                          <Text className="text-xs text-orange-400">📅</Text>
+                        </View>
+                      </View>
+                      <View className="flex flex-row items-center">
+                        <Text className="block text-xs text-gray-500 mr-2 w-16">顺延天数</Text>
+                        <View className="flex-1" style={{ backgroundColor: '#fff', borderRadius: 8, padding: '6px 10px', border: '1px solid #e5e5e5' }}>
+                          <Input
+                            style={{ width: '100%', fontSize: 13 }}
+                            type="number"
+                            placeholder="0"
+                            value={String(item.overlapDays ?? '')}
+                            onInput={(e) => updateExtendRow(idx, { overlapDays: Number((e.detail as any).value) || 0 })}
+                          />
+                        </View>
                       </View>
                     </View>
-                  </View>
-                ))}
+                  )
+                )}
                 <View
                   className="py-2 rounded-lg mb-2"
                   style={{ border: '1px dashed #EA7D23', backgroundColor: '#FFF8F0' }}
@@ -1509,7 +1570,7 @@ export default function ChildDetailPage() {
                   style={{ border: '1px solid #FFE0C2', backgroundColor: '#FFF4EA' }}
                 >
                   <Text className="block text-sm text-orange-600 font-medium">
-                    共顺延 {extendEditList.reduce((s, d) => s + (Number(d.overlapDays) || 0), 0)} 天
+                    共顺延 {extendEditList.filter((d) => d && (d.isAuto === false || !d.isFrozen)).reduce((s, d) => s + (Number(d.overlapDays) || 0), 0)} 天
                   </Text>
                 </View>
                 <View className="flex flex-row gap-2">

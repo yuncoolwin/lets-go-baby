@@ -10,6 +10,9 @@ export interface HolidayDetail {
   startDate: string;
   endDate: string;
   overlapDays: number;
+  id?: string;
+  isAuto?: boolean;
+  isFrozen?: boolean;
 }
 
 export interface Enrollment {
@@ -136,6 +139,7 @@ export class EnrollmentsService {
   async calculateExtendedEndDate(
     enrollmentId: string,
     previewManualRows?: Array<{ name?: string; source_type?: string; start_date?: string | null; end_date?: string | null; overlap_days?: number }>,
+    previewFrozen?: Array<{ type?: string; name?: string; startDate?: string | null; endDate?: string | null }>,
   ): Promise<{ extended_end_date: string | null; details: HolidayDetail[] }> {
     const result = { extended_end_date: null as string | null, details: [] as HolidayDetail[] };
 
@@ -157,12 +161,14 @@ export class EnrollmentsService {
     }
     if (manualRows && manualRows.length) {
       manualDetails = manualRows.map((r: any) => ({
+        id: r.id,
         name: r.name ?? '',
         // 展示类型优先取 display_type（固化的原类型：全园/个人/...），无则回退 source_type
         type: r.display_type ?? r.source_type ?? 'manual',
         startDate: r.start_date,
         endDate: r.end_date,
         overlapDays: Number(r.overlap_days || 0),
+        isAuto: false,
       }));
       manualDays = manualRows.reduce(
         (s: number, r: any) => s + Number(r.overlap_days || 0),
@@ -182,7 +188,8 @@ export class EnrollmentsService {
     }
     // 仅当存在手动明细时，以下自动源查询追加 created_at > manualSetAt：
     // 只统计"手动保存之后新增"的假期/请假，避免追溯改变手动保存前的自动顺延基准。
-    const manualCut = (q: any) => (manualSetAt ? q.gt('created_at', manualSetAt) : q);
+    // 自动明细始终按假期/考勤配置动态计算，不再按手动保存时间切割
+    const manualCut = (q: any) => q;
 
     const { data: enr, error: enrError } = await this.client
       .from('enrollments')
@@ -207,6 +214,28 @@ export class EnrollmentsService {
     const isSaturdayCourse = dateCalcRule === '周六';
     // 固定月数课程（1个月/3个月/6个月/12个月）：法定节假日不顺延
     const isMonthlyDuration = ['1个月', '3个月', '6个月', '12个月'].includes(enr.duration_type);
+
+    // ===== 冻结机制 =====
+    // 自动明细冻结占位（kind='frozen_auto'）：存被冻结自动明细的【展示类型::名称::区间】稳定标识。
+    // 冻结的自动明细仍展示（置灰）但不参与顺延天数累计与结束日期推进；恢复即删除占位。
+    const autoKey = (type: string, name: string, s: string, e: string) =>
+      `${type}::${name}::${this.toDateStr(s)}~${this.toDateStr(e)}`;
+    let frozenKeys = new Set<string>();
+    if (previewFrozen && previewFrozen.length) {
+      // 预览模式：使用前端编辑中的【本次冻结集合】实时计算（覆盖库中占位）
+      for (const pf of previewFrozen) {
+        frozenKeys.add(autoKey(pf.type || '', pf.name || '', pf.startDate || '', pf.endDate || ''));
+      }
+    } else {
+      const { data: frozenRows } = await this.client
+        .from('enrollment_extensions')
+        .select('*')
+        .eq('enrollment_id', enrollmentId)
+        .eq('kind', 'frozen_auto');
+      for (const fr of frozenRows || []) {
+        frozenKeys.add(autoKey(fr.display_type || '', fr.name || '', fr.start_date || '', fr.end_date || ''));
+      }
+    }
 
     // 查询全园假期：holidays 表 type=all
     const { data: allHolidays } = await manualCut(
@@ -233,9 +262,23 @@ export class EnrollmentsService {
         let current = this.toDateStr(overlapStart);
         const maxDate = this.toDateStr(overlapEnd);
         while (current <= maxDate) {
+          if (!isWeekend(current)) overlapDays++;
+          current = addDays(current, 1);
+        }
+        const key = autoKey('全园', h.name, overlapStart, overlapEnd);
+        if (frozenKeys.has(key)) {
+          // 冻结：仍展示（置灰）但不计入 holidaySet 与顺延天数
+          result.details.push({
+            name: h.name, type: '全园',
+            startDate: overlapStart, endDate: overlapEnd,
+            overlapDays, isFrozen: true,
+          });
+          continue;
+        }
+        current = this.toDateStr(overlapStart);
+        while (current <= maxDate) {
           holidaySet.add(current);
           holidaySourceMap.set(current, { name: h.name, type: 'all' });
-          if (!isWeekend(current)) overlapDays++;
           current = addDays(current, 1);
         }
         if (overlapDays > 0) {
@@ -274,10 +317,26 @@ export class EnrollmentsService {
         dates.sort();
         const workdayDates = dates.filter(d => !isWeekend(d));
         if (workdayDates.length === 0) continue;
+        const fs = workdayDates[0];
+        const fe = workdayDates[workdayDates.length - 1];
+        const key = autoKey('全园', name, fs, fe);
+        if (frozenKeys.has(key)) {
+          // 冻结：移除该法定节假日全部日期（不计跳过/计数），仍展示置灰
+          for (const dd of dates) {
+            holidaySet.delete(dd);
+            holidaySourceMap.delete(dd);
+          }
+          result.details.push({
+            name, type: '全园',
+            startDate: fs, endDate: fe,
+            overlapDays: workdayDates.length, isFrozen: true,
+          });
+          continue;
+        }
         result.details.push({
           name, type: '全园',
-          startDate: workdayDates[0],
-          endDate: workdayDates[workdayDates.length - 1],
+          startDate: fs,
+          endDate: fe,
           overlapDays: workdayDates.length,
         });
       }
@@ -371,7 +430,7 @@ export class EnrollmentsService {
         });
       }
       // 按开始日期排序：早的放前面
-      details.sort((a, b) => a.startDate.localeCompare(b.startDate));
+      details.sort((a, b) => { const as = String((a as any).startDate || ''); const bs = String((b as any).startDate || ''); if (!as && bs) return 1; if (as && !bs) return -1; return as.localeCompare(bs) });
 
       // 顺延结束日期必须落在合法周六（非法定节假日/非假期管理节假日/非调休补班日）
       // 预加载 end_date 之后的非法周六，供顺延落点跳过
@@ -474,25 +533,28 @@ export class EnrollmentsService {
       if (h.calculate_extension === false) continue;
       const overlapStart = h.start_date > startDate ? h.start_date : startDate;
       const overlapEnd = h.end_date < endDate ? h.end_date : endDate;
+      const displayType = h.type === 'class' ? '班级' : h.type === 'personal' ? '个人' : h.type;
+      const frozenKey = `${displayType}::${h.name}::${h.start_date}~${h.end_date}`;
+      const isFrozen = frozenKeys.has(frozenKey);
       let overlapCount = 0;
       let current = this.toDateStr(overlapStart);
       const maxDate = this.toDateStr(overlapEnd);
       while (current <= maxDate) {
-        holidaySet.add(current);
-        holidaySourceMap.set(current, { name: h.name, type: h.type });
+        if (!isFrozen) {
+          holidaySet.add(current);
+          holidaySourceMap.set(current, { name: h.name, type: h.type });
+        }
         if (!isWeekend(current)) overlapCount++;
         current = addDays(current, 1);
       }
-      if (overlapCount > 0) {
-        const displayType = h.type === 'class' ? '班级' : h.type === 'personal' ? '个人' : h.type;
-        result.details.push({
-          name: h.name,
-          type: displayType,
-          startDate: h.start_date,
-          endDate: h.end_date,
-          overlapDays: overlapCount,
-        });
-      }
+      result.details.push({
+        name: h.name,
+        type: displayType,
+        startDate: h.start_date,
+        endDate: h.end_date,
+        overlapDays: overlapCount,
+        ...(isFrozen ? { isFrozen: true } : {}),
+      });
     }
 
     let totalHolidayDays = 0;
@@ -564,57 +626,29 @@ export class EnrollmentsService {
       }
     }
 
+    // 手动 + 未冻结自动（自动假期 totalHolidayDays）合计顺延天数，一次推进。
+    // 冻结的自动明细在填充时段已排除：日期未计入 holidaySet/futureHolidaySet、overlap 未累计进 totalHolidayDays，
+    // 因此不参与推进（顺延至相应提前）；手动明细（manualDays）始终参与
+    const totalExtendDays = totalHolidayDays + (manualDays || 0);
     let extendedDate = endDate;
-    let remainingDays = totalHolidayDays;
-
-    if (totalHolidayDays > 0) {
-      while (remainingDays > 0) {
+    if (totalExtendDays > 0) {
+      let remaining = totalExtendDays;
+      while (remaining > 0) {
         extendedDate = addDays(extendedDate, 1);
         if (isWeekend(extendedDate) && !futureWorkWeekendSet.has(extendedDate) && !makeupDaySet.has(extendedDate)) continue;
         if (holidaySet.has(extendedDate) || futureHolidaySet.has(extendedDate)) continue;
-        remainingDays--;
+        remaining--;
       }
-
       result.extended_end_date = extendedDate;
-    }
-    // 手动顺延基准：从 end_date 按手动天数推进（地域周末/节假日），作为顺延下限不丢手动结果；
-    // 新自动源若超出手动基准则取更晚者（在手动基准之上自动累加、不覆盖手动结果）
-    if (manualDays > 0) {
-      let m = endDate;
-      let mr = manualDays;
-      while (mr > 0) {
-        m = addDays(m, 1);
-        if (isWeekend(m) && !futureWorkWeekendSet.has(m) && !makeupDaySet.has(m)) continue;
-        if (holidaySet.has(m) || futureHolidaySet.has(m)) continue;
-        mr--;
-      }
-      const autoEnd = result.extended_end_date || extendedDate;
-      if (m > autoEnd) result.extended_end_date = m;
     }
     // 手动明细始终并入 details 用于回显（即使 overlapDays 全为 0）
     if (manualRows && manualRows.length > 0) {
       result.details = [...manualDetails, ...result.details];
     }
     // 按开始日期排序：早的放前面
-    result.details.sort((a, b) => a.startDate.localeCompare(b.startDate));
+    result.details.sort((a, b) => { const as = String((a as any).startDate || ''); const bs = String((b as any).startDate || ''); if (!as && bs) return 1; if (as && !bs) return -1; return as.localeCompare(bs) });
 
-    // ====== 手动覆盖短路 ======
-    // 一旦该报读存在手动顺延明细（enrollment_extensions 非空），
-    // 顺延结束日期与明细展示完全以手动明细为准（覆盖自动，不叠加自动假期/自动请假）
-    if (manualRows && manualRows.length > 0) {
-      let mm = endDate;
-      let mmr = manualDays;
-      while (mmr > 0) {
-        mm = addDays(mm, 1);
-        if (isWeekend(mm) && !futureWorkWeekendSet.has(mm) && !makeupDaySet.has(mm)) continue;
-        if (holidaySet.has(mm) || futureHolidaySet.has(mm)) continue;
-        mmr--;
-      }
-      result.extended_end_date = mm;
-      result.details = [...manualDetails];
-      result.details.sort((a, b) => a.startDate.localeCompare(b.startDate));
-      return result;
-    }
+    
 
     // ====== 请假顺延逻辑（仅全日托/半日托） ======
     const isFullOrHalfDay = enr.course_type === '全日托' || enr.course_type === '半日托';
@@ -672,30 +706,36 @@ export class EnrollmentsService {
         }
 
         if (segments.length > 0) {
-          const totalLeaveDays = segments.reduce((sum, s) => sum + s.days, 0);
+          // 冻结的请假段不参与顺延天数计算，但仍展示并标记 frozen
+          const activeSegs = segments.filter((s) => !frozenKeys.has(`个人::请假::${s.startDate}~${s.endDate}`));
+          const totalLeaveDays = activeSegs.reduce((sum, s) => sum + s.days, 0);
           // 在已有顺延基础上再叠加请假天数
-          let currentExtDate = result.extended_end_date || endDate;
-          let remaining = totalLeaveDays;
-          while (remaining > 0) {
-            currentExtDate = addDays(currentExtDate, 1);
-            if (isWeekend(currentExtDate) && !futureWorkWeekendSet.has(currentExtDate) && !makeupDaySet.has(currentExtDate)) continue;
-            if (holidaySet.has(currentExtDate) || futureHolidaySet.has(currentExtDate)) continue;
-            remaining--;
+          if (totalLeaveDays > 0) {
+            let currentExtDate = result.extended_end_date || endDate;
+            let remaining = totalLeaveDays;
+            while (remaining > 0) {
+              currentExtDate = addDays(currentExtDate, 1);
+              if (isWeekend(currentExtDate) && !futureWorkWeekendSet.has(currentExtDate) && !makeupDaySet.has(currentExtDate)) continue;
+              if (holidaySet.has(currentExtDate) || futureHolidaySet.has(currentExtDate)) continue;
+              remaining--;
+            }
+            result.extended_end_date = currentExtDate;
           }
-          result.extended_end_date = currentExtDate;
 
-          // 添加请假顺延详情
+          // 添加请假顺延详情（含冻结段：仍展示但置灰）
           for (const seg of segments) {
+            const frz = frozenKeys.has(`个人::请假::${seg.startDate}~${seg.endDate}`);
             result.details.push({
               name: '请假',
               type: '个人',
               startDate: seg.startDate,
               endDate: seg.endDate,
               overlapDays: seg.days,
+              ...(frz ? { isFrozen: true } : {}),
             });
           }
           // 重新排序
-          result.details.sort((a, b) => a.startDate.localeCompare(b.startDate));
+          result.details.sort((a, b) => { const as = String((a as any).startDate || ''); const bs = String((b as any).startDate || ''); if (!as && bs) return 1; if (as && !bs) return -1; return as.localeCompare(bs) });
         }
       }
     }
@@ -703,28 +743,40 @@ export class EnrollmentsService {
     return result;
   }
 
-  async getManualExtensions(enrollmentId: string): Promise<any[]> {
+  async getManualExtensions(enrollmentId: string): Promise<{ manual: any[]; frozen: any[] }> {
     const { data, error } = await this.client
       .from('enrollment_extensions')
-      .select('id, name, source_type, display_type, start_date, end_date, overlap_days')
+      .select('id, name, source_type, kind, display_type, start_date, end_date, overlap_days')
       .eq('enrollment_id', enrollmentId)
       .order('created_at', { ascending: true });
     if (error) throw new Error(`查询手动顺延明细失败: ${error.message}`);
-    return (data || []).map((r: any) => ({
+    const rows = data || [];
+    const toDto = (r: any) => ({
       id: r.id,
       name: r.name ?? '',
       type: r.display_type ?? r.source_type ?? 'manual',
       startDate: r.start_date,
       endDate: r.end_date,
       overlapDays: Number(r.overlap_days || 0),
-    }));
+    });
+    return {
+      manual: rows.filter((r: any) => r.kind !== 'frozen_auto').map(toDto),
+      frozen: rows.filter((r: any) => r.kind === 'frozen_auto').map(toDto),
+    };
   }
 
   async previewManualExtensions(
     enrollmentId: string,
-    details: Array<{ name?: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>,
+    payload:
+      | {
+          manualDetails?: Array<{ name?: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>;
+          frozenAuto?: Array<{ name?: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>;
+        }
+      | Array<{ name?: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>,
   ): Promise<{ extended_end_date: string | null }> {
     // 仅计算预览结果，不落库；以编辑中的临时明细作为手动基准
+    const details = Array.isArray(payload) ? payload : payload.manualDetails || [];
+    const frozenAuto = Array.isArray(payload) ? [] : payload.frozenAuto || [];
     const rows = (details || [])
       .filter((d) => d)
       .map((d) => ({
@@ -734,11 +786,29 @@ export class EnrollmentsService {
         end_date: d.endDate || null,
         overlap_days: Number(d.overlapDays || 0),
       }));
-    const { extended_end_date: extendedDate } = await this.calculateExtendedEndDate(enrollmentId, rows);
+    const frozenPreview = (frozenAuto || []).filter((d) => d && d.name).map((d) => ({
+      type: d.type,
+      name: d.name,
+      startDate: d.startDate,
+      endDate: d.endDate,
+    }));
+    const { extended_end_date: extendedDate } = await this.calculateExtendedEndDate(enrollmentId, rows, frozenPreview);
     return { extended_end_date: extendedDate };
   }
 
-  async saveManualExtensions(enrollmentId: string, details: Array<{ name: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>): Promise<{ extended_end_date: string | null; details: HolidayDetail[] }> {
+  async saveManualExtensions(
+    enrollmentId: string,
+    payload:
+      | {
+          manualDetails?: Array<{ name: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>;
+          frozenAuto?: Array<{ name: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>;
+        }
+      | Array<{ name: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>,
+  ): Promise<{ extended_end_date: string | null; details: HolidayDetail[] }> {
+    // 兼容旧形态：直接传手动明细数组
+    const manualDetails = Array.isArray(payload) ? payload : payload?.manualDetails || [];
+    const frozenAuto = Array.isArray(payload) ? [] : (payload as any)?.frozenAuto || [];
+
     // 先确认报读存在
     const { data: enr, error: enrErr } = await this.client
       .from('enrollments')
@@ -747,28 +817,47 @@ export class EnrollmentsService {
       .maybeSingle();
     if (enrErr || !enr) throw new Error('报读记录不存在');
 
-    // 删除旧的手动明细，插入新的
+    // 删除旧的手动明细与冻结占位，按本次集合重建
     const { error: delErr } = await this.client
       .from('enrollment_extensions')
       .delete()
       .eq('enrollment_id', enrollmentId);
     if (delErr) throw new Error(`清空手动顺延明细失败: ${delErr.message}`);
 
-    const rows = (details || [])
+    // 手动明细：source_type=manual + kind=manual，展示类型存 display_type
+    const mRows = (manualDetails || [])
       .filter((d) => d && d.name)
       .map((d) => ({
         enrollment_id: enrollmentId,
         name: d.name,
-        // source_type 固定 manual（区分手动基准），原展示类型单独存 display_type
         source_type: 'manual',
-        display_type: d.type || 'manual',
+        kind: 'manual',
+        display_type: d.type || '手动',
         start_date: d.startDate || null,
         end_date: d.endDate || null,
         overlap_days: Number(d.overlapDays || 0),
       }));
-    if (rows.length) {
-      const { error: insErr } = await this.client.from('enrollment_extensions').insert(rows);
+    if (mRows.length) {
+      const { error: insErr } = await this.client.from('enrollment_extensions').insert(mRows);
       if (insErr) throw new Error(`保存手动顺延明细失败: ${insErr.message}`);
+    }
+
+    // 冻结占位：记录被冻结自动明细的稳定标识（展示类型::名称::区间），恢复时删除
+    const fRows = (frozenAuto || [])
+      .filter((d) => d && d.name)
+      .map((d) => ({
+        enrollment_id: enrollmentId,
+        name: d.name,
+        source_type: 'frozen',
+        kind: 'frozen_auto',
+        display_type: d.type || '全园',
+        start_date: d.startDate || null,
+        end_date: d.endDate || null,
+        overlap_days: Number(d.overlapDays || 0),
+      }));
+    if (fRows.length) {
+      const { error: insErr } = await this.client.from('enrollment_extensions').insert(fRows);
+      if (insErr) throw new Error(`保存冻结占位失败: ${insErr.message}`);
     }
 
     // 重算并写回 extended_end_date

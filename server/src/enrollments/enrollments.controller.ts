@@ -115,23 +115,14 @@ export class EnrollmentsController {
     }
   }
 
-  @Get(':id/manual-extensions/preview')
+  @Post(':id/manual-extensions/preview')
   @HttpCode(200)
   async previewManualExtensions(
     @Param('id') id: string,
-    @Query('details') detailsRaw?: string,
+    @Body() body?: { manualDetails?: any[]; frozenAuto?: any[] },
   ) {
     try {
-      let details: any[] = [];
-      if (detailsRaw) {
-        try {
-          const parsed = JSON.parse(detailsRaw);
-          if (Array.isArray(parsed)) details = parsed;
-        } catch (_) {
-          // 忽略非法 JSON，按空明细处理
-        }
-      }
-      const data = await this.enrollmentsService.previewManualExtensions(id, details);
+      const data = await this.enrollmentsService.previewManualExtensions(id, body || {});
       return { code: 200, msg: 'success', data: data };
     } catch (e: any) {
       return { code: 500, msg: e.message || '预览手动顺延结果失败', data: null };
@@ -142,10 +133,10 @@ export class EnrollmentsController {
   @HttpCode(200)
   async saveManualExtensions(
     @Param('id') id: string,
-    @Body() body: { details?: Array<{ name: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }> },
+    @Body() body: { manualDetails?: any[]; frozenAuto?: any[] },
   ) {
     try {
-      const data = await this.enrollmentsService.saveManualExtensions(id, body?.details || []);
+      const data = await this.enrollmentsService.saveManualExtensions(id, body || {});
       return { code: 200, msg: 'success', data: data };
     } catch (e: any) {
       return { code: 500, msg: e.message || '保存手动顺延明细失败', data: null };
