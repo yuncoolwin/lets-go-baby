@@ -1518,8 +1518,8 @@ export default function ChildDetailPage() {
                         <View className="flex-1 mr-2" style={{ backgroundColor: '#fff', borderRadius: 8, padding: '6px 10px', border: '1px solid #e5e5e5' }}>
                           <Input style={{ width: '100%', fontSize: 13 }} placeholder="假期名/原因" value={item.name} onInput={(e) => updateExtendRow(idx, { name: (e.detail as any).value || '' })} />
                         </View>
-                        <View className="px-2 py-1 rounded mr-1 bg-gray-200">
-                          <Text className="text-xs text-gray-600">手动</Text>
+                        <View className="px-2 py-1 rounded mr-1 bg-purple-100">
+                          <Text className="text-xs text-purple-700">其他</Text>
                         </View>
                         <View className="ml-1" onClick={() => removeExtendRow(idx)}>
                           <Text className="text-xs text-red-500">删除</Text>
@@ -1584,12 +1584,12 @@ export default function ChildDetailPage() {
               </ScrollView>
             ) : (
               <ScrollView scrollY className="py-2" style={{ flex: 1, minHeight: 0 }}>
-              {extendDetails.length === 0 ? (
+              {extendDetails.filter((d) => d && d.isFrozen !== true).length === 0 ? (
                 <Text className="block text-sm text-gray-500 text-center py-4">暂无顺延假期</Text>
               ) : (
-                extendDetails.map((item, idx) => {
-                  const typeLabel = item.type === 'manual' ? '手动' : item.type === '全园' ? '全园' : item.type === '班级' ? '班级' : '个人'
-                  const typeColor = item.type === 'manual' ? 'bg-gray-200 text-gray-700' : item.type === '全园' ? 'bg-blue-100 text-blue-700' : item.type === '班级' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                extendDetails.filter((d) => d && d.isFrozen !== true).map((item, idx) => {
+                  const typeLabel = item.isAuto === false || item.type === 'manual' || item.type === '其它' ? '其他' : item.type === '全园' ? '全园' : item.type === '班级' ? '班级' : '个人'
+                  const typeColor = item.isAuto === false || item.type === 'manual' || item.type === '其它' ? 'bg-purple-100 text-purple-700' : item.type === '全园' ? 'bg-blue-100 text-blue-700' : item.type === '班级' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
                   return (
                     <View key={idx} className="flex flex-row items-center mb-3 pb-3 pr-3" style={{ borderBottom: '1px solid #f0f0f0' }}>
                       <View className="flex-1">
