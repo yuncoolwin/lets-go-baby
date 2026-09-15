@@ -385,10 +385,6 @@ export default function ChildDetailPage() {
       Taro.showToast({ title: '请输入幼儿姓名', icon: 'none' })
       return
     }
-    if (!editBirthDate) {
-      Taro.showToast({ title: '请选择出生日期', icon: 'none' })
-      return
-    }
     const newParentPhone = editParentPhone.trim()
     const originalParentPhone = (child?.parent_phone || '').trim()
     const doSaveChild = async () => {
@@ -398,7 +394,7 @@ export default function ChildDetailPage() {
         name: editName.trim(),
         nickname: editNickname.trim(),
         gender: editGender,
-        birth_date: editBirthDate,
+        birth_date: editBirthDate || null,
         status: editStatus,
         parent_name: editParentName.trim(),
         parent_phone: newParentPhone,
@@ -858,7 +854,7 @@ export default function ChildDetailPage() {
                   </View>
                   {/* 出生日期 */}
                   <View>
-                    <Label className="text-sm font-medium text-foreground">出生日期 *</Label>
+                    <Label className="text-sm font-medium text-foreground">出生日期</Label>
                     <View
                       className="mt-1 bg-gray-50 rounded-lg px-3 py-2"
                       onClick={() => setShowCalendar('birthDate')}
