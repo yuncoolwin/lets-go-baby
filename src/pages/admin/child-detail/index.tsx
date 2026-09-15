@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import { childrenApi, enrollmentApi, classApi, courseApi, adminApi, dailyApi, dropInApi } from '@/utils/api'
 import { format } from 'date-fns'
 
-import { Pencil, Trash2, BookOpen, Plus, X, Info } from 'lucide-react-taro'
+import { Pencil, Trash2, BookOpen, Plus, X } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge } from '@/utils/format'
 
@@ -1029,8 +1029,8 @@ export default function ChildDetailPage() {
                         缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{!isReadonly && enr.payment_channel ? `（${enr.payment_channel}）` : ''}
                       </Text>
                       {enr.notes && (
-                        <View className="ml-1" onClick={() => Taro.showModal({ title: '备注', content: enr.notes || '', showCancel: false })}>
-                          <Info size={12} color="#999" />
+                        <View className="ml-2" onClick={() => Taro.showModal({ title: '备注', content: enr.notes || '', showCancel: false })}>
+                          <Text className="text-xs" style={{ color: '#EA7D23' }}>备注</Text>
                         </View>
                       )}
                     </View>
@@ -1040,11 +1040,9 @@ export default function ChildDetailPage() {
                       <Text className="text-xs" style={enr.extended_end_date ? { color: '#E8651A' } : {}}>
                         顺延结束日期：{enr.extended_end_date || '无'}
                       </Text>
-                      {enr.extended_end_date && (
-                        <View className="ml-1" onClick={() => loadExtendDetail(enr)}>
-                          <Info size={12} color="#999" />
-                        </View>
-                      )}
+                      <View className="ml-2" onClick={() => loadExtendDetail(enr)}>
+                        <Text className="text-xs" style={{ color: '#EA7D23' }}>明细</Text>
+                      </View>
                     </View>
                   )}
                 </View>
@@ -1605,7 +1603,7 @@ export default function ChildDetailPage() {
             )}
             <View className="pt-3" style={{ borderTop: '1px solid #e5e5e5' }}>
               <Text className="block text-sm text-gray-500 text-center">
-                共顺延 <Text className="font-bold text-orange-500">{extendEditMode ? extendEditList.filter((d) => d && (d.isAuto === false || !d.isFrozen)).reduce((s, d) => s + (Number((d as any).overlapDays) || 0), 0) : extendTotalDays}</Text> 天，顺延至 <Text className="font-bold text-orange-500">{extendToDate}</Text>
+                共顺延 <Text className="font-bold text-orange-500">{extendEditMode ? extendEditList.filter((d) => d && (d.isAuto === false || !d.isFrozen)).reduce((s, d) => s + (Number((d as any).overlapDays) || 0), 0) : extendTotalDays}</Text> 天，顺延至 <Text className="font-bold text-orange-500">{extendToDate || '无'}</Text>
               </Text>
             </View>
           </View>
