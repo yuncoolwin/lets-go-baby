@@ -1038,13 +1038,10 @@ export default function ChildDetailPage() {
                     </View>
                   )}
                   {!['一学期', '一学年'].includes(enr.duration_type) && (
-                    <View className="flex flex-row items-center mt-1">
-                      <Text className="text-xs" style={enr.extended_end_date ? { color: '#E8651A' } : {}}>
+                    <View className="flex flex-row items-center mt-1" onClick={() => loadExtendDetail(enr)}>
+                      <Text className="text-xs" style={{ color: enr.extended_end_date ? '#E8651A' : undefined, textDecoration: 'underline' }}>
                         顺延结束日期：{enr.extended_end_date || '无'}
                       </Text>
-                      <View className="inline-flex items-center rounded-full border px-2 py-1 ml-2" style={{ backgroundColor: '#FFF4EA', borderColor: '#FFE0C2' }} onClick={() => loadExtendDetail(enr)}>
-                        <Text className="text-xs" style={{ color: '#EA7D23' }}>明细</Text>
-                      </View>
                     </View>
                   )}
                 </View>
