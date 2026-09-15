@@ -981,7 +981,14 @@ export default function ChildDetailPage() {
                   className="bg-gray-50 rounded-xl p-3 mb-2 relative"
                 >
                   <View className="flex items-center justify-between mb-1">
-                    <Text className="text-sm font-semibold text-foreground">{enr.course_type}</Text>
+                    <View className="flex items-center gap-2">
+                      <Text className="text-sm font-semibold text-foreground">{enr.course_type}</Text>
+                      {enr.notes && (
+                        <View className="inline-flex items-center rounded-full border px-2 py-1" style={{ backgroundColor: '#FFF4EA', borderColor: '#FFE0C2' }} onClick={() => Taro.showModal({ title: '备注', content: enr.notes || '', showCancel: false })}>
+                          <Text className="text-xs" style={{ color: '#EA7D23' }}>备注</Text>
+                        </View>
+                      )}
+                    </View>
                     <View className="flex items-center gap-2">
                       <Badge className={enr.status === '进行中' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
                         <Text className="text-xs">{enr.status}</Text>
@@ -1028,11 +1035,6 @@ export default function ChildDetailPage() {
                       <Text className="text-xs text-gray-500">
                         缴费：{enr.payment_amount ? `${enr.payment_amount}元` : ''}{!isReadonly && enr.payment_channel ? `（${enr.payment_channel}）` : ''}
                       </Text>
-                      {enr.notes && (
-                        <View className="ml-2" onClick={() => Taro.showModal({ title: '备注', content: enr.notes || '', showCancel: false })}>
-                          <Text className="text-xs" style={{ color: '#EA7D23' }}>备注</Text>
-                        </View>
-                      )}
                     </View>
                   )}
                   {!['一学期', '一学年'].includes(enr.duration_type) && (
@@ -1040,7 +1042,7 @@ export default function ChildDetailPage() {
                       <Text className="text-xs" style={enr.extended_end_date ? { color: '#E8651A' } : {}}>
                         顺延结束日期：{enr.extended_end_date || '无'}
                       </Text>
-                      <View className="ml-2" onClick={() => loadExtendDetail(enr)}>
+                      <View className="inline-flex items-center rounded-full border px-2 py-1 ml-2" style={{ backgroundColor: '#FFF4EA', borderColor: '#FFE0C2' }} onClick={() => loadExtendDetail(enr)}>
                         <Text className="text-xs" style={{ color: '#EA7D23' }}>明细</Text>
                       </View>
                     </View>
