@@ -1290,8 +1290,14 @@ export default function ChildDetailPage() {
       {/* 临时课程新增/编辑弹窗 */}
       {showDropInForm && (
         <View
-          className="fixed inset-0 z-50"
-          style={{ backgroundColor: 'rgba(255,248,240,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          className="z-50"
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            width: '100%', height: '100%',
+            backgroundColor: 'rgba(255,248,240,0.9)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 50,
+          }}
           onClick={() => setShowDropInForm(false)}
         >
           <View
@@ -1343,14 +1349,14 @@ export default function ChildDetailPage() {
               <View style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
                 {editingDropIn && (
                   <View style={{ flex: 1 }}>
-                    <Button size="sm" variant="destructive" onClick={handleDropInDelete}>删除</Button>
+                    <Button className="w-full h-11" variant="destructive" onClick={handleDropInDelete}>删除</Button>
                   </View>
                 )}
                 <View style={{ flex: 1 }}>
-                  <Button size="sm" onClick={() => setShowDropInForm(false)}>取消</Button>
+                  <Button className="w-full h-11" onClick={() => setShowDropInForm(false)}>取消</Button>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Button size="sm" onClick={saveDropIn}>保存</Button>
+                  <Button className="w-full h-11" onClick={saveDropIn}>保存</Button>
                 </View>
               </View>
             </View>
@@ -1361,8 +1367,14 @@ export default function ChildDetailPage() {
       {/* 临时课程考勤详情弹窗 */}
       {showDiDetail && detailDropIn && (
         <View
-          className="fixed inset-0 z-50"
-          style={{ backgroundColor: 'rgba(255,248,240,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          className="z-50"
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            width: '100%', height: '100%',
+            backgroundColor: 'rgba(255,248,240,0.9)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 50,
+          }}
           onClick={() => setShowDiDetail(false)}
         >
           <View
@@ -1380,7 +1392,7 @@ export default function ChildDetailPage() {
               {Array.isArray(detailDropIn.days) && detailDropIn.days.length > 0 ? (
                 detailDropIn.days.map((day: any) => (
                   <View key={day.date} className="flex items-center justify-between py-2 border-b border-border" style={{ opacity: 0.6 }}>
-                    <Text className="text-sm text-foreground">{day.date}</Text>
+                    <Text className="text-sm text-foreground">{day.date}（{weekName(day.date)}）</Text>
                     <Text className="text-xs text-gray-500">
                       来园：{day.check_in_time ? String(day.check_in_time).slice(11, 16) : '未记录'}　离园：{day.check_out_time ? String(day.check_out_time).slice(11, 16) : '未记录'}
                     </Text>
