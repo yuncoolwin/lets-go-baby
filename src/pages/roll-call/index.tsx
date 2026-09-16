@@ -25,6 +25,7 @@ interface ChildItem {
   attendance_status?: string | null
   course_type?: string | null
   is_drop_in?: boolean
+  drop_in_id?: string | null
   check_in_time?: string | null
   check_out_time?: string | null
   record_status?: string | null
@@ -185,6 +186,7 @@ export default function RollCallPage() {
               check_out_time: s.check_out_time || null,
               record_status: s.status || null,
               is_drop_in: s.is_drop_in,
+              drop_in_id: s.drop_in_id || null,
             })
             const status = s.attendance_status
             if (status === 'present' || status === 'absent' || status === 'leave' || status === 'full_day' || status === 'half_day') {
@@ -275,6 +277,7 @@ export default function RollCallPage() {
             check_out_time: s.check_out_time || null,
             record_status: s.attendance_status || null,
             is_drop_in: s.is_drop_in,
+            drop_in_id: s.drop_in_id || null,
           })
           const status = s.attendance_status
           if (status === 'present' || status === 'absent' || status === 'leave' || status === 'full_day' || status === 'half_day') {

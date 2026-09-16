@@ -3,6 +3,20 @@ import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { isSaturday, isWeekend } from '@/utils/date.util';
 import { buildMakeupLayers } from '@/children/utils/holiday-helper';
 
+/**
+ * 判断某天是否属于某课程类型的上课日（与 attendance.service 保持一致）：
+ * - 全日托/半日托：仅周一至周五
+ * - 周六托：仅周六
+ * - 其他课程类型：不限（保留全部日期）
+ */
+function isCourseActiveDay(courseType: string, dateStr: string): boolean {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dow = new Date(y, m - 1, d).getDay();
+  if (courseType === '全日托' || courseType === '半日托') return dow >= 1 && dow <= 5;
+  if (courseType === '周六托') return dow === 6;
+  return true;
+}
+
 @Injectable()
 export class TeacherService {
   private get client() {
@@ -412,6 +426,7 @@ export class TeacherService {
       nickname: string;
       extended_end_date: string | null;
       is_drop_in?: boolean;
+      drop_in_id?: string;
     }>>();
 
     for (const e of filteredEnrollments) {
@@ -432,13 +447,22 @@ export class TeacherService {
       });
     }
 
-    // 附加临时来园幼儿（不在报读中，但当天有临时来园记录）
+    // 附加临时来园幼儿（不在报读中，但当天有临时来园记录；支持区间匹配 + 上课日过滤）
     try {
-      const { data: dropIns } = await this.client
+      const { data: allDropIns } = await this.client
         .from('drop_in_records')
-        .select('child_id, course_type')
-        .eq('class_id', teacherClassId)
-        .eq('date', queryDate);
+        .select('id, child_id, course_type, date, start_date, end_date')
+        .eq('class_id', teacherClassId);
+      const dropIns = (allDropIns || []).filter(r => {
+        if (r.date === queryDate) return true;
+        return (
+          r.start_date &&
+          r.end_date &&
+          r.start_date <= queryDate &&
+          r.end_date >= queryDate &&
+          isCourseActiveDay(r.course_type, queryDate)
+        );
+      });
       if (dropIns && dropIns.length > 0) {
         // 补齐临时来园幼儿信息（可能未报读，不在 childrenMap 中）
         const dropChildIds = [...new Set(dropIns.map(d => d.child_id).filter(id => !childrenMap[id]))];
@@ -456,6 +480,7 @@ export class TeacherService {
           if (exists) continue;
           groupMap.get(ct)!.push({
             child_id: d.child_id,
+            drop_in_id: d.id,
             name: childrenMap[d.child_id]?.name || '',
             gender: childrenMap[d.child_id]?.gender || '',
             birth_date: childrenMap[d.child_id]?.birth_date || '',
@@ -554,6 +579,7 @@ export class TeacherService {
           nickname: s.nickname || "",
           extended_end_date: s.extended_end_date || s.end_date,
           is_drop_in: s.is_drop_in || false,
+          drop_in_id: (s as any).drop_in_id || null,
           check_in_time: recordsMap.get(attKey)?.check_in_time || null,
           check_out_time: recordsMap.get(attKey)?.check_out_time || null,
         };
