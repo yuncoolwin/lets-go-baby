@@ -4,19 +4,6 @@ import { getShanghaiToday, isSaturday, isWeekend } from '@/utils/date.util';
 import { AuthzService } from '@/auth/authz.service';
 import { buildMakeupLayers } from '@/children/utils/holiday-helper';
 
-/**
- * 判断某天是否为某课程类型的上课日（用于临时课程区间考勤日的过滤）
- * - 全日托 / 半日托：仅工作日（周一至周五），周六日不计入
- * - 周六托：仅周六
- * - 其他课程类型：区间内全部日期
- */
-function isDropInSchoolDay(courseType: string, dateStr: string): boolean {
-  const weekdayOnly = ['全日托', '半日托'].includes(courseType);
-  if (weekdayOnly) return !isWeekend(dateStr);
-  if (courseType === '周六托') return isSaturday(dateStr);
-  return true;
-}
-
 @Injectable()
 export class AttendanceService {
   constructor(private readonly authz: AuthzService) {}
@@ -348,11 +335,10 @@ export class AttendanceService {
         .from('drop_in_records')
         .select('id, child_id, course_type, date, start_date, end_date')
         .eq('class_id', classId);
-      // 区间匹配 + 上课日过滤：单日 date=当天，或 区间 start_date<=当天<=end_date，且当天为该课程上课日
+      // 区间匹配：单日 date=当天，或 区间 start_date<=当天<=end_date
       const dropIns = (allDropIns || []).filter(r =>
-        (r.date === queryDate ||
-        (r.start_date && r.end_date && r.start_date <= queryDate && r.end_date >= queryDate)) &&
-        isDropInSchoolDay(r.course_type, queryDate)
+        r.date === queryDate ||
+        (r.start_date && r.end_date && r.start_date <= queryDate && r.end_date >= queryDate)
       );
       if (dropIns && dropIns.length > 0) {
         // 补齐临时来园幼儿信息（可能未报读，不在 childrenMap 中）
@@ -688,8 +674,6 @@ export class AttendanceService {
       const days: { date: string; check_in_time: string | null; check_out_time: string | null; status: string | null }[] = [];
       if (s && e) {
         for (const ds of eachDate(s, e)) {
-          // 仅保留该课程类型的上课日（全日托/半日托仅工作日、周六托仅周六、其他为全部日期）
-          if (!isDropInSchoolDay(r.course_type, ds)) continue;
           const rec = recMap.get(`${ds}__${r.course_type}`);
           days.push({
             date: ds,

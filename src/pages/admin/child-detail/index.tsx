@@ -824,12 +824,6 @@ export default function ChildDetailPage() {
     const res: any = await dropInApi.remove({ id: d.id })
     if (res?.code === 200) {
       Taro.showToast({ title: '已删除', icon: 'none' })
-      setShowDropInForm(false)
-      setEditingDropIn(null)
-      setDiCourseType('')
-      setDiStartDate('')
-      setDiEndDate('')
-      setDiNote('')
       await fetchDropIns()
     } else {
       Taro.showToast({ title: res?.msg || '删除失败', icon: 'none' })
@@ -1181,8 +1175,12 @@ export default function ChildDetailPage() {
                 <Text className="text-base font-semibold text-foreground">临时课程</Text>
               </View>
               {canEdit && (
-                <View className="flex items-center justify-center rounded-full" style={{ width: 28, height: 28, backgroundColor: '#EA7D23', boxShadow: '0 2px 6px rgba(234,125,35,.35)' }} onClick={openAddDropIn}>
-                  <Plus size={16} color="#fff" />
+                <View
+                  className="inline-flex items-center rounded-full border px-3 py-1"
+                  style={{ backgroundColor: '#FFF4EA', borderColor: '#FFE0C2' }}
+                  onClick={openAddDropIn}
+                >
+                  <Text className="text-xs" style={{ color: '#EA7D23' }}>新增临时课程</Text>
                 </View>
               )}
             </View>
@@ -1195,7 +1193,7 @@ export default function ChildDetailPage() {
                 <View key={d.id} className="bg-gray-50 rounded-xl p-3 mb-2">
                   <View className="flex items-center justify-between">
                     <Text className="text-sm font-semibold text-foreground">{d.course_type}</Text>
-                    <View className="flex items-center gap-2">
+                    <View className="flex items-center gap-3">
                       <View
                         className="inline-flex items-center rounded-full border px-3 py-1"
                         style={{ backgroundColor: '#FFF4EA', borderColor: '#FFE0C2' }}
@@ -1204,9 +1202,10 @@ export default function ChildDetailPage() {
                         <Text className="text-xs" style={{ color: '#EA7D23' }}>考勤</Text>
                       </View>
                       {canEdit && (
-                        <View onClick={() => openEditDropIn(d)}>
-                          <Pencil size={14} color="#999" />
-                        </View>
+                        <>
+                          <Text className="text-xs text-primary" onClick={() => openEditDropIn(d)}>编辑</Text>
+                          <Text className="text-xs text-red-500" onClick={() => removeDropIn(d)}>删除</Text>
+                        </>
                       )}
                     </View>
                   </View>
@@ -1336,11 +1335,6 @@ export default function ChildDetailPage() {
                 </View>
               </View>
               <View style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
-                {editingDropIn && (
-                  <View style={{ flex: 1 }}>
-                    <Button variant="destructive" size="sm" onClick={() => removeDropIn(editingDropIn)}>删除</Button>
-                  </View>
-                )}
                 <View style={{ flex: 1 }}>
                   <Button size="sm" onClick={() => setShowDropInForm(false)}>取消</Button>
                 </View>
