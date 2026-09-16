@@ -355,6 +355,30 @@ export default function RollCallPage() {
     }
   }
 
+  const handleRemoveDropIn = (child: any) => {
+    Taro.showModal({
+      title: '删除确认',
+      content: '确定删除该幼儿的临时来园记录吗？',
+      confirmColor: '#EA7D23',
+      success: async (r) => {
+        if (!r.confirm) return
+        try {
+          await dropInApi.remove({
+            child_id: child.id,
+            class_id: child.class_id || classId,
+            course_type: child.course_type,
+            date: selectedDate,
+          })
+          Taro.showToast({ title: '已删除临时来园', icon: 'success' })
+          loadData()
+        } catch (e) {
+          console.error('[RollCall] drop-in remove error:', e)
+          Taro.showToast({ title: '删除失败', icon: 'none' })
+        }
+      },
+    })
+  }
+
   const handleSave = async () => {
     try {
       // 遍历所有幼儿，包括未考勤的
@@ -813,7 +837,14 @@ export default function RollCallPage() {
                                       })()}
                                       <View className="flex-1 flex items-center gap-2" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                                         <Text className="block text-base font-medium text-gray-900 truncate">{child.name}</Text>
-                                        {child.is_drop_in && <Text className="block text-xs text-orange-600">临时来园</Text>}
+                                        {child.is_drop_in && (
+                                        <View className="flex flex-row items-center" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '4px' }}>
+                                          <Text className="block text-xs text-orange-600">临时来园</Text>
+                                          <View className="flex items-center justify-center w-4 h-4 rounded-full bg-red-100 flex-shrink-0" onClick={() => handleRemoveDropIn(child)}>
+                                            <Text className="block text-xs leading-none text-red-500">✕</Text>
+                                          </View>
+                                        </View>
+                                      )}
                                       </View>
                                       {child.check_out_time ? (
                                         <Text className="block text-xs text-gray-400 flex-shrink-0">已离园</Text>

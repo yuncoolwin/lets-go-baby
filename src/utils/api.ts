@@ -235,6 +235,10 @@ export const dropInApi = {
 
   // 按幼儿查询临时来园记录（date 倒序）
   list: (childId: string) => request({ url: `/api/attendance/drop-ins?child_id=${childId}` }),
+
+  // 删除临时来园记录
+  remove: (data: { child_id: string; class_id: string; course_type?: string; date: string }) =>
+    request({ url: '/api/attendance/drop-in/remove', method: 'POST', data }),
 }
 
 export const authApi = {

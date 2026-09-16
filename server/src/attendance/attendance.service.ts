@@ -537,6 +537,41 @@ export class AttendanceService {
   }
 
   /**
+   * 删除临时来园记录（drop_in_records），教师仅限本班
+   */
+  async removeDropIn(userId: string, dto: { child_id: string; class_id: string; course_type?: string; date: string }) {
+    if (!dto.child_id || !dto.class_id || !dto.date) {
+      return { code: 400, msg: '参数不完整' };
+    }
+    const denied = await this.canAccessClass(userId, dto.class_id);
+    if (denied) return { code: 403, msg: denied };
+
+    let query = this.client
+      .from('drop_in_records')
+      .delete()
+      .eq('child_id', dto.child_id)
+      .eq('class_id', dto.class_id)
+      .eq('date', dto.date);
+    if (dto.course_type) {
+      query = query.eq('course_type', dto.course_type);
+    }
+    const { error } = await query;
+    if (error) return { code: 500, msg: `删除临时来园记录失败: ${error.message}` };
+
+    const { error: logErr } = await this.client.from('audit_logs').insert({
+      user_id: userId,
+      action: 'drop_in_remove',
+      target_type: 'attendance',
+      detail: { child_id: dto.child_id, class_id: dto.class_id, date: dto.date, course_type: dto.course_type || '' },
+      level: 'info',
+      created_at: new Date().toISOString(),
+    });
+    if (logErr) console.warn('[audit-log] drop_in_remove 写入失败:', logErr.message);
+
+    return { code: 200, msg: 'success' };
+  }
+
+  /**
    * 按幼儿查询临时来园记录（按 date 倒序）
    */
   async getDropIns(childId: string) {
@@ -632,9 +667,6 @@ export class AttendanceService {
       .select()
       .single();
     if (error) throw error;
-
-    // 同步维护接送记录（按 child_id + record_date + course_type）
-    await this.syncAttendanceRecord(dto.child_id, dto.class_id, dto.date, courseType, dto.status);
 
     if (data) {
       const { error: logErr } = await this.client.from('audit_logs').insert({
@@ -789,6 +821,18 @@ export class AttendanceService {
     }
     const { error } = await query;
     if (error) throw error;
+
+    // 同步删除同班级同日期（同课程）的接送记录，避免清除后仍残留入园/离园时间、"已离园"等状态
+    let recQuery = this.client
+      .from('attendance_records')
+      .delete()
+      .eq('class_id', classId)
+      .eq('record_date', date);
+    if (courseType) {
+      recQuery = recQuery.eq('course_type', courseType);
+    }
+    const { error: recErr } = await recQuery;
+    if (recErr) throw recErr;
 
     const { error: logErr } = await this.client.from('audit_logs').insert({
       user_id: userId,

@@ -175,6 +175,17 @@ export class AttendanceController {
     return { code: (data as any)?.code || 200, msg: (data as any)?.msg || 'success', data: (data as any)?.data ?? null };
   }
 
+  @Post('drop-in/remove')
+  @HttpCode(200)
+  async removeDropIn(
+    @Req() req: Request,
+    @Body() body: { child_id: string; class_id: string; course_type?: string; date: string },
+  ) {
+    const userId = (req as any).user?.userId;
+    const data = await this.attendanceService.removeDropIn(userId, body);
+    return { code: (data as any)?.code || 200, msg: (data as any)?.msg || 'success' };
+  }
+
   @Get('drop-ins')
   @HttpCode(200)
   async getDropIns(@Query('child_id') childId: string) {
