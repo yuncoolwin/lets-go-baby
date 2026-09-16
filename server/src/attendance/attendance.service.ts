@@ -4,6 +4,20 @@ import { getShanghaiToday, isSaturday, isWeekend } from '@/utils/date.util';
 import { AuthzService } from '@/auth/authz.service';
 import { buildMakeupLayers } from '@/children/utils/holiday-helper';
 
+/**
+ * 判断某天是否属于某课程类型的上课日：
+ * - 全日托/半日托：仅周一至周五
+ * - 周六托：仅周六
+ * - 其他课程类型：不限（保留全部日期）
+ */
+function isCourseActiveDay(courseType: string, dateStr: string): boolean {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dow = new Date(y, m - 1, d).getDay();
+  if (courseType === '全日托' || courseType === '半日托') return dow >= 1 && dow <= 5;
+  if (courseType === '周六托') return dow === 6;
+  return true;
+}
+
 @Injectable()
 export class AttendanceService {
   constructor(private readonly authz: AuthzService) {}
@@ -335,11 +349,17 @@ export class AttendanceService {
         .from('drop_in_records')
         .select('id, child_id, course_type, date, start_date, end_date')
         .eq('class_id', classId);
-      // 区间匹配：单日 date=当天，或 区间 start_date<=当天<=end_date
-      const dropIns = (allDropIns || []).filter(r =>
-        r.date === queryDate ||
-        (r.start_date && r.end_date && r.start_date <= queryDate && r.end_date >= queryDate)
-      );
+      // 区间匹配：单日 date=当天 直接命中；区间 start_date<=当天<=end_date 且当天是该课程上课日
+      const dropIns = (allDropIns || []).filter(r => {
+        if (r.date === queryDate) return true;
+        return (
+          r.start_date &&
+          r.end_date &&
+          r.start_date <= queryDate &&
+          r.end_date >= queryDate &&
+          isCourseActiveDay(r.course_type, queryDate)
+        );
+      });
       if (dropIns && dropIns.length > 0) {
         // 补齐临时来园幼儿信息（可能未报读，不在 childrenMap 中）
         const dropChildIds = [...new Set(dropIns.map(d => d.child_id).filter(id => !childrenMap[id]))];
@@ -674,6 +694,8 @@ export class AttendanceService {
       const days: { date: string; check_in_time: string | null; check_out_time: string | null; status: string | null }[] = [];
       if (s && e) {
         for (const ds of eachDate(s, e)) {
+          // 按课程类型过滤上课日（全日/半日=工作日、周六托=周六、其他=全部）
+          if (!isCourseActiveDay(r.course_type, ds)) continue;
           const rec = recMap.get(`${ds}__${r.course_type}`);
           days.push({
             date: ds,

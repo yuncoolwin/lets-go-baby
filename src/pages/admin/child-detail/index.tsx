@@ -105,12 +105,12 @@ const rangeDays = (start: string, end: string): number => {
   const diff = new Date(`${end}T00:00:00`).getTime() - new Date(`${start}T00:00:00`).getTime()
   return Math.max(1, Math.round(diff / 86400000) + 1)
 }
-/** 临时课程日期区间展示：单日=日期+星期，多日=起～止 N天 */
+/** 临时课程日期区间展示：单日=日期+星期，多日=起～止 N天（括号包裹） */
 const fmtDropInRange = (start: string, end: string): string => {
   const s = start || ''
   const e = end || s
-  if (s === e) return s ? `${s} ${weekName(s)}` : '--'
-  return `${s}～${e} ${rangeDays(s, e)}天`
+  if (s === e) return s ? `${s} （${weekName(s)}）` : '--'
+  return `${s}～${e} （${rangeDays(s, e)}天）`
 }
 
 export default function ChildDetailPage() {
@@ -816,18 +816,26 @@ export default function ChildDetailPage() {
     }
   }
 
-  const removeDropIn = async (d: any) => {
+  const removeDropIn = async (d: any): Promise<boolean> => {
     const ok: any = await new Promise((resolve) =>
       Taro.showModal({ title: '删除临时课程', content: '确定删除该幼儿的临时课程吗？', success: (r) => resolve(!!r.confirm) })
     )
-    if (!ok) return
+    if (!ok) return false
     const res: any = await dropInApi.remove({ id: d.id })
     if (res?.code === 200) {
       Taro.showToast({ title: '已删除', icon: 'none' })
       await fetchDropIns()
-    } else {
-      Taro.showToast({ title: res?.msg || '删除失败', icon: 'none' })
+      return true
     }
+    Taro.showToast({ title: res?.msg || '删除失败', icon: 'none' })
+    return false
+  }
+
+  /** 编辑弹窗内删除：二次确认后删除并关闭弹窗 */
+  const handleDropInDelete = async () => {
+    if (!editingDropIn) return
+    const done = await removeDropIn(editingDropIn)
+    if (done) setShowDropInForm(false)
   }
 
   const openDiDetail = (d: any) => {
@@ -1175,13 +1183,12 @@ export default function ChildDetailPage() {
                 <Text className="text-base font-semibold text-foreground">临时课程</Text>
               </View>
               {canEdit && (
-                <View
-                  className="inline-flex items-center rounded-full border px-3 py-1"
-                  style={{ backgroundColor: '#FFF4EA', borderColor: '#FFE0C2' }}
-                  onClick={openAddDropIn}
-                >
-                  <Text className="text-xs" style={{ color: '#EA7D23' }}>新增临时课程</Text>
-                </View>
+                <Button className="h-8 px-3 bg-primary text-white rounded-lg" onClick={openAddDropIn}>
+                  <View className="flex items-center gap-1">
+                    <Plus size={14} color="#fff" />
+                    <Text className="text-xs text-white">新增课程</Text>
+                  </View>
+                </Button>
               )}
             </View>
             {dropIns.length === 0 ? (
@@ -1202,10 +1209,9 @@ export default function ChildDetailPage() {
                         <Text className="text-xs" style={{ color: '#EA7D23' }}>考勤</Text>
                       </View>
                       {canEdit && (
-                        <>
-                          <Text className="text-xs text-primary" onClick={() => openEditDropIn(d)}>编辑</Text>
-                          <Text className="text-xs text-red-500" onClick={() => removeDropIn(d)}>删除</Text>
-                        </>
+                        <View onClick={() => openEditDropIn(d)}>
+                          <Pencil size={14} color="#999" />
+                        </View>
                       )}
                     </View>
                   </View>
@@ -1335,6 +1341,11 @@ export default function ChildDetailPage() {
                 </View>
               </View>
               <View style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
+                {editingDropIn && (
+                  <View style={{ flex: 1 }}>
+                    <Button size="sm" variant="destructive" onClick={handleDropInDelete}>删除</Button>
+                  </View>
+                )}
                 <View style={{ flex: 1 }}>
                   <Button size="sm" onClick={() => setShowDropInForm(false)}>取消</Button>
                 </View>
