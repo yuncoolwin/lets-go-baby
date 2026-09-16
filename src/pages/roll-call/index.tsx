@@ -80,8 +80,6 @@ export default function RollCallPage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [tempAttendance, setTempAttendance] = useState<Record<string, AttendanceItem['status']>>({})
   const [dateList, setDateList] = useState<string[]>([])
-  const [dateMarkers, setDateMarkers] = useState<Record<string, 'completed' | 'incomplete'>>({})
-  const [attCalendarMonth, setAttCalendarMonth] = useState<Date>()
   const [expandedGroup, setExpandedGroup] = useState<Set<string>>(new Set())
   const [expandedAttendStat, setExpandedAttendStat] = useState<string>('')
   const [calendarVisible, setCalendarVisible] = useState(false)
@@ -151,16 +149,10 @@ export default function RollCallPage() {
             const dateRes = await Network.request({
               url: `/api/attendance/dates/${currentClassId}`,
             })
-            const raw: any[] = dateRes.data?.data || []
-            const markers: Record<string, 'completed' | 'incomplete'> = {}
-            raw.forEach((r: any) => { if (r && r.date) markers[r.date] = r.status === 'completed' ? 'completed' : 'incomplete' })
-            const dates = raw.filter((r: any) => r && r.date).map((r: any) => r.date)
+            const dates: string[] = dateRes.data?.data || []
             const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
             if (!dates.includes(todayStr)) dates.unshift(todayStr)
             setDateList(dates)
-            setDateMarkers(markers)
-            const latestRec = raw.find((r: any) => r && r.date)
-            if (latestRec?.date) setAttCalendarMonth(new Date(Number(String(latestRec.date).slice(0, 4)), Number(String(latestRec.date).slice(5, 7)) - 1, 1))
           } catch (e) {
             console.error('[RollCall] load dates error:', e)
           }
@@ -254,19 +246,13 @@ export default function RollCallPage() {
         const dateRes = await Network.request({
           url: `/api/attendance/dates/${theClassId}`,
         })
-        const raw: any[] = dateRes.data?.data || []
-        const markers: Record<string, 'completed' | 'incomplete'> = {}
-        raw.forEach((r: any) => { if (r && r.date) markers[r.date] = r.status === 'completed' ? 'completed' : 'incomplete' })
-        const dates = raw.filter((r: any) => r && r.date).map((r: any) => r.date)
+        const dates: string[] = dateRes.data?.data || []
         // 确保"今天"始终在列表中
         const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
         if (!dates.includes(todayStr)) {
           dates.unshift(todayStr)
         }
         setDateList(dates)
-        setDateMarkers(markers)
-        const latestRec = raw.find((r: any) => r && r.date)
-        if (latestRec?.date) setAttCalendarMonth(new Date(Number(String(latestRec.date).slice(0, 4)), Number(String(latestRec.date).slice(5, 7)) - 1, 1))
       } catch (e) {
         console.error('[RollCall] load dates error:', e)
       }
@@ -899,13 +885,9 @@ export default function RollCallPage() {
       </ScrollView>
 
       {/* 日历弹窗 */}
-      {calendarVisible && (
       <CalendarOverlay
-        key={`att-${attCalendarMonth ? attCalendarMonth.getTime() : 'none'}`}
-        visible
+        visible={calendarVisible}
         value={selectedDate}
-        dateMarkers={dateMarkers}
-        defaultMonth={attCalendarMonth}
         onChange={(dateStr) => {
           setSelectedDate(dateStr)
           setCalendarVisible(false)
@@ -916,7 +898,6 @@ export default function RollCallPage() {
           return !dateList.includes(formatted)
         }}
       />
-      )}
 
       {/* 底部操作栏 */}
       <View

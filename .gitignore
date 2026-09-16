@@ -50,6 +50,3 @@ key/
 .codegraph
 node-compile-cache/
 .codegraph/
-
-# Credentials (sensitive) - do not commit
-DEVELOP_DB_CREDENTIALS.txt

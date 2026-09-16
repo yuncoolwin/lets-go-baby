@@ -34,7 +34,6 @@ type CommonProps = {
   toYear?: number
   showAllDates?: boolean
   onClearDate?: () => void
-  dateMarkers?: Record<string, 'completed' | 'incomplete'>
 }
 
 type SingleProps = CommonProps & {
@@ -86,7 +85,6 @@ function Calendar({
   toYear,
   showAllDates,
   onClearDate,
-  dateMarkers,
   ...props
 }: CalendarProps) {
   const singleSelected = getSingleSelected({ month, defaultMonth, onMonthChange, showOutsideDays, weekStartsOn, disabled, className, ...props } as CalendarProps)
@@ -350,7 +348,6 @@ function Calendar({
                     rangeStart={rangeStart}
                     rangeMiddle={rangeMiddle}
                     rangeEnd={rangeEnd}
-                    marker={dateMarkers?.[format(date, 'yyyy-MM-dd')]}
                     onPress={handleSelect}
                   />
                 </View>
@@ -400,7 +397,6 @@ type CalendarDayButtonProps = {
   rangeStart: boolean
   rangeMiddle: boolean
   rangeEnd: boolean
-  marker?: 'completed' | 'incomplete'
   onPress: (date: Date) => void
 }
 
@@ -413,9 +409,9 @@ function CalendarDayButton({
   rangeStart,
   rangeMiddle,
   rangeEnd,
-  marker,
   onPress,
 }: CalendarDayButtonProps) {
+  const base = "h-8 w-8 p-0 flex items-center justify-center rounded-md"
   const outsideClass = outside ? "text-muted-foreground" : ""
   const todayClass = today ? "bg-accent text-accent-foreground" : ""
   const selectedSingleClass = selectedSingle
@@ -430,39 +426,27 @@ function CalendarDayButton({
   const rangeMiddleClass = rangeMiddle
     ? "bg-accent text-accent-foreground rounded-none"
     : ""
-
-  const digitClass = cn(
-    "h-8 w-8 flex items-center justify-center rounded-md",
-    outsideClass,
-    todayClass,
-    selectedSingleClass,
-    rangeMiddleClass,
-    rangeStartClass,
-    rangeEndClass
-  )
+  const rangeCapClass = rangeStart || rangeEnd ? "rounded-md" : ""
 
   return (
-    <View
+    <Button
+      variant="ghost"
+      size="icon"
       className={cn(
-        "flex flex-col items-center justify-start rounded-md",
+        base,
+        outsideClass,
+        todayClass,
+        selectedSingleClass,
+        rangeMiddleClass,
+        rangeStartClass,
+        rangeEndClass,
+        rangeCapClass,
         disabled && "opacity-50 pointer-events-none"
       )}
       onClick={disabled ? undefined : () => onPress(date)}
     >
-      <View className={digitClass}>
-        <Text className="block text-sm">{format(date, "d")}</Text>
-      </View>
-      {marker && (
-        <View
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: marker === "completed" ? "#22c55e" : "#f97316"
-          }}
-        />
-      )}
-    </View>
+      <Text className="text-sm">{format(date, "d")}</Text>
+    </Button>
   )
 }
 
