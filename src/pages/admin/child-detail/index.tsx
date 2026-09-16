@@ -1620,7 +1620,7 @@ export default function ChildDetailPage() {
                 <View className="bg-gray-50 rounded-xl px-4 py-3">
                   <Input
                     className="w-full bg-transparent"
-                    type="number"
+                    type="digit"
                     placeholder="请输入缴费金额"
                     value={formPaymentAmount}
                     onInput={(e) => setFormPaymentAmount(e.detail.value)}
