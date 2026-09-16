@@ -71,7 +71,7 @@ export class ChildrenService {
     name: string;
     nickname?: string;
     gender: string;
-    birth_date: string;
+    birth_date?: string | null;
     class_id?: string | null;
     parent_name?: string;
     parent_phone?: string;
@@ -98,8 +98,12 @@ export class ChildrenService {
       .select('id')
       .eq('name', dto.name)
       .eq('gender', dto.gender || '')
-      .eq('birth_date', dto.birth_date)
       .eq('status', 'active');
+    if (dto.birth_date) {
+      q = q.eq('birth_date', dto.birth_date);
+    } else {
+      q = q.is('birth_date', null);
+    }
     if (dto.parent_phone) {
       q = q.eq('parent_phone', dto.parent_phone);
     } else {
@@ -117,7 +121,7 @@ export class ChildrenService {
         name: dto.name,
         nickname: dto.nickname || null,
         gender: dto.gender,
-        birth_date: dto.birth_date,
+        birth_date: dto.birth_date || null,
         class_id: dto.class_id || null,
         health_info: dto.health_info || null,
         allergies: dto.allergies || null,

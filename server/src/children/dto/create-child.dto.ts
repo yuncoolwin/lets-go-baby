@@ -6,7 +6,7 @@ export interface CreateChildDto {
   name: string;
   nickname?: string;
   gender: 'male' | 'female';
-  birth_date: string;
+  birth_date?: string | null;
   class_id?: string;
   parent_name?: string;
   parent_phone?: string;

@@ -41,18 +41,13 @@ export default function ChildAddPage() {
       Taro.showToast({ title: '请输入幼儿姓名', icon: 'none' })
       return
     }
-    if (!birthDate) {
-      Taro.showToast({ title: '请选择出生日期', icon: 'none' })
-      return
-    }
-
     setSubmitting(true)
     try {
       const res = await childrenApi.create({
         name: name.trim(),
         nickname: nickname.trim() || undefined,
         gender,
-        birth_date: birthDate,
+        birth_date: birthDate || null,
         status,
         class_id: undefined,
         parent_name: parentName || undefined,
