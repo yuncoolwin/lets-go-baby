@@ -797,6 +797,9 @@ export class AttendanceService {
     date: string,
     courseType?: string,
   ) {
+    if (!classId) {
+      return { error: true, code: 400, msg: '班级参数缺失，无法清除' };
+    }
     // 班级归属校验：教师仅能清空自己带教班级的考勤
     const denied = await this.canAccessClass(userId, classId);
     if (denied) return { error: true, code: 403, msg: denied };

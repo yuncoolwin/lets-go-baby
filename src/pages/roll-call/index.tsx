@@ -440,6 +440,12 @@ export default function RollCallPage() {
 
   const handleClear = async () => {
     if (!isAdmin && selectedDate !== today) return
+    // 管理员模式 classId 恒为空，须用所选班级 selectedClassId；"全部"模式无单一班级，提示先选班
+    const clearClassId = isAdmin ? selectedClassId : classId
+    if (!clearClassId) {
+      Taro.showToast({ title: '请先选择要清除的班级', icon: 'none' })
+      return
+    }
     Taro.showModal({
       title: '确认清除',
       content: `确定要清除 ${className} ${selectedDate} 全部考勤记录吗？`,
@@ -450,7 +456,7 @@ export default function RollCallPage() {
             await Network.request({
               url: '/api/attendance/clear',
               method: 'POST',
-              data: { class_id: classId, date: selectedDate, operator_user_id: userId ?? undefined, operator_role_id: currentRole?.id },
+              data: { class_id: clearClassId, date: selectedDate, operator_user_id: userId ?? undefined, operator_role_id: currentRole?.id },
             })
             Taro.showToast({ title: '已清除', icon: 'success' })
             loadData()
