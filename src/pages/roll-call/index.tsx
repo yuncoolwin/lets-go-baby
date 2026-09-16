@@ -899,8 +899,10 @@ export default function RollCallPage() {
       </ScrollView>
 
       {/* 日历弹窗 */}
+      {calendarVisible && (
       <CalendarOverlay
-        visible={calendarVisible}
+        key={`att-${attCalendarMonth ? attCalendarMonth.getTime() : 'none'}`}
+        visible
         value={selectedDate}
         dateMarkers={dateMarkers}
         defaultMonth={attCalendarMonth}
@@ -914,6 +916,7 @@ export default function RollCallPage() {
           return !dateList.includes(formatted)
         }}
       />
+      )}
 
       {/* 底部操作栏 */}
       <View
