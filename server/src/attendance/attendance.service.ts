@@ -791,6 +791,77 @@ export class AttendanceService {
     return { success: true, child_id: dto.childId };
   }
 
+  /**
+   * 入园：写入/更新该幼儿当天该课程入园记录（attendance_records），并同步考勤状态（attendance）
+   */
+  async recordCheckIn(userId: string, dto: {
+    child_id: string;
+    class_id: string;
+    course_type?: string;
+    date: string;
+  }) {
+    if (!dto.child_id || !dto.class_id || !dto.date) {
+      return { error: true, code: 400, msg: '入园参数不完整' };
+    }
+    // 归属校验：教师仅能操作自己带教的班级，admin/superadmin 全部班级
+    const denied = await this.canAccessClass(userId, dto.class_id);
+    if (denied) return { error: true, code: 403, msg: denied };
+
+    const courseType = dto.course_type || '';
+    const now = new Date().toISOString();
+
+    // 1) attendance_records：按 child_id + record_date + course_type 写入/更新入园时间
+    const { data: existing } = await this.client
+      .from('attendance_records')
+      .select('id')
+      .eq('child_id', dto.child_id)
+      .eq('record_date', dto.date)
+      .eq('course_type', courseType)
+      .maybeSingle();
+    if (existing) {
+      const { error } = await this.client
+        .from('attendance_records')
+        .update({ check_in_time: now, status: 'present', class_id: dto.class_id })
+        .eq('id', existing.id);
+      if (error) throw error;
+    } else {
+      const { error } = await this.client
+        .from('attendance_records')
+        .insert({ child_id: dto.child_id, class_id: dto.class_id, record_date: dto.date, course_type: courseType, check_in_time: now, status: 'present' });
+      if (error) throw error;
+    }
+
+    // 2) attendance：按 child_id + date + course_type upsert 考勤状态
+    const isFullDayCourse = courseType === '全日托' || courseType === '周六托';
+    const status = isFullDayCourse ? 'full_day' : 'present';
+    const { error: attErr } = await this.client
+      .from('attendance')
+      .upsert({
+        child_id: dto.child_id,
+        teacher_id: userId,
+        class_id: dto.class_id,
+        date: dto.date,
+        status,
+        course_type: courseType,
+        is_half_day: false,
+        updated_at: now,
+      }, { onConflict: 'child_id,date,course_type' });
+    if (attErr) throw attErr;
+
+    // 3) 审计日志
+    const { error: logErr } = await this.client.from('audit_logs').insert({
+      user_id: userId,
+      action: 'attendance_check_in',
+      target_type: 'attendance',
+      detail: { child_id: dto.child_id, class_id: dto.class_id, date: dto.date, course_type: courseType },
+      level: 'info',
+      created_at: now,
+    });
+    if (logErr) console.warn('[audit-log] attendance_check_in 写入失败:', logErr.message);
+
+    return { success: true, child_id: dto.child_id };
+  }
+
   async clearByClassAndDate(
     userId: string,
     classId: string,

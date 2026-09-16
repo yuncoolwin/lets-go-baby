@@ -224,6 +224,10 @@ export const attendanceApi = {
     check_out_time?: string
   }) =>
     request({ url: '/api/attendance/update-record-times', method: 'POST', data }),
+
+  // 入园：写入园时间并将考勤置为全天/出勤
+  checkIn: (data: { child_id: string; class_id: string; course_type: string; date: string }) =>
+    request({ url: '/api/attendance/check-in', method: 'POST', data }),
 }
 
 // ============ 临时来园 API ============

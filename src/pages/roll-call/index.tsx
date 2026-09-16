@@ -355,6 +355,26 @@ export default function RollCallPage() {
     }
   }
 
+  const handleCheckIn = async (child: ChildItem) => {
+    try {
+      await Network.request({
+        url: '/api/attendance/check-in',
+        method: 'POST',
+        data: {
+          child_id: child.id,
+          class_id: child.class_id || classId,
+          course_type: child.course_type || '',
+          date: selectedDate,
+        },
+      })
+      Taro.showToast({ title: '已入园', icon: 'success' })
+      loadData()
+    } catch (err) {
+      console.error('[RollCall] check-in error:', err)
+      Taro.showToast({ title: '入园失败', icon: 'none' })
+    }
+  }
+
   const handleRemoveDropIn = (child: any) => {
     Taro.showModal({
       title: '删除确认',
@@ -860,6 +880,13 @@ export default function RollCallPage() {
                                           onClick={() => handleCheckOut(child)}
                                         >
                                           <Text className="block text-sm text-orange-600">离园</Text>
+                                        </View>
+                                      ) : !isAgentAdmin ? (
+                                        <View
+                                          className="px-3 py-2 rounded-lg bg-orange-100 flex-shrink-0"
+                                          onClick={() => handleCheckIn(child)}
+                                        >
+                                          <Text className="block text-sm text-orange-600">入园</Text>
                                         </View>
                                       ) : null}
                                       {!isAgentAdmin && (isAdmin || selectedDate === today) && (child.check_in_time || child.check_out_time) && (
