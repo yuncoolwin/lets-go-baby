@@ -133,6 +133,7 @@ export default function ChildDetailPage() {
   const extendTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const [extendEditMode, setExtendEditMode] = useState(false)
   const [extendEditList, setExtendEditList] = useState<any[]>([])
+  const extendBaselineRef = useRef<any[]>([]) // 进入编辑态时 extendEditList 的深拷贝基线
   const [extendEditEnrId, setExtendEditEnrId] = useState<string>('')
   const [savingExtend, setSavingExtend] = useState(false)
   const [extendEditCalendar, setExtendEditCalendar] = useState<{ row: number; field: 'startDate' | 'endDate' } | null>(null)
@@ -222,8 +223,24 @@ export default function ChildDetailPage() {
 
   const startExtendEdit = () => {
     // 手动明细 + 自动明细共同作为编辑基线；自动明细动态计算、仅可冻结，手动明细独立维护
-    setExtendEditList(sortExtendRows(extendDetails.map((d) => ({ ...d }))))
+    const base = sortExtendRows(extendDetails.map((d) => ({ ...d })))
+    extendBaselineRef.current = JSON.parse(JSON.stringify(base))
+    setExtendEditList(base)
     setExtendEditMode(true)
+  }
+
+  // 相对进入编辑态时的基线是否有改变：手动集合或自动冻结集合任一不同即视为有改动
+  const manualExtendKey = (d: any) =>
+    `${String(d.name || '')}|${String(d.startDate || '')}|${String(d.endDate || '')}|${Number(d.overlapDays) || 0}`
+  const autoExtendKey = (d: any) =>
+    `${String(d.type || '')}|${String(d.name || '')}|${String(d.startDate || '')}|${String(d.endDate || '')}`
+  const hasExtendChanges = () => {
+    const base = extendBaselineRef.current || []
+    const baseManual = base.filter((d) => d && d.isAuto === false).map(manualExtendKey).sort()
+    const baseFrozen = base.filter((d) => d && d.isAuto !== false && d.isFrozen).map(autoExtendKey).sort()
+    const curManual = extendEditList.filter((d) => d && d.isAuto === false).map(manualExtendKey).sort()
+    const curFrozen = extendEditList.filter((d) => d && d.isAuto !== false && d.isFrozen).map(autoExtendKey).sort()
+    return baseManual.join('|') !== curManual.join('|') || baseFrozen.join('|') !== curFrozen.join('|')
   }
 
   const cancelExtendEdit = () => {
@@ -258,7 +275,7 @@ export default function ChildDetailPage() {
     }
     const manualRows = extendEditList.filter((d) => d && d.isAuto === false)
     const frozenAuto = extendEditList.filter((d) => d && d.isAuto !== false && d.isFrozen)
-    if (!manualRows.length && !frozenAuto.length) {
+    if (!hasExtendChanges()) {
       Taro.showToast({ title: '请添加手动顺延明细或冻结相关自动明细', icon: 'none' })
       return
     }
