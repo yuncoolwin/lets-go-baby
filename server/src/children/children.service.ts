@@ -184,7 +184,7 @@ export class ChildrenService {
     // Step 1: 先获取所有匹配条件的幼儿（不含分页），仅取 id + created_at（total 为过滤后数量）
     let idBuilder = this.client
       .from('children')
-      .select('id, created_at', { count: 'exact' })
+      .select('id, created_at, name', { count: 'exact' })
       .neq('status', 'archived');
 
     if (level === 'teacher') {
@@ -211,39 +211,63 @@ export class ChildrenService {
 
     const childIds = (allChildren || []).map(c => c.id);
     const childCreatedAtMap = new Map((allChildren || []).map(c => [c.id, c.created_at]));
+    const childNameMap = new Map((allChildren || []).map(c => [c.id, c.name || '']));
 
-    // Step 2: 查询所有 enrollments，获取每个幼儿最早的入园时间（课程实际开始日期 start_date 最小）
-    let enrollmentTimeMap = new Map<string, string>();
+    // Step 2: 查询所有 enrollments，获取每个幼儿的在读状态与最新报读开始时间
+    // hasActive：是否存在 status='进行中' 的报读（有在读课程）
+    // latestStart：该幼儿所有报读 start_date 的最大值（最新课程报读开始时间，无则空）
+    // hasEnrollment：是否带 start_date 的报读记录
+    let enrollInfo = new Map<string, { hasActive: boolean; latestStart: string; hasEnrollment: boolean }>();
     if (childIds.length > 0) {
-      // 查询所有 enrollments（不限状态），按 child_id 分组取最早 start_date
       const { data: enrollments } = await this.client
         .from('enrollments')
-        .select('child_id, start_date')
+        .select('child_id, start_date, status')
         .in('child_id', childIds);
 
       for (const e of enrollments || []) {
-        if (!e.start_date) continue; // 无开课时间的报读不参与入园时间计算
-        const existing = enrollmentTimeMap.get(e.child_id);
-        if (!existing || e.start_date < existing) {
-          enrollmentTimeMap.set(e.child_id, e.start_date);
+        const info = enrollInfo.get(e.child_id) || { hasActive: false, latestStart: '', hasEnrollment: false };
+        if (e.status === '进行中') info.hasActive = true;
+        if (e.start_date) {
+          info.hasEnrollment = true;
+          if (!info.latestStart || e.start_date > info.latestStart) {
+            info.latestStart = e.start_date;
+          }
         }
+        enrollInfo.set(e.child_id, info);
       }
     }
 
-    // Step 3: 按最早入园时间（start_date 最小）降序（越晚入园越靠前）；
-    // 仅一方有入园时间则有入园时间的排前面；双方都无入园时间按 created_at 降序兜底
+    // Step 3: 排序
+    // 第一层：有在读课程(hasActive) > 无在读但有报读(hasEnrollment) > 无任何报读
+    // 第二层：前两组内按 latestStart 降序（后报读在前，latestStart 为空者组末）
+    // 第三层：无报读组内按姓名拼音首字母升序；首字母相同按 created_at 降序兜底
     const sortedIds = childIds.sort((a, b) => {
-      const startA = enrollmentTimeMap.get(a);
-      const startB = enrollmentTimeMap.get(b);
-      const hasA = !!startA;
-      const hasB = !!startB;
-      if (hasA !== hasB) {
-        return hasA ? -1 : 1; // 有入园时间的排前
+      const ia = enrollInfo.get(a) || { hasActive: false, latestStart: '', hasEnrollment: false };
+      const ib = enrollInfo.get(b) || { hasActive: false, latestStart: '', hasEnrollment: false };
+
+      const groupA = ia.hasActive ? 0 : ia.hasEnrollment ? 1 : 2;
+      const groupB = ib.hasActive ? 0 : ib.hasEnrollment ? 1 : 2;
+      if (groupA !== groupB) return groupA - groupB;
+
+      // 前两组内：latestStart 降序
+      if (groupA < 2) {
+        const startA = ia.latestStart;
+        const startB = ib.latestStart;
+        const hasA = !!startA;
+        const hasB = !!startB;
+        if (hasA !== hasB) return hasA ? -1 : 1;
+        if (hasA && hasB && startA !== startB) return startB.localeCompare(startA);
       }
-      if (hasA && hasB) {
-        return startB.localeCompare(startA); // 入园时间降序（越晚入园越靠前）
+
+      // 无报读组内（groupA === 2）：按姓名拼音首字母升序
+      if (groupA === 2) {
+        const nameA = childNameMap.get(a) || '';
+        const nameB = childNameMap.get(b) || '';
+        const cmp = nameA.localeCompare(nameB, 'zh-CN');
+        if (cmp !== 0) return cmp;
       }
-      // 双方都无入园时间：created_at 降序兜底
+
+      // 兜底：created_at 降序
       const timeA = childCreatedAtMap.get(a) || '';
       const timeB = childCreatedAtMap.get(b) || '';
       return timeB.localeCompare(timeA);
