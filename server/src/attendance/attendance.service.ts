@@ -953,15 +953,58 @@ export class AttendanceService {
   async getDates(classId: string, courseType?: string) {
     let query = this.client
       .from('attendance')
-      .select('date')
+      .select('date, child_id')
       .eq('class_id', classId);
     if (courseType) {
       query = query.eq('course_type', courseType);
     }
-    const { data, error } = await query.order('date', { ascending: false });
+    const { data, error } = await query;
     if (error) throw error;
-    const dates = [...new Set(data?.map((r: any) => r.date?.split('T')[0]) || [])];
-    return dates;
+    const rows = data || [];
+
+    // 有考勤记录的日期（去重，降序）
+    const dateSet = new Set<string>();
+    rows.forEach((r: any) => {
+      const d = String(r.date || '').split('T')[0];
+      if (d) dateSet.add(d);
+    });
+    const dates = [...dateSet].sort((a, b) => (a < b ? 1 : -1));
+    if (dates.length === 0) return [];
+
+    // 该班级全部报读（统计每个有考勤日期应点名的在读幼儿数）
+    const { data: enrRes } = await this.client
+      .from('enrollments')
+      .select('child_id, start_date, extended_end_date, end_date')
+      .eq('class_id', classId);
+    const enrollments = enrRes || [];
+
+    // 有考勤日期 -> 已点名幼儿集合
+    const markedByDate: Record<string, Set<string>> = {};
+    rows.forEach((r: any) => {
+      const d = String(r.date || '').split('T')[0];
+      if (!d) return;
+      (markedByDate[d] = markedByDate[d] || new Set<string>()).add(r.child_id);
+    });
+
+    // 有考勤日期 -> 应点名在读幼儿集合（区间 [start_date, extended_end_date||end_date]）
+    const expectedByDate: Record<string, Set<string>> = {};
+    for (const date of dates) {
+      const set = new Set<string>();
+      for (const e of enrollments) {
+        const start = String(e.start_date || '').split('T')[0];
+        const end = String(e.extended_end_date || e.end_date || '').split('T')[0];
+        if (start && date >= start && (!end || date <= end)) set.add(e.child_id);
+      }
+      expectedByDate[date] = set;
+    }
+
+    // 完成：已点名(去重)数 >= 应点名在读数；0 < 已点名 < 在读 -> 未完成
+    return dates.map((date) => {
+      const expected = expectedByDate[date]?.size || 0;
+      const marked = markedByDate[date]?.size || 0;
+      const status = marked >= expected ? 'completed' : 'incomplete';
+      return { date, status };
+    });
   }
 
   /**
