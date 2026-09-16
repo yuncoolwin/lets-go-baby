@@ -416,7 +416,6 @@ function CalendarDayButton({
   marker,
   onPress,
 }: CalendarDayButtonProps) {
-  const base = "h-8 w-8 p-0 flex items-center justify-center rounded-md"
   const outsideClass = outside ? "text-muted-foreground" : ""
   const todayClass = today ? "bg-accent text-accent-foreground" : ""
   const selectedSingleClass = selectedSingle
@@ -431,35 +430,39 @@ function CalendarDayButton({
   const rangeMiddleClass = rangeMiddle
     ? "bg-accent text-accent-foreground rounded-none"
     : ""
-  const rangeCapClass = rangeStart || rangeEnd ? "rounded-md" : ""
+
+  const digitClass = cn(
+    "h-8 w-8 flex items-center justify-center rounded-md",
+    outsideClass,
+    todayClass,
+    selectedSingleClass,
+    rangeMiddleClass,
+    rangeStartClass,
+    rangeEndClass
+  )
 
   return (
-    <Button
-      variant="ghost"
-      size="icon"
+    <View
       className={cn(
-        base,
-        outsideClass,
-        todayClass,
-        selectedSingleClass,
-        rangeMiddleClass,
-        rangeStartClass,
-        rangeEndClass,
-        rangeCapClass,
+        "flex flex-col items-center justify-start rounded-md",
         disabled && "opacity-50 pointer-events-none"
       )}
       onClick={disabled ? undefined : () => onPress(date)}
     >
-      <View className="flex flex-col items-center justify-center">
+      <View className={digitClass}>
         <Text className="block text-sm">{format(date, "d")}</Text>
-        {marker && (
-          <View
-            className="h-1 w-1 rounded-full"
-            style={{ backgroundColor: marker === 'completed' ? '#22c55e' : '#f97316' }}
-          />
-        )}
       </View>
-    </Button>
+      {marker && (
+        <View
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: marker === "completed" ? "#22c55e" : "#f97316"
+          }}
+        />
+      )}
+    </View>
   )
 }
 
