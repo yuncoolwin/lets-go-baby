@@ -451,21 +451,13 @@ function CalendarDayButton({
       onClick={disabled ? undefined : () => onPress(date)}
     >
       <View className="flex flex-col items-center justify-center">
-        <Text className="text-sm">{format(date, "d")}</Text>
-        <View
-          style={{
-            width: 5,
-            height: 5,
-            borderRadius: 2.5,
-            marginTop: 1,
-            backgroundColor:
-              marker === 'completed'
-                ? '#22c55e'
-                : marker === 'incomplete'
-                ? '#f97316'
-                : 'transparent',
-          }}
-        />
+        <Text className="block text-sm">{format(date, "d")}</Text>
+        {marker && (
+          <View
+            className="h-1 w-1 rounded-full"
+            style={{ backgroundColor: marker === 'completed' ? '#22c55e' : '#f97316' }}
+          />
+        )}
       </View>
     </Button>
   )
