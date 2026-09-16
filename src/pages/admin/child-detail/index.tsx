@@ -105,12 +105,13 @@ const rangeDays = (start: string, end: string): number => {
   const diff = new Date(`${end}T00:00:00`).getTime() - new Date(`${start}T00:00:00`).getTime()
   return Math.max(1, Math.round(diff / 86400000) + 1)
 }
-/** 临时课程日期区间展示：单日=日期+星期，多日=起～止 N天（括号包裹） */
-const fmtDropInRange = (start: string, end: string): string => {
+/** 临时课程日期区间展示：单日=日期+星期，多日=起～止 N天（N 取考勤天数 count，缺省按日历天数） */
+const fmtDropInRange = (start: string, end: string, count?: number): string => {
   const s = start || ''
   const e = end || s
   if (s === e) return s ? `${s} （${weekName(s)}）` : '--'
-  return `${s}～${e} （${rangeDays(s, e)}天）`
+  const n = count && count > 0 ? count : rangeDays(s, e)
+  return `${s}～${e} （${n}天）`
 }
 
 export default function ChildDetailPage() {
@@ -1216,7 +1217,7 @@ export default function ChildDetailPage() {
                     </View>
                   </View>
                   <Text className="block text-xs text-gray-500 mt-1">
-                    {fmtDropInRange(d.start_date || d.date, d.end_date || d.date)}
+                    {fmtDropInRange(d.start_date || d.date, d.end_date || d.date, Array.isArray(d.days) ? d.days.length : undefined)}
                   </Text>
                   {d.note ? (
                     <Text className="block text-xs text-gray-400 mt-1">备注：{d.note}</Text>
@@ -1387,12 +1388,12 @@ export default function ChildDetailPage() {
             </View>
             <View className="p-4">
               <Text className="block text-sm font-medium text-foreground mb-2">
-                {detailDropIn.course_type} · {fmtDropInRange(detailDropIn.start_date || detailDropIn.date, detailDropIn.end_date || detailDropIn.date)}
+                {detailDropIn.course_type} · {fmtDropInRange(detailDropIn.start_date || detailDropIn.date, detailDropIn.end_date || detailDropIn.date, Array.isArray(detailDropIn.days) ? detailDropIn.days.length : undefined)}
               </Text>
               {Array.isArray(detailDropIn.days) && detailDropIn.days.length > 0 ? (
                 detailDropIn.days.map((day: any) => (
                   <View key={day.date} className="flex items-center justify-between py-2 border-b border-border" style={{ opacity: 0.6 }}>
-                    <Text className="text-sm text-foreground">{day.date}（{weekName(day.date)}）</Text>
+                    <Text className="text-sm text-foreground">{day.date.slice(5)}（{weekName(day.date)}）</Text>
                     <Text className="text-xs text-gray-500">
                       来园：{day.check_in_time ? String(day.check_in_time).slice(11, 16) : '未记录'}　离园：{day.check_out_time ? String(day.check_out_time).slice(11, 16) : '未记录'}
                     </Text>
