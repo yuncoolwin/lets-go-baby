@@ -384,10 +384,7 @@ export default function RollCallPage() {
         if (!r.confirm) return
         try {
           await dropInApi.remove({
-            child_id: child.id,
-            class_id: child.class_id || classId,
-            course_type: child.course_type,
-            date: selectedDate,
+            id: (child as any).drop_in_id ?? child.id,
           })
           Taro.showToast({ title: '已删除临时来园', icon: 'success' })
           loadData()
@@ -1211,7 +1208,7 @@ function DropInModal({
           return
         }
         // 第二步：写入当天临时来园记录
-        const res: any = await dropInApi.add({ child_id: newChildId, class_id: pickedClassId, course_type: courseType, date })
+        const res: any = await dropInApi.add({ child_id: newChildId, class_id: pickedClassId, course_type: courseType, start_date: date })
         if (res.code === 200) {
           Taro.showToast({ title: '已添加临时来园', icon: 'success' })
           onSuccess()
@@ -1236,7 +1233,7 @@ function DropInModal({
     }
     setSubmitting(true)
     try {
-      const res: any = await dropInApi.add({ child_id: pickedId, class_id: pickedClassId, course_type: courseType, date })
+      const res: any = await dropInApi.add({ child_id: pickedId, class_id: pickedClassId, course_type: courseType, start_date: date })
       if (res.code === 200) {
         Taro.showToast({ title: '已添加临时来园', icon: 'success' })
         onSuccess()

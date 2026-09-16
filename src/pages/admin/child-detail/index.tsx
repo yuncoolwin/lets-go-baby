@@ -93,6 +93,26 @@ const formatRange = (start: string, end: string): string => {
   return `${sy}年${fmtDate(start)}-${ey}年${fmtDate(end)}`
 }
 
+/** 中文星期 */
+const WEEK_CN = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
+const weekName = (ds: string): string => {
+  const d = new Date(`${ds}T00:00:00`)
+  return WEEK_CN[Math.max(0, d.getDay())]
+}
+/** 区间天数（含首尾） */
+const rangeDays = (start: string, end: string): number => {
+  if (!start || !end) return 1
+  const diff = new Date(`${end}T00:00:00`).getTime() - new Date(`${start}T00:00:00`).getTime()
+  return Math.max(1, Math.round(diff / 86400000) + 1)
+}
+/** 临时课程日期区间展示：单日=日期+星期，多日=起～止 N天 */
+const fmtDropInRange = (start: string, end: string): string => {
+  const s = start || ''
+  const e = end || s
+  if (s === e) return s ? `${s} ${weekName(s)}` : '--'
+  return `${s}～${e} ${rangeDays(s, e)}天`
+}
+
 export default function ChildDetailPage() {
   const router = useRouter()
   const { id, readonly } = router.params
@@ -106,7 +126,6 @@ export default function ChildDetailPage() {
   const [loading, setLoading] = useState(true)
   const [enrollments, setEnrollments] = useState<any[]>([])
   const [dropIns, setDropIns] = useState<any[]>([])
-  const DROP_IN_STATUS_TEXT: Record<string, string> = { present: '出勤', full_day: '全天出勤', half_day: '半天出勤', absent: '缺勤', leave: '请假' }
   const [classes, setClasses] = useState<any[]>([])
   const [editingEnrollment, setEditingEnrollment] = useState<any | null>(null)
   const [formCourseType, setFormCourseType] = useState('')
@@ -127,6 +146,15 @@ export default function ChildDetailPage() {
   const [courses, setCourses] = useState<any[]>([])
   const [extendDetails, setExtendDetails] = useState<any[]>([])
   const [extendTotalDays, setExtendTotalDays] = useState(0)
+  const [showDropInForm, setShowDropInForm] = useState(false)
+  const [editingDropIn, setEditingDropIn] = useState<any | null>(null)
+  const [diCourseType, setDiCourseType] = useState('')
+  const [diStartDate, setDiStartDate] = useState('')
+  const [diEndDate, setDiEndDate] = useState('')
+  const [diNote, setDiNote] = useState('')
+  const [showDiCalendar, setShowDiCalendar] = useState<'diStart' | 'diEnd' | null>(null)
+  const [showDiDetail, setShowDiDetail] = useState(false)
+  const [detailDropIn, setDetailDropIn] = useState<any | null>(null)
   const [extendToDate, setExtendToDate] = useState('')
   const [showExtendDialog, setShowExtendDialog] = useState(false)
   const [extendAnim, setExtendAnim] = useState<'open' | 'close' | 'idle'>('idle')
@@ -708,17 +736,7 @@ export default function ChildDetailPage() {
         updated.sort((a: any, b: any) => (b.start_date || '').localeCompare(a.start_date || ''))
         setEnrollments(updated)
       }
-      // 拉取临时来园记录（按 date 倒序）
-      try {
-        const diRes: any = await dropInApi.list(id)
-        if (diRes?.code === 200 && Array.isArray(diRes.data)) {
-          setDropIns(diRes.data)
-        } else {
-          setDropIns([])
-        }
-      } catch {
-        setDropIns([])
-      }
+      await fetchDropIns()
       if (clsRes.code === 200 && clsRes.data?.list && Array.isArray(clsRes.data.list)) {
         setClasses(clsRes.data.list)
       }
@@ -735,6 +753,87 @@ export default function ChildDetailPage() {
       setLoading(false)
     }
   }, [id])
+
+  const fetchDropIns = useCallback(async () => {
+    if (!id) return
+    try {
+      const diRes: any = await dropInApi.list(id)
+      if (diRes?.code === 200 && Array.isArray(diRes.data)) {
+        setDropIns(diRes.data)
+      } else {
+        setDropIns([])
+      }
+    } catch {
+      setDropIns([])
+    }
+  }, [id])
+
+  const openAddDropIn = () => {
+    setEditingDropIn(null)
+    setDiCourseType((courses.find(c => c.status === '启用')?.name) || '')
+    setDiStartDate('')
+    setDiEndDate('')
+    setDiNote('')
+    setShowDropInForm(true)
+  }
+
+  const openEditDropIn = (d: any) => {
+    setEditingDropIn(d)
+    setDiCourseType(d.course_type || '')
+    setDiStartDate(d.start_date || '')
+    setDiEndDate(d.end_date || '')
+    setDiNote(d.note || '')
+    setShowDropInForm(true)
+  }
+
+  const saveDropIn = async () => {
+    if (!diCourseType) {
+      Taro.showToast({ title: '请选择课程类型', icon: 'none' })
+      return
+    }
+    if (!diStartDate) {
+      Taro.showToast({ title: '请选择开始日期', icon: 'none' })
+      return
+    }
+    const classId = child?.class_id || ''
+    if (!classId) {
+      Taro.showToast({ title: '无法确定班级，请先为幼儿报读', icon: 'none' })
+      return
+    }
+    const payload = { course_type: diCourseType, start_date: diStartDate, end_date: diEndDate || diStartDate, note: diNote }
+    let res: any
+    if (editingDropIn) {
+      res = await dropInApi.update({ id: editingDropIn.id, ...payload })
+    } else {
+      res = await dropInApi.add({ child_id: child!.id, class_id: classId, ...payload })
+    }
+    if (res?.code === 200) {
+      Taro.showToast({ title: editingDropIn ? '已更新' : '已新增', icon: 'none' })
+      setShowDropInForm(false)
+      await fetchDropIns()
+    } else {
+      Taro.showToast({ title: res?.msg || '操作失败', icon: 'none' })
+    }
+  }
+
+  const removeDropIn = async (d: any) => {
+    const ok: any = await new Promise((resolve) =>
+      Taro.showModal({ title: '删除临时课程', content: '确定删除该幼儿的临时课程吗？', success: (r) => resolve(!!r.confirm) })
+    )
+    if (!ok) return
+    const res: any = await dropInApi.remove({ id: d.id })
+    if (res?.code === 200) {
+      Taro.showToast({ title: '已删除', icon: 'none' })
+      await fetchDropIns()
+    } else {
+      Taro.showToast({ title: res?.msg || '删除失败', icon: 'none' })
+    }
+  }
+
+  const openDiDetail = (d: any) => {
+    setDetailDropIn(d)
+    setShowDiDetail(true)
+  }
 
   useEffect(() => {
     loadData()
@@ -1068,29 +1167,59 @@ export default function ChildDetailPage() {
         </Card>
 
         {/* 临时课程 */}
-        {dropIns.length > 0 && (
-          <Card className="bg-white rounded-xl border-0 shadow-sm">
-            <CardContent className="p-4">
-              <View className="flex items-center gap-2 mb-3">
+        <Card className="bg-white rounded-xl border-0 shadow-sm">
+          <CardContent className="p-4">
+            <View className="flex items-center justify-between mb-3">
+              <View className="flex items-center gap-2">
                 <BookOpen size={16} color="#666" />
                 <Text className="text-base font-semibold text-foreground">临时课程</Text>
               </View>
-              {dropIns.map((d) => (
+              {canEdit && (
+                <View
+                  className="inline-flex items-center rounded-full border px-3 py-1"
+                  style={{ backgroundColor: '#FFF4EA', borderColor: '#FFE0C2' }}
+                  onClick={openAddDropIn}
+                >
+                  <Text className="text-xs" style={{ color: '#EA7D23' }}>新增临时课程</Text>
+                </View>
+              )}
+            </View>
+            {dropIns.length === 0 ? (
+              <View className="py-3 flex items-center justify-center">
+                <Text className="text-sm text-muted-foreground">暂无临时课程</Text>
+              </View>
+            ) : (
+              dropIns.map((d) => (
                 <View key={d.id} className="bg-gray-50 rounded-xl p-3 mb-2">
-                  <View className="flex items-center justify-between mb-1">
+                  <View className="flex items-center justify-between">
                     <Text className="text-sm font-semibold text-foreground">{d.course_type}</Text>
+                    <View className="flex items-center gap-3">
+                      <View
+                        className="inline-flex items-center rounded-full border px-3 py-1"
+                        style={{ backgroundColor: '#FFF4EA', borderColor: '#FFE0C2' }}
+                        onClick={() => openDiDetail(d)}
+                      >
+                        <Text className="text-xs" style={{ color: '#EA7D23' }}>考勤</Text>
+                      </View>
+                      {canEdit && (
+                        <>
+                          <Text className="text-xs text-primary" onClick={() => openEditDropIn(d)}>编辑</Text>
+                          <Text className="text-xs text-red-500" onClick={() => removeDropIn(d)}>删除</Text>
+                        </>
+                      )}
+                    </View>
                   </View>
                   <Text className="block text-xs text-gray-500 mt-1">
-                    日期：{d.date || '--'}（考勤：{DROP_IN_STATUS_TEXT[d.status] || '未考勤'}）
+                    {fmtDropInRange(d.start_date || d.date, d.end_date || d.date)}
                   </Text>
-                  <Text className="block text-xs text-gray-500 mt-1">
-                    来园时间：{d.check_in_time ? String(d.check_in_time).slice(11, 16) : '未记录'}{'  '}离园时间：{d.check_out_time ? String(d.check_out_time).slice(11, 16) : '未记录'}
-                  </Text>
+                  {d.note ? (
+                    <Text className="block text-xs text-gray-400 mt-1">备注：{d.note}</Text>
+                  ) : null}
                 </View>
-              ))}
-            </CardContent>
-          </Card>
-        )}
+              ))
+            )}
+          </CardContent>
+        </Card>
 
         {(isSuperadmin || currentRole?.role_type === 'admin') && child && (
           <Card className="bg-white rounded-xl border-0 shadow-sm mb-3">
@@ -1151,6 +1280,112 @@ export default function ChildDetailPage() {
         </Card>
 
         </View>
+
+      {/* 临时课程新增/编辑弹窗 */}
+      {showDropInForm && (
+        <View
+          className="fixed inset-0 z-50"
+          style={{ backgroundColor: 'rgba(255,248,240,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setShowDropInForm(false)}
+        >
+          <View
+            className="bg-white rounded-2xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <View className="flex items-center justify-between p-4 border-b border-border">
+              <Text className="text-lg font-semibold">{editingDropIn ? '编辑临时课程' : '新增临时课程'}</Text>
+              <X size={20} color="#666" onClick={() => setShowDropInForm(false)} />
+            </View>
+            <View className="p-4 space-y-4">
+              <View>
+                <Text className="block text-sm font-medium text-foreground mb-1">课程类型</Text>
+                <View className="flex flex-wrap gap-2">
+                  {courses.filter(c => c.status === '启用').map((c) => (
+                    <View
+                      key={c.id}
+                      className={`px-3 py-2 rounded-lg text-sm ${diCourseType === c.name ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600'}`}
+                      onClick={() => setDiCourseType(c.name)}
+                    >
+                      <Text>{c.name}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+              <View>
+                <Text className="block text-sm font-medium text-foreground mb-1">开始日期</Text>
+                <View className="bg-gray-50 rounded-xl px-4 py-3" onClick={() => setShowDiCalendar('diStart')}>
+                  <Text className="text-sm" style={{ color: diStartDate ? '#111' : '#999' }}>{diStartDate || '请选择开始日期'}</Text>
+                </View>
+              </View>
+              <View>
+                <Text className="block text-sm font-medium text-foreground mb-1">结束日期（可选，多日区间）</Text>
+                <View className="bg-gray-50 rounded-xl px-4 py-3" onClick={() => setShowDiCalendar('diEnd')}>
+                  <Text className="text-sm" style={{ color: diEndDate ? '#111' : '#999' }}>{diEndDate || '请选择结束日期'}</Text>
+                </View>
+              </View>
+              <View>
+                <Text className="block text-sm font-medium text-foreground mb-1">备注</Text>
+                <View className="bg-gray-50 rounded-xl px-4 py-3">
+                  <Input
+                    style={{ width: '100%', fontSize: '14px' }}
+                    placeholder="填写备注（可选）"
+                    value={diNote}
+                    onInput={(e: any) => setDiNote(e.detail.value)}
+                  />
+                </View>
+              </View>
+              <View style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
+                <View style={{ flex: 1 }}>
+                  <Button size="sm" onClick={() => setShowDropInForm(false)}>取消</Button>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Button size="sm" onClick={saveDropIn}>保存</Button>
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* 临时课程考勤详情弹窗 */}
+      {showDiDetail && detailDropIn && (
+        <View
+          className="fixed inset-0 z-50"
+          style={{ backgroundColor: 'rgba(255,248,240,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setShowDiDetail(false)}
+        >
+          <View
+            className="bg-white rounded-2xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <View className="flex items-center justify-between p-4 border-b border-border">
+              <Text className="text-lg font-semibold">临时课程考勤</Text>
+              <X size={20} color="#666" onClick={() => setShowDiDetail(false)} />
+            </View>
+            <View className="p-4">
+              <Text className="block text-sm font-medium text-foreground mb-2">
+                {detailDropIn.course_type} · {fmtDropInRange(detailDropIn.start_date || detailDropIn.date, detailDropIn.end_date || detailDropIn.date)}
+              </Text>
+              {Array.isArray(detailDropIn.days) && detailDropIn.days.length > 0 ? (
+                detailDropIn.days.map((day: any) => (
+                  <View key={day.date} className="flex items-center justify-between py-2 border-b border-border" style={{ opacity: 0.6 }}>
+                    <Text className="text-sm text-foreground">{day.date}</Text>
+                    <Text className="text-xs text-gray-500">
+                      来园：{day.check_in_time ? String(day.check_in_time).slice(11, 16) : '未记录'}　离园：{day.check_out_time ? String(day.check_out_time).slice(11, 16) : '未记录'}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <Text className="block text-sm text-muted-foreground py-3">未记录</Text>
+              )}
+              <View className="mt-4">
+                <Button size="sm" onClick={() => setShowDiDetail(false)}>关闭</Button>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* 报读表单弹窗 */}
       {showEnrollmentForm && (
         <View
@@ -1436,6 +1671,25 @@ export default function ChildDetailPage() {
         onClose={() => setShowCalendar(null)}
         value={formEndDate}
         onChange={(dateStr) => setFormEndDate(dateStr)}
+      />
+      <CalendarOverlay
+        visible={showDiCalendar === 'diStart'}
+        onClose={() => setShowDiCalendar(null)}
+        value={diStartDate}
+        onChange={(dateStr) => {
+          setDiStartDate(dateStr)
+          if (diEndDate && dateStr > diEndDate) setDiEndDate('')
+          setShowDiCalendar(null)
+        }}
+      />
+      <CalendarOverlay
+        visible={showDiCalendar === 'diEnd'}
+        onClose={() => setShowDiCalendar(null)}
+        value={diEndDate}
+        onChange={(dateStr) => {
+          setDiEndDate(dateStr)
+          setShowDiCalendar(null)
+        }}
       />
 
       {/* 顺延编辑态日期日历浮层：记录第几行+哪个字段，控制单个弹窗归属 */}

@@ -363,7 +363,10 @@ export const dropInRecords = pgTable("drop_in_records", {
 	childId: varchar("child_id", { length: 36 }).notNull(),
 	classId: varchar("class_id", { length: 36 }).notNull(),
 	courseType: varchar("course_type", { length: 20 }).notNull(),
-	date: date("date").notNull(),
+	startDate: date("start_date"),
+	endDate: date("end_date"),
+	note: text("note"),
+	date: date("date"),
 	teacherId: varchar("teacher_id", { length: 64 }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [

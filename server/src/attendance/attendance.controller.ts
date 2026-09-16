@@ -187,10 +187,21 @@ export class AttendanceController {
   @HttpCode(200)
   async addDropIn(
     @Req() req: Request,
-    @Body() body: { child_id?: string; new_child_name?: string; class_id: string; course_type: string; date: string },
+    @Body() body: { child_id?: string; new_child_name?: string; class_id: string; course_type: string; start_date: string; end_date?: string; note?: string },
   ) {
     const userId = (req as any).user?.userId;
     const data = await this.attendanceService.addDropIn(userId, body);
+    return { code: (data as any)?.code || 200, msg: (data as any)?.msg || 'success', data: (data as any)?.data ?? null };
+  }
+
+  @Post('drop-in/update')
+  @HttpCode(200)
+  async updateDropIn(
+    @Req() req: Request,
+    @Body() body: { id: string; course_type: string; start_date: string; end_date?: string; note?: string },
+  ) {
+    const userId = (req as any).user?.userId;
+    const data = await this.attendanceService.updateDropIn(userId, body);
     return { code: (data as any)?.code || 200, msg: (data as any)?.msg || 'success', data: (data as any)?.data ?? null };
   }
 
@@ -198,7 +209,7 @@ export class AttendanceController {
   @HttpCode(200)
   async removeDropIn(
     @Req() req: Request,
-    @Body() body: { child_id: string; class_id: string; course_type?: string; date: string },
+    @Body() body: { id: string },
   ) {
     const userId = (req as any).user?.userId;
     const data = await this.attendanceService.removeDropIn(userId, body);

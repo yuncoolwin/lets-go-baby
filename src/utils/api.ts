@@ -233,15 +233,19 @@ export const attendanceApi = {
 // ============ 临时来园 API ============
 
 export const dropInApi = {
-  // 新增临时来园
-  add: (data: { child_id?: string; new_child_name?: string; class_id: string; course_type: string; date: string }) =>
+  // 新增临时课程（可单日/多日区间）
+  add: (data: { child_id?: string; new_child_name?: string; class_id: string; course_type: string; start_date: string; end_date?: string; note?: string }) =>
     request({ url: '/api/attendance/drop-in', method: 'POST', data }),
 
-  // 按幼儿查询临时来园记录（date 倒序）
+  // 按幼儿查询临时课程记录（含 start_date/end_date/note/days）
   list: (childId: string) => request({ url: `/api/attendance/drop-ins?child_id=${childId}` }),
 
-  // 删除临时来园记录
-  remove: (data: { child_id: string; class_id: string; course_type?: string; date: string }) =>
+  // 编辑临时课程（按 id 更新区间/备注/课程）
+  update: (data: { id: string; course_type: string; start_date: string; end_date?: string; note?: string }) =>
+    request({ url: '/api/attendance/drop-in/update', method: 'POST', data }),
+
+  // 删除临时课程（按 id）
+  remove: (data: { id: string }) =>
     request({ url: '/api/attendance/drop-in/remove', method: 'POST', data }),
 }
 

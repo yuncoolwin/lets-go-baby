@@ -295,6 +295,7 @@ export class AttendanceService {
       end_date: string | null;
       extended_end_date: string | null;
       is_drop_in?: boolean;
+      drop_in_id?: string;
     }>>();
 
     // 补班周六/补班周日（调休上班的周六或周日）按工作日处理；普通周六只显示周六托；普通周日报空
@@ -328,13 +329,17 @@ export class AttendanceService {
         extended_end_date: e.extended_end_date || e.end_date,
       });
     }
-    // 附加临时来园幼儿（不在报读中，但当天有临时来园记录）
+    // 附加临时来园幼儿（不在报读中，但当天有临时课程记录；支持区间匹配）
     try {
-      const { data: dropIns } = await this.client
+      const { data: allDropIns } = await this.client
         .from('drop_in_records')
-        .select('child_id, course_type')
-        .eq('class_id', classId)
-        .eq('date', queryDate);
+        .select('id, child_id, course_type, date, start_date, end_date')
+        .eq('class_id', classId);
+      // 区间匹配：单日 date=当天，或 区间 start_date<=当天<=end_date
+      const dropIns = (allDropIns || []).filter(r =>
+        r.date === queryDate ||
+        (r.start_date && r.end_date && r.start_date <= queryDate && r.end_date >= queryDate)
+      );
       if (dropIns && dropIns.length > 0) {
         // 补齐临时来园幼儿信息（可能未报读，不在 childrenMap 中）
         const dropChildIds = [...new Set(dropIns.map(d => d.child_id).filter(id => !childrenMap[id]))];
@@ -352,6 +357,7 @@ export class AttendanceService {
           if (exists) continue;
           groupMap.get(ct)!.push({
             child_id: d.child_id,
+            drop_in_id: d.id,
             name: childrenMap[d.child_id]?.name || '',
             gender: childrenMap[d.child_id]?.gender || '',
             birth_date: childrenMap[d.child_id]?.birth_date || '',
@@ -437,6 +443,7 @@ export class AttendanceService {
         const rec = recordMap.get(attKey);
         return {
           id: s.child_id,
+          drop_in_id: (s as any).drop_in_id || null,
           name: s.name,
           gender: s.gender,
           course_type: ct,
@@ -486,7 +493,7 @@ export class AttendanceService {
   /**
    * 新增临时来园（drop_in_records），教师仅限本班
    */
-  async addDropIn(userId: string, dto: { child_id?: string; new_child_name?: string; class_id: string; course_type: string; date: string }) {
+  async addDropIn(userId: string, dto: { child_id?: string; new_child_name?: string; class_id: string; course_type: string; start_date: string; end_date?: string; note?: string }) {
     const denied = await this.canAccessClass(userId, dto.class_id);
     if (denied) return { code: 403, msg: denied };
 
@@ -514,55 +521,109 @@ export class AttendanceService {
       }
     }
     if (!childId) return { code: 400, msg: 'child_id 与 new_child_name 不能同时为空' };
+    if (!dto.start_date) return { code: 400, msg: '开始日期不能为空' };
+
+    const startDate = dto.start_date;
+    const endDate = dto.end_date || startDate;
 
     const { data: dup } = await this.client
       .from('drop_in_records')
       .select('id')
       .eq('child_id', childId)
-      .eq('date', dto.date)
       .eq('course_type', dto.course_type)
+      .eq('date', startDate)
       .limit(1);
-    if (dup && dup.length > 0) return { code: 409, msg: '该幼儿当天已添加过此课程' };
+    if (dup && dup.length > 0) return { code: 409, msg: '该幼儿在该日期已添加过此课程' };
 
     const record = {
       child_id: childId,
       class_id: dto.class_id,
       course_type: dto.course_type,
-      date: dto.date,
+      date: startDate,
+      start_date: startDate,
+      end_date: endDate,
+      note: dto.note || null,
       teacher_id: userId,
     };
     const { data, error } = await this.client.from('drop_in_records').insert(record).select('id').single();
-    if (error) return { code: 500, msg: `新增临时来园失败: ${error.message}` };
+    if (error) return { code: 500, msg: `新增临时课程失败: ${error.message}` };
+
+    const { error: logErr } = await this.client.from('audit_logs').insert({
+      user_id: userId,
+      action: 'drop_in_add',
+      target_type: 'attendance',
+      detail: record,
+      level: 'info',
+      created_at: new Date().toISOString(),
+    });
+    if (logErr) console.warn('[audit-log] drop_in_add 写入失败:', logErr.message);
+
     return { code: 200, msg: 'success', data: { id: (data as any)?.id } };
   }
 
   /**
-   * 删除临时来园记录（drop_in_records），教师仅限本班
+   * 编辑临时课程（按 id），更新区间/备注/课程类型，教师仅限本班
    */
-  async removeDropIn(userId: string, dto: { child_id: string; class_id: string; course_type?: string; date: string }) {
-    if (!dto.child_id || !dto.class_id || !dto.date) {
-      return { code: 400, msg: '参数不完整' };
-    }
-    const denied = await this.canAccessClass(userId, dto.class_id);
+  async updateDropIn(userId: string, dto: { id: string; course_type: string; start_date: string; end_date?: string; note?: string }) {
+    if (!dto.id) return { code: 400, msg: '参数不完整' };
+    if (!dto.start_date) return { code: 400, msg: '开始日期不能为空' };
+    const { data: existing } = await this.client
+      .from('drop_in_records')
+      .select('class_id')
+      .eq('id', dto.id)
+      .maybeSingle();
+    if (!existing) return { code: 404, msg: '临时课程不存在' };
+    const denied = await this.canAccessClass(userId, existing.class_id as string);
     if (denied) return { code: 403, msg: denied };
 
-    let query = this.client
+    const endDate = dto.end_date || dto.start_date;
+    const { error } = await this.client
       .from('drop_in_records')
-      .delete()
-      .eq('child_id', dto.child_id)
-      .eq('class_id', dto.class_id)
-      .eq('date', dto.date);
-    if (dto.course_type) {
-      query = query.eq('course_type', dto.course_type);
-    }
-    const { error } = await query;
-    if (error) return { code: 500, msg: `删除临时来园记录失败: ${error.message}` };
+      .update({
+        course_type: dto.course_type,
+        start_date: dto.start_date,
+        end_date: endDate,
+        date: dto.start_date,
+        note: dto.note || null,
+      })
+      .eq('id', dto.id);
+    if (error) return { code: 500, msg: `更新临时课程失败: ${error.message}` };
+
+    const { error: logErr } = await this.client.from('audit_logs').insert({
+      user_id: userId,
+      action: 'drop_in_update',
+      target_type: 'attendance',
+      detail: { id: dto.id },
+      level: 'info',
+      created_at: new Date().toISOString(),
+    });
+    if (logErr) console.warn('[audit-log] drop_in_update 写入失败:', logErr.message);
+
+    return { code: 200, msg: 'success' };
+  }
+
+  /**
+   * 删除临时课程记录（按 id），教师仅限本班
+   */
+  async removeDropIn(userId: string, dto: { id: string }) {
+    if (!dto.id) return { code: 400, msg: '参数不完整' };
+    const { data: existing } = await this.client
+      .from('drop_in_records')
+      .select('class_id')
+      .eq('id', dto.id)
+      .maybeSingle();
+    if (!existing) return { code: 404, msg: '临时课程不存在' };
+    const denied = await this.canAccessClass(userId, existing.class_id as string);
+    if (denied) return { code: 403, msg: denied };
+
+    const { error } = await this.client.from('drop_in_records').delete().eq('id', dto.id);
+    if (error) return { code: 500, msg: `删除临时课程记录失败: ${error.message}` };
 
     const { error: logErr } = await this.client.from('audit_logs').insert({
       user_id: userId,
       action: 'drop_in_remove',
       target_type: 'attendance',
-      detail: { child_id: dto.child_id, class_id: dto.class_id, date: dto.date, course_type: dto.course_type || '' },
+      detail: { id: dto.id },
       level: 'info',
       created_at: new Date().toISOString(),
     });
@@ -572,42 +633,70 @@ export class AttendanceService {
   }
 
   /**
-   * 按幼儿查询临时来园记录（按 date 倒序）
+   * 按幼儿查询临时课程记录（按 date 倒序），返回区间字段与逐日考勤 days
    */
   async getDropIns(childId: string) {
     const { data, error } = await this.client
       .from('drop_in_records')
-      .select('id, child_id, class_id, course_type, date, created_at')
+      .select('id, child_id, class_id, course_type, date, start_date, end_date, note, created_at')
       .eq('child_id', childId)
       .order('date', { ascending: false });
-    if (error) return { code: 500, msg: `查询临时来园失败: ${error.message}` };
+    if (error) return { code: 500, msg: `查询临时课程失败: ${error.message}` };
     const rows = data || [];
     if (rows.length === 0) return { code: 200, msg: 'success', data: [] };
-    const { data: atts } = await this.client
-      .from('attendance')
-      .select('date, course_type, status')
-      .eq('child_id', childId);
-    const attMap = new Map();
-    (atts || []).forEach(a => {
-      if (a.course_type) attMap.set(`${a.date}__${a.course_type}`, a.status);
-    });
+
     const { data: recs } = await this.client
       .from('attendance_records')
-      .select('record_date, course_type, check_in_time, check_out_time')
+      .select('record_date, course_type, check_in_time, check_out_time, status')
       .eq('child_id', childId);
-    const checkInMap = new Map();
-    const checkOutMap = new Map();
-    (recs || []).forEach(r => {
-      const key = `${r.record_date}__${r.course_type}`;
-      checkInMap.set(key, r.check_in_time ?? null);
-      checkOutMap.set(key, r.check_out_time ?? null);
+    const recMap = new Map();
+    (recs || []).forEach(r => { recMap.set(`${r.record_date}__${r.course_type}`, r); });
+
+    const eachDate = (s: string, e: string): string[] => {
+      const out: string[] = [];
+      const [ys, ms, ds] = s.split('-').map(Number);
+      const [ye, me, de] = e.split('-').map(Number);
+      const d = new Date(ys, ms - 1, ds);
+      const end = new Date(ye, me - 1, de);
+      while (d.getTime() <= end.getTime()) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        out.push(`${y}-${m}-${dd}`);
+        d.setDate(d.getDate() + 1);
+      }
+      return out;
+    };
+
+    const result = rows.map(r => {
+      const s = r.start_date || r.date;
+      const e = r.end_date || r.date;
+      const days: { date: string; check_in_time: string | null; check_out_time: string | null; status: string | null }[] = [];
+      if (s && e) {
+        for (const ds of eachDate(s, e)) {
+          const rec = recMap.get(`${ds}__${r.course_type}`);
+          days.push({
+            date: ds,
+            check_in_time: rec?.check_in_time ?? null,
+            check_out_time: rec?.check_out_time ?? null,
+            status: rec?.status ?? null,
+          });
+        }
+      }
+      return {
+        id: r.id,
+        child_id: r.child_id,
+        class_id: r.class_id,
+        course_type: r.course_type,
+        date: r.date,
+        start_date: s,
+        end_date: e,
+        note: r.note || '',
+        created_at: r.created_at,
+        days,
+      };
     });
-    return { code: 200, msg: 'success', data: rows.map(r => ({
-      ...r,
-      status: attMap.get(`${r.date}__${r.course_type}`) || null,
-      check_in_time: checkInMap.get(`${r.date}__${r.course_type}`) ?? null,
-      check_out_time: checkOutMap.get(`${r.date}__${r.course_type}`) ?? null,
-    })) };
+    return { code: 200, msg: 'success', data: result };
   }
 
   /**
