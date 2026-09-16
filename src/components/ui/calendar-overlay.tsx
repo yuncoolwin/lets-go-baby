@@ -12,6 +12,7 @@ interface CalendarOverlayProps {
   disabled?: (date: Date) => boolean
   showAllDates?: boolean
   dateMarkers?: Record<string, 'completed' | 'incomplete'>
+  defaultMonth?: Date
 }
 
 export function CalendarOverlay({
@@ -22,6 +23,7 @@ export function CalendarOverlay({
   disabled,
   showAllDates,
   dateMarkers,
+  defaultMonth,
 }: CalendarOverlayProps) {
   const [show, setShow] = useState(false)
   const [animating, setAnimating] = useState<'open' | 'close' | 'idle'>('idle')
@@ -97,6 +99,7 @@ export function CalendarOverlay({
           showAllDates={showAllDates}
           onClearDate={handleClearDate}
           dateMarkers={dateMarkers}
+          defaultMonth={defaultMonth}
         />
       </View>
     </View>

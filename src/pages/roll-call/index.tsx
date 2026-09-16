@@ -81,6 +81,7 @@ export default function RollCallPage() {
   const [tempAttendance, setTempAttendance] = useState<Record<string, AttendanceItem['status']>>({})
   const [dateList, setDateList] = useState<string[]>([])
   const [dateMarkers, setDateMarkers] = useState<Record<string, 'completed' | 'incomplete'>>({})
+  const [attCalendarMonth, setAttCalendarMonth] = useState<Date>()
   const [expandedGroup, setExpandedGroup] = useState<Set<string>>(new Set())
   const [expandedAttendStat, setExpandedAttendStat] = useState<string>('')
   const [calendarVisible, setCalendarVisible] = useState(false)
@@ -158,6 +159,8 @@ export default function RollCallPage() {
             if (!dates.includes(todayStr)) dates.unshift(todayStr)
             setDateList(dates)
             setDateMarkers(markers)
+            const latestRec = raw.find((r: any) => r && r.date)
+            if (latestRec?.date) setAttCalendarMonth(new Date(Number(String(latestRec.date).slice(0, 4)), Number(String(latestRec.date).slice(5, 7)) - 1, 1))
           } catch (e) {
             console.error('[RollCall] load dates error:', e)
           }
@@ -262,6 +265,8 @@ export default function RollCallPage() {
         }
         setDateList(dates)
         setDateMarkers(markers)
+        const latestRec = raw.find((r: any) => r && r.date)
+        if (latestRec?.date) setAttCalendarMonth(new Date(Number(String(latestRec.date).slice(0, 4)), Number(String(latestRec.date).slice(5, 7)) - 1, 1))
       } catch (e) {
         console.error('[RollCall] load dates error:', e)
       }
@@ -898,6 +903,7 @@ export default function RollCallPage() {
         visible={calendarVisible}
         value={selectedDate}
         dateMarkers={dateMarkers}
+        defaultMonth={attCalendarMonth}
         onChange={(dateStr) => {
           setSelectedDate(dateStr)
           setCalendarVisible(false)
