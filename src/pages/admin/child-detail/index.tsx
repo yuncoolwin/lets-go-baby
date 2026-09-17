@@ -1085,6 +1085,7 @@ export default function ChildDetailPage() {
               <View className="flex items-center gap-2">
                 <BookOpen size={16} color="#666" />
                 <Text className="text-base font-semibold text-foreground">报读记录</Text>
+                {enrollments.length > 0 && <Text className="text-xs text-gray-500 ml-1">· {enrollments.length}次报读</Text>}
               </View>
               {canEdit && (
                 <Button className="h-8 px-3 bg-primary text-white rounded-lg" onClick={openAddEnrollment}>
@@ -1182,6 +1183,7 @@ export default function ChildDetailPage() {
               <View className="flex items-center gap-2">
                 <BookOpen size={16} color="#666" />
                 <Text className="text-base font-semibold text-foreground">临时课程</Text>
+                {dropIns.length > 0 && <Text className="text-xs text-gray-500 ml-1">· {dropIns.length}次来园</Text>}
               </View>
               {canEdit && (
                 <Button className="h-8 px-3 bg-primary text-white rounded-lg" onClick={openAddDropIn}>
@@ -1854,6 +1856,7 @@ export default function ChildDetailPage() {
                 >
                   <Text className="block text-sm text-orange-500 text-center">+ 添加顺延明细</Text>
                 </View>
+                <Text className="block text-xs text-gray-400 mb-2">规则：连续请假5天或以上，按请假天数顺延</Text>
                 <View
                   className="py-2 rounded-lg mb-2 text-center"
                   style={{ border: '1px solid #FFE0C2', backgroundColor: '#FFF4EA' }}
@@ -1896,6 +1899,7 @@ export default function ChildDetailPage() {
             </ScrollView>
             )}
             <View className="pt-3" style={{ borderTop: '1px solid #e5e5e5' }}>
+              <Text className="block text-xs text-gray-400 text-center mb-1">规则：连续请假5天或以上，按请假天数顺延</Text>
               <Text className="block text-sm text-gray-500 text-center">
                 共顺延 <Text className="font-bold text-orange-500">{extendEditMode ? extendEditList.filter((d) => d && (d.isAuto === false || !d.isFrozen)).reduce((s, d) => s + (Number((d as any).overlapDays) || 0), 0) : extendTotalDays}</Text> 天，顺延至 <Text className="font-bold text-orange-500">{extendToDate || '无'}</Text>
               </Text>
@@ -1945,8 +1949,10 @@ export default function ChildDetailPage() {
                 const attendanceMap: Record<string, string> = {}
                 const holidayMap: Record<string, string> = {}
                 const classDaySet: Record<string, boolean> = {}
+                const adjustMap: Record<string, boolean> = {}
                 ;(attendanceData || []).forEach((item: any) => {
                   if (item.is_class_day === true) classDaySet[item.date] = true
+                  if (item.is_adjust === true) adjustMap[item.date] = true
                   if (item.status === 'holiday') {
                     holidayMap[item.date] = item.name
                   } else if (item.status) {
@@ -2193,6 +2199,13 @@ export default function ChildDetailPage() {
                               <View className="self-center">
                                 <Text className="text-sm px-1 rounded-sm" style={{ color: '#E8651A', border: '1px solid #E8651A', backgroundColor: '#FFF8F0', lineHeight: '16px' }}>
                                   放假
+                                </Text>
+                              </View>
+                            )}
+                            {adjustMap[ds] && inRange && !holidayMap[ds] && (
+                              <View className="self-center">
+                                <Text className="text-sm px-1 rounded-sm" style={attendanceMap[ds] ? { color: '#52C41A', border: '1px solid #52C41A', backgroundColor: '#FFF8F0', lineHeight: '16px' } : { color: '#3B82F6', border: '1px solid #3B82F6', backgroundColor: '#F0F7FF', lineHeight: '16px' }}>
+                                  {attendanceMap[ds] ? '考勤' : '补课'}
                                 </Text>
                               </View>
                             )}

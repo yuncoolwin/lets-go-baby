@@ -1557,7 +1557,7 @@ export class EnrollmentsService {
     }
 
     // 遍历完整区间，返回每天（含上课日标记）
-    const result: Array<{ date: string; status: 'full' | 'half' | 'present' | 'leave' | 'absent' | 'holiday' | null; is_class_day: boolean; name?: string }> = [];
+    const result: Array<{ date: string; status: 'full' | 'half' | 'present' | 'leave' | 'absent' | 'holiday' | null; is_class_day: boolean; is_adjust?: boolean; name?: string }> = [];
     let cursor = startDate;
     while (cursor <= endDate) {
       const dateStr = this.toDateStr(cursor);
@@ -1578,7 +1578,7 @@ export class EnrollmentsService {
         }
       }
       // 非上课日（matchesWeek=false 且非补课日）无论是否假期，status 保持 null，前端置灰、不显示放假标签
-      result.push({ date: dateStr, status, is_class_day: isClassDay, name: matchesWeek && isHoliday && !isMakeupDay ? holidayNameMap.get(dateStr) : undefined });
+      result.push({ date: dateStr, status, is_class_day: isClassDay, is_adjust: transferWorkdaySet.has(dateStr) || isMakeupDay, name: matchesWeek && isHoliday && !isMakeupDay ? holidayNameMap.get(dateStr) : undefined });
       cursor = addDays(cursor, 1);
     }
 
