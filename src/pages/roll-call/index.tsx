@@ -324,15 +324,19 @@ export default function RollCallPage() {
       console.error('[RollCall] load holiday status error:', e)
       setHolidayInfo({ is_class_holiday: false, holiday_label: null, holiday_source: null, personal_holiday_child_ids: [] })
     }
-    // 调休上班日判定：原为周六/周日且被判定为调休上班 → 星期显示加"（调休日）"
+    // 调休/补课日判定：调休补班(周末转上班)或补课日均视为调休日 → 星期显示加"（调休日）"
     try {
-      const dow = new Date(`${selectedDate}T00:00:00`).getDay()
-      if (dow === 6 || dow === 0) {
-        const wwRes: any = await Network.request({ url: `/api/attendance/work-weekend?date=${selectedDate}` })
-        setIsAdjustmentDay(!!wwRes.data?.data?.workWeekend)
-      } else {
-        setIsAdjustmentDay(false)
+      const wwRes: any = await Network.request({ url: `/api/attendance/work-weekend?date=${selectedDate}` })
+      const workWeekend = !!wwRes.data?.data?.workWeekend
+      let makeupActive = false
+      try {
+        const mkRes: any = await Network.request({ url: `/api/attendance/makeup-day?class_id=${classId || ''}&date=${selectedDate}` })
+        const mk = mkRes.data?.data || {}
+        makeupActive = !!(mk.workday || mk.saturday)
+      } catch {
+        makeupActive = false
       }
+      setIsAdjustmentDay(workWeekend || makeupActive)
     } catch {
       setIsAdjustmentDay(false)
     }
@@ -710,7 +714,15 @@ export default function RollCallPage() {
           <View className="text-center py-12">
             <Text className="block text-gray-400">
               {holidayInfo.is_class_holiday && holidayInfo.holiday_label
-                ? `${holidayInfo.holiday_label}快乐！`
+                ? holidayInfo.holiday_source === 'statutory'
+                  ? holidayInfo.holiday_label.includes('节')
+                    ? `${holidayInfo.holiday_label}快乐！`
+                    : `${holidayInfo.holiday_label}节快乐！`
+                  : holidayInfo.holiday_source === 'garden'
+                    ? (holidayInfo.holiday_label.includes('假期') || holidayInfo.holiday_label.includes('假'))
+                      ? `${holidayInfo.holiday_label}快乐！`
+                      : `${holidayInfo.holiday_label}假期快乐！`
+                    : `${holidayInfo.holiday_label}快乐！`
                 : new Date(`${selectedDate}T00:00:00`).getDay() === 0
                   ? '周日快乐！'
                   : '暂无在读幼儿'}
