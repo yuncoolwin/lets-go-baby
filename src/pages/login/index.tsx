@@ -179,27 +179,36 @@ export default function LoginPage() {
 
       {/* 协议勾选 */}
       <View
-        className="mt-6 px-8"
+        className="mt-8 px-6 pt-1"
         style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}
       >
         <CheckboxGroup
-          style={{ display: 'flex', alignItems: 'center' }}
+          style={{ display: 'flex', alignItems: 'center', marginRight: '4px' }}
           onChange={onCheckboxChange}
         >
-          <Checkbox value="agreed" checked={agreed} style={{ transform: 'scale(0.78)' }} />
+          <Checkbox
+            value="agreed"
+            checked={agreed}
+            className="mx-1"
+            style={{ transform: 'scale(0.78)' }}
+          />
         </CheckboxGroup>
-        <Text className="block text-xs text-gray-400" style={{ marginLeft: '-8px' }}>
+        <Text className="block text-xs text-gray-400" style={{ margin: '0 2px' }}>
           我已阅读并同意
         </Text>
         <Text
           className="text-xs text-[#E8651A]"
+          style={{ margin: '0 2px' }}
           onClick={openAgreement}
         >
           《用户协议》
         </Text>
-        <Text className="block text-xs text-gray-400">和</Text>
+        <Text className="block text-xs text-gray-400" style={{ margin: '0 2px' }}>
+          和
+        </Text>
         <Text
           className="text-xs text-[#E8651A]"
+          style={{ margin: '0 2px' }}
           onClick={openPrivacy}
         >
           《隐私政策》
