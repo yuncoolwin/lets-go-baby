@@ -2202,10 +2202,10 @@ export default function ChildDetailPage() {
                                 </Text>
                               </View>
                             )}
-                            {adjustMap[ds] && inRange && !holidayMap[ds] && (
+                            {adjustMap[ds] && inRange && !holidayMap[ds] && !attendanceMap[ds] && (
                               <View className="self-center">
-                                <Text className="text-sm px-1 rounded-sm" style={attendanceMap[ds] ? { color: '#52C41A', border: '1px solid #52C41A', backgroundColor: '#FFF8F0', lineHeight: '16px' } : { color: '#3B82F6', border: '1px solid #3B82F6', backgroundColor: '#F0F7FF', lineHeight: '16px' }}>
-                                  {attendanceMap[ds] ? '考勤' : '补课'}
+                                <Text className="text-sm px-1 rounded-sm" style={{ color: '#3B82F6', border: '1px solid #3B82F6', backgroundColor: '#F0F7FF', lineHeight: '16px' }}>
+                                  补课
                                 </Text>
                               </View>
                             )}
