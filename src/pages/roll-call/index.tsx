@@ -889,12 +889,7 @@ export default function RollCallPage() {
                                           )
                                         }
                                         return (
-                                          <View className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                                            child.gender === 'female' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700'
-                                          }`}
-                                          >
-                                            <Text className="block text-sm">{child.name.charAt(0)}</Text>
-                                          </View>
+                                          <View className="w-10 h-10 rounded-full flex-shrink-0 bg-gray-100" />
                                         )
                                       })()}
                                       <View className="flex-1 flex items-center gap-2" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', minWidth: 0 }}>
