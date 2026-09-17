@@ -314,10 +314,10 @@ export default function HolidayManagePage() {
                     <View className="flex items-start justify-between mb-2">
                       <View className="flex-1">
                         <View className="flex items-center gap-2 mb-1">
-                          <Text className="block text-base font-semibold text-foreground">{h.name}</Text>
                           <View className={`px-2 py-1 rounded-full text-xs ${typeInfo.color}`}>
                             <Text className="text-xs font-medium">{typeInfo.label}</Text>
                           </View>
+                          <Text className="block text-base font-semibold text-foreground">{h.name}</Text>
                         </View>
                         {targetName && (
                           <Text className="block text-xs text-muted-foreground">
