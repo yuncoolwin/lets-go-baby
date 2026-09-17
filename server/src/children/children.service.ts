@@ -184,7 +184,7 @@ export class ChildrenService {
     // Step 1: 先获取所有匹配条件的幼儿（不含分页），仅取 id + created_at（total 为过滤后数量）
     let idBuilder = this.client
       .from('children')
-      .select('id, created_at, name', { count: 'exact' })
+      .select('id, created_at, name, status', { count: 'exact' })
       .neq('status', 'archived');
 
     if (level === 'teacher') {
@@ -211,61 +211,71 @@ export class ChildrenService {
 
     const childIds = (allChildren || []).map(c => c.id);
     const childCreatedAtMap = new Map((allChildren || []).map(c => [c.id, c.created_at]));
-    const childNameMap = new Map((allChildren || []).map(c => [c.id, c.name || '']));
+    const childStatusMap = new Map((allChildren || []).map(c => [c.id, c.status || '']));
 
-    // Step 2: 查询所有 enrollments，获取每个幼儿的在读状态与最新报读开始时间
-    // hasActive：是否存在 status='进行中' 的报读（有在读课程）
-    // latestStart：该幼儿所有报读 start_date 的最大值（最新课程报读开始时间，无则空）
-    // hasEnrollment：是否带 start_date 的报读记录
-    let enrollInfo = new Map<string, { hasActive: boolean; latestStart: string; hasEnrollment: boolean }>();
+    // Step 2: 查询 enrollment + drop_in，计算每个幼儿是否有记录及最近一次课程开始时间
+    // hasEnrollment：是否有任何报读记录
+    // hasDropIn：是否有任何临时课程
+    // latestStart：该幼儿所有报读 start_date 与临时课程 start_date/date 中最近的一次开始日期
+    let childInfo = new Map<string, { hasEnrollment: boolean; hasDropIn: boolean; latestStart: string }>();
     if (childIds.length > 0) {
       const { data: enrollments } = await this.client
         .from('enrollments')
-        .select('child_id, start_date, status')
+        .select('child_id, start_date')
         .in('child_id', childIds);
 
       for (const e of enrollments || []) {
-        const info = enrollInfo.get(e.child_id) || { hasActive: false, latestStart: '', hasEnrollment: false };
-        if (e.status === '进行中') info.hasActive = true;
-        if (e.start_date) {
-          info.hasEnrollment = true;
-          if (!info.latestStart || e.start_date > info.latestStart) {
-            info.latestStart = e.start_date;
-          }
+        const info = childInfo.get(e.child_id) || { hasEnrollment: false, hasDropIn: false, latestStart: '' };
+        info.hasEnrollment = true;
+        if (e.start_date && (!info.latestStart || e.start_date > info.latestStart)) {
+          info.latestStart = e.start_date;
         }
-        enrollInfo.set(e.child_id, info);
+        childInfo.set(e.child_id, info);
+      }
+
+      const { data: dropIns } = await this.client
+        .from('drop_in_records')
+        .select('child_id, start_date, date')
+        .in('child_id', childIds);
+
+      for (const d of dropIns || []) {
+        const info = childInfo.get(d.child_id) || { hasEnrollment: false, hasDropIn: false, latestStart: '' };
+        info.hasDropIn = true;
+        const ds = d.start_date || d.date || '';
+        if (ds && (!info.latestStart || ds > info.latestStart)) {
+          info.latestStart = ds;
+        }
+        childInfo.set(d.child_id, info);
       }
     }
 
     // Step 3: 排序
-    // 第一层：有在读课程(hasActive) > 无在读但有报读(hasEnrollment) > 无任何报读
-    // 第二层：前两组内按 latestStart 降序（后报读在前，latestStart 为空者组末）
-    // 第三层：无报读组内按姓名拼音首字母升序；首字母相同按 created_at 降序兜底
+    // 第一组（最顶）：新增幼儿——无任何报读记录且无任何临时课程
+    // 之后按幼儿状态分组：在读(active) → 结课(finished) → 休学(suspended) → 毕业(graduated)
+    // 同组内按最近一次报读/临时课程开始时间降序（日期越新越靠上）
+    const statusPriority: Record<string, number> = { active: 1, finished: 2, suspended: 3, graduated: 4 };
+    const emptyInfo = { hasEnrollment: false, hasDropIn: false, latestStart: '' };
     const sortedIds = childIds.sort((a, b) => {
-      const ia = enrollInfo.get(a) || { hasActive: false, latestStart: '', hasEnrollment: false };
-      const ib = enrollInfo.get(b) || { hasActive: false, latestStart: '', hasEnrollment: false };
+      const ia = childInfo.get(a) || emptyInfo;
+      const ib = childInfo.get(b) || emptyInfo;
 
-      const groupA = ia.hasActive ? 0 : ia.hasEnrollment ? 1 : 2;
-      const groupB = ib.hasActive ? 0 : ib.hasEnrollment ? 1 : 2;
-      if (groupA !== groupB) return groupA - groupB;
+      // 新增幼儿排最顶
+      const isNewA = !ia.hasEnrollment && !ia.hasDropIn;
+      const isNewB = !ib.hasEnrollment && !ib.hasDropIn;
+      if (isNewA !== isNewB) return isNewA ? -1 : 1;
 
-      // 前两组内：latestStart 降序
-      if (groupA < 2) {
-        const startA = ia.latestStart;
-        const startB = ib.latestStart;
-        const hasA = !!startA;
-        const hasB = !!startB;
-        if (hasA !== hasB) return hasA ? -1 : 1;
-        if (hasA && hasB && startA !== startB) return startB.localeCompare(startA);
-      }
+      // 状态分组
+      const pa = statusPriority[childStatusMap.get(a) || ''] ?? 5;
+      const pb = statusPriority[childStatusMap.get(b) || ''] ?? 5;
+      if (pa !== pb) return pa - pb;
 
-      // 无报读组内（groupA === 2）：按姓名拼音首字母升序
-      if (groupA === 2) {
-        const nameA = childNameMap.get(a) || '';
-        const nameB = childNameMap.get(b) || '';
-        const cmp = nameA.localeCompare(nameB, 'zh-CN');
-        if (cmp !== 0) return cmp;
-      }
+      // 同组内：最近课程开始时间降序（无记录者组末）
+      const startA = ia.latestStart;
+      const startB = ib.latestStart;
+      const hasA = !!startA;
+      const hasB = !!startB;
+      if (hasA !== hasB) return hasA ? -1 : 1;
+      if (hasA && hasB && startA !== startB) return startB.localeCompare(startA);
 
       // 兜底：created_at 降序
       const timeA = childCreatedAtMap.get(a) || '';
