@@ -31,6 +31,11 @@ interface ChildItem {
   record_status?: string | null
 }
 
+const WEEK_CN = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
+function weekName(dateStr: string) {
+  return WEEK_CN[new Date(`${dateStr}T00:00:00`).getDay()] || ''
+}
+
 // 课程类型排序序号（与课程管理一致，未知类型排最后）
 const COURSE_TYPE_ORDER: Record<string, number> = {
   '全日托': 0,
@@ -87,7 +92,8 @@ export default function RollCallPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [classList, setClassList] = useState<Array<{ id: string; name: string }>>([])
   const [selectedClassId, setSelectedClassId] = useState('')
-  const [holidayInfo, setHolidayInfo] = useState<{ is_class_holiday: boolean; holiday_label: string | null; personal_holiday_child_ids: string[] }>({ is_class_holiday: false, holiday_label: null, personal_holiday_child_ids: [] })
+  const [holidayInfo, setHolidayInfo] = useState<{ is_class_holiday: boolean; holiday_label: string | null; holiday_source: 'statutory' | 'garden' | null; personal_holiday_child_ids: string[] }>({ is_class_holiday: false, holiday_label: null, holiday_source: null, personal_holiday_child_ids: [] })
+  const [isAdjustmentDay, setIsAdjustmentDay] = useState(false)
   const [allPersonalHolidayIds, setAllPersonalHolidayIds] = useState<string[]>([])
   const [dropInModal, setDropInModal] = useState(false)
   const [teacherClassList, setTeacherClassList] = useState<Array<{ class_id: string; class_name: string }>>([])
@@ -313,10 +319,22 @@ export default function RollCallPage() {
         data: { class_id: cid, date: selectedDate },
       })
       const data = res.data?.data
-      setHolidayInfo(data || { is_class_holiday: false, holiday_label: null, personal_holiday_child_ids: [] })
+      setHolidayInfo(data || { is_class_holiday: false, holiday_label: null, holiday_source: null, personal_holiday_child_ids: [] })
     } catch (e) {
       console.error('[RollCall] load holiday status error:', e)
-      setHolidayInfo({ is_class_holiday: false, holiday_label: null, personal_holiday_child_ids: [] })
+      setHolidayInfo({ is_class_holiday: false, holiday_label: null, holiday_source: null, personal_holiday_child_ids: [] })
+    }
+    // 调休上班日判定：原为周六/周日且被判定为调休上班 → 星期显示加"（调休日）"
+    try {
+      const dow = new Date(`${selectedDate}T00:00:00`).getDay()
+      if (dow === 6 || dow === 0) {
+        const wwRes: any = await Network.request({ url: `/api/attendance/work-weekend?date=${selectedDate}` })
+        setIsAdjustmentDay(!!wwRes.data?.data?.workWeekend)
+      } else {
+        setIsAdjustmentDay(false)
+      }
+    } catch {
+      setIsAdjustmentDay(false)
     }
   }
 
@@ -534,13 +552,16 @@ export default function RollCallPage() {
           <View onClick={() => shiftDate(-1)}>
             <ChevronLeft size={20} color="#6b7280" />
           </View>
-          <View onClick={() => setCalendarVisible(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <View onClick={() => setCalendarVisible(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
             <View style={{ display: 'flex', alignItems: 'center', flexDirection: 'row' }}>
               <Text className="block text-sm text-gray-500">{selectedDate === today ? '今天' : selectedDate}</Text>
               <Text className="block text-xs text-gray-300 ml-1">▼</Text>
             </View>
+            <Text className="block text-xs text-gray-600" style={{ marginTop: -2, lineHeight: '16px' }}>
+              {weekName(selectedDate)}{isAdjustmentDay ? '（调休日）' : ''}
+            </Text>
             {selectedDate !== today && !isAdmin && (
-              <Text className="block text-xs text-orange-500">（历史记录，只读）</Text>
+              <Text className="block text-xs text-orange-500" style={{ lineHeight: '16px' }}>（历史记录，只读）</Text>
             )}
           </View>
           <View onClick={() => shiftDate(1)}>
@@ -688,7 +709,11 @@ export default function RollCallPage() {
         ) : children.length === 0 ? (
           <View className="text-center py-12">
             <Text className="block text-gray-400">
-              {holidayInfo.is_class_holiday ? '假期快乐！' : '暂无在读幼儿'}
+              {holidayInfo.is_class_holiday && holidayInfo.holiday_label
+                ? `${holidayInfo.holiday_label}快乐！`
+                : new Date(`${selectedDate}T00:00:00`).getDay() === 0
+                  ? '周日快乐！'
+                  : '暂无在读幼儿'}
             </Text>
           </View>
         ) : (

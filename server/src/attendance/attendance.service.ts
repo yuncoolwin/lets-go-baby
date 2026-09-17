@@ -1200,6 +1200,7 @@ export class AttendanceService {
   async getHolidayStatus(classId: string, date?: string) {
     const targetDate = date || getShanghaiToday();
     let holidayLabel: string | null = null;
+    let holidaySource: 'statutory' | 'garden' | null = null;
 
     // 1. 全园假期（type=all）
     const { data: allHolidays } = await this.client
@@ -1210,6 +1211,7 @@ export class AttendanceService {
       .gte('end_date', targetDate);
     if ((allHolidays || []).length > 0) {
       holidayLabel = allHolidays![0].name || '全园放假';
+      holidaySource = 'garden';
     }
 
     // 2. 班级假期（type=class，target_id=班级id）
@@ -1223,6 +1225,7 @@ export class AttendanceService {
         .gte('end_date', targetDate);
       if ((classHolidays || []).length > 0) {
         holidayLabel = classHolidays![0].name || '班级放假';
+        holidaySource = 'garden';
       }
     }
 
@@ -1235,7 +1238,10 @@ export class AttendanceService {
         .eq('year', year)
         .eq('type', 'holiday');
       const hit = (statutory || []).find(h => h.date?.substring(0, 10) === targetDate);
-      if (hit) holidayLabel = hit.name || '法定节假日';
+      if (hit) {
+        holidayLabel = hit.name || '法定节假日';
+        holidaySource = 'statutory';
+      }
     }
 
     // 4. 个人假期（type=personal，target_id=幼儿id）：返回命中该日期的幼儿列表
@@ -1264,6 +1270,7 @@ export class AttendanceService {
     return {
       is_class_holiday: !!holidayLabel,
       holiday_label: holidayLabel,
+      holiday_source: holidaySource,
       personal_holiday_child_ids: personalHolidayChildIds,
     };
   }
