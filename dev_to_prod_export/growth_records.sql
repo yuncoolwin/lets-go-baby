@@ -1,0 +1,1 @@
+-- growth_records: 0 rows (no data)

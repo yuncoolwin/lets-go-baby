@@ -1,0 +1,2 @@
+INSERT INTO "classes" ("id", "name", "description", "min_age_months", "max_age_months", "status", "created_at", "level", "capacity", "room") VALUES ('bfc3e9f8-ae31-4d33-ad15-bc725192effc', 'IC班', NULL, NULL, NULL, 'active', '2026-07-31T15:50:25.15887+08:00', 'nursery', 20, '教室A');
+INSERT INTO "classes" ("id", "name", "description", "min_age_months", "max_age_months", "status", "created_at", "level", "capacity", "room") VALUES ('c1d763d7-a7f7-4386-976b-ecbb105b1d82', 'CASA班', NULL, NULL, NULL, 'active', '2026-07-31T15:50:07.074408+08:00', 'nursery', 20, '教室A');
