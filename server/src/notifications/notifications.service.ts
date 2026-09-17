@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { AuthzService } from '@/auth/authz.service';
+import { WechatService } from '@/auth/wechat.service';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const sharp = require('sharp');
 
@@ -13,7 +14,10 @@ const SIGNED_URL_TTL = 60 * 60 * 24;
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly authz: AuthzService) {}
+  constructor(
+    private readonly authz: AuthzService,
+    private readonly wechat: WechatService,
+  ) {}
 
   private get client() {
     return getSupabaseClient();
@@ -333,6 +337,12 @@ export class NotificationsService {
         { code: 403, msg: '教师无权发布全园通知或教师通知', data: null },
         HttpStatus.FORBIDDEN,
       );
+    }
+
+    // 内容安全：标题/正文入库前过检
+    const textSafe = await this.wechat.checkText(`${dto.title || ''} ${dto.content || ''}`);
+    if (!textSafe) {
+      return { error: true, code: 400, msg: '文本包含违规内容，请修改后再提交' };
     }
 
     const status = dto.status || 'draft';
@@ -784,6 +794,14 @@ export class NotificationsService {
     // 仅当从草稿/撤回转为发布时才重建接收人；管理员就地编辑已发布通知不重建、不重置已读、不重新群发
     const becomingPublished = dto.status === 'published' && existing.status !== 'published';
     const isEditingPublished = isAdminOperator && existing.status === 'published';
+    // 内容安全：变更的标题/正文过检
+    if (dto.title !== undefined || dto.content !== undefined) {
+      const textSafe = await this.wechat.checkText(`${(dto.title ?? existing.title) || ''} ${(dto.content ?? existing.content) || ''}`);
+      if (!textSafe) {
+        return { error: true, code: 400, msg: '文本包含违规内容，请修改后再提交' };
+      }
+    }
+
     const updateData: Record<string, any> = { updated_at: new Date().toISOString() };
     if (dto.title !== undefined) updateData.title = dto.title;
     if (dto.content !== undefined) updateData.content = dto.content;
@@ -1091,6 +1109,12 @@ export class NotificationsService {
         .toBuffer();
     } catch (e) {
       return { error: true, code: 400, msg: `图片压缩失败: ${(e as Error).message}` };
+    }
+
+    // 内容安全：压缩后、写存储前调用微信图片安全接口，命中违规直接拒绝、不落库不存储
+    const imgSafe = await this.wechat.checkImage(compressed);
+    if (!imgSafe) {
+      return { error: true, code: 400, msg: '图片包含违规内容，请更换' };
     }
 
     // 确保 bucket 存在（不存在则创建 private bucket；已存在 public 则降级为 private）

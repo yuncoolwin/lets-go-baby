@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import * as crypto from 'crypto';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { AuthzService } from '@/auth/authz.service';
+import { WechatService } from '@/auth/wechat.service';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const sharp = require('sharp');
 
@@ -25,7 +26,10 @@ export class GrowthService {
     return getSupabaseClient();
   }
 
-  constructor(private readonly authz: AuthzService) {}
+  constructor(
+    private readonly authz: AuthzService,
+    private readonly wechat: WechatService,
+  ) {}
 
   /**
    * JWT userId -> 当前身份角色（teacher 优先，其次 admin/superadmin，再 parent）
@@ -232,6 +236,9 @@ export class GrowthService {
     if (file.size > 10 * 1024 * 1024) {
       return { error: true, code: 413, msg: '视频过大，请控制在 10MB 以内' };
     }
+    // 内容安全：微信视频审核为异步接口（media_check_async 需回调/定时查询结果）。
+    // 当前采取保守兜底策略 —— 维持 仅 mp4 + 10MB 白名单限制，不开放其他格式；
+    // 若需进一步接入异步视频审核，可在此调 checkVideo 并默认拒绝直到审核通过，本处先保持一致行为。
 
     await this.ensureBucket();
     const path = `growth/videos/${userId}/${Date.now()}-${crypto.randomBytes(4).toString('hex')}.mp4`;
@@ -287,6 +294,12 @@ export class GrowthService {
         .toBuffer();
     } catch (e) {
       return { error: true, code: 400, msg: `图片压缩失败: ${(e as Error).message}` };
+    }
+
+    // 内容安全：压缩后、写存储前调用微信图片安全接口，命中违规直接拒绝、不落库不存储
+    const imgSafe = await this.wechat.checkImage(compressed);
+    if (!imgSafe) {
+      return { error: true, code: 400, msg: '图片包含违规内容，请更换' };
     }
 
     await this.ensureBucket();
@@ -361,6 +374,12 @@ export class GrowthService {
           HttpStatus.FORBIDDEN,
         );
       }
+    }
+
+    // 内容安全：标题/正文入库前过检
+    const textSafe = await this.wechat.checkText(`${dto.title || ''} ${dto.content || ''}`);
+    if (!textSafe) {
+      return { error: true, code: 400, msg: '文本包含违规内容，请修改后再提交' };
     }
 
     const { data: record, error } = await this.client
@@ -504,6 +523,14 @@ export class GrowthService {
     const isOwner = existing.teacher_id === role.id;
     if (!isOwner && !this.isAdminRole(role.role_type)) {
       throw new HttpException({ code: 403, msg: '无权编辑该记录', data: null }, HttpStatus.FORBIDDEN);
+    }
+
+    // 内容安全：变更的标题/正文过检
+    if (dto.title !== undefined || dto.content !== undefined) {
+      const textSafe = await this.wechat.checkText(`${(dto.title ?? existing.title) || ''} ${(dto.content ?? existing.content) || ''}`);
+      if (!textSafe) {
+        return { error: true, code: 400, msg: '文本包含违规内容，请修改后再提交' };
+      }
     }
 
     const updateData: Record<string, any> = {};

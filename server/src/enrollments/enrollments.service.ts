@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { AuthzService } from '@/auth/authz.service';
+import { WechatService } from '@/auth/wechat.service';
 import { addDays, isWeekend, isSaturday } from '@/utils/date.util';
 import { collectMakeupClassDays } from '@/children/utils/holiday-helper';
 
@@ -75,7 +76,10 @@ export interface UpdateEnrollmentDto {
 @Injectable()
 export class EnrollmentsService {
 
-  constructor(private readonly authz: AuthzService) {}
+  constructor(
+    private readonly authz: AuthzService,
+    private readonly wechat: WechatService,
+  ) {}
 
   private get client() {
     return getSupabaseClient();
@@ -1159,6 +1163,12 @@ export class EnrollmentsService {
     }
     const { class_id, course_id, ...rest } = dto;
 
+    // 内容安全：报读备注入库前过检
+    const notesSafe = await this.wechat.checkText(rest.notes || '');
+    if (!notesSafe) {
+      throw new ForbiddenException('备注包含违规内容，请修改后再提交');
+    }
+
     let finalCourseId = course_id || null;
     let finalCourseType = rest.course_type || '';
 
@@ -1224,6 +1234,15 @@ export class EnrollmentsService {
       throw new ForbiddenException('仅管理员可更新报读记录');
     }
     const { class_id, course_id, ...rest } = dto;
+
+    // 内容安全：报读备注入库前过检（仅当有变更时）
+    if (rest.notes !== undefined) {
+      const notesSafe = await this.wechat.checkText(rest.notes || '');
+      if (!notesSafe) {
+        throw new ForbiddenException('备注包含违规内容，请修改后再提交');
+      }
+    }
+
     const updateData: Record<string, any> = {};
     if (rest.course_type !== undefined) updateData.course_type = rest.course_type;
     if (course_id !== undefined) updateData.course_id = course_id;
