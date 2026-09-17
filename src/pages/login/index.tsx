@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text, Image, Checkbox, CheckboxGroup } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/store/app'
@@ -11,6 +11,20 @@ export default function LoginPage() {
   const { wxLogin, phoneLogin, isLoading } = useAppStore()
 
   const [needPhoneAuth, setNeedPhoneAuth] = useState(false)
+  const [agreed, setAgreed] = useState(false)
+
+  const ensureAgreed = () => {
+    if (agreed) return true
+    Taro.showToast({ title: '请先阅读并同意《用户协议》和《隐私政策》', icon: 'none' })
+    return false
+  }
+
+  const openAgreement = () => Taro.navigateTo({ url: '/pages/agreement/index' })
+  const openPrivacy = () => Taro.navigateTo({ url: '/pages/privacy/index' })
+
+  const onCheckboxChange = (e: any) => {
+    setAgreed(!!(e?.detail?.value && e.detail.value.length > 0))
+  }
 
   const isDev = (() => {
     if (Taro.getEnv() !== Taro.ENV_TYPE.WEAPP) return true
@@ -25,6 +39,7 @@ export default function LoginPage() {
 
   const handleWxLogin = async () => {
     console.log('[Login] handleWxLogin called, env:', Taro.getEnv())
+    if (!ensureAgreed()) return
     // 在真实小程序环境中调用微信登录
     if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
       // 10秒超时处理
@@ -83,6 +98,7 @@ export default function LoginPage() {
 
   const handlePhoneLogin = async (e: any) => {
     console.log('[Login] handlePhoneLogin called, detail:', e?.detail)
+    if (!ensureAgreed()) return
     const phoneCode = e?.detail?.code
     if (!phoneCode) {
       Taro.showToast({ title: '未授权手机号，请重试', icon: 'none' })
@@ -161,23 +177,32 @@ export default function LoginPage() {
         )}
       </View>
 
-      {/* 底部说明 */}
-      <View className="mt-12 text-center">
-        <Text className="block text-xs text-gray-400">
-          登录即表示同意
-          <Text
-            className="text-xs text-[#E8651A]"
-            onClick={() => Taro.navigateTo({ url: '/pages/agreement/index' })}
-          >
-            《用户协议》
-          </Text>
-          和
-          <Text
-            className="text-xs text-[#E8651A]"
-            onClick={() => Taro.navigateTo({ url: '/pages/privacy/index' })}
-          >
-            《隐私政策》
-          </Text>
+      {/* 协议勾选 */}
+      <View
+        className="mt-6 px-8"
+        style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}
+      >
+        <CheckboxGroup
+          style={{ display: 'flex', alignItems: 'center' }}
+          onChange={onCheckboxChange}
+        >
+          <Checkbox value="agreed" checked={agreed} style={{ transform: 'scale(0.78)' }} />
+        </CheckboxGroup>
+        <Text className="block text-xs text-gray-400" style={{ marginLeft: '-8px' }}>
+          我已阅读并同意
+        </Text>
+        <Text
+          className="text-xs text-[#E8651A]"
+          onClick={openAgreement}
+        >
+          《用户协议》
+        </Text>
+        <Text className="block text-xs text-gray-400">和</Text>
+        <Text
+          className="text-xs text-[#E8651A]"
+          onClick={openPrivacy}
+        >
+          《隐私政策》
         </Text>
       </View>
 
