@@ -145,10 +145,9 @@ export default function RollCallPage() {
         // "全部"模式：selectedClassId 为空字符串表示查看所有班级；首屏默认选中"全部"
         const currentClassId = selectedClassId || ''
 
-        // 加载该班级该日期的假期状态（四类假期）——单班模式才需要
-        if (currentClassId) {
-          await fetchHolidayStatus(currentClassId)
-        }
+        // 加载该班级该日期的假期状态（四类假期）——单班模式传班级id；
+        // 全部模式也加载以命中全园/法定节假日（法定/全园不依赖班级）
+        await fetchHolidayStatus(currentClassId)
 
         // 加载日期列表
         if (currentClassId) {

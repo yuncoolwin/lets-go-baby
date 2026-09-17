@@ -1197,7 +1197,7 @@ export class AttendanceService {
    * 获取某班级某天的假期状态（用于点名页：假期日出勤按钮置灰）
    * 覆盖四类假期：法定节假日、全园假期、班级假期、个人假期
    */
-  async getHolidayStatus(classId: string, date?: string) {
+  async getHolidayStatus(classId?: string, date?: string) {
     const targetDate = date || getShanghaiToday();
     let holidayLabel: string | null = null;
     let holidaySource: 'statutory' | 'garden' | null = null;
