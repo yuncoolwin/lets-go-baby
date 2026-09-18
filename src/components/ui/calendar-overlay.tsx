@@ -11,6 +11,7 @@ interface CalendarOverlayProps {
   onChange: (dateStr: string) => void
   disabled?: (date: Date) => boolean
   showAllDates?: boolean
+  fromYear?: number
 }
 
 export function CalendarOverlay({
@@ -20,6 +21,7 @@ export function CalendarOverlay({
   onChange,
   disabled,
   showAllDates,
+  fromYear,
 }: CalendarOverlayProps) {
   const [show, setShow] = useState(false)
   const [animating, setAnimating] = useState<'open' | 'close' | 'idle'>('idle')
@@ -93,6 +95,7 @@ export function CalendarOverlay({
           onSelect={handleSelect}
           disabled={disabled}
           showAllDates={showAllDates}
+          fromYear={fromYear}
           onClearDate={handleClearDate}
         />
       </View>

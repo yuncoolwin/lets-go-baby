@@ -1682,6 +1682,7 @@ export default function ChildDetailPage() {
         onClose={() => setShowCalendar(null)}
         value={editBirthDate}
         onChange={(dateStr) => setEditBirthDate(dateStr)}
+        fromYear={1990}
       />
       <CalendarOverlay
         visible={showCalendar === 'startDate'}

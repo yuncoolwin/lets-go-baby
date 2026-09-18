@@ -117,8 +117,13 @@ function Calendar({
 
   const yearOptions = React.useMemo(() => {
     const baseYear = new Date().getFullYear()
+    // 传入 fromYear 时：生成从 fromYear 到当前年份的完整年份序列（支持更大年龄的出生日期）
+    // 未传 fromYear 时：保持原有 11 年逻辑不变
+    if (fromYear != null && fromYear <= baseYear) {
+      return Array.from({ length: baseYear - fromYear + 1 }, (_, i) => fromYear + i)
+    }
     return Array.from({ length: 11 }, (_, i) => baseYear - 5 + i)
-  }, [])
+  }, [fromYear])
 
   const monthOptions = React.useMemo(() => {
     return Array.from({ length: 12 }, (_, i) => i + 1)
