@@ -383,23 +383,9 @@ export default function IndexPage() {
     }
   }
 
-  // 加载中
-  if (pageLoading || isLoading) {
-    return (
-      <View className="min-h-screen bg-background p-4 pb-24">
-        <Skeleton className="h-8 w-48 mb-4 rounded-lg" />
-        <Skeleton className="h-40 w-full mb-4 rounded-xl" />
-        <View className="flex gap-3">
-          <Skeleton className="h-24 flex-1 rounded-xl" />
-          <Skeleton className="h-24 flex-1 rounded-xl" />
-        </View>
-        <TabBar />
-      </View>
-    )
-  }
-
-  // 游客首页（未登录 / 登录态失效）：展示品牌与登录入口，不强制跳转登录、不白屏
-  if (!isLoggedIn) {
+  // 游客首页（store 恢复后未登录 / 登录态失效）：展示品牌与登录入口，不强制跳转登录、不白屏
+  // 置于 loading 骨架之前，避免游客态因 pageLoading 未被复位而一直卡在加载中/空白
+  if (storeReady && !isLoggedIn) {
     return (
       <View className="min-h-screen bg-background flex flex-col items-center justify-center px-8 pb-24">
         <Image src={rabbitLogo} className="w-24 h-24 rounded-3xl mb-6" mode="aspectFit" />
@@ -414,6 +400,21 @@ export default function IndexPage() {
           微信授权登录
         </Button>
         <Text className="block text-xs text-gray-400 mt-4">登录后可使用更多功能</Text>
+        <TabBar />
+      </View>
+    )
+  }
+
+  // 加载中
+  if (pageLoading || isLoading) {
+    return (
+      <View className="min-h-screen bg-background p-4 pb-24">
+        <Skeleton className="h-8 w-48 mb-4 rounded-lg" />
+        <Skeleton className="h-40 w-full mb-4 rounded-xl" />
+        <View className="flex gap-3">
+          <Skeleton className="h-24 flex-1 rounded-xl" />
+          <Skeleton className="h-24 flex-1 rounded-xl" />
+        </View>
         <TabBar />
       </View>
     )
