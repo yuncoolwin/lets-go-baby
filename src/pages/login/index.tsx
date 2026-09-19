@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, Image, Checkbox, CheckboxGroup } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/store/app'
@@ -21,10 +21,6 @@ export default function LoginPage() {
 
   const openAgreement = () => Taro.navigateTo({ url: '/pages/agreement/index' })
   const openPrivacy = () => Taro.navigateTo({ url: '/pages/privacy/index' })
-
-  const onCheckboxChange = (e: any) => {
-    setAgreed(!!(e?.detail?.value && e.detail.value.length > 0))
-  }
 
   const isDev = (() => {
     if (Taro.getEnv() !== Taro.ENV_TYPE.WEAPP) return true
@@ -182,17 +178,28 @@ export default function LoginPage() {
         className="mt-8 px-6 pt-1"
         style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}
       >
-        <CheckboxGroup
-          style={{ display: 'flex', alignItems: 'center', marginRight: '4px' }}
-          onChange={onCheckboxChange}
+        <View
+          className="flex items-center justify-center"
+          style={{
+            width: 12,
+            height: 12,
+            borderRadius: '50%',
+            border: `1px solid ${agreed ? '#E8651A' : '#D1D5DB'}`,
+            backgroundColor: agreed ? '#E8651A' : 'transparent',
+            marginRight: 4,
+            flexShrink: 0,
+          }}
+          onClick={() => setAgreed((prev) => !prev)}
         >
-          <Checkbox
-            value="agreed"
-            checked={agreed}
-            className="mx-1"
-            style={{ transform: 'scale(0.78)' }}
-          />
-        </CheckboxGroup>
+          {agreed && (
+            <Text
+              className="block"
+              style={{ color: '#fff', fontSize: 9, lineHeight: 1 }}
+            >
+              ✓
+            </Text>
+          )}
+        </View>
         <Text className="block text-xs text-gray-400" style={{ margin: '0 2px' }}>
           我已阅读并同意
         </Text>
