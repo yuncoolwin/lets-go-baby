@@ -967,7 +967,19 @@ export default function IndexPage() {
         )}
 
         {/* 快捷入口 */}
-        <View className="grid grid-cols-3 gap-3">
+        <View className="grid grid-cols-4 gap-3">
+          <Card
+            className="bg-white rounded-xl border-0 shadow-sm"
+            onClick={() => Taro.navigateTo({ url: '/pages/admin/children/index' })}
+          >
+            <CardContent className="p-4 flex flex-col items-center">
+              <View className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center mb-2">
+                <Baby size={24} color="#A855F7" />
+              </View>
+              <Text className="text-xs text-foreground">幼儿详情</Text>
+            </CardContent>
+          </Card>
+
           <Card
             className="bg-white rounded-xl border-0 shadow-sm"
             onClick={() => Taro.navigateTo({ url: '/pages/records/index' })}

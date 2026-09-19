@@ -1158,10 +1158,33 @@ export class EnrollmentsService {
 
   async create(userId: string, dto: CreateEnrollmentDto): Promise<Enrollment> {
     const level = await this.authz.getRoleLevel(userId);
-    if (!['admin', 'superadmin'].includes(level)) {
-      throw new ForbiddenException('仅管理员可创建报读记录');
+    if (!['admin', 'superadmin', 'teacher'].includes(level)) {
+      throw new ForbiddenException('无权创建报读记录');
     }
     const { class_id, course_id, ...rest } = dto;
+
+    // teacher：放开创建，但仅限本人带教的班级（报读班级与幼儿所在班级均须在带教集合内）
+    if (level === 'teacher') {
+      const classIds = await this.authz.getTeacherClassIds(userId);
+      if (!classIds.length) {
+        throw new ForbiddenException('当前教师账号未绑定班级，无权创建报读记录');
+      }
+      const has = (cid: string | null | undefined) => !!cid && classIds.includes(cid);
+      if (!has(class_id)) {
+        throw new ForbiddenException('无权为该班级幼儿创建报读记录');
+      }
+      if (!rest.child_id) {
+        throw new ForbiddenException('创建报读记录缺少 child_id');
+      }
+      const { data: childRow } = await this.client
+        .from('children')
+        .select('class_id')
+        .eq('id', rest.child_id)
+        .maybeSingle();
+      if (!childRow || !has(childRow.class_id)) {
+        throw new ForbiddenException('无权为该班级幼儿创建报读记录');
+      }
+    }
 
     // 内容安全：报读备注入库前过检
     const notesSafe = await this.wechat.checkText(rest.notes || '');
@@ -1230,8 +1253,8 @@ export class EnrollmentsService {
 
   async update(userId: string, id: string, dto: UpdateEnrollmentDto): Promise<Enrollment> {
     const level = await this.authz.getRoleLevel(userId);
-    if (!['admin', 'superadmin'].includes(level)) {
-      throw new ForbiddenException('仅管理员可更新报读记录');
+    if (!['admin', 'superadmin', 'teacher'].includes(level)) {
+      throw new ForbiddenException('无权更新报读记录');
     }
     const { class_id, course_id, ...rest } = dto;
 
@@ -1270,6 +1293,31 @@ export class EnrollmentsService {
     const oldEndDate = oldEnr?.end_date;
     const oldExtendedDate = oldEnr?.extended_end_date;
     const oldClassId = oldEnr?.class_id;
+
+    // teacher：放开更新，但仅限本人带教的班级（旧记录班级、幼儿所在班级、新班级均须在带教集合内）
+    if (level === 'teacher') {
+      const classIds = await this.authz.getTeacherClassIds(userId);
+      if (!classIds.length) {
+        throw new ForbiddenException('当前教师账号未绑定班级，无权更新报读记录');
+      }
+      const has = (cid: string | null | undefined) => !!cid && classIds.includes(cid);
+      if (!has(oldEnr?.class_id)) {
+        throw new ForbiddenException('无权更新该班级幼儿的报读记录');
+      }
+      if (oldEnr?.child_id) {
+        const { data: childRow } = await this.client
+          .from('children')
+          .select('class_id')
+          .eq('id', oldEnr.child_id)
+          .maybeSingle();
+        if (!childRow || !has(childRow.class_id)) {
+          throw new ForbiddenException('无权更新该班级幼儿的报读记录');
+        }
+      }
+      if (class_id !== undefined && !has(class_id)) {
+        throw new ForbiddenException('无权将报读记录改到非本班班级');
+      }
+    }
 
     if (course_id) {
       const { data: course } = await this.client
