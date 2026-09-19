@@ -164,12 +164,9 @@ export default function IndexPage() {
 
   useEffect(() => {
     if (!storeReady) return
-    
-    // 检查登录状态
-    if (!isLoggedIn) {
-      // 未登录，跳转到登录页
-      Taro.redirectTo({ url: '/pages/login/index' })
-    } else {
+
+    // 已登录则拉取用户信息；未登录保持游客态（不强制跳登录页，展示游客首页）
+    if (isLoggedIn) {
       fetchUserInfo()
     }
   }, [storeReady, isLoggedIn])
@@ -396,6 +393,27 @@ export default function IndexPage() {
           <Skeleton className="h-24 flex-1 rounded-xl" />
           <Skeleton className="h-24 flex-1 rounded-xl" />
         </View>
+        <TabBar />
+      </View>
+    )
+  }
+
+  // 游客首页（未登录 / 登录态失效）：展示品牌与登录入口，不强制跳转登录、不白屏
+  if (!isLoggedIn) {
+    return (
+      <View className="min-h-screen bg-background flex flex-col items-center justify-center px-8 pb-24">
+        <Image src={rabbitLogo} className="w-24 h-24 rounded-3xl mb-6" mode="aspectFit" />
+        <Text className="block text-xl font-bold text-foreground mb-1">力高稚家</Text>
+        <Text className="block text-sm text-muted-foreground text-center mb-8">
+          记录宝宝成长每一天，家校沟通更贴心
+        </Text>
+        <Button
+          className="w-full max-w-xs h-12 rounded-xl bg-primary text-white text-base font-medium"
+          onClick={() => Taro.navigateTo({ url: '/pages/login/index' })}
+        >
+          微信授权登录
+        </Button>
+        <Text className="block text-xs text-gray-400 mt-4">登录后可使用更多功能</Text>
         <TabBar />
       </View>
     )

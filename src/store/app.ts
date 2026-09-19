@@ -409,9 +409,9 @@ export const useAppStore = create<AppStore>()(
 
       // 请求结束后无论成功失败一律复位 isLoading（并在这条主流程统一处理登录失效）
       if (statusCode === 401 || !data) {
-        console.warn('[Auth] fetchUserInfo 未登录或无用户数据，清空登录态并跳转登录页', { statusCode, body })
+        // 游客模式：仅复位登录态进入游客首页，不再强制 reLaunch 登录页，用户可自行点击登录
+        console.warn('[Auth] fetchUserInfo 未登录或无用户数据，复位登录态进入游客态', { statusCode })
         get().logout()
-        Taro.reLaunch({ url: '/pages/login/index' })
         return
       }
       {

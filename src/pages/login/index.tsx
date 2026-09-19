@@ -141,7 +141,7 @@ export default function LoginPage() {
   }
 
   return (
-    <View className="min-h-screen bg-gradient-to-b from-orange-50 to-white flex flex-col items-center justify-center px-6">
+    <View className="min-h-screen bg-orange-50 flex flex-col items-center justify-center px-6">
       {/* Logo 区域 */}
       <View className="mb-12 flex flex-col items-center">
         <Image
