@@ -153,6 +153,9 @@ export default function IndexPage() {
   const todayNow = new Date()
   const isBirthdayToday = !!currentChild?.birth_date && parseInt(currentChild.birth_date.slice(5, 7), 10) === todayNow.getMonth() + 1 && parseInt(currentChild.birth_date.slice(8, 10), 10) === todayNow.getDate()
 
+  // 游客模式通用反馈：演示内容一律提示先登录，仅底部大按钮跳登录页
+  const guestToast = () => Taro.showToast({ title: '请先登录后使用', icon: 'none' })
+
   // 等待 store 从持久化中恢复
   useEffect(() => {
     // 检查 store 是否已恢复（通过检查 hasHydrated 或简单延迟）
@@ -383,23 +386,103 @@ export default function IndexPage() {
     }
   }
 
-  // 游客首页（store 恢复后未登录 / 登录态失效）：展示品牌与登录入口，不强制跳转登录、不白屏
+  // 游客首页（store 恢复后未登录 / 登录态失效）：仿家长端布局，展示演示内容 + 登录入口
   // 置于 loading 骨架之前，避免游客态因 pageLoading 未被复位而一直卡在加载中/空白
   if (storeReady && !isLoggedIn) {
     return (
-      <View className="min-h-screen bg-background flex flex-col items-center justify-center px-8 pb-24">
-        <Image src={rabbitLogo} className="w-24 h-24 rounded-3xl mb-6" mode="aspectFit" />
-        <Text className="block text-xl font-bold text-foreground mb-1">力高稚家</Text>
-        <Text className="block text-sm text-muted-foreground text-center mb-8">
-          记录宝宝成长每一天，家校沟通更贴心
-        </Text>
-        <Button
-          className="w-full max-w-xs h-12 rounded-xl bg-primary text-white text-base font-medium"
-          onClick={() => Taro.navigateTo({ url: '/pages/login/index' })}
-        >
-          微信授权登录
-        </Button>
-        <Text className="block text-xs text-gray-400 mt-4">登录后可使用更多功能</Text>
+      <View className="min-h-screen bg-background p-4 pb-24">
+        {/* 顶部欢迎区 */}
+        <View className="mb-4">
+          <Text className="block text-xl font-bold text-foreground">您好，欢迎光临</Text>
+          <Text className="block text-sm text-muted-foreground mt-1">{formatChineseDate(new Date())}</Text>
+        </View>
+
+        {/* 宝宝状态演示卡 */}
+        <Card className="mb-4 bg-white rounded-xl border-0 shadow-sm" onClick={guestToast}>
+          <CardContent className="p-4">
+            <View className="flex items-center gap-3 mb-3">
+              <View className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
+                <Image
+                  src={rabbitLogo}
+                  className="w-12 h-12 rounded-full"
+                  mode="aspectFit"
+                />
+              </View>
+              <View className="flex-1">
+                <Text className="block text-base font-semibold text-foreground">宝宝在园状态</Text>
+                <Text className="block text-xs text-muted-foreground mt-1">登录后查看宝宝实时状态</Text>
+              </View>
+            </View>
+
+            {/* 今日记录 - 占位星级 */}
+            <View className="pt-3 border-t border-border">
+              <View className="flex items-center gap-1 mb-2">
+                <Text className="block text-sm font-medium text-foreground">今日记录</Text>
+                <Info size={14} color="#9ca3af" onClick={guestToast} />
+              </View>
+              <View style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <View className="flex flex-row items-center gap-2" onClick={guestToast}>
+                  <Text className="block text-sm text-gray-500">情绪</Text>
+                  <Text style={{ fontSize: 16, color: '#D1D5DB' }}>☆☆☆☆☆</Text>
+                </View>
+                <View className="flex flex-row items-center gap-2" onClick={guestToast}>
+                  <Text className="block text-sm text-gray-500">餐食</Text>
+                  <Text style={{ fontSize: 16, color: '#D1D5DB' }}>☆☆☆☆☆</Text>
+                </View>
+                <View className="flex flex-row items-center gap-2" onClick={guestToast}>
+                  <Text className="block text-sm text-gray-500">午睡</Text>
+                  <Text style={{ fontSize: 16, color: '#D1D5DB' }}>☆☆☆☆☆</Text>
+                </View>
+              </View>
+            </View>
+          </CardContent>
+        </Card>
+
+        {/* 功能快捷入口（演示，点击提示登录） */}
+        <View className="grid grid-cols-4 gap-3">
+          <Card className="bg-white rounded-xl border-0 shadow-sm" onClick={guestToast}>
+            <CardContent className="p-4 flex flex-col items-center">
+              <View className="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center mb-2">
+                <Sprout size={24} color="#22C55E" />
+              </View>
+              <Text className="text-xs text-foreground">成长档案</Text>
+            </CardContent>
+          </Card>
+          <Card className="bg-white rounded-xl border-0 shadow-sm" onClick={guestToast}>
+            <CardContent className="p-4 flex flex-col items-center">
+              <View className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center mb-2">
+                <BookOpen size={24} color="#3B82F6" />
+              </View>
+              <Text className="text-xs text-foreground">今日记录</Text>
+            </CardContent>
+          </Card>
+          <Card className="bg-white rounded-xl border-0 shadow-sm" onClick={guestToast}>
+            <CardContent className="p-4 flex flex-col items-center">
+              <View className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center mb-2">
+                <Users size={24} color="#A855F7" />
+              </View>
+              <Text className="text-xs text-foreground">课程安排</Text>
+            </CardContent>
+          </Card>
+          <Card className="bg-white rounded-xl border-0 shadow-sm" onClick={guestToast}>
+            <CardContent className="p-4 flex flex-col items-center">
+              <View className="w-12 h-12 rounded-lg bg-amber-50 flex items-center justify-center mb-2">
+                <Info size={24} color="#F59E0B" />
+              </View>
+              <Text className="text-xs text-foreground">评分说明</Text>
+            </CardContent>
+          </Card>
+        </View>
+
+        {/* 登录按钮条（位于 TabBar 前、内容最底部） */}
+        <View className="mt-6">
+          <Button
+            className="w-full h-12 rounded-xl bg-primary text-white text-base font-medium"
+            onClick={() => Taro.navigateTo({ url: '/pages/login/index' })}
+          >
+            微信授权登录
+          </Button>
+        </View>
         <TabBar />
       </View>
     )
