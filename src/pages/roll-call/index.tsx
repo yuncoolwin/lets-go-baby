@@ -600,7 +600,7 @@ export default function RollCallPage() {
             {/* 全部标签：selectedClassId 为空字符串表示查看全部班级 */}
             <View
               className={`px-4 py-1 rounded-full text-sm whitespace-nowrap ${
-                selectedClassId === '' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
+                selectedClassId === '' ? 'bg-blue-500 text-white' : 'bg-orange-50 text-orange-600'
               }`}
               onClick={() => {
                 if (selectedClassId !== '') {
@@ -617,7 +617,7 @@ export default function RollCallPage() {
                 <View
                   key={cls.id}
                   className={`px-4 py-1 rounded-full text-sm whitespace-nowrap ${
-                    isSelected ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
+                    isSelected ? 'bg-blue-500 text-white' : 'bg-orange-50 text-orange-600'
                   }`}
                   onClick={() => {
                     if (!isSelected) {
@@ -654,7 +654,7 @@ export default function RollCallPage() {
             {/* 教师"全部"标签：点击查看全部班级 */}
             <Text
               className={`block text-sm rounded-full px-4 py-2 ${
-                activeClassId === '' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600'
+                activeClassId === '' ? 'bg-gray-800 text-white' : 'bg-orange-50 text-orange-600'
               }`}
               onClick={() => setActiveClassId('')}
             >
@@ -677,7 +677,7 @@ export default function RollCallPage() {
                         : 'bg-green-100 text-green-700'
                       : isActive
                         ? 'bg-[#E8651A] text-white'
-                        : 'bg-gray-100 text-gray-600'
+                        : 'bg-orange-50 text-orange-600'
                   }`}
                   onClick={() => setActiveClassId(tc.class_id)}
                 >
