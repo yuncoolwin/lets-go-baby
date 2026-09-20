@@ -17,6 +17,20 @@ function isCourseActiveDay(courseType: string, dateStr: string): boolean {
   return true;
 }
 
+/** 分组内幼儿排序：考勤状态(出勤>请假>缺席>未考勤)优先，同状态按报读开始时间倒序，start_date 为空(临时来园/最新)排最前 */
+function sortGroupStudents(list: Array<{ attendance_status: string; start_date: string | null }>) {
+  const rank = (st: string) =>
+    st === 'present' || st === 'full_day' || st === 'half_day' ? 0 : st === 'leave' ? 1 : st === 'absent' ? 2 : 3;
+  list.sort((a, b) => {
+    const ra = rank(a.attendance_status);
+    const rb = rank(b.attendance_status);
+    if (ra !== rb) return ra - rb;
+    const da = a.start_date ? new Date(a.start_date).getTime() : Infinity;
+    const db = b.start_date ? new Date(b.start_date).getTime() : Infinity;
+    return db - da;
+  });
+}
+
 @Injectable()
 export class TeacherService {
   private get client() {
@@ -585,6 +599,8 @@ export class TeacherService {
         };
       });
 
+      sortGroupStudents(studentList);
+
       groups.push({
         group_id: `${teacherClassId}__${ct}`,
         class_id: teacherClassId,
@@ -823,6 +839,8 @@ export class TeacherService {
           check_out_time: recordsMap.get(attKey)?.check_out_time || null,
         };
       });
+
+      sortGroupStudents(studentList);
 
       groups.push({
         group_id: `${classId}__${ct}`,

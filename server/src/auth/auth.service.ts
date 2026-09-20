@@ -318,6 +318,16 @@ export class AuthService {
     if (userError) throw new Error(`查询用户失败: ${userError.message}`);
     if (!user) throw new Error('用户不存在');
 
+    // 最近活跃时间（last_login_at 语义=最近活跃）：每次进入应用刷新，失败不阻断
+    try {
+      await this.client
+        .from('users')
+        .update({ last_login_at: new Date().toISOString() })
+        .eq('id', userId);
+    } catch (e) {
+      console.warn('[Auth] 更新 last_login_at 失败:', (e as Error)?.message);
+    }
+
     const { data: roles } = await this.client
       .from('user_roles')
       .select('id, user_id, role_type, real_name, status')

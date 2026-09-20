@@ -1089,7 +1089,7 @@ export class EnrollmentsService {
     const { data: enrollments, error } = await this.client
       .from('enrollments')
       .select('child_id, class_id')
-      .eq('course_id', courseId)
+      .or(`course_id.eq.${courseId},course_type.eq.${courseName}`)
       .eq('status', '进行中');
 
     if (error) throw new Error(`查询课程报读失败: ${error.message}`);
@@ -1179,14 +1179,17 @@ export class EnrollmentsService {
     // 进行中报读：course_id -> 幼儿集合
     const { data: enrollments } = await this.client
       .from('enrollments')
-      .select('child_id, class_id, course_id')
+      .select('child_id, class_id, course_id, course_type')
       .eq('status', '进行中');
     const courseChildSet: Record<string, Set<string>> = {};
     const childClassMap: Record<string, string | null> = {};
     for (const e of enrollments || []) {
-      if (!e.course_id) continue;
-      if (!courseChildSet[e.course_id]) courseChildSet[e.course_id] = new Set();
-      courseChildSet[e.course_id].add(e.child_id);
+      // course_id 为空时按 course_type（课程名）兜底归入对应课程
+      let cid: string = e.course_id;
+      if (!cid && e.course_type) cid = courseIdByName.get(e.course_type) || '';
+      if (!cid) continue;
+      if (!courseChildSet[cid]) courseChildSet[cid] = new Set();
+      courseChildSet[cid].add(e.child_id);
       if (!(e.child_id in childClassMap)) childClassMap[e.child_id] = e.class_id ?? null;
     }
 
