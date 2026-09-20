@@ -131,6 +131,13 @@ export default function RollCallPage() {
 
   const loadData = async () => {
     const seq = ++loadSeqRef.current
+    // 家长端无考勤权限：直接回到首页，不渲染考勤内容
+    if (currentRole?.role_type === 'parent') {
+      setLoading(false)
+      Taro.showToast({ title: '无权限访问考勤', icon: 'none' })
+      Taro.reLaunch({ url: '/pages/index/index' })
+      return
+    }
     setLoading(true)
     try {
       const isAdminUser = currentRole?.role_type === 'admin' || currentRole?.role_type === 'superadmin'
@@ -242,7 +249,8 @@ export default function RollCallPage() {
         }
       })
       setTeacherClassList(uniqClasses)
-      setActiveClassId(prev => prev || uniqClasses[0]?.class_id || '')
+      // 教师端首屏默认选中「全部」（不选中任何班级），展示全部班级考勤
+      setActiveClassId('')
 
       if (theClassId) {
         await fetchHolidayStatus(theClassId)

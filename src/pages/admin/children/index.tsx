@@ -73,6 +73,7 @@ export default function ChildrenManagePage() {
   const [loading, setLoading] = useState(true)
   const [keyword, setKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({})
 
   const loadChildren = useCallback(async (showSkeleton = true) => {
     if (showSkeleton) setLoading(true)
@@ -86,6 +87,7 @@ export default function ChildrenManagePage() {
       console.log('[ChildrenManage] list:', res)
       if (res.code === 200 && res.data) {
         setChildren(res.data.list || [])
+        setStatusCounts(res.data.statusCounts || {})
       }
     } catch (err) {
       console.error('[ChildrenManage] error:', err)
@@ -152,7 +154,12 @@ export default function ChildrenManagePage() {
             }`}
             onClick={() => handleStatusChange(opt.value)}
           >
-            <Text className="text-sm">{opt.label}</Text>
+            <Text className="text-sm">
+              {opt.label}
+              {opt.value === ''
+                ? ` ${statusCounts.total || 0}`
+                : ` ${statusCounts[opt.value] || 0}`}
+            </Text>
           </View>
         ))}
       </View>

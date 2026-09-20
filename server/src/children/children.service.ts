@@ -423,12 +423,40 @@ export class ChildrenService {
       })
     );
 
+    // 各状态幼儿人数（独立统计，不受当前状态筛选影响）：全部/在读/结课/毕业/休学
+    let statusCountBuilder = this.client
+      .from('children')
+      .select('status')
+      .neq('status', 'archived');
+    if (level === 'teacher') {
+      statusCountBuilder = statusCountBuilder.in('class_id', teacherClassIds);
+    } else if (level === 'parent') {
+      statusCountBuilder = statusCountBuilder.in('id', parentChildIds);
+    }
+    if (query.class_id) {
+      statusCountBuilder = statusCountBuilder.eq('class_id', query.class_id);
+    }
+    if (query.keyword) {
+      statusCountBuilder = statusCountBuilder.ilike('name', `%${query.keyword}%`);
+    }
+    const { data: statusRows } = await statusCountBuilder;
+    const statusCounts: Record<string, number> = {
+      active: 0, finished: 0, graduated: 0, suspended: 0, total: 0,
+    };
+    for (const row of statusRows || []) {
+      if (row && row.status && row.status !== 'archived') {
+        statusCounts[row.status] = (statusCounts[row.status] || 0) + 1;
+        statusCounts.total += 1;
+      }
+    }
+
     return {
       list: results,
       total: count || 0,
       page,
       page_size: pageSize,
       total_pages: Math.ceil((count || 0) / pageSize),
+      statusCounts,
     };
   }
 
@@ -525,9 +553,10 @@ export class ChildrenService {
       }
     }
 
-    // 白名单字段：教师仅允许编辑部分档案字段；管理员及以上可编辑全部
+    // 白名单字段：教师允许编辑部分档案字段（含家长姓名/电话/昵称，供前端保存后正确落库回显）；管理员及以上可编辑全部
     const teacherAllowedFields = [
       'name', 'gender', 'birth_date', 'health_info', 'allergies', 'notes', 'avatar_url',
+      'nickname', 'parent_name', 'parent_phone',
     ] as const;
     const adminAllowedFields = [
       ...teacherAllowedFields,

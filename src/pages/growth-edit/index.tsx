@@ -23,6 +23,26 @@ const extractList = (res: any): any[] => {
   return []
 }
 
+// 与课程管理页一致的类型排序常量：启用课程按类型顺序，停用课程整体下沉
+const COURSE_TYPE_ORDER: Record<string, number> = {
+  全日托: 0,
+  半日托: 1,
+  周六托: 2,
+  晚间托: 3,
+  暑假班: 4,
+  寒假班: 5,
+  兴趣班: 6,
+}
+const sortCourseList = (courses: any[]): any[] =>
+  [...courses].sort((a, b) => {
+    const aIsActive = a.status !== 'inactive'
+    const bIsActive = b.status !== 'inactive'
+    if (aIsActive !== bIsActive) return aIsActive ? -1 : 1
+    const ao = aIsActive ? (COURSE_TYPE_ORDER[a.name] ?? 7) : 10 + (COURSE_TYPE_ORDER[a.name] ?? 7)
+    const bo = bIsActive ? (COURSE_TYPE_ORDER[b.name] ?? 7) : 10 + (COURSE_TYPE_ORDER[b.name] ?? 7)
+    return ao - bo
+  })
+
 const formatToday = () => {
   const d = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -125,10 +145,11 @@ export default function GrowthEditPage() {
   const [saving, setSaving] = useState(false)
 
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [pickerStep, setPickerStep] = useState<'course' | 'child'>('course')
   const [pickerCourseId, setPickerCourseId] = useState('')
-  const [pickerChildren, setPickerChildren] = useState<any[]>([])
+  const [pickerChildId, setPickerChildId] = useState('')
   const [pickerLoading, setPickerLoading] = useState(false)
+  // 当天「课程 ↔ 在读幼儿」映射（通过 /api/enrollments/by-date 获取，含临时来园）
+  const [dateCourseChildren, setDateCourseChildren] = useState<Record<string, { courseName: string; children: any[] }>>({})
 
   // 今日饮食反馈等 7 个可选项
   const [dietOverall, setDietOverall] = useState('')
@@ -150,6 +171,76 @@ export default function GrowthEditPage() {
         .map((c) => String(c.id)),
     )
   }, [allChildren, teacherClassId])
+
+  // 拉取当天「课程 ↔ 在读幼儿」双向映射（含临时来园），按教师本班范围过滤
+  const loadDateMap = async () => {
+    setPickerLoading(true)
+    try {
+      const res = await Network.request({
+        url: `/api/enrollments/by-date?date=${recordDate}`,
+        method: 'GET',
+      })
+      const data = res?.data
+      const raw = data?.courses || (Array.isArray(data) ? data : [])
+      const map: Record<string, { courseName: string; children: any[] }> = {}
+      for (const c of raw || []) {
+        let list: any[] = (c.children || []).map((x: any) => ({
+          id: String(x.child_id),
+          name: x.child_name || '',
+          class_id: x.class_id ?? null,
+          is_drop_in: !!x.is_drop_in,
+        }))
+        if (classChildIds) {
+          list = list.filter(
+            (x) =>
+              classChildIds.has(String(x.id)) ||
+              (x.is_drop_in && String(x.class_id) === String(teacherClassId)),
+          )
+        }
+        if (list.length) map[c.course_id] = { courseName: c.course_name || '', children: list }
+      }
+      setDateCourseChildren(map)
+    } catch (err) {
+      console.error('[GrowthEdit] load date map error:', err)
+      setDateCourseChildren({})
+    }
+    setPickerLoading(false)
+  }
+
+  // 日期或本班范围变化时刷新当天课程↔幼儿映射
+  useEffect(() => {
+    if (classChildIds || !teacherClassId) loadDateMap()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recordDate, classChildIds])
+
+  // 幼儿 -> 当天在读课程集（用于先选幼儿后过滤课程）
+  const childCourseIds = useMemo(() => {
+    const m: Record<string, string[]> = {}
+    for (const [cid, c] of Object.entries(dateCourseChildren)) {
+      for (const ch of c.children) {
+        if (!m[ch.id]) m[ch.id] = []
+        m[ch.id].push(cid)
+      }
+    }
+    return m
+  }, [dateCourseChildren])
+
+  // 当天有在读幼儿的课程集合（幼儿区显示全部在读幼儿）
+  const coursesWithChildren = useMemo(
+    () => courses.filter((c) => (dateCourseChildren[c.id]?.children?.length || 0) > 0),
+    [courses, dateCourseChildren],
+  )
+
+  // 全部在读幼儿（去重，跨课程）
+  const allDispChildren = useMemo(() => {
+    const m = new Map<string, any>()
+    for (const c of Object.values(dateCourseChildren)) {
+      for (const ch of c.children) {
+        if (!m.has(ch.id)) m.set(ch.id, { id: ch.id, name: ch.name, is_drop_in: ch.is_drop_in })
+      }
+    }
+    return [...m.values()]
+  }, [dateCourseChildren])
 
   useEffect(() => {
     const params = Taro.getCurrentInstance().router?.params || {}
@@ -184,7 +275,7 @@ export default function GrowthEditPage() {
   const loadCourses = async () => {
     try {
       const res = await courseApi.list()
-      setCourses(extractList(res))
+      setCourses(sortCourseList(extractList(res)))
     } catch (err) {
       console.error('[GrowthEdit] load courses error:', err)
     }
@@ -245,46 +336,36 @@ export default function GrowthEditPage() {
     }
   }
 
-  const fetchCourseChildren = async (courseId: string): Promise<any[]> => {
-    try {
-      const res = await Network.request({
-        url: `/api/enrollments/by-course?course_id=${courseId}&date=${recordDate}`,
-        method: 'GET',
-      })
-      const data = res?.data
-      let list: any[] = Array.isArray(data) ? data : (data?.data || data?.list || [])
-      list = list.map((item: any) => ({ id: item.child_id, name: item.child_name, class_id: item.class_id, is_drop_in: item.is_drop_in }))
-      if (classChildIds) {
-        // 报读幼儿按本班集合保留；临时来园幼儿按 class_id 等于本班保留
-        list = list.filter((c) => classChildIds.has(String(c.id)) || (c.is_drop_in && String(c.class_id) === String(teacherClassId)))
-      }
-      return list
-    } catch (err) {
-      console.error('[GrowthEdit] load course children error:', err)
-      return []
-    }
-  }
-
   const openPicker = () => {
-    setPickerStep('course')
     setPickerCourseId('')
-    setPickerChildren([])
+    setPickerChildId('')
     setPickerOpen(true)
   }
 
-  const handlePickerCourseSelect = async (courseId: string) => {
-    setPickerCourseId(courseId)
-    setPickerLoading(true)
-    const list = await fetchCourseChildren(courseId)
-    setPickerChildren(list)
-    setPickerLoading(false)
-    setPickerStep('child')
+  // 先选课程：幼儿区聚焦到该课程当天在读幼儿；再次点击取消课程选择（回到全部幼儿）
+  const handlePickerCourseSelect = (courseId: string) => {
+    setPickerCourseId((prev) => (prev === courseId ? '' : courseId))
+    setPickerChildId('')
   }
 
+  // 先选幼儿：记录当前选中幼儿，课程区聚焦到该幼儿当天在读课程（非在读课程置灰）
   const handlePickerChildSelect = (child: any) => {
-    setSelectedChildId(String(child.id))
-    setSelectedChildName(child.name || '')
-    setSelectedCourseId(pickerCourseId)
+    setPickerChildId(String(child.id))
+  }
+
+  // 确定：回填选中的课程与幼儿（先选幼儿时自动推导其当天第一个在读课程）
+  const handlePickerConfirm = () => {
+    const childId = pickerChildId
+    if (!childId) {
+      Taro.showToast({ title: '请先选择幼儿', icon: 'none' })
+      return
+    }
+    const courseId =
+      pickerCourseId || (childCourseIds[childId] && childCourseIds[childId].length ? childCourseIds[childId][0] : '')
+    const disp = allDispChildren.find((c) => c.id === childId)
+    setSelectedChildId(childId)
+    setSelectedChildName(disp?.name || '')
+    if (courseId) setSelectedCourseId(courseId)
     setPickerOpen(false)
   }
 
@@ -696,79 +777,96 @@ export default function GrowthEditPage() {
         </View>
       </View>
 
-      {/* 两步选择幼儿 */}
+      {/* 选择课程与幼儿（同屏双区联动，基于当天在读关系，含临时来园） */}
       <Dialog
         open={pickerOpen}
         onOpenChange={(open) => {
           setPickerOpen(open)
-          if (!open) setPickerStep('course')
+          if (!open) {
+            setPickerCourseId('')
+            setPickerChildId('')
+          }
         }}
       >
         <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto">
           <DialogHeader>
             <DialogTitle>
-              <Text className="block text-lg font-semibold text-foreground">
-                {pickerStep === 'course' ? '选择课程' : '选择幼儿'}
-              </Text>
+              <Text className="block text-lg font-semibold text-foreground">选择课程与幼儿</Text>
             </DialogTitle>
+            <Text className="block text-xs text-muted-foreground mt-1">
+              展示 {recordDate} 当天在读的课程与幼儿（含临时来园）
+            </Text>
           </DialogHeader>
 
-          {pickerStep === 'course' ? (
-            <View className="flex flex-wrap gap-2 my-3">
-              {courses.map((c) => (
-                <Badge
-                  key={c.id}
-                  className="bg-gray-100 text-gray-600"
-                  onClick={() => handlePickerCourseSelect(c.id)}
-                >
-                  <Text className="text-sm">{c.name}</Text>
-                </Badge>
-              ))}
-              {courses.length === 0 && (
-                <Text className="block text-sm text-muted-foreground py-4">暂无课程</Text>
-              )}
-            </View>
+          {pickerLoading && coursesWithChildren.length === 0 ? (
+            <Text className="block text-sm text-muted-foreground py-4">加载中...</Text>
           ) : (
-            <View className="my-3">
-              <View className="mb-3">
-                <Text
-                  className="text-sm text-primary"
-                  onClick={() => {
-                    setPickerStep('course')
-                    setPickerChildren([])
-                  }}
-                >
-                  返回课程
-                </Text>
-              </View>
-              {pickerLoading ? (
-                <Text className="block text-sm text-muted-foreground py-4">加载中...</Text>
-              ) : (
+            <View className="flex flex-col gap-4 my-3 max-h-72 overflow-y-auto">
+              {/* 课程区 */}
+              <View>
+                <Text className="block text-sm text-muted-foreground mb-2">课程</Text>
                 <View className="flex flex-wrap gap-2">
-                  {pickerChildren.map((c) => (
+                  {coursesWithChildren.map((c) => {
+                    const disabled = !!pickerChildId && !(childCourseIds[pickerChildId] || []).includes(c.id)
+                    return (
+                      <Badge
+                        key={c.id}
+                        className={
+                          pickerCourseId === c.id
+                            ? 'bg-primary text-white'
+                            : disabled
+                              ? 'bg-gray-100 text-gray-300'
+                              : 'bg-gray-100 text-gray-600'
+                        }
+                        onClick={() => !disabled && handlePickerCourseSelect(c.id)}
+                      >
+                        <Text className="text-sm">
+                          {c.name}
+                          {`（${dateCourseChildren[c.id]?.children?.length || 0}）`}
+                        </Text>
+                      </Badge>
+                    )
+                  })}
+                  {coursesWithChildren.length === 0 && (
+                    <Text className="block text-sm text-muted-foreground py-2">该日期暂无在读课程</Text>
+                  )}
+                </View>
+              </View>
+
+              {/* 幼儿区 */}
+              <View>
+                <Text className="block text-sm text-muted-foreground mb-2">幼儿</Text>
+                <View className="flex flex-wrap gap-2">
+                  {(pickerCourseId
+                    ? dateCourseChildren[pickerCourseId]?.children || []
+                    : allDispChildren
+                  ).map((c) => (
                     <Badge
                       key={c.id}
                       className={
-                        selectedChildId === String(c.id)
+                        pickerChildId === c.id
                           ? 'bg-primary text-white'
-                          : 'bg-gray-100 text-gray-600'
+                          : 'bg-gray-100 text-gray-700'
                       }
                       onClick={() => handlePickerChildSelect(c)}
                     >
                       <Text className="text-sm">{c.name}</Text>
                     </Badge>
                   ))}
-                  {pickerChildren.length === 0 && (
-                    <Text className="block text-sm text-muted-foreground py-4">
-                      该课程暂无在读幼儿
+                  {(pickerCourseId
+                    ? (dateCourseChildren[pickerCourseId]?.children || []).length
+                    : allDispChildren.length
+                  ) === 0 && (
+                    <Text className="block text-sm text-muted-foreground py-2">
+                      {pickerCourseId ? '该课程当日暂无在读幼儿' : '该日期暂无在读幼儿'}
                     </Text>
                   )}
                 </View>
-              )}
+              </View>
             </View>
           )}
 
-          <Button className="w-full mt-2" onClick={() => setPickerOpen(false)}>
+          <Button className="w-full mt-2" onClick={handlePickerConfirm}>
             <Text className="text-white">确定</Text>
           </Button>
         </DialogContent>

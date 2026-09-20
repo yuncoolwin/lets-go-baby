@@ -29,6 +29,16 @@ export class EnrollmentsController {
     }
   }
 
+  @Get('by-date')
+  async findByDate(@Query('date') date?: string) {
+    try {
+      const data = await this.enrollmentsService.findByDate(date || '');
+      return { code: 200, msg: 'success', data };
+    } catch (e: any) {
+      return { code: 500, msg: e.message || '查询失败', data: null };
+    }
+  }
+
   @Get('child/:childId/active')
   async findActiveByChild(@Req() req: Request, @Param('childId') childId: string) {
     const userId = (req as any).user?.userId;

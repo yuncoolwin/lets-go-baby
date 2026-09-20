@@ -1156,6 +1156,93 @@ export class EnrollmentsService {
     return result;
   }
 
+  /**
+   * 按日期返回当天「课程 ↔ 在读幼儿」映射（含临时来园）
+   * 供成长档案等「先选课程再看幼儿 / 先选幼儿再看课程」双向联动使用
+   */
+  async findByDate(date?: string): Promise<{
+    date: string;
+    courses: Array<{
+      course_id: string;
+      course_name: string;
+      children: Array<{ child_id: string; child_name: string; class_id: string | null; is_drop_in: boolean }>;
+    }>;
+  }> {
+    await this.syncExpiredStatus();
+    const day = date || '';
+
+    const { data: courses } = await this.client.from('courses').select('id, name');
+    const courseList = courses || [];
+    const courseNameById = new Map<string, string>(courseList.map((c: any) => [c.id, c.name]));
+    const courseIdByName = new Map<string, string>(courseList.map((c: any) => [c.name, c.id]));
+
+    // 进行中报读：course_id -> 幼儿集合
+    const { data: enrollments } = await this.client
+      .from('enrollments')
+      .select('child_id, class_id, course_id')
+      .eq('status', '进行中');
+    const courseChildSet: Record<string, Set<string>> = {};
+    const childClassMap: Record<string, string | null> = {};
+    for (const e of enrollments || []) {
+      if (!e.course_id) continue;
+      if (!courseChildSet[e.course_id]) courseChildSet[e.course_id] = new Set();
+      courseChildSet[e.course_id].add(e.child_id);
+      if (!(e.child_id in childClassMap)) childClassMap[e.child_id] = e.class_id ?? null;
+    }
+
+    // 临时来园：date 命中，按 course_type（课程名）归入对应课程
+    const dropInCourseChildSet: Record<string, Set<string>> = {};
+    if (day) {
+      const { data: dropIns } = await this.client
+        .from('drop_in_records')
+        .select('child_id, class_id, course_type, date')
+        .eq('date', day);
+      for (const d of dropIns || []) {
+        if (!d.child_id) continue;
+        const cid = courseIdByName.get(d.course_type);
+        if (!cid) continue; // 课程已停用/删除，跳过
+        if (!courseChildSet[cid]) courseChildSet[cid] = new Set();
+        courseChildSet[cid].add(d.child_id);
+        if (!dropInCourseChildSet[cid]) dropInCourseChildSet[cid] = new Set();
+        dropInCourseChildSet[cid].add(d.child_id);
+        if (!(d.child_id in childClassMap)) childClassMap[d.child_id] = d.class_id ?? null;
+      }
+    }
+
+    // 汇总所有涉及幼儿，批量取姓名
+    const allChildIds = Array.from(new Set(Object.values(courseChildSet).flatMap((s) => [...s])));
+    const childNameMap = new Map<string, string>();
+    if (allChildIds.length > 0) {
+      const { data: children } = await this.client
+        .from('children')
+        .select('id, name')
+        .in('id', allChildIds);
+      for (const c of children || []) childNameMap.set(c.id, c.name || '');
+    }
+
+    // 仅保留当天有在读幼儿（报读或临时任一）的课程
+    const coursesOut: any[] = [];
+    for (const c of courseList) {
+      const childIds = courseChildSet[c.id] ? Array.from(courseChildSet[c.id]) : [];
+      if (childIds.length === 0) continue;
+      const dropSet = dropInCourseChildSet[c.id];
+      coursesOut.push({
+        course_id: c.id,
+        course_name: c.name,
+        children: childIds
+          .map((chid) => ({
+            child_id: chid,
+            child_name: childNameMap.get(chid) || '',
+            class_id: childClassMap[chid] ?? null,
+            is_drop_in: !!dropSet?.has(chid),
+          }))
+          .filter((x) => x.child_id),
+      });
+    }
+
+    return { date: day, courses: coursesOut };
+  }
+
   async create(userId: string, dto: CreateEnrollmentDto): Promise<Enrollment> {
     const level = await this.authz.getRoleLevel(userId);
     if (!['admin', 'superadmin', 'teacher'].includes(level)) {
