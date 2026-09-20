@@ -41,6 +41,9 @@ interface DailyFeedbackRecord {
   course_name: string | null
   course_type?: string | null
   class_name?: string | null
+  start_date?: string | null
+  end_date?: string | null
+  extended_end_date?: string | null
 }
 
 interface GroupOverview {
@@ -63,6 +66,23 @@ interface GroupOverview {
     extended_end_date: string | null
     is_drop_in?: boolean
   }>
+}
+
+function buildExpiryTag(endDateStr?: string | null): { text: string; className: string } | null {
+  if (!endDateStr) return null
+  const endDate = new Date(endDateStr)
+  if (Number.isNaN(endDate.getTime())) return null
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  endDate.setHours(0, 0, 0, 0)
+  const diffDays = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays >= 0 && diffDays <= 10) {
+    return { text: '即将到期', className: 'bg-[#E8651A] text-white text-[10px] rounded-full px-1 ml-1' }
+  }
+  if (endDate.getMonth() === today.getMonth() && endDate.getFullYear() === today.getFullYear()) {
+    return { text: '本月到期', className: 'bg-[#FFE4E1] text-[#D44A5C] text-[10px] rounded-full px-1 ml-1' }
+  }
+  return null
 }
 
 const courseTypeColors: Record<string, string> = {
@@ -644,7 +664,7 @@ export default function IndexPage() {
               <View className="pt-3 border-t border-border">
                 <View className="flex items-center gap-1 mb-2">
                   <Text className="block text-sm font-medium text-foreground">今日记录</Text>
-                  <Info size={14} color="#9ca3af" onClick={() => setScoreInfoOpen(true)} />
+                  <View className="ml-1"><View className="bg-gray-100 text-gray-600 text-[10px] rounded-full px-2 py-1 flex items-center" onClick={() => setScoreInfoOpen(true)}>说明</View></View>
                 </View>
                 {todayFeedbacks.length > 0 ? (
                   <View className="space-y-2">
@@ -653,12 +673,16 @@ export default function IndexPage() {
                         const n = parseInt(v || '0', 10)
                         return n > 0 ? '★'.repeat(n) + '☆'.repeat(5 - n) : ''
                       }
+                      const expiryTag = buildExpiryTag(record.extended_end_date || record.end_date)
                       return (
                         <View key={record.id || idx} className="py-1">
                           <View className="flex items-center justify-between mb-1">
-                            <Text className="text-xs text-muted-foreground">
-                              {record.class_name || ''}{record.class_name && record.course_name ? ' · ' : ''}{record.course_name || ''}
-                            </Text>
+                            <View className="flex flex-row items-center">
+                              <Text className="text-xs text-muted-foreground">
+                                {record.class_name || ''}{record.class_name && record.course_name ? ' · ' : ''}{record.course_name || ''}
+                              </Text>
+                              {expiryTag && <Text className={expiryTag.className}>{expiryTag.text}</Text>}
+                            </View>
                           </View>
                           <View style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             {record.mood_status && parseInt(record.mood_status, 10) > 0 && (
@@ -1141,9 +1165,12 @@ export default function IndexPage() {
               >
               <View style={{ padding: '16px', borderBottom: '1px solid #f0f0f0', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ width: 36, height: 36, flexShrink: 0 }} />
-                <Text className="block text-base font-semibold text-foreground text-center">
-                  {feedbackChild.name} - 日常记录
-                </Text>
+                <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text className="block text-base font-semibold text-foreground text-center">
+                    {feedbackChild.name} - 日常记录
+                  </Text>
+                  <View className="bg-gray-100 text-gray-600 text-[10px] rounded-full px-2 py-1 flex items-center" onClick={() => setScoreInfoOpen(true)}>说明</View>
+                </View>
                 <View
                   onClick={handleCloseFeedback}
                   style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}

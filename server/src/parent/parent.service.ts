@@ -216,12 +216,27 @@ export class ParentService {
       }
     }
 
+    // 补报读日期字段：course_id 优先，空则按 course_type 关联
+    const { data: enrs } = await this.client
+      .from('enrollments')
+      .select('course_id, course_type, start_date, end_date, extended_end_date')
+      .eq('child_id', childId)
+      .eq('status', '进行中');
+    const enrByCourseId = new Map<string, any>();
+    const enrByCourseType = new Map<string, any>();
+    for (const en of enrs || []) {
+      if (en.course_id && !enrByCourseId.has(en.course_id)) enrByCourseId.set(en.course_id, en);
+      if (en.course_type && !enrByCourseType.has(en.course_type)) enrByCourseType.set(en.course_type, en);
+    }
+
     return data.map(f => {
       let cid = f.class_id;
       if (!cid && f.group_id) {
         const parts = f.group_id.split('__');
         if (parts.length >= 2) cid = parts[0];
       }
+      const ct = f.group_id ? f.group_id.split('__')[1] || '' : '';
+      const en = (f.course_id && enrByCourseId.get(f.course_id)) || enrByCourseType.get(ct) || null;
       return {
         id: f.id,
         feedback_date: f.feedback_date,
@@ -231,8 +246,11 @@ export class ParentService {
         class_id: f.class_id,
         course_id: f.course_id,
         course_name: f.course_name,
-        course_type: f.group_id ? (f.group_id.split('__')[1] || '') : '',
+        course_type: ct,
         class_name: cid ? (classMap[cid] || null) : null,
+        start_date: en?.start_date ?? null,
+        end_date: en?.end_date ?? null,
+        extended_end_date: en?.extended_end_date ?? null,
       };
     });
   }
