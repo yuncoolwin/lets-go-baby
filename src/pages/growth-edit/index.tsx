@@ -180,7 +180,7 @@ export default function GrowthEditPage() {
         url: `/api/enrollments/by-date?date=${recordDate}`,
         method: 'GET',
       })
-      const data = res?.data
+      const data = res?.data?.data || res?.data
       const raw = data?.courses || (Array.isArray(data) ? data : [])
       const map: Record<string, { courseName: string; children: any[] }> = {}
       for (const c of raw || []) {
