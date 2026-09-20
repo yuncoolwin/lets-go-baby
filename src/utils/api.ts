@@ -357,8 +357,20 @@ export const growthApi = {
 
   // 视频上传（multipart，后端仅允许 video/mp4、10MB）
   uploadVideo: async (filePath: string) => {
-    const res = await Network.uploadFile({ url: '/api/growth-records/upload-video', filePath, name: 'video' })
-    return (res.data as unknown) as ApiResponse<{ video_url?: string }>
+    try {
+      const res = await Network.uploadFile({ url: '/api/growth-records/upload-video', filePath, name: 'video' })
+      // res.data 即后端 HTTP body { code, msg, data }
+      return (res.data as unknown) as ApiResponse<{ video_url?: string }>
+    } catch (err) {
+      // Taro.uploadFile 对非 2xx 可能走 reject：错误对象里常携带后端响应体 { code, msg, data }
+      const e = (err ?? {}) as Record<string, any>
+      const body = e?.data ?? e?.response?.data ?? null
+      if (body && typeof body === 'object' && ('code' in body || 'msg' in body)) {
+        return body as ApiResponse<{ video_url?: string }>
+      }
+      // 无可用结构，回退通用错误
+      return { code: 500, msg: String(e?.errMsg || e?.message || '视频上传失败'), data: null } as unknown as ApiResponse<{ video_url?: string }>
+    }
   },
 
   // 新建记录（role_id 为当前角色 id，用于权限校验与 teacher_id 落库）

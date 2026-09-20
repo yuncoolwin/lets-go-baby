@@ -119,6 +119,24 @@ const removeDraftById = (id: string) => {
   saveDrafts(loadDrafts().filter((d) => d.id !== id))
 }
 
+/** 从 errMsg 中提取内嵌的后端 JSON { code, msg } 的 msg（Taro fail 串形如 "...{...}..."） */
+const parseEmbeddedMsg = (errMsg: string): string => {
+  try {
+    const text = String(errMsg || '')
+    const start = text.indexOf('{')
+    const end = text.lastIndexOf('}')
+    if (start >= 0 && end > start) {
+      const parsed = JSON.parse(text.slice(start, end + 1))
+      if (parsed && typeof parsed === 'object' && (parsed.msg || parsed.message)) {
+        return String(parsed.msg || parsed.message || '')
+      }
+    }
+  } catch {
+    /* 忽略解析失败，交由调用方回退 */
+  }
+  return ''
+}
+
 export default function GrowthEditPage() {
   const currentRole = useAppStore((s) => s.currentRole)
   const isAgentAdmin = useAppStore((s) => s.agentOriginalRoleType === 'admin')
@@ -464,9 +482,20 @@ export default function GrowthEditPage() {
             Taro.showToast({ title: reason || '视频上传失败', icon: 'none', duration: 2500 })
           }
         } catch (err) {
-          console.error('[GrowthEdit] upload video error:', err)
-          const reason = String((err as any)?.message || (err as any)?.msg || '')
-          Taro.showToast({ title: reason || '视频上传失败', icon: 'none', duration: 2500 })
+          console.error('[GrowthEdit] upload video error:', JSON.stringify(err))
+          const e = (err ?? {}) as Record<string, any>
+          const body = e?.data ?? e?.response?.data ?? null
+          let reason = ''
+          if (body && typeof body === 'object' && (body.msg || body.message)) {
+            reason = String(body.msg || body.message || '')
+          } else {
+            reason = String(
+              (e?.msg || '') ||
+                (e?.message || '') ||
+                (typeof e?.errMsg === 'string' ? parseEmbeddedMsg(e.errMsg) : '')
+            )
+          }
+          Taro.showToast({ title: (reason && String(reason).slice(0, 40)) || '视频上传失败', icon: 'none', duration: 2500 })
         } finally {
           setVideoUploading(false)
         }
