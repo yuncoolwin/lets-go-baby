@@ -27,7 +27,11 @@ export class GrowthController {
       storage: memoryStorage(),
       limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        if (file.mimetype !== 'video/mp4') {
+        // 兼容 小程序/H5 上传：MIME 可能是 octet-stream 或缺省，但确为 mp4
+        const nameIsMp4 = (file.originalname || '').toLowerCase().endsWith('.mp4');
+        const isMp4Mime = file.mimetype === 'video/mp4';
+        const isOpaque = !file.mimetype || file.mimetype === 'application/octet-stream';
+        if (!isMp4Mime && !(isOpaque && nameIsMp4)) {
           return cb(new BadRequestException('仅支持 video/mp4 格式视频'), false);
         }
         return cb(null, true);

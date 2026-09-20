@@ -227,8 +227,16 @@ export class GrowthService {
       return { error: true, code: 400, msg: 'video 文件不能为空' };
     }
 
-    // 类型校验（FileInterceptor fileFilter 已兜底，这里二次校验）
-    if (file.mimetype !== 'video/mp4') {
+    // 类型校验（兼容小程序/H5 上传时 MIME 被置为 application/octet-stream 或缺失的情况）
+    // 用「文件名 .mp4 + MP4 文件头 ftyp」校验真实格式，而非仅依赖 Content-Type
+    const nameIsMp4 = (file.originalname || '').toLowerCase().endsWith('.mp4');
+    const buf = file.buffer;
+    const hasMp4Magic = !!buf && buf.length > 8 && buf.toString('latin1', 4, 8) === 'ftyp';
+    const okType =
+      file.mimetype === 'video/mp4' ||
+      nameIsMp4 ||
+      (hasMp4Magic && (!file.mimetype || file.mimetype === 'application/octet-stream' || file.mimetype === 'video/mp4'));
+    if (!okType) {
       return { error: true, code: 400, msg: '仅支持 video/mp4 格式视频' };
     }
 
