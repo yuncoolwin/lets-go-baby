@@ -20,6 +20,19 @@ interface ListParams {
   [key: string]: any
 }
 
+// 从 errMsg 之类的字符串里尝试抠出内嵌 JSON 里的 msg（形如 ...{"code":400,"msg":"仅支持..."}...）
+function parseEmbeddedMsg(raw: string): string | null {
+  if (!raw) return null
+  const m = raw.match(/\{[^{}]*"msg"\s*:\s*"[^"]*"[^{}]*\}/)
+  if (!m) return null
+  try {
+    const parsed = JSON.parse(m[0])
+    return parsed?.msg ? String(parsed.msg) : null
+  } catch (e) {
+    return null
+  }
+}
+
 // ============ 请求封装 ============
 
 const request = async <T = any>(option: {
@@ -357,19 +370,34 @@ export const growthApi = {
 
   // 视频上传（multipart，后端仅允许 video/mp4、10MB）
   uploadVideo: async (filePath: string) => {
+    // Taro.uploadFile 的 res.data 在小程序/H5 端均为【字符串】（未自动 JSON 解析），
+    // 需先 parse 成 { code, msg, data } 才能取到具体失败原因
+    const parseBody = (raw: any): ApiResponse<{ video_url?: string }> | null => {
+      if (!raw) return null
+      if (typeof raw === 'object') return raw as ApiResponse<{ video_url?: string }>
+      if (typeof raw === 'string') {
+        try {
+          const parsed = JSON.parse(raw)
+          if (parsed && typeof parsed === 'object') return parsed as ApiResponse<{ video_url?: string }>
+        } catch (e) {
+          // 非 JSON，继续返回 null
+        }
+      }
+      return null
+    }
     try {
       const res = await Network.uploadFile({ url: '/api/growth-records/upload-video', filePath, name: 'video' })
-      // res.data 即后端 HTTP body { code, msg, data }
-      return (res.data as unknown) as ApiResponse<{ video_url?: string }>
+      // 优先解析字符串/对象响应；解析失败则退化为统一错误结构
+      return parseBody(res?.data) ?? { code: 500, msg: '视频上传失败', data: null }
     } catch (err) {
       // Taro.uploadFile 对非 2xx 可能走 reject：错误对象里常携带后端响应体 { code, msg, data }
       const e = (err ?? {}) as Record<string, any>
-      const body = e?.data ?? e?.response?.data ?? null
-      if (body && typeof body === 'object' && ('code' in body || 'msg' in body)) {
-        return body as ApiResponse<{ video_url?: string }>
-      }
-      // 无可用结构，回退通用错误
-      return { code: 500, msg: String(e?.errMsg || e?.message || '视频上传失败'), data: null } as unknown as ApiResponse<{ video_url?: string }>
+      const body = parseBody(e?.data) ?? parseBody(e?.response?.data) ?? parseBody(e?.response)
+      if (body) return body
+      // 尝试从 errMsg 里抠出内嵌的 { code, msg } JSON
+      const embedded = parseEmbeddedMsg(String(e?.errMsg || e?.message || ''))
+      if (embedded) return { code: 500, msg: embedded, data: null }
+      return { code: 500, msg: String(e?.errMsg || e?.message || '视频上传失败'), data: null }
     }
   },
 
