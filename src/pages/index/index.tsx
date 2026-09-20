@@ -722,10 +722,10 @@ export default function IndexPage() {
                       return (
                         <View key={idx} className="py-1">
                           <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-                            <Text className="block text-xs text-foreground font-medium">
+                            <Text className="block text-xs text-muted-foreground">
                               {course.class_name || ''}{course.class_name && course.course_name ? ' · ' : ''}{course.course_name || ''}
                             </Text>
-                            <Text className="block text-xs text-muted-foreground ml-1">{startTxt}{endTxt ? ` ~ ${endTxt}` : '起'}</Text>
+                            <Text className="block text-xs text-muted-foreground">{startTxt}{endTxt ? ` ~ ${endTxt}` : '起'}</Text>
                             {expiryTag && <Text className={expiryTag.className}>{expiryTag.text}</Text>}
                           </View>
                         </View>
@@ -789,19 +789,19 @@ export default function IndexPage() {
               {/* 接送时间 */}
               {(babyStatus.check_in_time || babyStatus.check_out_time) && (
                 <View className="flex items-center justify-between pt-3 mt-3 border-t border-border">
-                  <View className="flex gap-4">
+                  <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
                     {babyStatus.check_in_time && formatTime(babyStatus.check_in_time) && (
-                      <View>
-                        <Text className="block text-xs text-muted-foreground">入园</Text>
-                        <Text className="block text-sm text-foreground">
+                      <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'baseline' }}>
+                        <Text className="block text-xs text-muted-foreground">入园时间</Text>
+                        <Text className="block text-sm text-foreground ml-1">
                           {formatTime(babyStatus.check_in_time)}
                         </Text>
                       </View>
                     )}
                     {babyStatus.check_out_time && formatTime(babyStatus.check_out_time) && (
-                      <View>
-                        <Text className="block text-xs text-muted-foreground">离园</Text>
-                        <Text className="block text-sm text-foreground">
+                      <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'baseline' }}>
+                        <Text className="block text-xs text-muted-foreground ml-3">离园时间</Text>
+                        <Text className="block text-sm text-foreground ml-1">
                           {formatTime(babyStatus.check_out_time)}
                         </Text>
                       </View>
