@@ -168,7 +168,7 @@ export default function LoginPage() {
             onClick={handleWxLogin}
             disabled={isLoading}
           >
-            {isLoading ? '登录中...' : '微信授权登录'}
+            {isLoading ? '登录中...' : '登录'}
           </Button>
         )}
       </View>
@@ -181,24 +181,39 @@ export default function LoginPage() {
         <View
           className="flex items-center justify-center"
           style={{
-            width: 12,
-            height: 12,
-            borderRadius: '50%',
-            border: `1px solid ${agreed ? '#E8651A' : '#D1D5DB'}`,
-            backgroundColor: agreed ? '#E8651A' : 'transparent',
-            marginRight: 4,
+            width: 32,
+            height: 32,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             flexShrink: 0,
+            marginLeft: -10,
+            marginTop: -10,
+            marginRight: -6,
+            marginBottom: -10,
           }}
           onClick={() => setAgreed((prev) => !prev)}
         >
-          {agreed && (
-            <Text
-              className="block"
-              style={{ color: '#fff', fontSize: 9, lineHeight: 1 }}
-            >
-              ✓
-            </Text>
-          )}
+          <View
+            className="flex items-center justify-center"
+            style={{
+              width: 12,
+              height: 12,
+              borderRadius: '50%',
+              border: `1px solid ${agreed ? '#E8651A' : '#D1D5DB'}`,
+              backgroundColor: agreed ? '#E8651A' : 'transparent',
+              flexShrink: 0,
+            }}
+          >
+            {agreed && (
+              <Text
+                className="block"
+                style={{ color: '#fff', fontSize: 9, lineHeight: 1 }}
+              >
+                ✓
+              </Text>
+            )}
+          </View>
         </View>
         <Text className="block text-xs text-gray-400" style={{ margin: '0 2px' }}>
           我已阅读并同意

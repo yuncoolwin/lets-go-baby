@@ -480,7 +480,7 @@ export default function IndexPage() {
             className="w-full h-12 rounded-xl bg-primary text-white text-base font-medium"
             onClick={() => Taro.navigateTo({ url: '/pages/login/index' })}
           >
-            微信授权登录
+            登录
           </Button>
         </View>
         <TabBar />
