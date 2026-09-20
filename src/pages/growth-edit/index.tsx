@@ -16,7 +16,7 @@ import { X, ImagePlus, Video as VideoIcon } from 'lucide-react-taro'
 const DRAFT_KEY = 'growth_drafts'
 
 const extractList = (res: any): any[] => {
-  const data = res?.data
+  const data = res?.data?.data
   if (Array.isArray(data)) return data
   if (Array.isArray(data?.list)) return data.list
   if (Array.isArray(data?.data?.list)) return data.data.list

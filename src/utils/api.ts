@@ -28,14 +28,15 @@ const request = async <T = any>(option: {
   data?: any
   validateStatus?: (status: number) => boolean
 }): Promise<ApiResponse<T>> => {
-  // 过滤掉 undefined/null/空字符串值
+  // 过滤掉 undefined/null；更新类方法(POST/PATCH/PUT)保留空字符串以支持“清空字段”，GET 查询剔除空串
+  const isUpdate = ['POST', 'PATCH', 'PUT'].includes((option.method || 'GET').toUpperCase())
   const cleanData: Record<string, any> = {}
   if (option.data) {
     Object.keys(option.data).forEach(key => {
       const val = option.data[key]
-      if (val !== undefined && val !== null && val !== '') {
-        cleanData[key] = val
-      }
+      if (val === undefined || val === null) return
+      if (val === '' && !isUpdate) return
+      cleanData[key] = val
     })
   }
   const res = await Network.request({
