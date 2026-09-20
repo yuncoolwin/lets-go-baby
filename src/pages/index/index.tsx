@@ -5,7 +5,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Portal } from '@/components/ui/portal'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
@@ -28,6 +27,13 @@ interface BabyStatus {
     sleep_status: string | null
     mood_status: string | null
   } | null
+  courses?: {
+    class_name: string | null
+    course_name: string | null
+    start_date: string | null
+    end_date: string | null
+    extended_end_date: string | null
+  }[]
 }
 
 interface DailyFeedbackRecord {
@@ -660,6 +666,31 @@ export default function IndexPage() {
                 </Button>
               </View>
 
+              {babyStatus.courses && babyStatus.courses.length > 0 && (
+                <View className="pt-3 border-t border-border">
+                  <Text className="block text-sm font-medium text-foreground mb-2">在读课程</Text>
+                  <View className="space-y-2">
+                    {babyStatus.courses.map((course, idx) => {
+                      const endDateStr = course.extended_end_date || course.end_date
+                      const expiryTag = buildExpiryTag(endDateStr)
+                      const startTxt = (course.start_date || '').slice(0, 10)
+                      const endTxt = (endDateStr || '').slice(0, 10)
+                      return (
+                        <View key={idx} className="py-1">
+                          <Text className="block text-xs text-foreground font-medium">
+                            {course.class_name || ''}{course.class_name && course.course_name ? ' · ' : ''}{course.course_name || ''}
+                          </Text>
+                          <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <Text className="text-xs text-muted-foreground">{startTxt}{endTxt ? ` ~ ${endTxt}` : '起'}</Text>
+                            {expiryTag && <Text className={expiryTag.className}>{expiryTag.text}</Text>}
+                          </View>
+                        </View>
+                      )
+                    })}
+                  </View>
+                </View>
+              )}
+
               {/* 今日记录 - 按课程分行 */}
               <View className="pt-3 border-t border-border">
                 <View className="flex items-center gap-1 mb-2">
@@ -750,39 +781,46 @@ export default function IndexPage() {
           </Card>
         )}
 
-        <Dialog open={scoreInfoOpen} onOpenChange={setScoreInfoOpen}>
-          <DialogContent className="bg-white rounded-2xl p-6 max-w-sm mx-auto" style={{ maxHeight: '85vh' }}>
-            <DialogHeader>
-              <DialogTitle>
+        {scoreInfoOpen && (
+          <View
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', backgroundColor: 'rgba(0,0,0,0.45)' }}
+            onClick={() => setScoreInfoOpen(false)}
+          >
+            <View
+              style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '100%', maxHeight: '85vh', overflow: 'hidden' }}
+              onClick={(e) => { e.stopPropagation() }}
+            >
+              <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <Text className="block text-lg font-bold text-foreground">评分说明</Text>
-              </DialogTitle>
-            </DialogHeader>
-            <View className="flex flex-wrap gap-3 mt-3" style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
-              {([['mood', '情绪'], ['meal', '餐食'], ['nap', '午睡']] as const).map(([key, label]) => (
-                <Text
-                  key={key}
-                  className={`block text-sm rounded-full px-4 py-2 ${scoreInfoTab === key ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}
-                  onClick={() => setScoreInfoTab(key)}
-                >
-                  {label}
-                </Text>
-              ))}
+                <Text className="block text-gray-400 text-2xl leading-none px-2" onClick={() => setScoreInfoOpen(false)}>×</Text>
+              </View>
+              <View className="flex flex-wrap gap-3" style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
+                {([['mood', '情绪'], ['meal', '餐食'], ['nap', '午睡']] as const).map(([key, label]) => (
+                  <Text
+                    key={key}
+                    className={`block text-sm rounded-full px-4 py-2 ${scoreInfoTab === key ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}
+                    onClick={() => setScoreInfoTab(key)}
+                  >
+                    {label}
+                  </Text>
+                ))}
+              </View>
+              <View className="mt-2" style={{ maxHeight: '55vh', overflowY: 'auto' }}>
+                {(scoreInfoTab === 'meal'
+                  ? MEAL_SCORE_ITEMS
+                  : scoreInfoTab === 'nap'
+                    ? NAP_SCORE_ITEMS
+                    : MOOD_SCORE_ITEMS
+                ).map((item) => (
+                  <View key={item.star} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                    <Text style={{ fontSize: 16, color: '#E8651A', marginRight: 12, width: 80, flexShrink: 0 }}>{item.star}</Text>
+                    <Text className="block text-sm text-gray-600 flex-1">{item.desc}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
-            <View className="mt-2">
-              {(scoreInfoTab === 'meal'
-                ? MEAL_SCORE_ITEMS
-                : scoreInfoTab === 'nap'
-                  ? NAP_SCORE_ITEMS
-                  : MOOD_SCORE_ITEMS
-              ).map((item) => (
-                <View key={item.star} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
-                  <Text style={{ fontSize: 16, color: '#E8651A', marginRight: 12, width: 80, flexShrink: 0 }}>{item.star}</Text>
-                  <Text className="block text-sm text-gray-600 flex-1">{item.desc}</Text>
-                </View>
-              ))}
-            </View>
-          </DialogContent>
-        </Dialog>
+          </View>
+        )}
 
         {/* 未绑定孩子提示 */}
         {children.length === 0 && (

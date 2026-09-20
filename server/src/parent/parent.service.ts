@@ -30,6 +30,7 @@ export class ParentService {
         check_in_time: null,
         check_out_time: null,
         latest_feedback: null,
+        courses: [],
       };
     }
 
@@ -75,6 +76,39 @@ export class ParentService {
       .limit(1)
       .maybeSingle();
 
+    // 在读课程列表（status=进行中报读，含班级/课程名与日期, 按 start_date 升序）
+    const { data: enrList } = await this.client
+      .from('enrollments')
+      .select('class_id, course_id, course_type, start_date, end_date, extended_end_date')
+      .eq('child_id', childId)
+      .eq('status', '进行中');
+
+    let courses: any[] = [];
+    if (enrList && enrList.length) {
+      const classIds = [...new Set(enrList.map(e => e.class_id).filter(Boolean))];
+      const courseIds = [...new Set(enrList.map(e => e.course_id).filter(Boolean))];
+      const classMap: Record<string, string> = {};
+      const courseNameMap: Record<string, string> = {};
+      if (classIds.length) {
+        const { data: classes } = await this.client.from('classes').select('id, name').in('id', classIds);
+        if (classes) classes.forEach(c => { classMap[c.id] = c.name; });
+      }
+      if (courseIds.length) {
+        const { data: courseRows } = await this.client.from('courses').select('id, name').in('id', courseIds);
+        if (courseRows) courseRows.forEach(c => { courseNameMap[c.id] = c.name; });
+      }
+      courses = enrList
+        .map(e => ({
+          class_name: e.class_id ? (classMap[e.class_id] || null) : null,
+          course_name: (e.course_id && courseNameMap[e.course_id]) || e.course_type || null,
+          start_date: e.start_date,
+          end_date: e.end_date,
+          extended_end_date: e.extended_end_date,
+        }))
+        .filter(c => c.course_name)
+        .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
+    }
+
     return {
       child_id: childId,
       child_name: childName,
@@ -87,6 +121,7 @@ export class ParentService {
         sleep_status: feedback.sleep_status,
         mood_status: feedback.mood_status,
       } : null,
+      courses,
     };
   }
 
