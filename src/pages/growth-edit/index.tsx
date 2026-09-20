@@ -459,11 +459,14 @@ export default function GrowthEditPage() {
             setVideoExpired(false)
             setVideoUrls((prev) => [...prev, url])
           } else {
-            Taro.showToast({ title: '视频上传失败', icon: 'none' })
+            // 优先透传后端具体失败原因（业务失败：格式/大小/存储等）
+            const reason = upload?.msg || ''
+            Taro.showToast({ title: reason || '视频上传失败', icon: 'none', duration: 2500 })
           }
         } catch (err) {
           console.error('[GrowthEdit] upload video error:', err)
-          Taro.showToast({ title: '视频上传失败', icon: 'none' })
+          const reason = String((err as any)?.message || (err as any)?.msg || '')
+          Taro.showToast({ title: reason || '视频上传失败', icon: 'none', duration: 2500 })
         } finally {
           setVideoUploading(false)
         }
