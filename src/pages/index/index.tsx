@@ -672,10 +672,10 @@ export default function IndexPage() {
                 <View className="flex-1">
                   <View className="flex items-center gap-2">
                     <View className="flex items-baseline">
-                      <Text className="block text-base font-semibold text-foreground">
+                      <Text className="block text-lg font-semibold text-foreground">
                         {currentChild?.name || babyStatus.child_name}
                       </Text>
-                      {currentChild?.nickname && <Text className="text-xs text-muted-foreground">（{currentChild.nickname}）</Text>}
+                      {currentChild?.nickname && <Text className="text-sm text-muted-foreground">（{currentChild.nickname}）</Text>}
                     </View>
                     <Badge className={`${babyStatus.check_out_time ? 'bg-orange-100 text-orange-700' : babyStatus.check_in_time ? 'bg-green-100 text-green-700' : getStatusColor(babyStatus.attendance_status)} text-xs`}>
                       <Text className="text-xs">
@@ -684,13 +684,13 @@ export default function IndexPage() {
                     </Badge>
                   </View>
                   {currentChild?.birth_date && (
-                    <Text className="block text-xs text-muted-foreground mt-1">
+                    <Text className="block text-sm text-muted-foreground mt-1">
                       {formatAge(currentChild.birth_date)}
                       {isBirthdayToday && <Text className="bg-[#FFB800] text-white text-[10px] rounded-full px-1 ml-1">生日快乐！</Text>}
                     </Text>
                   )}
                   {/* 过敏情况 - 紧跟年龄下方 */}
-                  <Text className="block text-xs text-muted-foreground mt-1">
+                  <Text className="block text-sm text-muted-foreground mt-1">
                     过敏：{currentChild?.allergies || '无'}
                   </Text>
                 </View>
@@ -725,7 +725,7 @@ export default function IndexPage() {
                             <Text className="block text-xs text-muted-foreground">
                               {course.class_name || ''}{course.class_name && course.course_name ? ' · ' : ''}{course.course_name || ''}
                             </Text>
-                            <Text className="block text-xs text-muted-foreground">{startTxt}{endTxt ? ` ~ ${endTxt}` : '起'}</Text>
+                            <Text className="block text-xs text-muted-foreground ml-2">{startTxt}{endTxt ? ` ~ ${endTxt}` : '起'}</Text>
                             {expiryTag && <Text className={expiryTag.className}>{expiryTag.text}</Text>}
                           </View>
                         </View>

@@ -654,7 +654,7 @@ export default function RollCallPage() {
             {/* 教师"全部"标签：点击查看全部班级 */}
             <Text
               className={`block text-sm rounded-full px-4 py-2 ${
-                activeClassId === '' ? 'bg-gray-800 text-white' : 'bg-orange-50 text-orange-600'
+                activeClassId === '' ? 'bg-[#E8651A] text-white' : 'bg-orange-50 text-orange-600'
               }`}
               onClick={() => setActiveClassId('')}
             >
