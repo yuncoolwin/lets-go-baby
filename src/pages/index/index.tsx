@@ -529,6 +529,50 @@ export default function IndexPage() {
     )
   }
 
+  // 评分说明弹窗（Portal 挂载到顶层，zIndex 300，家长/教师/管理端共用，避免被编辑弹窗遮挡）
+  const scoreInfoOverlay = scoreInfoOpen && (
+    <Portal>
+      <View
+        style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', backgroundColor: 'rgba(0,0,0,0.45)' }}
+        onClick={() => setScoreInfoOpen(false)}
+      >
+        <View
+          style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '100%', maxHeight: '85vh', overflow: 'hidden' }}
+          onClick={(e) => { e.stopPropagation() }}
+        >
+          <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <Text className="block text-lg font-bold text-foreground">评分说明</Text>
+            <Text className="block text-gray-400 text-2xl leading-none px-2" onClick={() => setScoreInfoOpen(false)}>×</Text>
+          </View>
+          <View className="flex flex-wrap gap-3" style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
+            {([['mood', '情绪'], ['meal', '餐食'], ['nap', '午睡']] as const).map(([key, label]) => (
+              <Text
+                key={key}
+                className={`block text-sm rounded-full px-4 py-2 ${scoreInfoTab === key ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}
+                onClick={() => setScoreInfoTab(key)}
+              >
+                {label}
+              </Text>
+            ))}
+          </View>
+          <View className="mt-2" style={{ maxHeight: '55vh', overflowY: 'auto' }}>
+            {(scoreInfoTab === 'meal'
+              ? MEAL_SCORE_ITEMS
+              : scoreInfoTab === 'nap'
+                ? NAP_SCORE_ITEMS
+                : MOOD_SCORE_ITEMS
+            ).map((item) => (
+              <View key={item.star} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <Text style={{ fontSize: 16, color: '#E8651A', marginRight: 12, width: 80, flexShrink: 0 }}>{item.star}</Text>
+                <Text className="block text-sm text-gray-600 flex-1">{item.desc}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </View>
+    </Portal>
+  )
+
   // 家长端首页
   if (currentRole?.role_type === 'parent') {
     return (
@@ -677,11 +721,11 @@ export default function IndexPage() {
                       const endTxt = (endDateStr || '').slice(0, 10)
                       return (
                         <View key={idx} className="py-1">
-                          <Text className="block text-xs text-foreground font-medium">
-                            {course.class_name || ''}{course.class_name && course.course_name ? ' · ' : ''}{course.course_name || ''}
-                          </Text>
                           <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-                            <Text className="text-xs text-muted-foreground">{startTxt}{endTxt ? ` ~ ${endTxt}` : '起'}</Text>
+                            <Text className="block text-xs text-foreground font-medium">
+                              {course.class_name || ''}{course.class_name && course.course_name ? ' · ' : ''}{course.course_name || ''}
+                            </Text>
+                            <Text className="block text-xs text-muted-foreground ml-1">{startTxt}{endTxt ? ` ~ ${endTxt}` : '起'}</Text>
                             {expiryTag && <Text className={expiryTag.className}>{expiryTag.text}</Text>}
                           </View>
                         </View>
@@ -704,7 +748,6 @@ export default function IndexPage() {
                         const n = parseInt(v || '0', 10)
                         return n > 0 ? '★'.repeat(n) + '☆'.repeat(5 - n) : ''
                       }
-                      const expiryTag = buildExpiryTag(record.extended_end_date || record.end_date)
                       return (
                         <View key={record.id || idx} className="py-1">
                           <View className="flex items-center justify-between mb-1">
@@ -712,7 +755,6 @@ export default function IndexPage() {
                               <Text className="text-xs text-muted-foreground">
                                 {record.class_name || ''}{record.class_name && record.course_name ? ' · ' : ''}{record.course_name || ''}
                               </Text>
-                              {expiryTag && <Text className={expiryTag.className}>{expiryTag.text}</Text>}
                             </View>
                           </View>
                           <View style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -781,46 +823,7 @@ export default function IndexPage() {
           </Card>
         )}
 
-        {scoreInfoOpen && (
-          <View
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', backgroundColor: 'rgba(0,0,0,0.45)' }}
-            onClick={() => setScoreInfoOpen(false)}
-          >
-            <View
-              style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '100%', maxHeight: '85vh', overflow: 'hidden' }}
-              onClick={(e) => { e.stopPropagation() }}
-            >
-              <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <Text className="block text-lg font-bold text-foreground">评分说明</Text>
-                <Text className="block text-gray-400 text-2xl leading-none px-2" onClick={() => setScoreInfoOpen(false)}>×</Text>
-              </View>
-              <View className="flex flex-wrap gap-3" style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
-                {([['mood', '情绪'], ['meal', '餐食'], ['nap', '午睡']] as const).map(([key, label]) => (
-                  <Text
-                    key={key}
-                    className={`block text-sm rounded-full px-4 py-2 ${scoreInfoTab === key ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}
-                    onClick={() => setScoreInfoTab(key)}
-                  >
-                    {label}
-                  </Text>
-                ))}
-              </View>
-              <View className="mt-2" style={{ maxHeight: '55vh', overflowY: 'auto' }}>
-                {(scoreInfoTab === 'meal'
-                  ? MEAL_SCORE_ITEMS
-                  : scoreInfoTab === 'nap'
-                    ? NAP_SCORE_ITEMS
-                    : MOOD_SCORE_ITEMS
-                ).map((item) => (
-                  <View key={item.star} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
-                    <Text style={{ fontSize: 16, color: '#E8651A', marginRight: 12, width: 80, flexShrink: 0 }}>{item.star}</Text>
-                    <Text className="block text-sm text-gray-600 flex-1">{item.desc}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          </View>
-        )}
+        {scoreInfoOverlay}
 
         {/* 未绑定孩子提示 */}
         {children.length === 0 && (
@@ -1303,6 +1306,8 @@ export default function IndexPage() {
             </View>
           </Portal>
         )}
+
+            {scoreInfoOverlay}
 
             <TabBar />
       </View>
