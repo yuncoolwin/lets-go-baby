@@ -88,8 +88,19 @@ export class ChildrenService {
     if (level === 'none') {
       return { error: true, code: 401, msg: '未登录或无有效角色' };
     }
-    if (level !== 'admin' && level !== 'superadmin') {
-      return { error: true, code: 403, msg: '仅管理员可创建幼儿档案' };
+    if (level !== 'admin' && level !== 'superadmin' && level !== 'teacher') {
+      return { error: true, code: 403, msg: '仅管理员/教师可创建幼儿档案' };
+    }
+
+    // 教师仅能为自己带教的班级建档：必须传 class_id，且必须属于带教班级
+    if (level === 'teacher') {
+      if (!dto.class_id) {
+        return { error: true, code: 400, msg: '请选择所属班级' };
+      }
+      const teacherClassIds = await this.authz.getTeacherClassIds(userId);
+      if (!teacherClassIds.includes(dto.class_id)) {
+        return { error: true, code: 403, msg: '仅能为自己带教的班级建档幼儿' };
+      }
     }
 
     // 检查是否已存在相同幼儿档案（name + gender + birth_date + parent_phone 四字段完全一致才算重复）

@@ -92,9 +92,9 @@ export class ClassesService {
   }
 
   /**
-   * 列表查询（分页 + 筛选）
+   * 列表查询（分页 + 筛选；教师仅返回其带教班级）
    */
-  async findAll(query: ClassQueryDto) {
+  async findAll(userId: string, query: ClassQueryDto) {
     const page = query.page || 1;
     const pageSize = query.page_size || 10;
     const from = (page - 1) * pageSize;
@@ -105,6 +105,18 @@ export class ClassesService {
       .select('*', { count: 'exact' })
       .neq('status', 'archived')
       .order('created_at', { ascending: false });
+
+    // 教师仅能查看自己带教的班级
+    if (userId) {
+      const level = await this.authz.getRoleLevel(userId);
+      if (level === 'teacher') {
+        const teacherClassIds = await this.authz.getTeacherClassIds(userId);
+        if (teacherClassIds.length === 0) {
+          return { list: [], total: 0, page, page_size: pageSize, total_pages: 0 };
+        }
+        qb = qb.in('id', teacherClassIds);
+      }
+    }
 
     if (query.level) {
       qb = qb.eq('level', query.level);

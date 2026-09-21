@@ -32,12 +32,14 @@ export class ClassesController {
   @Get()
   @HttpCode(200)
   async findAll(
+    @Req() req: Request,
     @Query('page') page?: string,
     @Query('page_size') pageSize?: string,
     @Query('level') level?: string,
     @Query('status') status?: string,
     @Query('keyword') keyword?: string,
   ) {
+    const userId = (req as any).user?.userId;
     const query: ClassQueryDto = {
       page: page ? parseInt(page, 10) : undefined,
       page_size: pageSize ? parseInt(pageSize, 10) : undefined,
@@ -45,7 +47,7 @@ export class ClassesController {
       status,
       keyword,
     };
-    const data = await this.classesService.findAll(query);
+    const data = await this.classesService.findAll(userId, query);
     if (data?.error) {
       return { code: data.code, msg: data.msg, data: null };
     }
