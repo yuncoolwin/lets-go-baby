@@ -1074,10 +1074,8 @@ export default function ChildDetailPage() {
                           size="sm"
                           className="px-2 py-1 ml-1"
                           onClick={() => {
-                            Taro.setClipboardData({
-                              data: child.parent_phone as string,
-                              success: () => Taro.showToast({ title: '已复制', icon: 'none' }),
-                            })
+                            Taro.setClipboardData({ data: child.parent_phone as string })
+                            Taro.showToast({ title: '已复制', icon: 'success' })
                           }}
                         >
                           <Copy size={14} color="#E8651A" />

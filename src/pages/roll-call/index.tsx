@@ -635,7 +635,7 @@ export default function RollCallPage() {
       )}
 
       <ScrollView
-        scrollY
+        scrollY={!calendarVisible}
         style={{ flex: 1, height: 0, paddingBottom: '100rpx' }}
         refresherEnabled
         refresherDefaultStyle="black"
