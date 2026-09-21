@@ -4,6 +4,7 @@ import * as crypto from 'crypto';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { AuthzService } from '@/auth/authz.service';
 import { WechatService } from '@/auth/wechat.service';
+import { getActiveChildIds, isChildActive } from '@/common/active-children.util';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const sharp = require('sharp');
 
@@ -436,10 +437,24 @@ export class GrowthService {
 
     let q = this.client.from('growth_records').select('*', { count: 'exact' });
     if (query.child_id) {
+      // 已删除（archived）幼儿：成长记录不再展示
+      const active = await isChildActive(query.child_id);
+      if (!active) {
+        return {
+          list: [], total: 0, page, page_size: pageSize, total_pages: 0,
+        };
+      }
       q = q.eq('child_id', query.child_id);
     } else if (query.child_ids) {
       const ids = query.child_ids.split(',').map((s) => s.trim()).filter(Boolean);
-      if (ids.length > 0) q = q.in('child_id', ids);
+      const activeIds = await getActiveChildIds(ids);
+      const ids2 = ids.filter((c) => activeIds.includes(c));
+      if (ids2.length > 0) q = q.in('child_id', ids2);
+      else {
+        return {
+          list: [], total: 0, page, page_size: pageSize, total_pages: 0,
+        };
+      }
     }
     if (query.record_date) {
       q = q.eq('record_date', query.record_date);

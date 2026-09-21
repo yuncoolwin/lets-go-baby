@@ -4,6 +4,7 @@ import { AuthzService } from '@/auth/authz.service';
 import { WechatService } from '@/auth/wechat.service';
 import { addDays, isWeekend, isSaturday } from '@/utils/date.util';
 import { collectMakeupClassDays } from '@/children/utils/holiday-helper';
+import { isChildActive } from '@/common/active-children.util';
 
 export interface HolidayDetail {
   name: string;
@@ -887,6 +888,8 @@ export class EnrollmentsService {
   async findByChild(userId: string, childId: string): Promise<Enrollment[]> {
     await this.checkChildAccess(userId, childId);
     await this.syncExpiredStatus();
+    // 已删除（archived）幼儿：报读记录不再返回
+    if (!(await isChildActive(childId))) return [];
     const { data, error } = await this.client
       .from('enrollments')
       .select('*')
@@ -1061,6 +1064,8 @@ export class EnrollmentsService {
   async findActiveByChild(userId: string, childId: string): Promise<Enrollment[]> {
     await this.checkChildAccess(userId, childId);
     await this.syncExpiredStatus();
+    // 已删除（archived）幼儿：在读课程不再返回
+    if (!(await isChildActive(childId))) return [];
     const { data, error } = await this.client
       .from('enrollments')
       .select('*')

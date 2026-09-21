@@ -60,7 +60,16 @@ export class AuthzService {
       console.error('[AuthzService] getParentChildIds 查询失败:', error.message);
       return [];
     }
-    return [...new Set((data || []).map(r => r.child_id).filter(Boolean))];
+    const childIds = [...new Set((data || []).map(r => r.child_id).filter(Boolean))];
+    if (childIds.length === 0) return [];
+    // 排除已删除（archived）幼儿：仅返回仍在册的绑定幼儿
+    const { data: activeChildren } = await this.client
+      .from('children')
+      .select('id')
+      .in('id', childIds)
+      .neq('status', 'archived');
+    const activeSet = new Set((activeChildren || []).map((c: any) => c.id));
+    return childIds.filter(id => activeSet.has(id));
   }
 
   /** 代理家长模式：超管以指定幼儿身份查看（agentChildId 存在且调用者为超管时直接放行该幼儿） */

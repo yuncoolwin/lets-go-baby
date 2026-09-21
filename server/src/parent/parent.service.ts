@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { AuthzService } from '@/auth/authz.service';
+import { isChildActive } from '@/common/active-children.util';
 
 @Injectable()
 export class ParentService {
@@ -216,6 +217,9 @@ export class ParentService {
     if (!childIds.includes(childId)) {
       return { error: true, code: 403, msg: '无权查看' };
     }
+
+    // 已删除（archived）幼儿：日报不再返回
+    if (!(await isChildActive(childId))) return [];
 
     const { data, error } = await this.client
       .from('daily_feedbacks')

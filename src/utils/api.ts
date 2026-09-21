@@ -125,6 +125,10 @@ export const childrenApi = {
   remove: (id: string, operator?: { operator_user_id?: string; operator_role_id?: string }) =>
     request({ url: `/api/children/${id}`, method: 'DELETE', data: { ...operator } }),
 
+  // 一键恢复回收站幼儿（仅超管）
+  restore: (id: string) =>
+    request({ url: `/api/children/${id}/restore`, method: 'POST' }),
+
   assignClass: (childId: string, classId: string) =>
     request({ url: `/api/children/${childId}/assign-class`, method: 'POST', data: { class_id: classId } }),
 

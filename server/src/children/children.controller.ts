@@ -106,6 +106,17 @@ export class ChildrenController {
     return { code: 200, msg: 'success', data };
   }
 
+  @Post(':id/restore')
+  @HttpCode(200)
+  async restore(@Req() req: Request, @Param('id') id: string) {
+    const userId = (req as any).user?.userId;
+    const data = await this.childrenService.restore(userId, id);
+    if ((data as any)?.error) {
+      return { code: (data as any).code, msg: (data as any).msg, data: null };
+    }
+    return { code: 200, msg: 'success', data };
+  }
+
   @Post(':id/assign-class')
   async assignClass(@Req() req: Request, @Param('id') id: string, @Body() body: { class_id: string }) {
     const userId = (req as any).user?.userId;

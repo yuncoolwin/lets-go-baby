@@ -171,9 +171,15 @@ export class ChildrenService {
       return { error: true, code: 401, msg: '未登录或无有效角色' };
     }
 
+    const isRecycleBin = query.status === 'archived';
+    // 回收站（已删除幼儿）仅超级管理员可见
+    if (isRecycleBin && level !== 'superadmin') {
+      return { error: true, code: 403, msg: '仅超级管理员可查看回收站' };
+    }
+
     // 教师仅可见自己带班班级的幼儿；家长仅可见自己孩子的幼儿
     let teacherClassIds: string[] = [];
-    if (level === 'teacher') {
+    if (level === 'teacher' && !isRecycleBin) {
       teacherClassIds = await this.authz.getTeacherClassIds(userId);
       if (teacherClassIds.length === 0) {
         return { list: [], total: 0, page: Number(query.page) || 1, page_size: Number(query.page_size) || 20, total_pages: 0 };
@@ -195,8 +201,17 @@ export class ChildrenService {
     // Step 1: 先获取所有匹配条件的幼儿（不含分页），仅取 id + created_at（total 为过滤后数量）
     let idBuilder = this.client
       .from('children')
-      .select('id, created_at, name, status', { count: 'exact' })
-      .neq('status', 'archived');
+      .select('id, created_at, name, status', { count: 'exact' });
+
+    if (isRecycleBin) {
+      // 回收站：仅展示已删除（archived）幼儿
+      idBuilder = idBuilder.eq('status', 'archived');
+    } else {
+      idBuilder = idBuilder.neq('status', 'archived');
+      if (query.status) {
+        idBuilder = idBuilder.eq('status', query.status);
+      }
+    }
 
     if (level === 'teacher') {
       idBuilder = idBuilder.in('class_id', teacherClassIds);
@@ -206,9 +221,6 @@ export class ChildrenService {
     }
     if (query.class_id) {
       idBuilder = idBuilder.eq('class_id', query.class_id);
-    }
-    if (query.status) {
-      idBuilder = idBuilder.eq('status', query.status);
     }
     if (query.keyword) {
       idBuilder = idBuilder.ilike('name', `%${query.keyword}%`);
@@ -702,6 +714,11 @@ export class ChildrenService {
 
   /**
    * 软删除（仅超管）
+   * 删除仅作逻辑标记（children.status -> archived），并同步对关联数据做逻辑标记，
+   * 不物理删除任何数据，确保可通过回收站一键恢复：
+   *  - enrollments：将该幼儿所有 status='进行中' 的报读记录置为 '已删除'（新增状态值，为恢复保留原状态）
+   *  - drop_in_records / parent_child_relations / class_members：不物理删除，统一在查询处按"幼儿是否 archived"过滤
+   * 任一步失败仅告警、不阻断主流程，幂等可重复执行。
    */
   async remove(userId: string, id: string) {
     const level = await this.authz.getRoleLevel(userId);
@@ -720,6 +737,19 @@ export class ChildrenService {
       return { error: true, code: 500, msg: `删除失败: ${error.message}` };
     }
 
+    // 关联逻辑标记：进行中报读 -> 已删除（保留原记录，便于恢复）
+    if (data) {
+      try {
+        await this.client
+          .from('enrollments')
+          .update({ status: '已删除' })
+          .eq('child_id', id)
+          .eq('status', '进行中');
+      } catch (e) {
+        console.warn(`[child-delete] 标记报读为已删除失败: ${(e as Error)?.message}`);
+      }
+    }
+
     if (data) {
       const { error: logErr } = await this.client.from('audit_logs').insert({
         user_id: userId,
@@ -733,6 +763,62 @@ export class ChildrenService {
       if (logErr) console.warn('[audit-log] child_delete 写入失败:', logErr.message);
     }
 
+    return data;
+  }
+
+  /**
+   * 一键恢复（仅超管）：将幼儿 status 从 archived 改回 active，
+   * 并同步还原其关联：enrollments 中该幼儿 status='已删除' 的记录还原为 '进行中'。
+   * drop_in、家长绑定、班级成员等因查询已按"幼儿非 archived"过滤，恢复后自动重新可见，无需额外还原。
+   * 家长绑定不自动重建（涉及家长侧确认），恢复后家长端可见"重新绑定"提示。
+   */
+  async restore(userId: string, id: string) {
+    const level = await this.authz.getRoleLevel(userId);
+    if (level !== 'superadmin') {
+      return { error: true, code: 403, msg: '仅超级管理员可恢复幼儿档案' };
+    }
+
+    const { data: child } = await this.client
+      .from('children')
+      .select('id, name, status')
+      .eq('id', id)
+      .maybeSingle();
+    if (!child) {
+      return { error: true, code: 404, msg: '幼儿档案不存在' };
+    }
+    if (child.status !== 'archived') {
+      return { error: true, code: 400, msg: '仅可恢复已删除（回收站）的幼儿档案' };
+    }
+
+    const { data, error } = await this.client
+      .from('children')
+      .update({ status: 'active' })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) {
+      return { error: true, code: 500, msg: `恢复失败: ${error.message}` };
+    }
+
+    // 同步还原报读：'已删除' -> '进行中'（删除时仅标记进行中报读，还原即恢复原状态）
+    try {
+      await this.client
+        .from('enrollments')
+        .update({ status: '进行中' })
+        .eq('child_id', id)
+        .eq('status', '已删除');
+    } catch (e) {
+      console.warn(`[child-restore] 还原报读失败: ${(e as Error)?.message}`);
+    }
+
+    await this.logAudit({
+      userId,
+      action: 'child_restore',
+      targetType: 'child',
+      targetId: id,
+      name: child.name || null,
+      changes: ['恢复档案'],
+    });
     return data;
   }
 

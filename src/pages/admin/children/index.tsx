@@ -48,6 +48,7 @@ const statusOptions = [
   { value: 'finished', label: '结课' },
   { value: 'graduated', label: '毕业' },
   { value: 'suspended', label: '休学' },
+  { value: 'archived', label: '回收站' },
 ]
 
 const statusMap: Record<string, { label: string; className: string }> = {
@@ -55,6 +56,7 @@ const statusMap: Record<string, { label: string; className: string }> = {
   finished: { label: '结课', className: 'bg-gray-100 text-gray-700' },
   graduated: { label: '毕业', className: 'bg-blue-100 text-blue-700' },
   suspended: { label: '休学', className: 'bg-yellow-100 text-yellow-700' },
+  archived: { label: '已删除', className: 'bg-red-100 text-red-700' },
 }
 
 const courseTypeColors: Record<string, string> = {
@@ -113,6 +115,33 @@ export default function ChildrenManagePage() {
     setStatusFilter(status)
   }
 
+  const isRecycleBin = statusFilter === 'archived'
+
+  const handleRestore = (child: Child) => {
+    Taro.showModal({
+      title: '恢复幼儿档案',
+      content: `恢复「${child.name}」的档案吗？其报读记录将恢复为在读，家长绑定需重新确认。`,
+      confirmText: '恢复',
+      confirmColor: '#1890ff',
+      success: async (res) => {
+        if (!res.confirm) return
+        try {
+          const rr = await childrenApi.restore(child.id)
+          console.log('[ChildrenManage] restore:', rr)
+          if (rr.code === 200) {
+            Taro.showToast({ title: '已恢复', icon: 'success' })
+            loadChildren(false)
+          } else {
+            Taro.showToast({ title: rr.msg || '恢复失败', icon: 'none' })
+          }
+        } catch (err) {
+          console.error('[ChildrenManage] restore error:', err)
+          Taro.showToast({ title: '恢复失败', icon: 'error' })
+        }
+      },
+    })
+  }
+
   const calculateAge = formatAge
 
   if (loading) {
@@ -156,9 +185,11 @@ export default function ChildrenManagePage() {
           >
             <Text className="text-sm">
               {opt.label}
-              {opt.value === ''
-                ? ` ${statusCounts.total || 0}`
-                : ` ${statusCounts[opt.value] || 0}`}
+              {opt.value !== 'archived' && opt.value !== ''
+                ? ` ${statusCounts[opt.value] || 0}`
+                : opt.value === ''
+                  ? ` ${statusCounts.total || 0}`
+                  : ''}
             </Text>
           </View>
         ))}
@@ -168,7 +199,9 @@ export default function ChildrenManagePage() {
       {children.length === 0 ? (
         <View className="flex flex-col items-center py-16">
           <Image src={rabbitLogo} className="w-16 h-16 rounded-full" mode="aspectFit" />
-          <Text className="block text-sm text-muted-foreground mt-3">暂无幼儿</Text>
+          <Text className="block text-sm text-muted-foreground mt-3">
+            {isRecycleBin ? '回收站暂无幼儿' : '暂无幼儿'}
+          </Text>
         </View>
       ) : (
         <View className="space-y-3">
@@ -176,7 +209,7 @@ export default function ChildrenManagePage() {
             <Card
               key={child.id}
               className="bg-white rounded-xl border-0 shadow-sm"
-              onClick={() => Taro.navigateTo({ url: `/pages/admin/child-detail/index?id=${child.id}` })}
+              onClick={isRecycleBin ? undefined : () => Taro.navigateTo({ url: `/pages/admin/child-detail/index?id=${child.id}` })}
             >
               <CardContent className="p-4">
                 {/* 姓名行 */}
@@ -206,6 +239,15 @@ export default function ChildrenManagePage() {
                       </Badge>
                     )}
                   </View>
+                  {isRecycleBin && (
+                    <Button
+                      size="sm"
+                      className="bg-primary text-white rounded-lg px-3"
+                      onClick={() => handleRestore(child)}
+                    >
+                      <Text className="text-white text-xs">恢复</Text>
+                    </Button>
+                  )}
                 </View>
 
                 {/* 过敏信息 */}
@@ -216,7 +258,13 @@ export default function ChildrenManagePage() {
                 )}
 
                 {/* 课程标签行 */}
-                {child.enrollments && child.enrollments.length > 0 ? (
+                {isRecycleBin ? (
+                  <View className="flex items-center gap-1">
+                    <Text className="text-xs text-muted-foreground">
+                      档案已删除，报读记录已暂停。恢复后重新以在读展示。
+                    </Text>
+                  </View>
+                ) : child.enrollments && child.enrollments.length > 0 ? (
                   <View className="space-y-1">
                     {child.enrollments.map((enr) => (
                       <View
@@ -246,20 +294,22 @@ export default function ChildrenManagePage() {
         </View>
       )}
       {/* 底部固定按钮 */}
-      <View
-        style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0,
-          background: '#fff', borderTop: '1px solid #f0f0f0',
-          padding: '12px 16px', zIndex: 100
-        }}
-      >
-        <Button
-          className="w-full bg-primary text-white rounded-xl py-3"
-          onClick={() => Taro.navigateTo({ url: '/pages/admin/child-add/index' })}
+      {!isRecycleBin && (
+        <View
+          style={{
+            position: 'fixed', bottom: 0, left: 0, right: 0,
+            background: '#fff', borderTop: '1px solid #f0f0f0',
+            padding: '12px 16px', zIndex: 100
+          }}
         >
-          <Text className="text-white">新增幼儿</Text>
-        </Button>
-      </View>
+          <Button
+            className="w-full bg-primary text-white rounded-xl py-3"
+            onClick={() => Taro.navigateTo({ url: '/pages/admin/child-add/index' })}
+          >
+            <Text className="text-white">新增幼儿</Text>
+          </Button>
+        </View>
+      )}
     </View>
   )
 }

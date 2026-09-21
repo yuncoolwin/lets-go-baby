@@ -3,6 +3,7 @@ import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { getShanghaiToday, isSaturday, isWeekend } from '@/utils/date.util';
 import { AuthzService } from '@/auth/authz.service';
 import { buildMakeupLayers } from '@/children/utils/holiday-helper';
+import { getActiveChildIds, isChildActive } from '@/common/active-children.util';
 
 /**
  * 判断某天是否属于某课程类型的上课日：
@@ -285,8 +286,11 @@ export class AttendanceService {
 
     const enrollmentList = enrollments || [];
     console.log(`[AdminOverview] Enrollments count: ${enrollmentList.length}`);
-    const childIds = [...new Set(enrollmentList.map(e => e.child_id))];
+    let childIds = [...new Set(enrollmentList.map(e => e.child_id))];
     console.log(`[AdminOverview] Unique child IDs: ${childIds.length}`);
+
+    // 过滤已删除（archived）幼儿：回收站幼儿的报读/临时来园不再出现在考勤页
+    const activeChildIds = new Set(await getActiveChildIds(childIds));
 
     // 查询幼儿信息
     let childrenMap: Record<string, { name: string; gender: string; birth_date: string }> = {};
@@ -321,6 +325,8 @@ export class AttendanceService {
 
     for (const e of enrollmentList) {
       const ct = e.course_type;
+      // 跳过已删除（archived）幼儿
+      if (!activeChildIds.has(e.child_id)) continue;
       if (queryDate && e.start_date && queryDate < e.start_date) continue;
       const effectiveEnd = e.extended_end_date || e.end_date;
       if (queryDate && effectiveEnd && queryDate > effectiveEnd) continue;
@@ -366,12 +372,18 @@ export class AttendanceService {
         if (dropChildIds.length > 0) {
           const { data: dropChildren } = await this.client
             .from('children')
-            .select('id, name, gender, birth_date')
+            .select('id, name, gender, birth_date, status')
             .in('id', dropChildIds);
-          dropChildren?.forEach(c => { childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date }; });
+          // 已删除（archived）幼儿临时来园不展示
+          dropChildren?.forEach(c => {
+            if (c.status === 'archived') return;
+            childrenMap[c.id] = { name: c.name, gender: c.gender, birth_date: c.birth_date };
+          });
         }
         for (const d of dropIns) {
           const ct = d.course_type;
+          // 拉黑未在册幼儿（不在 childrenMap 即为已删除/无档案）
+          if (!childrenMap[d.child_id]) continue;
           if (!groupMap.has(ct)) groupMap.set(ct, []);
           const exists = groupMap.get(ct)!.some(x => x.child_id === d.child_id);
           if (exists) continue;
@@ -656,6 +668,10 @@ export class AttendanceService {
    * 按幼儿查询临时课程记录（按 date 倒序），返回区间字段与逐日考勤 days
    */
   async getDropIns(childId: string) {
+    // 已删除（archived）幼儿：临时来园记录不再返回
+    if (!(await isChildActive(childId))) {
+      return { code: 200, msg: 'success', data: [] };
+    }
     const { data, error } = await this.client
       .from('drop_in_records')
       .select('id, child_id, class_id, course_type, date, start_date, end_date, note, created_at')
