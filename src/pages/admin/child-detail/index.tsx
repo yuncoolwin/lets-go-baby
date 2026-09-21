@@ -50,6 +50,7 @@ const statusMap: Record<string, { label: string; className: string }> = {
   finished: { label: '结课', className: 'bg-gray-100 text-gray-700' },
   graduated: { label: '毕业', className: 'bg-blue-100 text-blue-700' },
   suspended: { label: '休学', className: 'bg-orange-100 text-orange-700' },
+  archived: { label: '已归档', className: 'bg-gray-100 text-gray-700' },
 }
 
 const calculateAge = formatAge
@@ -1089,7 +1090,8 @@ export default function ChildDetailPage() {
           </CardContent>
         </Card>
 
-        {/* 报读记录卡片 */}
+        {/* 报读记录卡片（已归档幼儿不显示报读/统计/考勤日历，保留页面顶部归档状态提示） */}
+        {child.status !== 'archived' && (
         <Card className="bg-white rounded-xl border-0 shadow-sm">
           <CardContent className="p-4">
             <View className="flex items-center justify-between mb-3">
@@ -1186,6 +1188,7 @@ export default function ChildDetailPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* 临时课程 */}
         <Card className="bg-white rounded-xl border-0 shadow-sm">
