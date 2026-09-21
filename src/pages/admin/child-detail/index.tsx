@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import { childrenApi, enrollmentApi, classApi, courseApi, adminApi, dailyApi, dropInApi } from '@/utils/api'
 import { format } from 'date-fns'
 
-import { Pencil, Trash2, BookOpen, Plus, X, Copy } from 'lucide-react-taro'
+import { Pencil, Trash2, BookOpen, Plus, X } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge } from '@/utils/format'
 
@@ -1075,18 +1075,7 @@ export default function ChildDetailPage() {
                         {child.parent_phone || '未设置'}
                       </Text>
                       {child.parent_phone ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="px-2 py-1 ml-1"
-                          onClick={() => {
-                            Taro.setClipboardData({ data: String(child.parent_phone).trim() })
-                            Taro.showToast({ title: '已复制', icon: 'success' })
-                          }}
-                        >
-                          <Copy size={14} color="#E8651A" />
-                          <Text className="text-primary text-sm">复制</Text>
-                        </Button>
+                        <Text className="text-xs text-muted-foreground ml-1">长按复制</Text>
                       ) : null}
                     </View>
                   </View>
