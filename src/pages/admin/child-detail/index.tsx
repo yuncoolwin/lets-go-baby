@@ -1876,14 +1876,6 @@ export default function ChildDetailPage() {
                   <Text className="block text-sm text-orange-500 text-center">+ 添加顺延明细</Text>
                 </View>
                 <Text className="block text-xs text-gray-400 mb-2">规则：连续请假5天或以上，按请假天数顺延</Text>
-                <View
-                  className="py-2 rounded-lg mb-2 text-center"
-                  style={{ border: '1px solid #FFE0C2', backgroundColor: '#FFF4EA' }}
-                >
-                  <Text className="block text-sm text-orange-600 font-medium">
-                    共顺延 {extendEditList.filter((d) => d && (d.isAuto === false || !d.isFrozen)).reduce((s, d) => s + (Number(d.overlapDays) || 0), 0)} 天
-                  </Text>
-                </View>
                 <View className="flex flex-row gap-2">
                   <View className="flex-1" onClick={cancelExtendEdit}>
                     <Button style={{ width: '100%' }}>取消</Button>
