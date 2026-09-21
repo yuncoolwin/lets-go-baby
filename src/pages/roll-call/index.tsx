@@ -1200,6 +1200,21 @@ function DropInModal({
     })()
   }, [visible, date, classId])
 
+  // H5 端锁定页面滚动（小程序端由 catchMove 阻止滚动穿透）
+  useEffect(() => {
+    if (!visible) return
+    let prevOverflow = ''
+    if (typeof document !== 'undefined') {
+      prevOverflow = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+    }
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.body.style.overflow = prevOverflow
+      }
+    }
+  }, [visible])
+
   const handlePickChild = async (id: string) => {
     setPickedId(id)
     try {
