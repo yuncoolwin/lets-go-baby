@@ -1075,7 +1075,7 @@ export default function ChildDetailPage() {
                           success: () => Taro.showToast({ title: '已复制', icon: 'none' }),
                         })
                       }}
-                    >{child.parent_phone || '未设置'}</Text>
+                    >{child.parent_phone || '未设置'}{child.parent_phone ? <Text className="text-xs text-muted-foreground ml-1">（长按复制）</Text> : null}</Text>
                   </View>
                   <View className="flex items-center justify-between py-2">
                     <Text className="text-sm text-muted-foreground">健康信息</Text>
