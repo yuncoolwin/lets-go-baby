@@ -1066,16 +1066,24 @@ export default function ChildDetailPage() {
                   </View>
                   <View className="flex items-center justify-between py-2 border-b border-border">
                     <Text className="text-sm text-muted-foreground">家长电话</Text>
-                    <Text
-                      className="text-sm text-foreground"
+                    <View
+                      className="flex items-center px-1 py-1"
                       onLongPress={() => {
                         if (!child.parent_phone) return
                         Taro.setClipboardData({
                           data: child.parent_phone,
                           success: () => Taro.showToast({ title: '已复制', icon: 'none' }),
+                          fail: () => {
+                            Taro.setClipboardData({
+                              data: child.parent_phone as string,
+                            })
+                          },
                         })
                       }}
-                    >{child.parent_phone || '未设置'}{child.parent_phone ? <Text className="text-xs text-muted-foreground ml-1">（长按复制）</Text> : null}</Text>
+                    >
+                      <Text className="text-sm text-foreground">{child.parent_phone || '未设置'}</Text>
+                      {child.parent_phone ? <Text className="text-xs text-muted-foreground ml-1">（长按复制）</Text> : null}
+                    </View>
                   </View>
                   <View className="flex items-center justify-between py-2">
                     <Text className="text-sm text-muted-foreground">健康信息</Text>
