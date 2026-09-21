@@ -636,8 +636,8 @@ export default function RollCallPage() {
 
       <ScrollView
         scrollY={!calendarVisible}
-        style={{ flex: 1, height: 0, paddingBottom: '100rpx' }}
-        refresherEnabled
+        style={{ flex: 1, height: 0, paddingBottom: '100rpx', ...(calendarVisible ? { overflow: 'hidden' as const } : {}) }}
+        refresherEnabled={!calendarVisible}
         refresherDefaultStyle="black"
         refresherTriggered={refreshing}
         onRefresherRefresh={() => {

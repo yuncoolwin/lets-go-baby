@@ -1067,14 +1067,20 @@ export default function ChildDetailPage() {
                   <View className="flex items-center justify-between py-2 border-b border-border">
                     <Text className="text-sm text-muted-foreground">家长电话</Text>
                     <View className="flex items-center">
-                      <Text className="text-sm text-foreground">{child.parent_phone || '未设置'}</Text>
+                      <Text
+                        selectable
+                        userSelect
+                        className="text-sm text-foreground"
+                      >
+                        {child.parent_phone || '未设置'}
+                      </Text>
                       {child.parent_phone ? (
                         <Button
                           variant="ghost"
                           size="sm"
                           className="px-2 py-1 ml-1"
                           onClick={() => {
-                            Taro.setClipboardData({ data: child.parent_phone as string })
+                            Taro.setClipboardData({ data: String(child.parent_phone).trim() })
                             Taro.showToast({ title: '已复制', icon: 'success' })
                           }}
                         >
