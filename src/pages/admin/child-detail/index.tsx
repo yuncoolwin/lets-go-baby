@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import { childrenApi, enrollmentApi, classApi, courseApi, adminApi, dailyApi, dropInApi } from '@/utils/api'
 import { format } from 'date-fns'
 
-import { Pencil, Trash2, BookOpen, Plus, X } from 'lucide-react-taro'
+import { Pencil, Trash2, BookOpen, Plus, X, Copy } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge } from '@/utils/format'
 
@@ -1066,23 +1066,24 @@ export default function ChildDetailPage() {
                   </View>
                   <View className="flex items-center justify-between py-2 border-b border-border">
                     <Text className="text-sm text-muted-foreground">家长电话</Text>
-                    <View
-                      className="flex items-center px-1 py-1"
-                      onLongPress={() => {
-                        if (!child.parent_phone) return
-                        Taro.setClipboardData({
-                          data: child.parent_phone,
-                          success: () => Taro.showToast({ title: '已复制', icon: 'none' }),
-                          fail: () => {
+                    <View className="flex items-center">
+                      <Text className="text-sm text-foreground">{child.parent_phone || '未设置'}</Text>
+                      {child.parent_phone ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="px-2 py-1 ml-1"
+                          onClick={() => {
                             Taro.setClipboardData({
                               data: child.parent_phone as string,
+                              success: () => Taro.showToast({ title: '已复制', icon: 'none' }),
                             })
-                          },
-                        })
-                      }}
-                    >
-                      <Text className="text-sm text-foreground">{child.parent_phone || '未设置'}</Text>
-                      {child.parent_phone ? <Text className="text-xs text-muted-foreground ml-1">（长按复制）</Text> : null}
+                          }}
+                        >
+                          <Copy size={14} color="#E8651A" />
+                          <Text className="text-primary text-sm">复制</Text>
+                        </Button>
+                      ) : null}
                     </View>
                   </View>
                   <View className="flex items-center justify-between py-2">
