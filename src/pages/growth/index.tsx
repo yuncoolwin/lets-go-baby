@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
 import { refreshUnreadBadge, refreshGrowthUnreadBadge } from '@/utils/unread-badge'
-import { Camera } from 'lucide-react-taro'
+import { Camera, Play } from 'lucide-react-taro'
+import { Button } from '@/components/ui/button'
 import TabBar from '@/components/tab-bar'
 import { useDialogBack } from '@/utils/use-dialog-back'
 
@@ -35,6 +36,12 @@ interface GrowthRecord {
   stool_status?: string | null
 }
 
+interface MediaItem {
+  type: 'image' | 'video'
+  url: string
+  expired: boolean
+}
+
 export default function GrowthPage() {
   const currentRole = useAppStore((s) => s.currentRole)
   const children = useAppStore((s) => s.children)
@@ -43,6 +50,8 @@ export default function GrowthPage() {
   const [loading, setLoading] = useState(true)
   const [detailRecord, setDetailRecord] = useState<GrowthRecord | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  const [playerUrl, setPlayerUrl] = useState<string | null>(null)
+  const [savingVideo, setSavingVideo] = useState(false)
   useDialogBack(detailOpen, () => setDetailOpen(false))
 
   useDidShow(() => {
@@ -109,6 +118,100 @@ export default function GrowthPage() {
 
   const previewImage = (urls: string[], current: string) => {
     Taro.previewImage({ urls, current })
+  }
+
+  // 合并图片与视频为统一媒体数组：图片在前、视频在后
+  const buildMedia = (record: GrowthRecord): MediaItem[] => {
+    const imgs = (record.photo_urls || []).map((url) => ({
+      type: 'image' as const,
+      url,
+      expired: !!record.photo_expired,
+    }))
+    const vids = (record.video_urls || []).map((url) => ({
+      type: 'video' as const,
+      url,
+      expired: !!record.video_expired,
+    }))
+    return [...imgs, ...vids]
+  }
+
+  const onMediaClick = (media: MediaItem) => {
+    if (media.expired) return
+    if (media.type === 'image') {
+      previewImage([media.url], media.url)
+    } else {
+      setPlayerUrl(media.url)
+    }
+  }
+
+  const closePlayer = () => {
+    setPlayerUrl(null)
+    setSavingVideo(false)
+  }
+
+  const saveVideo = async () => {
+    if (!playerUrl || savingVideo) return
+    setSavingVideo(true)
+    try {
+      try {
+        await Taro.authorize({ scope: 'scope.writePhotosAlbum' })
+      } catch (authErr) {
+        console.error('[Growth] authorize album fail:', authErr)
+      }
+      const dl = await Network.downloadFile({ url: playerUrl })
+      if (dl.statusCode !== 200) {
+        Taro.showToast({ title: '视频下载失败', icon: 'none' })
+        return
+      }
+      await Taro.saveVideoToPhotosAlbum({ filePath: dl.tempFilePath })
+      Taro.showToast({ title: '已保存到相册', icon: 'success' })
+    } catch (err) {
+      console.error('[Growth] save video fail:', err)
+      Taro.showToast({ title: '保存失败，请检查相册权限', icon: 'none' })
+    } finally {
+      setSavingVideo(false)
+    }
+  }
+
+  // 统一媒体缩略图区：同尺寸正方形，图片前、视频后，横向滑动浏览，过期显示灰色占位
+  const renderMediaThumbs = (record: GrowthRecord) => {
+    const media = buildMedia(record)
+    if (media.length === 0) return null
+    return (
+      <ScrollView scrollX className="mt-3" style={{ width: '100%' }}>
+        <View
+          className="flex flex-row gap-2"
+          style={{ display: 'inline-flex', flexDirection: 'row' }}
+        >
+          {media.map((m, idx) =>
+            m.expired ? (
+              <View
+                key={idx}
+                className="w-24 h-24 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0"
+              >
+                <Text className="block text-xs text-gray-400">已过期</Text>
+              </View>
+            ) : m.type === 'image' ? (
+              <Image
+                key={idx}
+                src={m.url}
+                className="w-24 h-24 rounded-lg flex-shrink-0"
+                mode="aspectFill"
+                onClick={() => onMediaClick(m)}
+              />
+            ) : (
+              <View
+                key={idx}
+                className="w-24 h-24 rounded-lg bg-black flex items-center justify-center flex-shrink-0 overflow-hidden"
+                onClick={() => onMediaClick(m)}
+              >
+                <Play size={28} color="#ffffff" />
+              </View>
+            ),
+          )}
+        </View>
+      </ScrollView>
+    )
   }
 
   if (loading) {
@@ -207,39 +310,7 @@ export default function GrowthPage() {
                   )}
                 </View>
 
-                {record.photo_urls && record.photo_urls.length > 0 && !record.photo_expired && (
-                  <View className="flex flex-wrap gap-2 mt-3">
-                    {record.photo_urls.map((url, idx) => (
-                      <Image
-                        key={idx}
-                        src={url}
-                        className="w-24 h-24 rounded-lg"
-                        mode="aspectFill"
-                        onClick={() => previewImage(record.photo_urls as string[], url)}
-                      />
-                    ))}
-                  </View>
-                )}
-                {record.photo_urls && record.photo_urls.length > 0 && record.photo_expired && (
-                  <View className="w-24 h-24 rounded-lg bg-gray-100 flex items-center justify-center mt-3">
-                    <Text className="block text-xs text-gray-400">照片已过期</Text>
-                  </View>
-                )}
-
-                {record.video_urls && record.video_urls.length > 0 && !record.video_expired && (
-                  <View className="space-y-2 mt-3">
-                    {record.video_urls.map((url, idx) => (
-                      <Video key={idx} src={url} controls className="w-full rounded-lg bg-black" style={{ height: '180px' }} />
-                    ))}
-                  </View>
-                )}
-                {record.video_urls && record.video_urls.length > 0 && record.video_expired && (
-                  <View className="space-y-2 mt-3">
-                    <View className="w-full rounded-lg bg-gray-100 flex items-center justify-center" style={{ height: '120px' }}>
-                      <Text className="block text-xs text-gray-400">视频已过期</Text>
-                    </View>
-                  </View>
-                )}
+                {renderMediaThumbs(record)}
 
                 <View className="flex justify-end mt-3">
                   <Text className="text-xs text-muted-foreground">
@@ -271,30 +342,7 @@ export default function GrowthPage() {
                 <Text className="block text-base text-foreground leading-relaxed whitespace-pre-wrap">
                   {detailRecord.content}
                 </Text>
-                {detailRecord.photo_urls && detailRecord.photo_urls.length > 0 && !detailRecord.photo_expired && (
-                  <View className="space-y-2">
-                    {detailRecord.photo_urls.map((url, idx) => (
-                      <Image key={idx} src={url} className="w-full rounded-lg" mode="widthFix" onClick={() => previewImage(detailRecord.photo_urls as string[], url)} />
-                    ))}
-                  </View>
-                )}
-                {detailRecord.photo_urls && detailRecord.photo_urls.length > 0 && detailRecord.photo_expired && (
-                  <View className="w-full rounded-lg bg-gray-100 flex items-center justify-center" style={{ height: '140px' }}>
-                    <Text className="block text-xs text-gray-400">照片已过期</Text>
-                  </View>
-                )}
-                {detailRecord.video_urls && detailRecord.video_urls.length > 0 && !detailRecord.video_expired && (
-                  <View className="space-y-2">
-                    {detailRecord.video_urls.map((url, idx) => (
-                      <Video key={idx} src={url} controls className="w-full rounded-lg bg-black" style={{ height: '180px' }} />
-                    ))}
-                  </View>
-                )}
-                {detailRecord.video_urls && detailRecord.video_urls.length > 0 && detailRecord.video_expired && (
-                  <View className="w-full rounded-lg bg-gray-100 flex items-center justify-center" style={{ height: '140px' }}>
-                    <Text className="block text-xs text-gray-400">视频已过期</Text>
-                  </View>
-                )}
+                {renderMediaThumbs(detailRecord)}
                 <View className="flex justify-end pt-3">
                   <View className="text-right space-y-1">
                     <Text className="block text-xs text-muted-foreground">
@@ -310,6 +358,52 @@ export default function GrowthPage() {
           </ScrollView>
         </DialogContent>
       </Dialog>
+      {playerUrl && (
+        <View
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.95)',
+            zIndex: 999,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <Video
+            src={playerUrl}
+            autoplay
+            controls
+            className="w-full rounded-xl bg-black"
+            style={{ height: '50vh' }}
+          />
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              gap: 16,
+              marginTop: 28,
+            }}
+          >
+            <Button size="sm" onClick={closePlayer}>
+              缩小
+            </Button>
+            <Button
+              size="sm"
+              variant="default"
+              loading={savingVideo}
+              onClick={() => saveVideo()}
+            >
+              下载/保存
+            </Button>
+          </View>
+        </View>
+      )}
       <TabBar />
     </View>
   )
