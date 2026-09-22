@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { AuthzService } from '@/auth/authz.service';
 import { isChildActive } from '@/common/active-children.util';
-import { signGrowthUrls } from '@/common/growth-media.util';
+import { signGrowthUrlsDetailed } from '@/common/growth-media.util';
 
 @Injectable()
 export class ParentService {
@@ -400,16 +400,18 @@ export class ParentService {
           : '';
         if (!teacherName && role?.real_name) teacherName = realNameNickMap.get(role.real_name) || '';
         if (!teacherName) teacherName = role?.real_name || '';
+        const photoSign = await signGrowthUrlsDetailed(r.photo_urls);
+        const videoSign = await signGrowthUrlsDetailed(r.video_urls, { video: true });
         return {
           id: r.id,
           record_type: r.record_type,
           title: r.title,
           content: r.content,
           // bucket 已收敛为 private，且持久化 URL 会过期，读端按需重新签名
-          photo_urls: (await signGrowthUrls(r.photo_urls)) || null,
-          video_urls: (await signGrowthUrls(r.video_urls, { video: true })) || null,
-          photo_expired: !!r.photo_expired,
-          video_expired: !!r.video_expired,
+          photo_urls: photoSign.urls,
+          video_urls: videoSign.urls,
+          photo_expired: !!r.photo_expired || photoSign.unavailable.length > 0,
+          video_expired: !!r.video_expired || videoSign.unavailable.length > 0,
           created_at: r.created_at,
           teacher_name: teacherName,
           course_name: r.course_name,

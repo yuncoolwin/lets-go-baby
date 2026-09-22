@@ -188,33 +188,37 @@ export class GrowthService {
   /**
    * 为存储的图片 URL 动态生成签名 URL（bucket 已转为 private，public URL 不再可直接访问）
    */
-  private async signPhotoUrls(urls: string[]): Promise<string[]> {
-    const paths = this.extractStoragePaths(urls || []);
-    const signed = new Map<string, string>();
-    for (const p of paths) {
-      const { data } = await this.client.storage.from('growth').createSignedUrl(p, SIGNED_URL_TTL);
-      if (data?.signedUrl) signed.set(p, data.signedUrl);
-    }
-    return (urls || []).map((url) => {
-      const p = this.extractStoragePaths([url])[0];
-      return (p && signed.get(p)) || url;
-    });
+  private async signPhotoUrls(urls: string[]): Promise<{ urls: string[]; unavailable: string[] }> {
+    return this.signMedia(urls, SIGNED_URL_TTL);
   }
 
   /**
    * 为存储的视频 URL 动态生成签名 URL（7 天有效，读端按需重新签名）
    */
-  private async signVideoUrls(urls: string[]): Promise<string[]> {
+  private async signVideoUrls(urls: string[]): Promise<{ urls: string[]; unavailable: string[] }> {
+    return this.signMedia(urls, VIDEO_SIGNED_URL_TTL);
+  }
+
+  /** 统一重签名：返回重签后的 URL 列表 + 无法重签（对象在当前项目不存在）的路径，读端据此置为已过期 */
+  private async signMedia(
+    urls: string[],
+    ttl: number,
+  ): Promise<{ urls: string[]; unavailable: string[] }> {
     const paths = this.extractStoragePaths(urls || []);
     const signed = new Map<string, string>();
+    const unavailable: string[] = [];
     for (const p of paths) {
-      const { data } = await this.client.storage.from('growth').createSignedUrl(p, VIDEO_SIGNED_URL_TTL);
+      const { data } = await this.client.storage.from('growth').createSignedUrl(p, ttl);
       if (data?.signedUrl) signed.set(p, data.signedUrl);
+      else unavailable.push(p);
     }
-    return (urls || []).map((url) => {
+    const resolved = (urls || []).map((url) => {
       const p = this.extractStoragePaths([url])[0];
-      return (p && signed.get(p)) || url;
+      const ok = p && signed.get(p);
+      if (!ok && p && !unavailable.includes(p)) unavailable.push(p);
+      return ok ? ok : url;
     });
+    return { urls: resolved, unavailable };
   }
 
   async uploadVideo(userId: string, file: Express.Multer.File) {
@@ -476,13 +480,19 @@ export class GrowthService {
     const childNames = await this.getChildNames(records);
 
     const list = await Promise.all(
-      records.map(async (r) => ({
-        ...r,
-        teacher_name: teacherNames.get(r.teacher_id) || '',
-        child_name: childNames.get(r.child_id) || '',
-        photo_urls: await this.signPhotoUrls(r.photo_urls),
-        video_urls: await this.signVideoUrls(r.video_urls),
-      })),
+      records.map(async (r) => {
+        const photoSign = await this.signPhotoUrls(r.photo_urls);
+        const videoSign = await this.signVideoUrls(r.video_urls);
+        return {
+          ...r,
+          teacher_name: teacherNames.get(r.teacher_id) || '',
+          child_name: childNames.get(r.child_id) || '',
+          photo_urls: photoSign.urls,
+          video_urls: videoSign.urls,
+          photo_expired: !!r.photo_expired || photoSign.unavailable.length > 0,
+          video_expired: !!r.video_expired || videoSign.unavailable.length > 0,
+        };
+      }),
     );
 
     return {
@@ -518,10 +528,14 @@ export class GrowthService {
 
     const teacherNames = await this.getTeacherNames([record]);
     const childNames = await this.getChildNames([record]);
+    const photoSign = await this.signPhotoUrls(record.photo_urls);
+    const videoSign = await this.signVideoUrls(record.video_urls);
     return {
       ...record,
-      photo_urls: await this.signPhotoUrls(record.photo_urls),
-      video_urls: await this.signVideoUrls(record.video_urls),
+      photo_urls: photoSign.urls,
+      video_urls: videoSign.urls,
+      photo_expired: !!record.photo_expired || photoSign.unavailable.length > 0,
+      video_expired: !!record.video_expired || videoSign.unavailable.length > 0,
       teacher_name: teacherNames.get(record.teacher_id) || '',
       child_name: childNames.get(record.child_id) || '',
     };

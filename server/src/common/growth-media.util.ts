@@ -26,17 +26,35 @@ export async function signGrowthUrls(
   urls: string[] | null | undefined,
   opts?: { video?: boolean },
 ): Promise<string[] | null> {
-  if (!Array.isArray(urls) || urls.length === 0) return Array.isArray(urls) ? urls : null;
+  return (await signGrowthUrlsDetailed(urls, opts)).urls;
+}
+
+/**
+ * 重新签名并返回可用性信息：unavailable 中为「当前项目存储里已找不到对象 / 无法重签」的原始路径。
+ * 读端可据此把这类媒体标记为「已过期」，避免加载过期 URL 变成空白。
+ */
+export async function signGrowthUrlsDetailed(
+  urls: string[] | null | undefined,
+  opts?: { video?: boolean },
+): Promise<{ urls: string[] | null; unavailable: string[] }> {
+  if (!Array.isArray(urls) || urls.length === 0) {
+    return { urls: Array.isArray(urls) ? urls : null, unavailable: [] };
+  }
   const client = getSupabaseClient();
   const ttl = opts?.video ? VIDEO_SIGNED_URL_TTL : SIGNED_URL_TTL;
   const signed = new Map<string, string>();
+  const unavailable: string[] = [];
   const paths = urls.map((u) => extractGrowthPath(u)).filter((p): p is string => !!p);
   for (const p of paths) {
     const { data } = await client.storage.from('growth').createSignedUrl(p, ttl);
     if (data?.signedUrl) signed.set(p, data.signedUrl);
+    else unavailable.push(p);
   }
-  return urls.map((url) => {
+  const resolved = urls.map((url) => {
     const p = extractGrowthPath(url);
-    return (p && signed.get(p)) || url;
+    const ok = p && signed.get(p);
+    if (!ok && p && !unavailable.includes(p)) unavailable.push(p);
+    return ok ? ok : url;
   });
+  return { urls: resolved, unavailable };
 }
