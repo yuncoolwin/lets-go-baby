@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
 import rabbitLogo from '@/assets/rabbit-logo.png'
+import { useShareMessage } from '@/hooks/useShare'
 
 interface ClassItem {
   id: string
@@ -43,6 +44,7 @@ interface Student {
 }
 
 export default function RecordsPage() {
+  useShareMessage()
   const { currentRole, children } = useAppStore()
   const isSuperadmin = currentRole?.role_type === 'superadmin'
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([])

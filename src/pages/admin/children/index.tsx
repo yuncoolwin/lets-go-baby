@@ -10,6 +10,7 @@ import { childrenApi } from '@/utils/api'
 import { Search } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge } from '@/utils/format'
+import { useShareMessage } from '@/hooks/useShare'
 
 interface Enrollment {
   id: string
@@ -70,6 +71,7 @@ const courseTypeColors: Record<string, string> = {
 }
 
 export default function ChildrenManagePage() {
+  useShareMessage()
   const [children, setChildren] = useState<Child[]>([])
   const [loading, setLoading] = useState(true)
   const [keyword, setKeyword] = useState('')

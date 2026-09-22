@@ -8,6 +8,7 @@ import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
 import { FileText, CalendarDays, ChevronDown } from 'lucide-react-taro'
 import { format } from 'date-fns'
+import { useShareMessage } from '@/hooks/useShare'
 
 interface AuditLogItem {
   id: string
@@ -141,6 +142,7 @@ const buildPhrase = (action: string, detail: any) => {
 }
 
 export default function AuditLogsPage() {
+  useShareMessage()
   const userId = useAppStore((s) => s.userId)
   const currentRole = useAppStore((s) => s.currentRole)
 

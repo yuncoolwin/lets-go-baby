@@ -1,4 +1,5 @@
 import { View, Text, ScrollView } from '@tarojs/components'
+import { useShareMessage } from '@/hooks/useShare'
 import { AGREEMENT_CONTENT } from './content'
 
 /**
@@ -6,6 +7,7 @@ import { AGREEMENT_CONTENT } from './content'
  * 排版：大标题居中加粗 → 更新/生效日期 → 前言 → 各节（一级标题加粗放大、正文 14px、子列表缩进）
  */
 export default function Agreement() {
+  useShareMessage()
   const doc = AGREEMENT_CONTENT
   return (
     <View className="bg-white" style={{ height: '100vh' }}>

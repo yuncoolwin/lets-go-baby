@@ -11,6 +11,7 @@ import { Network } from '@/network'
 
 import { formatAge } from '@/utils/format'
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
+import { useShareMessage } from '@/hooks/useShare'
 
 
 interface ChildDetail {
@@ -47,6 +48,7 @@ const genderMap: Record<string, string> = { male: '男', female: '女' }
 const genderOptions = ['男', '女']
 
 export default function ChildSettingPage() {
+  useShareMessage()
   const [childId, setChildId] = useState<string>('')
   const [child, setChild] = useState<ChildDetail | null>(null)
   const [loading, setLoading] = useState(true)

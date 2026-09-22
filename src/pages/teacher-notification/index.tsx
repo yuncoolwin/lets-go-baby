@@ -14,6 +14,7 @@ import { notificationApi, classApi, childrenApi, teacherApi, courseApi } from '@
 import { useAppStore } from '@/store/app'
 import { Send, Save, Inbox, Users, User, Bell, BookOpen, Megaphone, ChevronRight, RefreshCw } from 'lucide-react-taro'
 import { isH5 } from '@/lib/platform'
+import { useShareMessage } from '@/hooks/useShare'
 
 const readFileAsBase64 = (filePath: string, fileObj?: File): Promise<string> => {
   if (isH5()) {
@@ -115,6 +116,7 @@ const formatTime = (dateStr: string) => {
 }
 
 export default function TeacherNotificationPage() {
+  useShareMessage()
   const currentRole = useAppStore((s) => s.currentRole)
   const isAgentAdmin = useAppStore((s) => s.agentOriginalRoleType === 'admin')
   const isAdmin = currentRole?.role_type === 'admin' || currentRole?.role_type === 'superadmin'

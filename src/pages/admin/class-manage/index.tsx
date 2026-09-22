@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { MapPin, Pencil, ChevronDown, ChevronUp } from 'lucide-react-taro'
 import { classApi, courseApi } from '@/utils/api'
+import { useShareMessage } from '@/hooks/useShare'
 
 const courseColorMap: Record<string, string> = {
   '全日托': 'bg-orange-50 text-orange-700 border-orange-200',
@@ -61,6 +62,7 @@ function calcAge(birthDate?: string | null): string {
 }
 
 export default function ClassManagePage() {
+  useShareMessage()
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [loading, setLoading] = useState(true)
   const [activeCourseType, setActiveCourseType] = useState('all')

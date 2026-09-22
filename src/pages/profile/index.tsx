@@ -14,8 +14,10 @@ import { getRelationshipLabel } from '@/utils/helpers'
 import { User, ChevronRight, LogOut, Users, Shield, ShieldCheck, Pencil } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import TabBar from '@/components/tab-bar'
+import { useShareMessage } from '@/hooks/useShare'
 
 export default function ProfilePage() {
+  useShareMessage()
   const {
     nickname, roles, currentRole, currentRoleIndex, agentOriginalRoleType,
     children, currentChildIndex, isLoggedIn, setCurrentRole, logout, fetchUserInfo, phone,

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { childrenApi, classApi } from '@/utils/api'
 import BackButton from '@/components/back-button'
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
+import { useShareMessage } from '@/hooks/useShare'
 
 
 const statusOptions = [
@@ -23,6 +24,7 @@ const genderOptions = [
 ]
 
 export default function ChildAddPage() {
+  useShareMessage()
   const [submitting, setSubmitting] = useState(false)
   const [showCalendar, setShowCalendar] = useState(false)
   const [classList, setClassList] = useState<Array<{ id: string; name: string }>>([])

@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Network } from '@/network'
 import { Bus } from 'lucide-react-taro'
 import { formatTime } from '@/utils/format'
+import { useShareMessage } from '@/hooks/useShare'
 
 interface AttendanceRecord {
   id: string
@@ -19,6 +20,7 @@ interface AttendanceRecord {
 }
 
 export default function PickupPage() {
+  useShareMessage()
   const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [loading, setLoading] = useState(true)
 

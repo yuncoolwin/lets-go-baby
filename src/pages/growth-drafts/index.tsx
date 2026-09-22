@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Trash2, Copy } from 'lucide-react-taro'
 import { useAppStore } from '@/store/app'
+import { useShareMessage } from '@/hooks/useShare'
 
 const DRAFT_KEY = 'growth_drafts'
 
@@ -43,6 +44,7 @@ const formatTime = (iso?: string) => {
 }
 
 export default function GrowthDraftsPage() {
+  useShareMessage()
   const [drafts, setDrafts] = useState<GrowthDraft[]>(loadDrafts())
   const isAgentAdmin = useAppStore((s) => s.agentOriginalRoleType === 'admin')
 

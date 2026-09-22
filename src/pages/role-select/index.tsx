@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { useAppStore, type RoleType } from '@/store/app'
 import { GraduationCap, Shield, ShieldCheck, Check } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
+import { useShareMessage } from '@/hooks/useShare'
 
 const roleConfig: Record<string, { name: string; desc: string; icon: any; color: string; isImage?: boolean }> = {
   parent: {
@@ -36,6 +37,7 @@ const roleConfig: Record<string, { name: string; desc: string; icon: any; color:
 }
 
 export default function RoleSelectPage() {
+  useShareMessage()
   const { roles, selectRole, children } = useAppStore()
   const [selectedRole, setSelectedRole] = useState<RoleType>(null)
   const [loading, setLoading] = useState(false)

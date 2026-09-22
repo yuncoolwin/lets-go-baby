@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Network } from '@/network'
 import { Users, ChevronRight } from 'lucide-react-taro'
+import { useShareMessage } from '@/hooks/useShare'
 
 interface ClassInfo {
   id: string
@@ -22,6 +23,7 @@ interface StudentInfo {
 }
 
 export default function ClassDetailPage() {
+  useShareMessage()
   const router = useRouter()
   const classId = router.params.id || ''
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null)

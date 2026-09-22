@@ -14,6 +14,7 @@ import { courseApi } from '@/utils/api'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge, formatTime } from '@/utils/format'
 import TabBar from '@/components/tab-bar'
+import { useShareMessage } from '@/hooks/useShare'
 
 interface BabyStatus {
   child_id: string
@@ -126,6 +127,7 @@ const MOOD_SCORE_ITEMS = [
 ]
 
 export default function IndexPage() {
+  useShareMessage()
   const { isLoggedIn, currentRole, isLoading, fetchUserInfo, children, currentChildIndex, setCurrentChild, nickname, agentChildId, agentTeacherId, agentOriginalRoleType, exitAgentParentMode } = useAppStore()
   const [babyStatus, setBabyStatus] = useState<BabyStatus | null>(null)
   const [groupList, setGroupList] = useState<GroupOverview[]>([])

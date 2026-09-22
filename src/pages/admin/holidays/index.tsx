@@ -4,6 +4,7 @@ import { useDidShow } from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Network } from '@/network'
 import { Calendar } from 'lucide-react-taro'
+import { useShareMessage } from '@/hooks/useShare'
 
 interface StatutoryHoliday {
   id: string
@@ -16,6 +17,7 @@ interface StatutoryHoliday {
 const MONTH_NAMES = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
 
 export default function StatutoryHolidaysPage() {
+  useShareMessage()
   const [holidays, setHolidays] = useState<StatutoryHoliday[]>([])
   const [loading, setLoading] = useState(true)
   const [year, setYear] = useState(new Date().getFullYear())

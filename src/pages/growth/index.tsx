@@ -12,6 +12,7 @@ import { Camera, Play } from 'lucide-react-taro'
 import { Button } from '@/components/ui/button'
 import TabBar from '@/components/tab-bar'
 import { useDialogBack } from '@/utils/use-dialog-back'
+import { useShareMessage } from '@/hooks/useShare'
 
 interface GrowthRecord {
   id: string
@@ -46,6 +47,7 @@ interface MediaItem {
 const cleanStool = (v?: string | null) => (v || '').replace(/（）/g, '')
 
 export default function GrowthPage() {
+  useShareMessage()
   const currentRole = useAppStore((s) => s.currentRole)
   const children = useAppStore((s) => s.children)
   const currentChildIndex = useAppStore((s) => s.currentChildIndex)

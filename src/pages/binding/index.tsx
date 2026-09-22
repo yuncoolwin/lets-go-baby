@@ -10,6 +10,7 @@ import { Network } from '@/network'
 import { useAppStore } from '@/store/app'
 import { Search } from 'lucide-react-taro'
 import { getNameInitial } from '@/utils/helpers'
+import { useShareMessage } from '@/hooks/useShare'
 
 
 const relationshipOptions = [
@@ -21,6 +22,7 @@ const relationshipOptions = [
 ]
 
 export default function BindingPage() {
+  useShareMessage()
   const { currentRole } = useAppStore()
   const [step, setStep] = useState<'search' | 'form'>('search')
   const [searchName, setSearchName] = useState('')

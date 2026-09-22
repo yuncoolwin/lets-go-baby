@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { courseApi, classApi } from '@/utils/api'
 import { useAppStore } from '@/store/app'
 import { BookOpen, Pencil, Trash2 } from 'lucide-react-taro'
+import { useShareMessage } from '@/hooks/useShare'
 
 interface Course {
   id: string
@@ -43,6 +44,7 @@ const courseTypeColors: Record<string, string> = {
 }
 
 export default function CourseManagePage() {
+  useShareMessage()
   const userId = useAppStore((s) => s.userId)
   const currentRole = useAppStore((s) => s.currentRole)
   const isSuperadmin = currentRole?.role_type === 'superadmin'

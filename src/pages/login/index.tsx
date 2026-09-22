@@ -4,10 +4,12 @@ import Taro from '@tarojs/taro'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/store/app'
 import logoUrl from '@/assets/logo.png'
+import { useShareMessage } from '@/hooks/useShare'
 
 const APP_VERSION = '1.0.0'
 
 export default function LoginPage() {
+  useShareMessage()
   const { wxLogin, phoneLogin, isLoading } = useAppStore()
 
   const [needPhoneAuth, setNeedPhoneAuth] = useState(false)

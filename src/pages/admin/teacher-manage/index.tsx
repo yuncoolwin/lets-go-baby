@@ -10,6 +10,7 @@ import { teacherApi } from '@/utils/api'
 import { getNameInitial } from '@/utils/helpers'
 import { useAppStore } from '@/store/app'
 import { Search, GraduationCap, Pencil } from 'lucide-react-taro'
+import { useShareMessage } from '@/hooks/useShare'
 
 interface Teacher {
   id: string
@@ -40,6 +41,7 @@ const statusMap: Record<string, { label: string; className: string }> = {
 }
 
 export default function TeacherManagePage() {
+  useShareMessage()
   const isSuperadmin = useAppStore((s) => s.currentRole?.role_type === 'superadmin')
   const currentRole = useAppStore((s) => s.currentRole)
   const [teachers, setTeachers] = useState<Teacher[]>([])

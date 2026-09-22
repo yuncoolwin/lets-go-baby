@@ -11,6 +11,7 @@ import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Pencil } from 'lucid
 import { Network } from '@/network'
 import { dropInApi, attendanceApi, childrenApi } from '@/utils/api'
 import TabBar from '@/components/tab-bar'
+import { useShareMessage } from '@/hooks/useShare'
 
 
 interface ChildItem {
@@ -74,6 +75,7 @@ const STATUS_CONFIG = {
 } as const
 
 export default function RollCallPage() {
+  useShareMessage()
   const { currentRole, userId, agentOriginalRoleType } = useAppStore()
   const isAgentAdmin = agentOriginalRoleType === 'admin'
   const [children, setChildren] = useState<ChildItem[]>([])

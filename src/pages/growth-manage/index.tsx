@@ -11,6 +11,7 @@ import { childrenApi, growthApi, courseApi, teacherApi } from '@/utils/api'
 import { Network } from '@/network'
 import { Pencil, Trash2, Copy, Play } from 'lucide-react-taro'
 import { useDialogBack } from '@/utils/use-dialog-back'
+import { useShareMessage } from '@/hooks/useShare'
 
 interface GrowthRecord {
   id: string
@@ -91,6 +92,7 @@ const loadDraftCount = (): number => {
 }
 
 export default function GrowthManagePage() {
+  useShareMessage()
   const currentRole = useAppStore((s) => s.currentRole)
   const isAgentAdmin = useAppStore((s) => s.agentOriginalRoleType === 'admin')
   const isSuperadmin = currentRole?.role_type === 'superadmin'

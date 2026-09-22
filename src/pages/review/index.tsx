@@ -13,6 +13,7 @@ import { useAppStore } from '@/store/app'
 import { ShieldCheck, Trash2 } from 'lucide-react-taro'
 import { formatChineseDateTime, getRelationshipLabel } from '@/utils/helpers'
 import { useDialogBack } from '@/utils/use-dialog-back'
+import { useShareMessage } from '@/hooks/useShare'
 
 interface BindingRequest {
   id: string
@@ -56,6 +57,7 @@ const REVIEW_FIELDS: Array<{ key: string; label: string; reqKey: keyof BindingRe
 const GENDER_TEXT: Record<string, string> = { male: '男', female: '女' }
 
 export default function ReviewPage() {
+  useShareMessage()
   const userId = useAppStore((s) => s.userId)
   const currentRole = useAppStore((s) => s.currentRole)
   const isSuperadmin = currentRole?.role_type === 'superadmin'

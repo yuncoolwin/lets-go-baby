@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Users } from 'lucide-react-taro'
 import { teacherApi } from '@/utils/api'
+import { useShareMessage } from '@/hooks/useShare'
 
 interface Teacher {
   id: string
@@ -18,6 +19,7 @@ interface Teacher {
 }
 
 export default function TeacherManagePage() {
+  useShareMessage()
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [loading, setLoading] = useState(true)
   const isFirst = useRef(true)

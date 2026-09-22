@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { notificationApi } from '@/utils/api'
 import { useAppStore } from '@/store/app'
+import { useShareMessage } from '@/hooks/useShare'
 
 const typeOptions = [
   { value: 'school', label: '园所通知' },
@@ -23,6 +24,7 @@ const scopeOptions = [
 ]
 
 export default function NotificationEditPage() {
+  useShareMessage()
   const { userId } = useAppStore()
   const [title, setTitle] = useState('')
   const [type, setType] = useState('school')

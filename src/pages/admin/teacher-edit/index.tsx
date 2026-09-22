@@ -20,6 +20,7 @@ import {
 import { teacherApi, classApi } from '@/utils/api'
 import { Trash2 } from 'lucide-react-taro'
 import { useAppStore } from '@/store/app'
+import { useShareMessage } from '@/hooks/useShare'
 
 const STATUS_OPTIONS = [
   { label: '在职', value: 'active' },
@@ -35,6 +36,7 @@ const TITLE_OPTIONS = [
 ]
 
 export default function TeacherEditPage() {
+  useShareMessage()
   const router = useRouter()
   const currentRole = useAppStore((s) => s.currentRole)
   const isSuperadmin = currentRole?.role_type === 'superadmin'

@@ -19,8 +19,10 @@ import {
 import { Trash2 } from 'lucide-react-taro'
 import { classApi } from '@/utils/api'
 import { useAppStore } from '@/store/app'
+import { useShareMessage } from '@/hooks/useShare'
 
 export default function ClassEditPage() {
+  useShareMessage()
   const currentRole = useAppStore((s) => s.currentRole)
   const isSuperadmin = currentRole?.role_type === 'superadmin'
   const [isEdit, setIsEdit] = useState(false)

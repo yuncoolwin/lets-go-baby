@@ -17,6 +17,7 @@ import { formatAge } from '@/utils/format'
 
 import { CalendarOverlay } from '@/components/ui/calendar-overlay'
 import { useAppStore } from '@/store/app'
+import { useShareMessage } from '@/hooks/useShare'
 
 interface ChildDetail {
   id: string
@@ -116,6 +117,7 @@ const fmtDropInRange = (start: string, end: string, count?: number): string => {
 }
 
 export default function ChildDetailPage() {
+  useShareMessage()
   const router = useRouter()
   const { id, readonly } = router.params
   const isReadonly = readonly === 'true'

@@ -12,6 +12,7 @@ import { childrenApi, teacherApi, growthApi, courseApi } from '@/utils/api'
 import { Network } from '@/network'
 import { isH5 } from '@/lib/platform'
 import { X, ImagePlus, Video as VideoIcon } from 'lucide-react-taro'
+import { useShareMessage } from '@/hooks/useShare'
 
 const DRAFT_KEY = 'growth_drafts'
 
@@ -138,6 +139,7 @@ const parseEmbeddedMsg = (errMsg: string): string => {
 }
 
 export default function GrowthEditPage() {
+  useShareMessage()
   const currentRole = useAppStore((s) => s.currentRole)
   const isAgentAdmin = useAppStore((s) => s.agentOriginalRoleType === 'admin')
 

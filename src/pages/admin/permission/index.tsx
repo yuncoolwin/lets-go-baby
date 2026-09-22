@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
 import { ShieldCheck } from 'lucide-react-taro'
+import { useShareMessage } from '@/hooks/useShare'
 
 interface RoleItem {
   id: string
@@ -74,6 +75,7 @@ const sortRoles = (roles: RoleItem[]) =>
   [...roles].sort((a, b) => getRoleWeight(b.role_type) - getRoleWeight(a.role_type))
 
 export default function PermissionPage() {
+  useShareMessage()
   const userId = useAppStore((s) => s.userId)
   const currentRole = useAppStore((s) => s.currentRole)
 

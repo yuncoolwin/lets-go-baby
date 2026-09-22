@@ -13,6 +13,7 @@ import { useDialogBack } from '@/utils/use-dialog-back'
 import { useAppStore } from '@/store/app'
 import { refreshUnreadBadge } from '@/utils/unread-badge'
 import { Bell, Copy, Pencil, Trash2 } from 'lucide-react-taro'
+import { useShareMessage } from '@/hooks/useShare'
 
 interface ManageNotification {
   id: string
@@ -55,6 +56,7 @@ const formatTime = (dateStr: string) => {
 }
 
 export default function NotificationManagePage() {
+  useShareMessage()
   const currentRole = useAppStore((s) => s.currentRole)
   const isAdmin = currentRole?.role_type === 'admin' || currentRole?.role_type === 'superadmin'
   const isSuperadmin = currentRole?.role_type === 'superadmin'

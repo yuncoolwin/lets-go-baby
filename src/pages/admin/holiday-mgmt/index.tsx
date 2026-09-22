@@ -10,6 +10,7 @@ import { Network } from '@/network'
 import { classApi } from '@/utils/api'
 import { useAppStore } from '@/store/app'
 import { Calendar, Pencil, Trash2 } from 'lucide-react-taro'
+import { useShareMessage } from '@/hooks/useShare'
 
 interface HolidayRecord {
   id: string
@@ -42,6 +43,7 @@ const typeLabels: Record<string, { label: string; color: string }> = {
 }
 
 export default function HolidayManagePage() {
+  useShareMessage()
   const currentRole = useAppStore((s) => s.currentRole)
   const isSuperadmin = currentRole?.role_type === 'superadmin'
   const [holidays, setHolidays] = useState<HolidayRecord[]>([])

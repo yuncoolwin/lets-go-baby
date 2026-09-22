@@ -14,6 +14,7 @@ import TabBar from '@/components/tab-bar'
 import { formatChineseFullDate } from '@/utils/helpers'
 import { useDialogBack } from '@/utils/use-dialog-back'
 import rabbitLogo from '@/assets/rabbit-logo.png'
+import { useShareMessage } from '@/hooks/useShare'
 
 interface NotificationItem {
   id: string
@@ -28,6 +29,7 @@ interface NotificationItem {
 }
 
 export default function MessagesPage() {
+  useShareMessage()
   const { currentRole, children, agentChildId } = useAppStore()
   const isParent = currentRole?.role_type === 'parent'
 
