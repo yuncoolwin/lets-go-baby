@@ -10,7 +10,6 @@ import { childrenApi } from '@/utils/api'
 import { Search } from 'lucide-react-taro'
 import rabbitLogo from '@/assets/rabbit-logo.png'
 import { formatAge } from '@/utils/format'
-import { getNameInitial } from '@/utils/helpers'
 
 interface Enrollment {
   id: string
@@ -218,11 +217,6 @@ export default function ChildrenManagePage() {
                     <Badge className={`${statusMap[child.status]?.className || 'bg-gray-100 text-gray-700'} text-xs`}>
                       <Text className="text-xs">{statusMap[child.status]?.label || child.status}</Text>
                     </Badge>
-                    <View className={`w-6 h-6 rounded-full flex items-center justify-center ${child.gender === 'male' ? 'bg-blue-100' : 'bg-pink-100'}`}>
-                      <Text className={`text-xs font-medium ${child.gender === 'male' ? 'text-blue-700' : 'text-pink-700'}`}>
-                        {getNameInitial(child.name)}
-                      </Text>
-                    </View>
                     <View className="flex items-baseline">
                       <Text className="text-base font-semibold text-foreground">{child.name}</Text>
                       {child.nickname && <Text className="text-xs text-muted-foreground">（{child.nickname}）</Text>}
