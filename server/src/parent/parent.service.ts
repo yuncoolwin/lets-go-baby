@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { AuthzService } from '@/auth/authz.service';
 import { isChildActive } from '@/common/active-children.util';
+import { signGrowthUrls } from '@/common/growth-media.util';
 
 @Injectable()
 export class ParentService {
@@ -391,33 +392,39 @@ export class ParentService {
       }
     }
 
-    return list.map((r) => {
-      const role = roleMap.get(r.teacher_id);
-      let teacherName = role?.user_id
-        ? teacherNickMap.get(role.user_id) || nickMap.get(role.user_id) || ''
-        : '';
-      if (!teacherName && role?.real_name) teacherName = realNameNickMap.get(role.real_name) || '';
-      if (!teacherName) teacherName = role?.real_name || '';
-      return {
-        id: r.id,
-        record_type: r.record_type,
-        title: r.title,
-        content: r.content,
-        photo_urls: r.photo_urls,
-        created_at: r.created_at,
-        teacher_name: teacherName,
-        course_name: r.course_name,
-        parent_read_at: r.parent_read_at,
-        record_date: r.record_date,
-        diet_overall: r.diet_overall,
-        diet_vegetable: r.diet_vegetable,
-        diet_meat: r.diet_meat,
-        diet_soup: r.diet_soup,
-        diet_water: r.diet_water,
-        nap_status: r.nap_status,
-        stool_status: r.stool_status,
-      };
-    });
+    return Promise.all(
+      list.map(async (r) => {
+        const role = roleMap.get(r.teacher_id);
+        let teacherName = role?.user_id
+          ? teacherNickMap.get(role.user_id) || nickMap.get(role.user_id) || ''
+          : '';
+        if (!teacherName && role?.real_name) teacherName = realNameNickMap.get(role.real_name) || '';
+        if (!teacherName) teacherName = role?.real_name || '';
+        return {
+          id: r.id,
+          record_type: r.record_type,
+          title: r.title,
+          content: r.content,
+          // bucket 已收敛为 private，且持久化 URL 会过期，读端按需重新签名
+          photo_urls: (await signGrowthUrls(r.photo_urls)) || null,
+          video_urls: (await signGrowthUrls(r.video_urls, { video: true })) || null,
+          photo_expired: !!r.photo_expired,
+          video_expired: !!r.video_expired,
+          created_at: r.created_at,
+          teacher_name: teacherName,
+          course_name: r.course_name,
+          parent_read_at: r.parent_read_at,
+          record_date: r.record_date,
+          diet_overall: r.diet_overall,
+          diet_vegetable: r.diet_vegetable,
+          diet_meat: r.diet_meat,
+          diet_soup: r.diet_soup,
+          diet_water: r.diet_water,
+          nap_status: r.nap_status,
+          stool_status: r.stool_status,
+        };
+      }),
+    );
   }
 
   async markGrowthRead(userId: string, agentChildId?: string) {
