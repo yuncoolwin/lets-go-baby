@@ -9,6 +9,19 @@ import { Bus } from 'lucide-react-taro'
 import { formatTime } from '@/utils/format'
 import { useShareMessage } from '@/hooks/useShare'
 
+const COURSE_TYPE_COLORS: Record<string, string> = {
+  全日托: 'bg-orange-50 text-orange-700 border-orange-200',
+  半日托: 'bg-sky-50 text-sky-700 border-sky-200',
+  周六托: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  晚间托: 'bg-purple-50 text-purple-700 border-purple-200',
+  暑假班: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  寒假班: 'bg-amber-50 text-amber-700 border-amber-200',
+  兴趣班: 'bg-pink-50 text-pink-700 border-pink-200',
+}
+
+const getCourseColor = (type?: string | null) =>
+  COURSE_TYPE_COLORS[type || ''] || 'bg-cyan-50 text-cyan-700 border-cyan-200'
+
 interface AttendanceRecord {
   id: string
   record_date: string
@@ -89,22 +102,26 @@ export default function PickupPage() {
               <Card key={record.id} className="bg-white rounded-xl border-0 shadow-sm">
                 <CardContent className="p-4">
                   <View className="flex items-center justify-between mb-2">
-                    <Text className="text-sm font-medium text-foreground">{record.record_date}</Text>
-                    {record.course_type && (
-                      <Text className="text-sm text-muted-foreground">{record.course_type}</Text>
-                    )}
+                    <View className="flex items-center gap-2">
+                      {record.course_type && (
+                        <View className={`inline-flex items-center px-2 py-1 rounded-md border text-xs ${getCourseColor(record.course_type)}`}>
+                          <Text className="text-xs">{record.course_type}</Text>
+                        </View>
+                      )}
+                      <Text className="text-sm font-medium text-foreground">{record.record_date}</Text>
+                    </View>
                     <Badge className={`${badge.className} text-xs`}>
                       <Text className="text-xs">{badge.label}</Text>
                     </Badge>
                   </View>
                   <View className="flex gap-6">
-                    <View>
-                      <Text className="block text-xs text-muted-foreground">入园时间</Text>
-                      <Text className="block text-sm text-foreground">{formatTime(record.check_in_time) || '—'}</Text>
+                    <View className="flex items-center gap-1">
+                      <Text className="text-xs text-muted-foreground">入园时间</Text>
+                      <Text className="text-sm text-foreground">{formatTime(record.check_in_time) || '—'}</Text>
                     </View>
-                    <View>
-                      <Text className="block text-xs text-muted-foreground">离园时间</Text>
-                      <Text className="block text-sm text-foreground">{formatTime(record.check_out_time) || '—'}</Text>
+                    <View className="flex items-center gap-1">
+                      <Text className="text-xs text-muted-foreground">离园时间</Text>
+                      <Text className="text-sm text-foreground">{formatTime(record.check_out_time) || '—'}</Text>
                     </View>
                   </View>
                   
