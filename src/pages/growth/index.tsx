@@ -51,7 +51,6 @@ export default function GrowthPage() {
   const [detailRecord, setDetailRecord] = useState<GrowthRecord | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [playerUrl, setPlayerUrl] = useState<string | null>(null)
-  const [savingVideo, setSavingVideo] = useState(false)
   useDialogBack(detailOpen, () => setDetailOpen(false))
 
   useDidShow(() => {
@@ -146,31 +145,6 @@ export default function GrowthPage() {
 
   const closePlayer = () => {
     setPlayerUrl(null)
-    setSavingVideo(false)
-  }
-
-  const saveVideo = async () => {
-    if (!playerUrl || savingVideo) return
-    setSavingVideo(true)
-    try {
-      try {
-        await Taro.authorize({ scope: 'scope.writePhotosAlbum' })
-      } catch (authErr) {
-        console.error('[Growth] authorize album fail:', authErr)
-      }
-      const dl = await Network.downloadFile({ url: playerUrl })
-      if (dl.statusCode !== 200) {
-        Taro.showToast({ title: '视频下载失败', icon: 'none' })
-        return
-      }
-      await Taro.saveVideoToPhotosAlbum({ filePath: dl.tempFilePath })
-      Taro.showToast({ title: '已保存到相册', icon: 'success' })
-    } catch (err) {
-      console.error('[Growth] save video fail:', err)
-      Taro.showToast({ title: '保存失败，请检查相册权限', icon: 'none' })
-    } finally {
-      setSavingVideo(false)
-    }
   }
 
   // 统一媒体缩略图区：同尺寸正方形，图片前、视频后，横向滑动浏览，过期显示灰色占位
@@ -392,14 +366,6 @@ export default function GrowthPage() {
           >
             <Button size="sm" onClick={closePlayer}>
               缩小
-            </Button>
-            <Button
-              size="sm"
-              variant="default"
-              loading={savingVideo}
-              onClick={() => saveVideo()}
-            >
-              下载/保存
             </Button>
           </View>
         </View>
