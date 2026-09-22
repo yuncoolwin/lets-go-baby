@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
+import GrowthDialogMedia from '@/components/growth-dialog-media'
 import { refreshUnreadBadge, refreshGrowthUnreadBadge } from '@/utils/unread-badge'
 import { Camera, Play } from 'lucide-react-taro'
 import { Button } from '@/components/ui/button'
@@ -322,7 +323,7 @@ export default function GrowthPage() {
                 <Text className="block text-base text-foreground leading-relaxed whitespace-pre-wrap">
                   {detailRecord.content}
                 </Text>
-                {renderMediaThumbs(detailRecord)}
+                <GrowthDialogMedia record={detailRecord} onPlayVideo={(url) => setPlayerUrl(url)} />
                 <View className="flex justify-end pt-3">
                   <View className="text-right space-y-1">
                     <Text className="block text-xs text-muted-foreground">

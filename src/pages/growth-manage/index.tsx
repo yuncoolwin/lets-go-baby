@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/app'
 import { childrenApi, growthApi, courseApi, teacherApi } from '@/utils/api'
 import { Network } from '@/network'
+import GrowthDialogMedia from '@/components/growth-dialog-media'
 import { Pencil, Trash2, Copy, Play } from 'lucide-react-taro'
 import { useDialogBack } from '@/utils/use-dialog-back'
 import { useShareMessage } from '@/hooks/useShare'
@@ -591,7 +592,7 @@ export default function GrowthManagePage() {
                 <Text className="block text-base text-foreground leading-relaxed whitespace-pre-wrap">
                   {detailRecord.content}
                 </Text>
-                {renderMediaThumbs(detailRecord)}
+                <GrowthDialogMedia record={detailRecord} onPlayVideo={(url) => setPlayerUrl(url)} />
                 <View className="flex justify-end pt-3">
                   <View className="text-right space-y-1">
                     {detailRecord.teacher_name && (
