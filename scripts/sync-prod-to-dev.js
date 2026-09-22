@@ -18,11 +18,12 @@
  *
  *  开发库：通过环境变量 PGDATABASE_URL（可写）直连。
  *
- * 用法（未传参数 = 全量同步 + RLS5表字段级比对）：
+ * 用法（未传参数 = 全量同步 + RLS5表字段级比对 + 结构预检）：
  *  node scripts/sync-prod-to-dev.js \
  *        --snapshot /tmp/sync_backup/prod_snapshot.json \
  *        [--tables all|t1,t2] [--skip-tables a,b] \
  *        [--backup true|false] [--field-check true|false] \
+ *        [--schema-check true|false] [--force] \
  *        [--only-report] [--out /tmp/sync_backup/sync_report_日期.md]
  *
  * 行为：
@@ -145,6 +146,31 @@ async function truncate(client, tables) {
   await client.query(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`)
 }
 
+// ---- 结构一致性预检：比对生产快照列 vs 开发库 information_schema 列 ----
+// 返回 { 表: { prod_cols:[], dev_cols:[], missing_in_dev:[], extra_in_dev:[] } }
+async function checkSchema(client, snapshot, tables) {
+  const res = {}
+  for (const t of tables) {
+    const prodRows = snapshot[t]
+    let prodCols = []
+    if (Array.isArray(prodRows) && prodRows.length > 0) prodCols = Object.keys(prodRows[0])
+    let devCols = []
+    try {
+      const r = await client.query(
+        `SELECT column_name FROM information_schema.columns WHERE table_name = $1 ORDER BY ordinal_position`, [t])
+      devCols = r.rows.map(x => x.column_name)
+    } catch (e) {
+      res[t] = { error: 'ERR:' + e.message.split('\n')[0], missing_in_dev: [], extra_in_dev: [] }
+      continue
+    }
+    const m = new Set(devCols)
+    const missing = prodCols.filter(c => !m.has(c))
+    const extra = devCols.filter(c => !prodCols.includes(c))
+    res[t] = { prod_cols: prodCols, dev_cols: devCols, missing_in_dev: missing, extra_in_dev: extra }
+  }
+  return res
+}
+
 // ---- 按依赖顺序灌入 ----
 async function insertRows(client, table, rows) {
   if (!rows || rows.length === 0) return 0
@@ -240,6 +266,10 @@ async function main() {
   const doBackup = pick(args, 'backup', 'true') !== 'false'
   const doFieldCheck = pick(args, 'field-check', 'true') !== 'false'
   const onlyReport = pick(args, 'only-report', '') !== '' && pick(args, 'only-report', '') !== 'false'
+  // 结构一致性预检（默认开）：备份后、清空前比对生产快照列 vs 开发库列，发现开发库缺列时中止，避免清空后灌入失败
+  const doSchemaCheck = pick(args, 'schema-check', 'true') !== 'false'
+  // 强制灌入：即使结构不一致也继续（可能因缺列导致 INSERT 失败）
+  const force = pick(args, 'force', '') !== '' && pick(args, 'force', '') !== 'false'
   const reportOut = args.out || path.join(outDir(), `sync_report_${now()}.md`)
 
   if (!snapshotPath) { console.error('缺少 --snapshot <生产快照.json>'); process.exit(2) }
@@ -283,8 +313,42 @@ async function main() {
         console.log('[1/5] 备份已跳过 (--backup=false)')
         lines.push('- **备份**: 已跳过')
       }
+
+      // 2) 结构一致性预检（清空前，破坏性操作前发现缺列）
+      if (doSchemaCheck) {
+        console.log('[2/5] 结构一致性预检（生产 vs 开发列）...')
+        const schema = await checkSchema(client, snapshot, targetTables)
+        const blocked = Object.entries(schema).filter(([, s]) => s.missing_in_dev && s.missing_in_dev.length > 0)
+        if (blocked.length && !force) {
+          lines.push('')
+          lines.push('## ⚠️ 结构一致性预检失败（已中止，未清空/未灌入）')
+          lines.push('| 表 | 生产有但开发库缺的列 |')
+          lines.push('|---|---|')
+          for (const [t, s] of blocked) lines.push(`| ${t} | ${s.missing_in_dev.join(', ')} |`)
+          lines.push('')
+          lines.push('处理建议：先对开发库执行对应 DDL 迁移补齐这些列，再重新同步；')
+          lines.push('或用 --force 强制灌入（可能导致 INSERT 失败）。')
+          fs.writeFileSync(reportOut, ['# 生产→开发 数据同步报告', '', `- 生成时间: ${stamp}`, `- 状态: 结构不一致已中止`].concat(lines).join('\n') + '\n', 'utf8')
+          console.error('\n❌ 结构不一致，已中止（未清空开发库）。')
+          blocked.forEach(([t, s]) => console.error(`   ${t}: 生产含列 ${s.missing_in_dev.join(', ')}，开发库缺该列`))
+          console.error('   处理：先迁移开发库 DDL，或用 --force 强制灌入。')
+          console.error('报告: ' + reportOut)
+          return
+        }
+        // 记录差异（不阻断，仅横向列顺序/多余列差异提示）
+        const schemaNote = Object.entries(schema)
+          .filter(([, s]) => s.extra_in_dev && s.extra_in_dev.length > 0)
+        if (schemaNote.length) {
+          console.log('   提示：以下开发库含快照没有的列（将视为 NULL，不阻断）')
+          schemaNote.forEach(([t, s]) => console.log(`     ${t}: ${s.extra_in_dev.join(', ')}`))
+        }
+        console.log('   结构预检通过')
+      } else {
+        console.log('[2/5] 结构一致性预检已跳过 (--schema-check=false)')
+      }
+
       await truncate(client, targetTables)
-      console.log(`[2/5] 已清空开发库 ${targetTables.length} 张表 (TRUNCATE CASCADE)`)
+      console.log(`[3/5] 已清空开发库 ${targetTables.length} 张表 (TRUNCATE CASCADE)`)
       for (const t of targetTables) {
         const n = await insertRows(client, t, snapshot[t] || [])
         console.log(`[3/5] 灌入 ${t}: ${n} 行`)
