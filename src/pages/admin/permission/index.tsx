@@ -384,6 +384,7 @@ export default function PermissionPage() {
       {/* 新增/编辑用户弹窗 */}
       {showDialog && (
         <View
+          catchMove
           style={{
             position: 'fixed',
             top: 0,
