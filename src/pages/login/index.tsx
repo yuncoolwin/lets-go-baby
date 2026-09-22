@@ -179,6 +179,7 @@ export default function LoginPage() {
       <View
         className="mt-8 px-6 pt-1"
         style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}
+        onClick={() => setAgreed((prev) => !prev)}
       >
         <View
           className="flex items-center justify-center"
@@ -194,7 +195,6 @@ export default function LoginPage() {
             marginRight: -6,
             marginBottom: -10,
           }}
-          onClick={() => setAgreed((prev) => !prev)}
         >
           <View
             className="flex items-center justify-center"
@@ -220,23 +220,27 @@ export default function LoginPage() {
         <Text className="block text-xs text-gray-400" style={{ margin: '0 2px' }}>
           我已阅读并同意
         </Text>
-        <Text
-          className="text-xs text-[#E8651A]"
-          style={{ margin: '0 2px' }}
-          onClick={openAgreement}
-        >
-          《用户协议》
-        </Text>
+        <View onClick={(e) => e.stopPropagation()}>
+          <Text
+            className="text-xs text-[#E8651A]"
+            style={{ margin: '0 2px' }}
+            onClick={openAgreement}
+          >
+            《用户协议》
+          </Text>
+        </View>
         <Text className="block text-xs text-gray-400" style={{ margin: '0 2px' }}>
           和
         </Text>
-        <Text
-          className="text-xs text-[#E8651A]"
-          style={{ margin: '0 2px' }}
-          onClick={openPrivacy}
-        >
-          《隐私政策》
-        </Text>
+        <View onClick={(e) => e.stopPropagation()}>
+          <Text
+            className="text-xs text-[#E8651A]"
+            style={{ margin: '0 2px' }}
+            onClick={openPrivacy}
+          >
+            《隐私政策》
+          </Text>
+        </View>
       </View>
 
       {isDev && (
