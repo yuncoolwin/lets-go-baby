@@ -42,6 +42,9 @@ interface MediaItem {
   expired: boolean
 }
 
+// 兼容历史脏数据：有（）→ 有（括号内为空时不显示）
+const cleanStool = (v?: string | null) => (v || '').replace(/（）/g, '')
+
 export default function GrowthPage() {
   const currentRole = useAppStore((s) => s.currentRole)
   const children = useAppStore((s) => s.children)
@@ -176,10 +179,11 @@ export default function GrowthPage() {
             ) : (
               <View
                 key={idx}
-                className="w-24 h-24 rounded-lg bg-black flex items-center justify-center flex-shrink-0 overflow-hidden"
+                className="w-24 h-24 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
+                style={{ backgroundColor: '#FFF8F0' }}
                 onClick={() => onMediaClick(m)}
               >
-                <Play size={28} color="#ffffff" />
+                <Play size={28} color="#E8651A" />
               </View>
             ),
           )}
@@ -239,7 +243,7 @@ export default function GrowthPage() {
                     ['餐食汤', record.diet_soup],
                     ['日常喝水', record.diet_water],
                     ['午睡', record.nap_status],
-                    ['大便', record.stool_status],
+                    ['大便', cleanStool(record.stool_status)],
                   ].some(([, v]) => !!v) && (
                     <View className="flex flex-wrap gap-2 mt-2 ml-2">
                       {([
@@ -249,7 +253,7 @@ export default function GrowthPage() {
                         ['餐食汤', record.diet_soup],
                         ['日常喝水', record.diet_water],
                         ['午睡', record.nap_status],
-                        ['大便', record.stool_status],
+                        ['大便', cleanStool(record.stool_status)],
                       ] as [string, string][]).filter(([, v]) => !!v).map(([label, value]) => {
                         const colorMap: Record<string, [string, string]> = {
                           总体评价: ['bg-blue-100', 'text-blue-700'],
@@ -340,7 +344,7 @@ export default function GrowthPage() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.95)',
+            backgroundColor: '#FFF8F0',
             zIndex: 999,
             display: 'flex',
             flexDirection: 'column',
@@ -353,8 +357,8 @@ export default function GrowthPage() {
             src={playerUrl}
             autoplay
             controls
-            className="w-full rounded-xl bg-black"
-            style={{ height: '50vh' }}
+            className="w-full rounded-xl"
+            style={{ height: '50vh', backgroundColor: '#FFF8F0' }}
           />
           <View
             style={{

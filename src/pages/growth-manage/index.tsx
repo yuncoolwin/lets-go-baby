@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/app'
 import { childrenApi, growthApi, courseApi, teacherApi } from '@/utils/api'
 import { Network } from '@/network'
-import { Pencil, Trash2, Copy } from 'lucide-react-taro'
+import { Pencil, Trash2, Copy, Play } from 'lucide-react-taro'
 import { useDialogBack } from '@/utils/use-dialog-back'
 
 interface GrowthRecord {
@@ -35,6 +35,27 @@ interface GrowthRecord {
   diet_water?: string | null
   nap_status?: string | null
   stool_status?: string | null
+}
+
+interface MediaItem {
+  type: 'image' | 'video'
+  url: string
+  expired: boolean
+}
+
+// 兼容历史脏数据：有（）→ 有（括号内为空时不显示）
+const cleanStool = (v?: string | null) => (v || '').replace(/（）/g, '')
+
+const parseMediaUrls = (
+  photo_urls?: string[] | null,
+  photo_expired?: boolean,
+  video_urls?: string[] | null,
+  video_expired?: boolean,
+): MediaItem[] => {
+  const arr: MediaItem[] = []
+  ;(photo_urls || []).forEach((url) => arr.push({ type: 'image', url, expired: !!photo_expired }))
+  ;(video_urls || []).forEach((url) => arr.push({ type: 'video', url, expired: !!video_expired }))
+  return arr
 }
 
 const DRAFT_KEY = 'growth_drafts'
@@ -89,7 +110,65 @@ export default function GrowthManagePage() {
   const [dateOverlayVisible, setDateOverlayVisible] = useState(false)
   const [detailRecord, setDetailRecord] = useState<GrowthRecord | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  const [playerUrl, setPlayerUrl] = useState<string | null>(null)
   useDialogBack(detailOpen, () => setDetailOpen(false))
+  const closePlayer = () => setPlayerUrl(null)
+  const onMediaClick = (m: MediaItem) => {
+    if (m.expired) return
+    if (m.type === 'image') {
+      Taro.previewImage({ urls: [m.url], current: m.url })
+    } else {
+      setPlayerUrl(m.url)
+    }
+  }
+  const renderMediaThumbs = (record: {
+    photo_urls?: string[] | null
+    video_urls?: string[] | null
+    photo_expired?: boolean
+    video_expired?: boolean
+  }) => {
+    const media = parseMediaUrls(record.photo_urls, record.photo_expired, record.video_urls, record.video_expired)
+    if (media.length === 0) return null
+    return (
+      <ScrollView scrollX className="mt-2" style={{ whiteSpace: 'nowrap' }}>
+        <View className="flex gap-2" style={{ display: 'inline-flex' }}>
+          {media.map((m: MediaItem, idx: number) =>
+            m.expired ? (
+              <View
+                key={idx}
+                className="w-24 h-24 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden"
+              >
+                <Text className="block text-xs text-gray-400">已过期</Text>
+              </View>
+            ) : m.type === 'image' ? (
+              <Image
+                key={idx}
+                src={m.url}
+                className="w-24 h-24 rounded-lg flex-shrink-0"
+                mode="aspectFill"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onMediaClick(m)
+                }}
+              />
+            ) : (
+              <View
+                key={idx}
+                className="w-24 h-24 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
+                style={{ backgroundColor: '#FFF8F0' }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onMediaClick(m)
+                }}
+              >
+                <Play size={28} color="#E8651A" />
+              </View>
+            ),
+          )}
+        </View>
+      </ScrollView>
+    )
+  }
 
   const children = teacherClassId
     ? allChildren.filter((c) => String(c.class_id) === String(teacherClassId))
@@ -390,7 +469,7 @@ export default function GrowthManagePage() {
                     ['餐食汤', record.diet_soup],
                     ['日常喝水', record.diet_water],
                     ['午睡', record.nap_status],
-                    ['大便', record.stool_status],
+                    ['大便', cleanStool(record.stool_status)],
                   ].some(([, v]) => !!v) && (
                     <View className="flex flex-wrap gap-2 mb-2">
                       {([
@@ -400,7 +479,7 @@ export default function GrowthManagePage() {
                         ['餐食汤', record.diet_soup],
                         ['日常喝水', record.diet_water],
                         ['午睡', record.nap_status],
-                        ['大便', record.stool_status],
+                        ['大便', cleanStool(record.stool_status)],
                       ] as [string, string][]).filter(([, v]) => !!v).map(([label, value]) => {
                         const colors: Record<string, [string, string]> = {
                           总体评价: ['bg-blue-100', 'text-blue-700'],
@@ -433,49 +512,7 @@ export default function GrowthManagePage() {
                       {record.content}
                     </Text>
                   )}
-                  {record.photo_urls && record.photo_urls.length > 0 && !record.photo_expired && (
-                    <View className="flex gap-2 mt-2 overflow-x-auto">
-                      {record.photo_urls.map((url, idx) => (
-                        <Image
-                          key={idx}
-                          src={url}
-                          className="w-20 h-20 rounded-lg flex-shrink-0"
-                          mode="aspectFill"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            Taro.previewImage({
-                              urls: record.photo_urls as string[],
-                              current: url,
-                            })
-                          }}
-                        />
-                      ))}
-                    </View>
-                  )}
-                  {record.photo_urls && record.photo_urls.length > 0 && record.photo_expired && (
-                    <View className="w-20 h-20 rounded-lg bg-gray-100 flex items-center justify-center mt-2">
-                      <Text className="block text-xs text-gray-400">照片已过期</Text>
-                    </View>
-                  )}
-                  {record.video_urls && record.video_urls.length > 0 && !record.video_expired && (
-                    <View className="space-y-2 mt-2">
-                      {record.video_urls.map((url, idx) => (
-                        <Video
-                          key={idx}
-                          src={url}
-                          controls
-                          className="w-full rounded-lg bg-black"
-                          style={{ height: '180px' }}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ))}
-                    </View>
-                  )}
-                  {record.video_urls && record.video_urls.length > 0 && record.video_expired && (
-                    <View className="w-full rounded-lg bg-gray-100 flex items-center justify-center mt-2" style={{ height: '120px' }}>
-                      <Text className="block text-xs text-gray-400">视频已过期</Text>
-                    </View>
-                  )}
+                  {renderMediaThumbs(record)}
                   <View className="flex items-center justify-between mt-3">
                     <Text className="text-xs text-muted-foreground">
                       {record.parent_read_at ? '已读' : '未读'}
@@ -552,30 +589,7 @@ export default function GrowthManagePage() {
                 <Text className="block text-base text-foreground leading-relaxed whitespace-pre-wrap">
                   {detailRecord.content}
                 </Text>
-                {detailRecord.photo_urls && detailRecord.photo_urls.length > 0 && !detailRecord.photo_expired && (
-                  <View className="space-y-2">
-                    {detailRecord.photo_urls.map((url, idx) => (
-                      <Image key={idx} src={url} className="w-full rounded-lg" mode="widthFix" />
-                    ))}
-                  </View>
-                )}
-                {detailRecord.photo_urls && detailRecord.photo_urls.length > 0 && detailRecord.photo_expired && (
-                  <View className="w-full rounded-lg bg-gray-100 flex items-center justify-center" style={{ height: '140px' }}>
-                    <Text className="block text-xs text-gray-400">照片已过期</Text>
-                  </View>
-                )}
-                {detailRecord.video_urls && detailRecord.video_urls.length > 0 && !detailRecord.video_expired && (
-                  <View className="space-y-2">
-                    {detailRecord.video_urls.map((url, idx) => (
-                      <Video key={idx} src={url} controls className="w-full rounded-lg bg-black" style={{ height: '180px' }} />
-                    ))}
-                  </View>
-                )}
-                {detailRecord.video_urls && detailRecord.video_urls.length > 0 && detailRecord.video_expired && (
-                  <View className="w-full rounded-lg bg-gray-100 flex items-center justify-center" style={{ height: '140px' }}>
-                    <Text className="block text-xs text-gray-400">视频已过期</Text>
-                  </View>
-                )}
+                {renderMediaThumbs(detailRecord)}
                 <View className="flex justify-end pt-3">
                   <View className="text-right space-y-1">
                     {detailRecord.teacher_name && (
@@ -613,6 +627,44 @@ export default function GrowthManagePage() {
           </View>
         </DialogContent>
       </Dialog>
+      {playerUrl && (
+        <View
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: '#FFF8F0',
+            zIndex: 999,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <Video
+            src={playerUrl}
+            autoplay
+            controls
+            className="w-full rounded-xl"
+            style={{ height: '50vh', backgroundColor: '#FFF8F0' }}
+          />
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              gap: 16,
+              marginTop: 28,
+            }}
+          >
+            <Button size="sm" onClick={closePlayer}>
+              缩小
+            </Button>
+          </View>
+        </View>
+      )}
     </View>
   )
 }

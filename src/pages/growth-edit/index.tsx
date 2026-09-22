@@ -65,7 +65,7 @@ const NAP_OPTIONS = ['半小时内', '1小时内', '2小时内', '2小时以上'
 const STOOL_OPTIONS = ['有', '无']
 const STOOL_TIMES_OPTIONS = ['1次', '2次', '多次']
 
-const formatStool = (s: string, t: string) => (s === '有' ? `有（${t}）` : s)
+const formatStool = (s: string, t: string) => (s === '有' && t ? `有（${t}）` : s)
 const parseStool = (v: string, setStatus: (s: string) => void, setTimes: (t: string) => void) => {
   if (!v) { setStatus(''); setTimes(''); return }
   if (v.startsWith('有')) {

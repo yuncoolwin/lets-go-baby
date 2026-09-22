@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text, Image, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -141,16 +141,18 @@ export default function GrowthDraftsPage() {
                   </Text>
                 ) : null}
                 {draft.photo_urls && draft.photo_urls.length > 0 && (
-                  <View className="flex gap-2 mt-2 overflow-x-auto">
-                    {draft.photo_urls.map((url, idx) => (
-                      <Image
-                        key={idx}
-                        src={url}
-                        className="w-20 h-20 rounded-lg flex-shrink-0"
-                        mode="aspectFill"
-                      />
-                    ))}
-                  </View>
+                  <ScrollView scrollX className="mt-2" style={{ whiteSpace: 'nowrap' }}>
+                    <View className="flex gap-2" style={{ display: 'inline-flex' }}>
+                      {draft.photo_urls.map((url, idx) => (
+                        <Image
+                          key={idx}
+                          src={url}
+                          className="w-24 h-24 rounded-lg flex-shrink-0"
+                          mode="aspectFill"
+                        />
+                      ))}
+                    </View>
+                  </ScrollView>
                 )}
                 <View className="flex justify-end gap-2 mt-3">
                   {!isAgentAdmin && (
