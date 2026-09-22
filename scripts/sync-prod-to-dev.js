@@ -24,6 +24,7 @@
  *        [--tables all|t1,t2] [--skip-tables a,b] \
  *        [--backup true|false] [--field-check true|false] \
  *        [--schema-check true|false] [--force] \
+ *        [--keep-backup N] [--keep-report N] [--keep-snapshot N] \
  *        [--only-report] [--out /tmp/sync_backup/sync_report_日期.md]
  *
  * 行为：
@@ -101,6 +102,23 @@ function parseArgs(argv) {
 
 // ---- 工具 ----
 const now = () => new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19)
+
+// 自动清理：按前缀分类保留最近 N 份，删除更旧的（防止数据无限遗留）
+// 命名约定：sync_backup_<stamp>.sql、sync_report_<stamp>.md、prod_snapshot.json
+// 参数：保留策略对象 { 'sync_backup_': number, 'sync_report_': number, 'prod_snapshot': number }
+function cleanupArtifacts(policy) {
+  const dir = outDir()
+  const removed = []
+  for (const [prefix, keep] of Object.entries(policy)) {
+    let files = []
+    try { files = fs.readdirSync(dir).filter(f => f.startsWith(prefix)) } catch (_) { continue }
+    // 文件名含 UTC 时间戳，词典序即时间序（倒序=新→旧）
+    files.sort((a, b) => b.localeCompare(a))
+    const del = files.slice(keep)
+    for (const f of del) { try { fs.unlinkSync(path.join(dir, f)); removed.push(f) } catch (_) {} }
+  }
+  return removed
+}
 
 function pick(obj, key, def) {
   return Object.prototype.hasOwnProperty.call(obj, key) && obj[key] !== undefined && obj[key] !== '' ? obj[key] : def
@@ -270,6 +288,10 @@ async function main() {
   const doSchemaCheck = pick(args, 'schema-check', 'true') !== 'false'
   // 强制灌入：即使结构不一致也继续（可能因缺列导致 INSERT 失败）
   const force = pick(args, 'force', '') !== '' && pick(args, 'force', '') !== 'false'
+  // 自动清理保留策略：备份/报告/快照各保留最近 N 份（0 = 不保留任何历史，只留最新；-1 = 从不清理）
+  const keepBackup = parseInt(pick(args, 'keep-backup', '3'), 10)
+  const keepReport = parseInt(pick(args, 'keep-report', '5'), 10)
+  const keepSnapshot = parseInt(pick(args, 'keep-snapshot', '1'), 10)
   const reportOut = args.out || path.join(outDir(), `sync_report_${now()}.md`)
 
   if (!snapshotPath) { console.error('缺少 --snapshot <生产快照.json>'); process.exit(2) }
@@ -408,6 +430,14 @@ async function main() {
       }
     }
     fs.writeFileSync(reportOut, lines.join('\n') + '\n', 'utf8')
+    // 自动清理历史产物（备份/报告/快照保留最近 N 份），防止数据无限遗留
+    const policy = {}
+    if (keepBackup >= 0) policy['sync_backup_'] = keepBackup
+    if (keepReport >= 0) policy['sync_report_'] = keepReport
+    if (keepSnapshot >= 0) policy['prod_snapshot'] = keepSnapshot
+    const removed = cleanupArtifacts(policy)
+    if (removed.length) console.log(`[清理] 已删除旧产物 ${removed.length} 个: ${removed.join(', ')}`)
+
     console.log('\n=== 完成 ===')
     console.log('差异报告: ' + reportOut)
     // 打印报告摘要（去掉首行标题后）
