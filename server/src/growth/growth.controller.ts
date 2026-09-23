@@ -48,6 +48,17 @@ export class GrowthController {
     return { code: 200, msg: 'success', data };
   }
 
+  @Post('sign-urls')
+  @HttpCode(200)
+  async signUrls(@Req() req: Request, @Body() dto: { photo_urls?: string[] }) {
+    const userId = (req as any).user?.userId;
+    const data = await this.growthService.signDraftUrls(userId, dto);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
+    return { code: 200, msg: 'success', data };
+  }
+
   @Post()
   @HttpCode(200)
   async create(

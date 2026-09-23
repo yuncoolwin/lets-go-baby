@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { View, Text, Image, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Trash2, Copy } from 'lucide-react-taro'
 import { useAppStore } from '@/store/app'
 import { useShareMessage } from '@/hooks/useShare'
+import { Network } from '@/network'
 
 const DRAFT_KEY = 'growth_drafts'
 
@@ -47,6 +48,45 @@ export default function GrowthDraftsPage() {
   useShareMessage()
   const [drafts, setDrafts] = useState<GrowthDraft[]>(loadDrafts())
   const isAgentAdmin = useAppStore((s) => s.agentOriginalRoleType === 'admin')
+
+  // 重签后 URL（draftId -> 解析后的 URL，仅用于渲染，不改本地草稿结构）
+  const [draftMedia, setDraftMedia] = useState<Record<string, string[]>>({})
+  // 加载失败/不可重签的缩略图（draftId-idx -> boolean），渲染灰色占位
+  const [failedImgs, setFailedImgs] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    let cancelled = false
+    const resign = async () => {
+      try {
+        const local = loadDrafts()
+        const map: Record<string, string[]> = {}
+        for (const d of local) {
+          const urls = d.photo_urls || []
+          if (!urls.length) continue
+          let resolved: string[] = urls
+          try {
+            const res = await Network.request({
+              url: '/api/growth-records/sign-urls',
+              method: 'POST',
+              data: { photo_urls: urls },
+            })
+            const list = res.data?.data?.urls
+            if (Array.isArray(list) && list.length) resolved = list
+          } catch {
+            // 接口异常降级：保留原 URL，由 onError 兜底占位
+          }
+          map[d.id] = resolved
+        }
+        if (!cancelled && Object.keys(map).length) setDraftMedia(map)
+      } catch {
+        // 忽略：保持初始加载展示
+      }
+    }
+    resign()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const refresh = () => setDrafts(loadDrafts())
 
@@ -145,14 +185,28 @@ export default function GrowthDraftsPage() {
                 {draft.photo_urls && draft.photo_urls.length > 0 && (
                   <ScrollView scrollX className="mt-2" style={{ whiteSpace: 'nowrap' }}>
                     <View className="flex gap-2" style={{ display: 'inline-flex' }}>
-                      {draft.photo_urls.map((url, idx) => (
-                        <Image
-                          key={idx}
-                          src={url}
-                          className="w-24 h-24 rounded-lg flex-shrink-0"
-                          mode="aspectFill"
-                        />
-                      ))}
+                      {(draftMedia[draft.id] || draft.photo_urls || []).map((url, idx) => {
+                        const imgKey = `${draft.id}-${idx}`
+                        const isFailed = failedImgs[imgKey]
+                        return isFailed ? (
+                          <View
+                            key={imgKey}
+                            className="w-24 h-24 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0"
+                          >
+                            <Text className="text-xs text-gray-400">图片已失效</Text>
+                          </View>
+                        ) : (
+                          <Image
+                            key={imgKey}
+                            src={url}
+                            className="w-24 h-24 rounded-lg flex-shrink-0"
+                            mode="aspectFill"
+                            onError={() =>
+                              setFailedImgs((prev) => ({ ...prev, [imgKey]: true }))
+                            }
+                          />
+                        )
+                      })}
                     </View>
                   </ScrollView>
                 )}

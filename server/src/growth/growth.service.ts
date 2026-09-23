@@ -221,6 +221,18 @@ export class GrowthService {
     return { urls: resolved, unavailable };
   }
 
+  /** 批量重签草稿图片 URL（教师/管理/超管），返回重签结果与不可用路径 */
+  async signDraftUrls(userId: string, dto: { photo_urls?: string[] }) {
+    const identity = await this.getUserIdentity(userId);
+    if (!identity || identity.role_type === 'parent') {
+      return { error: true, code: 403, msg: '家长无权重签成长档案媒体' };
+    }
+    const urls = Array.isArray(dto.photo_urls) ? dto.photo_urls : [];
+    if (!urls.length) return { error: false, urls: [], unavailable: [] };
+    const res = await this.signPhotoUrls(urls); // 图片 24h 有效期
+    return { error: false, urls: res.urls, unavailable: res.unavailable };
+  }
+
   async uploadVideo(userId: string, file: Express.Multer.File) {
     // 鉴权：家长/未登录 403（教师与管理员可传）
     const identity = await this.getUserIdentity(userId);
