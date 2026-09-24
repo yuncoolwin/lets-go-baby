@@ -290,7 +290,10 @@ export default function ProfilePage() {
               <Separator />
             </>
           )}
-          <View className="flex items-center justify-between p-4">
+          <View
+            className="flex items-center justify-between p-4"
+            onClick={() => Taro.navigateTo({ url: '/pages/about/index' })}
+          >
             <Text className="text-sm text-foreground">关于力高稚家</Text>
             <ChevronRight size={16} color="#999" />
           </View>
