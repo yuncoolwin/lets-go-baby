@@ -42,8 +42,8 @@ export default function About() {
   return (
     <View className="bg-white" style={{ height: '100vh' }}>
       <ScrollView scrollY style={{ height: '100%' }}>
-        <View className="px-5 pt-8 pb-10 flex flex-col items-center">
-          <Image src={logoImg} className="w-44" mode="aspectFit" />
+        <View className="px-5 pt-4 pb-1 flex flex-col items-center">
+          <Image src={logoImg} className="w-48" mode="aspectFit" />
         </View>
 
         <View className="px-5">
