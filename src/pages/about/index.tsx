@@ -1,7 +1,7 @@
 import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useShareMessage } from '@/hooks/useShare'
-import rabbitLogo from '@/assets/rabbit-logo.png'
+import logoImg from '@/assets/logo.png'
 
 /**
  * 关于力高稚家：机构简介落地页（滚动阅读）
@@ -43,8 +43,7 @@ export default function About() {
     <View className="bg-white" style={{ height: '100vh' }}>
       <ScrollView scrollY style={{ height: '100%' }}>
         <View className="px-5 pt-8 pb-10 flex flex-col items-center">
-          <Image src={rabbitLogo} className="w-20 h-20 rounded-full" mode="aspectFit" />
-          <Text className="block text-center text-xl font-bold text-foreground mt-3">力高稚家</Text>
+          <Image src={logoImg} className="w-44" mode="aspectFit" />
         </View>
 
         <View className="px-5">
