@@ -56,7 +56,7 @@ interface AppStore {
   // 代理家长模式：超管以某幼儿身份进入家长端时为其幼儿 id，否则为 null
   agentChildId: string | null
   agentTeacherId: string | null
-  agentOriginalRoleType: 'admin' | 'superadmin' | null
+  agentOriginalRoleType: 'admin' | 'superadmin' | 'teacher' | null
 
   // 登录状态
   isLoggedIn: boolean
@@ -473,7 +473,7 @@ export const useAppStore = create<AppStore>()(
       currentRole: fakeParentRole,
       currentRoleIndex: 0,
       agentChildId: child.id,
-      agentOriginalRoleType: currentRole?.role_type === 'admin' || currentRole?.role_type === 'superadmin' ? currentRole.role_type : null,
+      agentOriginalRoleType: ['admin', 'superadmin', 'teacher'].includes(currentRole?.role_type || '') ? (currentRole!.role_type as 'admin' | 'superadmin' | 'teacher') : null,
     })
   },
 

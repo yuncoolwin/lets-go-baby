@@ -100,16 +100,19 @@ export default function MessagesPage() {
     setDetailItem(item)
     setDetailOpen(true)
     if (!item.is_read) {
-      try {
-        await notificationApi.markRead(item.id, currentRole?.id || '', agentChildId || undefined)
-        setReceivedList((prev) =>
-          prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
-        )
-        setDetailItem((prev) => (prev && prev.id === item.id ? { ...prev, is_read: true } : prev))
-        refreshUnreadBadge(currentRole?.id, agentChildId || undefined)
-      } catch (err) {
-        console.error('[Messages] markRead error:', err)
+      // 代理家长模式（agentChildId 存在）：只更新本地已读展示，不提交后端，避免污染真实家长已读
+      if (!agentChildId) {
+        try {
+          await notificationApi.markRead(item.id, currentRole?.id || '')
+        } catch (err) {
+          console.error('[Messages] markRead error:', err)
+        }
       }
+      setReceivedList((prev) =>
+        prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
+      )
+      setDetailItem((prev) => (prev && prev.id === item.id ? { ...prev, is_read: true } : prev))
+      if (!agentChildId) refreshUnreadBadge(currentRole?.id)
     }
   }
 

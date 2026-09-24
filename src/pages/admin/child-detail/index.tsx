@@ -1246,7 +1246,7 @@ export default function ChildDetailPage() {
           </CardContent>
         </Card>
 
-        {(isSuperadmin || currentRole?.role_type === 'admin') && child && (
+        {(isSuperadmin || currentRole?.role_type === 'admin' || currentRole?.role_type === 'teacher') && child && (
           <Card className="bg-white rounded-xl border-0 shadow-sm mb-3">
             <CardContent className="p-4">
               <View

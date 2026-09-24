@@ -52,6 +52,7 @@ export default function GrowthPage() {
   const currentRole = useAppStore((s) => s.currentRole)
   const children = useAppStore((s) => s.children)
   const currentChildIndex = useAppStore((s) => s.currentChildIndex)
+  const agentChildId = useAppStore((s) => s.agentChildId)
   const [records, setRecords] = useState<GrowthRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [detailRecord, setDetailRecord] = useState<GrowthRecord | null>(null)
@@ -98,6 +99,8 @@ export default function GrowthPage() {
 
   const markGrowthRead = async () => {
     if (!currentRole?.id) return
+    // 代理家长模式（agentChildId 存在）：不标记真实家长已读，仅界面展示
+    if (agentChildId) return
     const currentChild = children[currentChildIndex]
     const childId = currentChild?.id || currentChild?.child_id
     try {

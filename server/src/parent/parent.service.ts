@@ -430,6 +430,13 @@ export class ParentService {
   }
 
   async markGrowthRead(userId: string, agentChildId?: string) {
+    // 代理家长模式兜底：教师/管理员/超管代理查看时，不写真实家长的 parent_read_at
+    if (agentChildId) {
+      const roles = await this.authz.getUserRoles(userId);
+      if (roles.some(r => ['superadmin', 'admin', 'teacher'].includes(r.role_type))) {
+        return { updated: 0 };
+      }
+    }
     const childIds = await this.getChildIds(userId, agentChildId);
     if (!childIds.length) return { updated: 0 };
 

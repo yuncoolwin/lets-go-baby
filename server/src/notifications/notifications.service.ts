@@ -868,6 +868,8 @@ export class NotificationsService {
    * 标记已读
    */
   async markRead(userId: string, notificationId: string, agentRoleId?: string, agentChildId?: string) {
+    // 代理家长模式兜底：不更新真实家长的已读状态，杜绝服务端污染
+    if (agentChildId) return { success: true };
     let roleIds: string[];
     if (agentChildId && (await this.isSuperadminUser(userId))) {
       roleIds = await this.getParentRoleIdsByChildId(agentChildId);

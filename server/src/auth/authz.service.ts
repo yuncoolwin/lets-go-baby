@@ -72,11 +72,11 @@ export class AuthzService {
     return childIds.filter(id => activeSet.has(id));
   }
 
-  /** 代理家长模式：超管以指定幼儿身份查看（agentChildId 存在且调用者为超管时直接放行该幼儿） */
+  /** 代理家长模式：超管/管理员/教师以指定幼儿身份查看（agentChildId 存在且调用者为此三者之一时直接放行该幼儿） */
   async getParentChildIdsAsAgent(userId: string, agentChildId?: string): Promise<string[]> {
     if (agentChildId) {
       const roles = await this.getUserRoles(userId);
-      if (roles.some(r => r.role_type === 'superadmin')) return [agentChildId];
+      if (roles.some(r => ['superadmin', 'admin', 'teacher'].includes(r.role_type))) return [agentChildId];
     }
     return this.getParentChildIds(userId);
   }
