@@ -128,7 +128,12 @@ const MOOD_SCORE_ITEMS = [
 
 export default function IndexPage() {
   useShareMessage()
-  const { isLoggedIn, currentRole, isLoading, fetchUserInfo, children, currentChildIndex, setCurrentChild, nickname, agentChildId, agentTeacherId, agentOriginalRoleType, exitAgentParentMode } = useAppStore()
+  const { isLoggedIn, currentRole, isLoading, fetchUserInfo, children, currentChildIndex, setCurrentChild, nickname, agentChildId, agentTeacherId, agentOriginalRoleType, agentStack, exitAgentParentMode } = useAppStore()
+  // 家长端代理层退出目标：栈顶上一层若为教师角色则「返回教师端」，否则（管理/超管直达）「返回管理端」
+  const parentExitTarget = (() => {
+    const top = agentStack[agentStack.length - 1]
+    return top?.currentRole?.role_type === 'teacher' ? '教师端' : '管理端'
+  })()
   const [babyStatus, setBabyStatus] = useState<BabyStatus | null>(null)
   const [groupList, setGroupList] = useState<GroupOverview[]>([])
   const [activeClassId, setActiveClassId] = useState('')
@@ -607,18 +612,7 @@ export default function IndexPage() {
                   loadPageData()
                 }}
               >
-                <Text className="block text-xs text-primary">退出家长端，返回管理端</Text>
-              </View>
-            )}
-            {agentTeacherId && (
-              <View
-                className="inline-flex items-center bg-gray-100 rounded-full px-3 py-2"
-                onClick={async () => {
-                  await useAppStore.getState().exitAgentTeacherMode()
-                  loadPageData()
-                }}
-              >
-                <Text className="block text-xs text-primary">退出教师端，返回管理端</Text>
+                <Text className="block text-xs text-primary">退出家长端，返回{parentExitTarget}</Text>
               </View>
             )}
           </View>

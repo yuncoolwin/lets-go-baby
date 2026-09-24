@@ -57,6 +57,8 @@ interface AppStore {
   agentChildId: string | null
   agentTeacherId: string | null
   agentOriginalRoleType: 'admin' | 'superadmin' | 'teacher' | null
+  /** 代理栈：支持「管理/超管→教师端→家长端」逐级嵌套，退出一级还原到上一级代理上下文 */
+  agentStack: AgentStackItem[]
 
   // 登录状态
   isLoggedIn: boolean
@@ -135,9 +137,29 @@ const taroStorage = {
   },
 }
 
-// 代理家长模式期间保存的真实角色（模块级变量，不持久化）
-let agentSavedRole: UserRole | null = null
-let agentSavedRoleIndex = 0
+/** 代理栈项：进入某一级代理前的完整还原上下文（栈式逐级退出用） */
+export interface AgentStackItem {
+  currentRole: UserRole | null
+  currentRoleIndex: number
+  children: ChildInfo[]
+  currentChildIndex: number
+  agentChildId: string | null
+  agentTeacherId: string | null
+  originRoleType: 'admin' | 'superadmin' | 'teacher' | null
+}
+
+/**
+ * 取「代理链中是否源自 admin/superadmin」：扫描栈中任一级原始来源为 admin/superadmin 即返回对应类型，否则 null。
+ * 用于保持 agentOriginalRoleType 的向下兼容语义（isAgentAdmin 判断不受破坏）。
+ */
+const chainAdminOrigin = (stack: AgentStackItem[]): 'admin' | 'superadmin' | null => {
+  for (let i = stack.length - 1; i >= 0; i--) {
+    const o = stack[i].originRoleType
+    if (o === 'admin') return 'admin'
+    if (o === 'superadmin') return 'superadmin'
+  }
+  return null
+}
 
 export const useAppStore = create<AppStore>()(
   persist(
@@ -157,6 +179,7 @@ export const useAppStore = create<AppStore>()(
   agentChildId: null,
   agentTeacherId: null,
   agentOriginalRoleType: null,
+  agentStack: [],
   isLoggedIn: false,
   isLoading: false,
   needRoleSelection: false,
@@ -228,6 +251,10 @@ export const useAppStore = create<AppStore>()(
       children: [],
       currentChildIndex: 0,
       currentTabPath: '',
+      agentChildId: null,
+      agentTeacherId: null,
+      agentOriginalRoleType: null,
+      agentStack: [],
       isLoggedIn: false,
       isLoading: false,
       needRoleSelection: false,
@@ -456,10 +483,20 @@ export const useAppStore = create<AppStore>()(
   },
 
   enterAgentParentMode: (child) => {
-    const { userId, currentRole, currentRoleIndex } = get()
-    // 保存真实角色，退出代理时还原
-    agentSavedRole = currentRole
-    agentSavedRoleIndex = currentRoleIndex
+    const { userId, currentRole, currentRoleIndex, children, currentChildIndex, agentChildId, agentTeacherId } = get()
+    // 压栈：保存当前层级的还原上下文（可能是真实管理角色，也可能是上一级教师代理）
+    const stack = [
+      ...get().agentStack,
+      {
+        currentRole,
+        currentRoleIndex,
+        children,
+        currentChildIndex,
+        agentChildId,
+        agentTeacherId,
+        originRoleType: currentRole?.role_type,
+      } as AgentStackItem,
+    ]
     const fakeParentRole: UserRole = {
       id: `agent_${child.id}`,
       user_id: userId || '',
@@ -468,48 +505,80 @@ export const useAppStore = create<AppStore>()(
       status: 'active',
     }
     set({
+      agentStack: stack,
       children: [child],
       currentChildIndex: 0,
       currentRole: fakeParentRole,
       currentRoleIndex: 0,
       agentChildId: child.id,
-      agentOriginalRoleType: ['admin', 'superadmin', 'teacher'].includes(currentRole?.role_type || '') ? (currentRole!.role_type as 'admin' | 'superadmin' | 'teacher') : null,
+      agentTeacherId: null,
+      agentOriginalRoleType: chainAdminOrigin(stack),
     })
   },
 
   exitAgentParentMode: async () => {
-    const { agentChildId } = get()
+    const { agentChildId, agentStack } = get()
     if (!agentChildId) return
+    const prev = agentStack[agentStack.length - 1]
+    if (!prev) return
+    const rest = agentStack.slice(0, -1)
     set({
-      agentChildId: null,
-      currentRole: agentSavedRole,
-      currentRoleIndex: agentSavedRoleIndex,
-      agentOriginalRoleType: null,
+      agentStack: rest,
+      agentChildId: prev.agentChildId,
+      agentTeacherId: prev.agentTeacherId,
+      currentRole: prev.currentRole,
+      currentRoleIndex: prev.currentRoleIndex,
+      children: prev.children,
+      currentChildIndex: prev.currentChildIndex,
+      agentOriginalRoleType: chainAdminOrigin(rest),
     })
-    agentSavedRole = null
-    agentSavedRoleIndex = 0
-    // 刷新真实 children 与 roles
-    await get().fetchUserInfo()
+    // 栈空才回到真实角色并刷新真实数据；栈非空则停留在更上层代理（还原快照即可，fetchUserInfo 在代理态会自动跳过）
+    if (!rest.length) await get().fetchUserInfo()
   },
 
   enterAgentTeacherMode: (role: UserRole) => {
-    // 保存当前管理端角色，进入教师端代理态
-    agentSavedRole = get().currentRole
-    agentSavedRoleIndex = get().currentRoleIndex
-    const originType = get().currentRole?.role_type
+    const { currentRole, currentRoleIndex, children, currentChildIndex, agentChildId, agentTeacherId } = get()
+    // 压栈：保存当前管理/超管角色上下文（进入教师端代理）
+    const stack = [
+      ...get().agentStack,
+      {
+        currentRole,
+        currentRoleIndex,
+        children,
+        currentChildIndex,
+        agentChildId,
+        agentTeacherId,
+        originRoleType: currentRole?.role_type,
+      } as AgentStackItem,
+    ]
     set({
+      agentStack: stack,
       currentRole: role,
       currentRoleIndex: 0,
       agentTeacherId: role.id,
-      agentOriginalRoleType: originType === 'admin' || originType === 'superadmin' ? originType : null,
+      agentChildId: null,
+      agentOriginalRoleType: chainAdminOrigin(stack),
     })
   },
 
   exitAgentTeacherMode: async () => {
-    set({ agentTeacherId: null, currentRole: agentSavedRole, currentRoleIndex: agentSavedRoleIndex, agentOriginalRoleType: null })
-    agentSavedRole = null
-    agentSavedRoleIndex = 0
-    await get().fetchUserInfo()
+    const { agentTeacherId, agentStack } = get()
+    if (!agentTeacherId) return
+    const prev = agentStack[agentStack.length - 1]
+    if (!prev) return
+    const rest = agentStack.slice(0, -1)
+    set({
+      agentStack: rest,
+      agentChildId: prev.agentChildId,
+      agentTeacherId: prev.agentTeacherId,
+      currentRole: prev.currentRole,
+      currentRoleIndex: prev.currentRoleIndex,
+      children: prev.children,
+      currentChildIndex: prev.currentChildIndex,
+      agentOriginalRoleType: chainAdminOrigin(rest),
+    })
+    // 栈空才回到真实角色并刷新；否则停留在更上层代理（快照还原）
+    if (!rest.length) await get().fetchUserInfo()
   },
 
   selectRole: async (roleType) => {
