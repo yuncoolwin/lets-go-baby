@@ -4,6 +4,15 @@ import { View, Text } from '@tarojs/components'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Network } from '@/network'
 import { Bus } from 'lucide-react-taro'
 import { formatTime } from '@/utils/format'
@@ -36,6 +45,7 @@ export default function PickupPage() {
   useShareMessage()
   const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [feeOpen, setFeeOpen] = useState(false)
 
   const childId = (() => {
     try {
@@ -131,6 +141,48 @@ export default function PickupPage() {
           })}
         </View>
       )}
+
+      {/* 延时托管服务费说明入口：常驻底部可见 */}
+      <View className="flex justify-center py-6">
+        <Text
+          className="text-xs text-muted-foreground underline underline-offset-4"
+          onClick={() => setFeeOpen(true)}
+        >
+          延时托管服务费说明
+        </Text>
+      </View>
+
+      <AlertDialog open={feeOpen} onOpenChange={setFeeOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>延时托管服务费说明</AlertDialogTitle>
+            <AlertDialogDescription>
+              <Text className="block text-xs leading-relaxed">
+                托育园早、晚延时托管服务相关收费说明：
+              </Text>
+              <Text className="block text-xs leading-relaxed">
+                力高稚家托育开设早托、晚托延时托管服务，延时服务费 20 元 / 小时，不足 1 小时按 1 小时计费。
+              </Text>
+              <Text className="block text-xs leading-relaxed">✅ 早托时段：7:40-8:30</Text>
+              <Text className="block text-xs leading-relaxed">✅ 晚托：16:45 开始计算</Text>
+              <Text className="block text-xs leading-relaxed">
+                ⚠️ 特别说明：若晚托超过 18:00，从 17:50 开始计算新一轮时长。
+              </Text>
+              <Text className="block text-xs leading-relaxed">
+                晚托付费方式灵活，一次性缴费、周结、月结均可。
+              </Text>
+              <Text className="block text-xs leading-relaxed">
+                延时托管收取的费用，主要用于支付延时时段在岗老师的加班薪酬，同时补贴园区延时开放产生的水电、保洁、物资耗材等额外运营成本。保教费仅覆盖正常保教时段服务，延时属于正常时间以外额外看护，需要专人值守，感谢各位家长理解与支持。
+              </Text>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setFeeOpen(false)}>
+              <Text className="text-sm">我知道了</Text>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </View>
   )
 }
