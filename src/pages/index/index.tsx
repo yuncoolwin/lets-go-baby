@@ -806,7 +806,7 @@ export default function IndexPage() {
                 )}
                 {/* 接送记录入口常驻可见，不受当天有无来园/离园时间影响 */}
                 <Text
-                  className="text-xs rounded-full px-2 bg-orange-50 text-orange-600"
+                  className="text-sm font-medium rounded-full px-3 py-1 bg-orange-50 text-orange-600"
                   onClick={(e) => {
                     e.stopPropagation()
                     const pid = currentChild?.id || currentChild?.child_id || babyStatus?.child_id || ''
