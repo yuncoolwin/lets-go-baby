@@ -180,14 +180,20 @@ export default function GrowthPage() {
                 src={m.url}
                 className="w-24 h-24 rounded-lg flex-shrink-0"
                 mode="aspectFill"
-                onClick={() => onMediaClick(m)}
+                onClick={(e) => {
+                      e.stopPropagation()
+                      onMediaClick(m)
+                    }}
               />
             ) : (
               <View
                 key={idx}
                 className="w-24 h-24 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
                 style={{ backgroundColor: '#FFF8F0' }}
-                onClick={() => onMediaClick(m)}
+                onClick={(e) => {
+                      e.stopPropagation()
+                      onMediaClick(m)
+                    }}
               >
                 <Play size={28} color="#E8651A" />
               </View>
@@ -221,19 +227,21 @@ export default function GrowthPage() {
           {records.map((record) => (
             <Card key={record.id} className="bg-white rounded-xl border-0 shadow-sm">
               <CardContent className="p-4">
-                <View className="flex items-center justify-between mb-2">
-                  <View className="flex items-center gap-2">
+                <View className="flex items-start justify-between mb-2">
+                  <View className="flex items-start gap-2 flex-1 mr-2">
+                    {!record.parent_read_at && (
+                      <View className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0 mt-1" />
+                    )}
                     {record.course_name ? (
-                      <Badge className="bg-orange-100 text-orange-700 text-xs">
+                      <Badge className="bg-orange-100 text-orange-700 text-xs flex-shrink-0">
                         <Text className="text-xs">{record.course_name}</Text>
                       </Badge>
                     ) : null}
-                    <Text className="block text-base font-semibold text-foreground">{record.title}</Text>
-                    {!record.parent_read_at && (
-                      <View className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
-                    )}
+                    <Text className="block flex-1 text-base font-semibold text-foreground whitespace-pre-wrap break-words">
+                      {record.title}
+                    </Text>
                   </View>
-                  <Text className="text-xs text-muted-foreground">{formatDate(record.created_at)}</Text>
+                  <Text className="text-xs text-muted-foreground flex-shrink-0">{formatDate(record.created_at)}</Text>
                 </View>
 
                 <View
