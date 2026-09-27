@@ -226,7 +226,13 @@ export default function GrowthPage() {
         <View className="space-y-3">
           {records.map((record) => (
             <Card key={record.id} className="bg-white rounded-xl border-0 shadow-sm">
-              <CardContent className="p-4">
+              <CardContent
+                className="p-4"
+                onClick={() => {
+                  setDetailRecord(record)
+                  setDetailOpen(true)
+                }}
+              >
                 <View className="flex items-start justify-between mb-2">
                   <View className="flex items-start gap-2 flex-1 mr-2">
                     {!record.parent_read_at && (
@@ -244,12 +250,7 @@ export default function GrowthPage() {
                   <Text className="text-xs text-muted-foreground flex-shrink-0">{formatDate(record.created_at)}</Text>
                 </View>
 
-                <View
-                  onClick={() => {
-                    setDetailRecord(record)
-                    setDetailOpen(true)
-                  }}
-                >
+                <View>
                   {[
                     ['总体评价', record.diet_overall],
                     ['餐食蔬菜', record.diet_vegetable],
