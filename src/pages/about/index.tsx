@@ -1,6 +1,7 @@
 import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useShareMessage } from '@/hooks/useShare'
+import { BodyText } from '@/components/ui/body-text'
 import logoImg from '@/assets/logo.png'
 
 /**
@@ -52,9 +53,7 @@ export default function About() {
               <Text className="block text-base font-bold text-foreground">{sec.heading}</Text>
               <View className="mt-1">
                 {sec.paragraphs.map((p, i) => (
-                  <Text key={`${i}-${p.slice(0, 10)}`} className="block text-sm leading-relaxed text-[#333333] mt-2">
-                    {p}
-                  </Text>
+                  <BodyText key={`${i}-${p.slice(0, 10)}`} text={p} className="text-[#333333] mt-2" />
                 ))}
               </View>
             </View>

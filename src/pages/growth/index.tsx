@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { BodyText } from '@/components/ui/body-text'
 import { useAppStore } from '@/store/app'
 import { Network } from '@/network'
 import GrowthDialogMedia from '@/components/growth-dialog-media'
@@ -332,9 +333,7 @@ export default function GrowthPage() {
           <ScrollView scrollY className="mt-4" style={{ maxHeight: '60vh' }}>
             {detailRecord && (
               <View className="space-y-3">
-                <Text className="block text-base text-foreground leading-relaxed whitespace-pre-wrap">
-                  {detailRecord.content}
-                </Text>
+                <BodyText text={detailRecord.content} paragraph className="text-base text-foreground" />
                 <GrowthDialogMedia record={detailRecord} onPlayVideo={(url) => setPlayerUrl(url)} />
                 <View className="flex justify-end pt-3">
                   <View className="text-right space-y-1">

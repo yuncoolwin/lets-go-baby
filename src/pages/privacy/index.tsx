@@ -1,5 +1,6 @@
 import { View, Text, ScrollView } from '@tarojs/components'
 import { useShareMessage } from '@/hooks/useShare'
+import { BodyText } from '@/components/ui/body-text'
 import { PRIVACY_CONTENT } from './content'
 
 /**
@@ -19,21 +20,19 @@ export default function Privacy() {
             <Text className="block text-xs text-gray-500 mt-1">生效日期：{doc.effectiveDate}</Text>
           </View>
           {doc.intro.map((p, i) => (
-            <Text key={`intro-${i}`} className="block text-sm leading-relaxed text-[#333333] mt-4">
-              {p.text}
-            </Text>
+            <BodyText key={`intro-${i}`} text={p.text} className="text-[#333333] mt-4" />
           ))}
           {doc.sections.map((sec) => (
             <View key={sec.heading} className="mt-7">
               <Text className="block text-base font-bold text-foreground">{sec.heading}</Text>
               <View className="mt-1">
                 {sec.paragraphs.map((p, i) => (
-                  <Text
+                  <BodyText
                     key={`${i}-${p.text.slice(0, 10)}`}
-                    className={`block text-sm leading-relaxed text-[#333333] mt-2 ${p.indent ? 'pl-5' : ''}`}
-                  >
-                    {p.text}
-                  </Text>
+                    text={p.text}
+                    className="text-[#333333] mt-2"
+                    sub={p.indent}
+                  />
                 ))}
               </View>
             </View>
