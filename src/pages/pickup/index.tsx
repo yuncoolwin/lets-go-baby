@@ -155,20 +155,26 @@ export default function PickupPage() {
       <AlertDialog open={feeOpen} onOpenChange={setFeeOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>延时托管服务费说明</AlertDialogTitle>
+            <AlertDialogTitle className="block text-center text-base font-semibold">
+              延时托管服务费说明
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              <Text className="block text-sm leading-relaxed">
-                力高稚家托育开设早托、晚托延时托管服务，延时服务费 20 元 / 小时，不足 1 小时按 1 小时计费。
+              <Text className="block text-sm leading-relaxed" style={{ textIndent: '2em' }}>
+                力高稚家托育开设早托、晚托延时托管服务，延时服务费 20 元 / 小时。
               </Text>
-              <Text className="block text-sm leading-relaxed">✅ 早托时段：7:40-8:30</Text>
-              <Text className="block text-sm leading-relaxed">✅ 晚托：16:45 开始计算</Text>
-              <Text className="block text-sm leading-relaxed">
-                ⚠️ 特别说明：若晚托超过 18:00，从 17:50 开始计算新一轮时长。
+              <Text className="block text-sm leading-relaxed" style={{ textIndent: '2em' }}>
+                ✅ 早托时段：7:40-8:30
               </Text>
-              <Text className="block text-sm leading-relaxed">
+              <Text className="block text-sm leading-relaxed" style={{ textIndent: '2em' }}>
+                ✅ 晚托时段：16:45 开始计算
+              </Text>
+              <Text className="block text-sm leading-relaxed" style={{ textIndent: '2em' }}>
+                ⚠️ 特别说明：服务费按实际时间计算，如晚托时长为 1.5 小时，则服务费为 20 元 × 1.5 小时 = 30 元。
+              </Text>
+              <Text className="block text-sm leading-relaxed" style={{ textIndent: '2em' }}>
                 晚托付费方式灵活，一次性缴费、周结、月结均可。
               </Text>
-              <Text className="block text-sm leading-relaxed">
+              <Text className="block text-sm leading-relaxed" style={{ textIndent: '2em' }}>
                 延时托管收取的费用，主要用于支付延时时段在岗老师的加班薪酬，同时补贴园区延时开放产生的水电、保洁、物资耗材等额外运营成本。保教费仅覆盖正常保教时段服务，延时属于正常时间以外额外看护，需要专人值守，感谢各位家长理解与支持。
               </Text>
             </AlertDialogDescription>
