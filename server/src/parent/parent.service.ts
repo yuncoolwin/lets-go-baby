@@ -321,7 +321,10 @@ export class ParentService {
       return [];
     }
 
-    return (data || []).map(r => ({
+    return (data || [])
+      // 过滤当天入园/离园时间均为空的记录：接送记录页仅展示有出入园时间的日期
+      .filter(r => !(r.check_in_time == null && r.check_out_time == null))
+      .map(r => ({
       id: r.id,
       record_date: r.record_date,
       status: r.status,

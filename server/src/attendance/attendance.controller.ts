@@ -178,8 +178,9 @@ export class AttendanceController {
 
   @Get('dates/:classId')
   @HttpCode(200)
-  async getDates(@Param('classId') classId: string) {
-    const data = await this.attendanceService.getDates(classId);
+  async getDates(@Param('classId') classId: string, @Req() req: any) {
+    const userId = (req as any).user?.userId;
+    const data = await this.attendanceService.getDates(userId, classId);
     return { code: 200, msg: 'success', data };
   }
 

@@ -892,6 +892,11 @@ export class AttendanceService {
     const denied = await this.canAccessClass(userId, dto.classId);
     if (denied) return { error: true, code: 403, msg: denied };
 
+    // 仅当天可新增离园时间，历史日期不可补录（防止绕过前端直接写库）
+    if (dto.date !== getShanghaiToday()) {
+      return { error: true, code: 403, msg: '仅当天可登记入园/离园时间，历史日期不可补录' };
+    }
+
     const courseType = dto.courseType || '';
     const { data: existing } = await this.client
       .from('attendance_records')
@@ -929,6 +934,10 @@ export class AttendanceService {
   }) {
     if (!dto.child_id || !dto.class_id || !dto.date) {
       return { error: true, code: 400, msg: '入园参数不完整' };
+    }
+    // 仅当天可新增入园时间，历史日期不可补录（防止绕过前端直接写库）
+    if (dto.date !== getShanghaiToday()) {
+      return { error: true, code: 403, msg: '仅当天可登记入园/离园时间，历史日期不可补录' };
     }
     // 归属校验：教师仅能操作自己带教的班级，admin/superadmin 全部班级
     const denied = await this.canAccessClass(userId, dto.class_id);
@@ -1195,7 +1204,17 @@ export class AttendanceService {
     return { deleted: true };
   }
 
-  async getDates(classId: string, courseType?: string) {
+  async getDates(userId: string, classId: string, courseType?: string) {
+    // 鉴权（与 findByClassAndDate 对齐）：admin/superadmin 任意班级，teacher 仅自己带教班级，家长一律空
+    const level = await this.authz.getRoleLevel(userId);
+    if (level === 'admin' || level === 'superadmin') {
+      // 任意班级
+    } else if (level === 'teacher') {
+      const classIds = await this.authz.getTeacherClassIds(userId);
+      if (!classIds.includes(classId)) return [];
+    } else {
+      return [];
+    }
     let query = this.client
       .from('attendance')
       .select('date')

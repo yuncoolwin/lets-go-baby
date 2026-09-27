@@ -915,14 +915,14 @@ export default function RollCallPage() {
                                       </View>
                                       {child.check_out_time ? (
                                         <Text className="block text-xs text-gray-400 flex-shrink-0">已离园</Text>
-                                      ) : !isAgentAdmin && child.check_in_time && child.record_status !== 'leave' && child.record_status !== 'absent' ? (
+                                      ) : !isAgentAdmin && selectedDate === today && child.check_in_time && child.record_status !== 'leave' && child.record_status !== 'absent' ? (
                                         <View
                                           className="px-3 py-2 rounded-lg bg-orange-100 flex-shrink-0"
                                           onClick={() => handleCheckOut(child)}
                                         >
                                           <Text className="block text-sm text-orange-600">离园</Text>
                                         </View>
-                                      ) : !isAgentAdmin ? (
+                                      ) : !isAgentAdmin && selectedDate === today ? (
                                         <View
                                           className="px-3 py-2 rounded-lg bg-orange-100 flex-shrink-0"
                                           onClick={() => handleCheckIn(child)}
