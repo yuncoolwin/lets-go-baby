@@ -143,9 +143,9 @@ export default function PickupPage() {
       )}
 
       {/* 延时托管服务费说明入口：固定底部常驻，不随列表滚动 */}
-      <View style={{ position: 'fixed', left: 0, right: 0, bottom: 0, display: 'flex', justifyContent: 'center', padding: '16px 0', backgroundColor: 'rgba(255,255,255,0.92)', zIndex: 40 }}>
+      <View style={{ position: 'fixed', left: 0, right: 0, bottom: 0, display: 'flex', justifyContent: 'center', padding: '16px 0', backgroundColor: '#FFF8F0', zIndex: 40 }}>
         <Text
-          className="text-sm text-muted-foreground underline underline-offset-4"
+          className="text-base font-medium text-muted-foreground underline underline-offset-4"
           onClick={() => setFeeOpen(true)}
         >
           延时托管服务费说明
