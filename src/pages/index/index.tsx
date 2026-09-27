@@ -782,9 +782,9 @@ export default function IndexPage() {
                 )}
               </View>
 
-              {/* 接送时间 */}
-              {(babyStatus.check_in_time || babyStatus.check_out_time) && (
-                <View className="flex items-center justify-between pt-3 mt-3 border-t border-border">
+              {/* 接送时间：入园/离园时间文本仅当天有记录时展示 */}
+              <View className="flex items-center justify-between pt-3 mt-3 border-t border-border">
+                {(babyStatus.check_in_time || babyStatus.check_out_time) && (
                   <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
                     {babyStatus.check_in_time && formatTime(babyStatus.check_in_time) && (
                       <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'baseline' }}>
@@ -803,18 +803,19 @@ export default function IndexPage() {
                       </View>
                     )}
                   </View>
-                  <Text
-                    className="text-xs rounded-full px-2 bg-orange-50 text-orange-600"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      const pid = currentChild?.id || currentChild?.child_id || babyStatus?.child_id || ''
-                      Taro.navigateTo({ url: `/pages/pickup/index?child_id=${pid}` })
-                    }}
-                  >
-                    接送记录
-                  </Text>
-                </View>
-              )}
+                )}
+                {/* 接送记录入口常驻可见，不受当天有无来园/离园时间影响 */}
+                <Text
+                  className="text-xs rounded-full px-2 bg-orange-50 text-orange-600"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const pid = currentChild?.id || currentChild?.child_id || babyStatus?.child_id || ''
+                    Taro.navigateTo({ url: `/pages/pickup/index?child_id=${pid}` })
+                  }}
+                >
+                  接送记录
+                </Text>
+              </View>
             </CardContent>
           </Card>
         )}
