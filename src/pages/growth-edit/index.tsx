@@ -420,6 +420,8 @@ export default function GrowthEditPage() {
         const msg = String((err as any)?.errMsg || (err as any)?.message || '')
         if (msg.includes('privacy permission is not authorized')) {
           Taro.showToast({ title: '请在微信后台配置相册/摄像头隐私声明', icon: 'none', duration: 2500 })
+        } else if (msg.includes('cancel')) {
+          Taro.showToast({ title: '已取消选择', icon: 'none' })
         } else {
           Taro.showToast({ title: msg || '选择图片失败', icon: 'none' })
         }
@@ -437,7 +439,7 @@ export default function GrowthEditPage() {
 
   const handleChooseVideo = () => {
     Taro.chooseVideo({
-      compressed: true,
+      compressed: false,
       maxDuration: 60,
       sourceType: ['album', 'camera'],
       success: async (res) => {
@@ -506,6 +508,8 @@ export default function GrowthEditPage() {
         const msg = String((err as any)?.errMsg || (err as any)?.message || '')
         if (msg.includes('privacy permission is not authorized')) {
           Taro.showToast({ title: '请在微信后台配置相册/摄像头隐私声明', icon: 'none', duration: 2500 })
+        } else if (msg.includes('cancel')) {
+          Taro.showToast({ title: '已取消选择', icon: 'none' })
         } else {
           Taro.showToast({ title: msg || '选择视频失败', icon: 'none' })
         }
