@@ -25,7 +25,7 @@ export class GrowthController {
   @UseInterceptors(
     FileInterceptor('video', {
       storage: memoryStorage(),
-      limits: { fileSize: 10 * 1024 * 1024 },
+      limits: { fileSize: 50 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
         // 兼容 小程序/H5 上传：MIME 可能是 octet-stream 或缺省，但确为 mp4
         const nameIsMp4 = (file.originalname || '').toLowerCase().endsWith('.mp4');

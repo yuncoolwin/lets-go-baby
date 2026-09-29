@@ -438,21 +438,21 @@ export default function GrowthEditPage() {
   const handleChooseVideo = () => {
     Taro.chooseVideo({
       compressed: true,
-      maxDuration: 60,
+      maxDuration: 120,
       sourceType: ['album', 'camera'],
       success: async (res) => {
         let tempFilePath = res.tempFilePath
         let size: number = res.size || 0
         setVideoUploading(true)
         try {
-          // 大于 8MB 时依次降档压缩：high -> medium -> low
+          // 大于 50MB 时依次降档压缩：high -> medium -> low
           const qualities: { quality: 'high' | 'medium' | 'low'; bitrate: number; resolution: number }[] = [
-            { quality: 'high', bitrate: 1200, resolution: 0.8 },
-            { quality: 'medium', bitrate: 800, resolution: 0.6 },
-            { quality: 'low', bitrate: 500, resolution: 0.4 },
+            { quality: 'high', bitrate: 2500, resolution: 0.9 },
+            { quality: 'medium', bitrate: 1500, resolution: 0.7 },
+            { quality: 'low', bitrate: 800, resolution: 0.5 },
           ]
           for (const item of qualities) {
-            if (size <= 8 * 1024 * 1024) break
+            if (size <= 50 * 1024 * 1024) break
             try {
               const compressed = await Taro.compressVideo({
                 src: tempFilePath,
@@ -469,8 +469,8 @@ export default function GrowthEditPage() {
               break
             }
           }
-          if (size > 10 * 1024 * 1024) {
-            Taro.showToast({ title: '视频过长，请控制在60秒内', icon: 'none' })
+          if (size > 50 * 1024 * 1024) {
+            Taro.showToast({ title: '视频过大，请控制在50MB以内', icon: 'none' })
             return
           }
           const upload = await growthApi.uploadVideo(tempFilePath)

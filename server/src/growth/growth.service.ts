@@ -16,8 +16,8 @@ const IMAGE_BASE64_MAX = 10 * 1024 * 1024;
 const SIGNED_URL_TTL = 60 * 60 * 24;
 /** 视频签名 URL 有效期：7 天 */
 const VIDEO_SIGNED_URL_TTL = 24 * 60 * 60 * 7;
-/** 视频原文件上限：10MB */
-const VIDEO_SIZE_MAX = 10 * 1024 * 1024;
+/** 视频原文件上限：50MB */
+const VIDEO_SIZE_MAX = 50 * 1024 * 1024;
 /** 成长记录媒体保留天数：超过即清理文件并标记过期 */
 const MEDIA_RETENTION_DAYS = 60;
 
@@ -258,8 +258,8 @@ export class GrowthService {
     }
 
     // 大小上限：10MB
-    if (file.size > 10 * 1024 * 1024) {
-      return { error: true, code: 413, msg: '视频过大，请控制在 10MB 以内' };
+    if (file.size > 50 * 1024 * 1024) {
+      return { error: true, code: 413, msg: '视频过大，请控制在 50MB 以内' };
     }
     // 内容安全：微信视频审核为异步接口（media_check_async 需回调/定时查询结果）。
     // 当前采取保守兜底策略 —— 维持 仅 mp4 + 10MB 白名单限制，不开放其他格式；

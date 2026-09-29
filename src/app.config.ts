@@ -81,6 +81,12 @@ export default typeof defineAppConfig === 'function'
       navigationBarBackgroundColor: '#E8651A',
       navigationBarTitleText: '力高稚家',
       navigationBarTextStyle: 'white'
+    },
+    networkTimeout: {
+      request: 60000,
+      connectSocket: 60000,
+      uploadFile: 180000,
+      downloadFile: 60000
     }
   })
   : {
@@ -163,5 +169,11 @@ export default typeof defineAppConfig === 'function'
       navigationBarBackgroundColor: '#E8651A',
       navigationBarTitleText: '力高稚家',
       navigationBarTextStyle: 'white'
+    },
+    networkTimeout: {
+      request: 60000,
+      connectSocket: 60000,
+      uploadFile: 180000,
+      downloadFile: 60000
     }
   }
