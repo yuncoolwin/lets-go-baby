@@ -438,7 +438,7 @@ export default function GrowthEditPage() {
   const handleChooseVideo = () => {
     Taro.chooseVideo({
       compressed: true,
-      maxDuration: 120,
+      maxDuration: 60,
       sourceType: ['album', 'camera'],
       success: async (res) => {
         let tempFilePath = res.tempFilePath
