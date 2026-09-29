@@ -35,6 +35,7 @@ export default typeof defineAppConfig === 'function'
       'pages/admin/permission/index',
       'pages/admin/audit-logs/index',
       'pages/growth-drafts/index',
+      'pages/growth-media-library/index',
       'pages/about/index',
     ],
     tabBar: {
@@ -124,6 +125,7 @@ export default typeof defineAppConfig === 'function'
       'pages/admin/permission/index',
       'pages/admin/audit-logs/index',
       'pages/growth-drafts/index',
+      'pages/growth-media-library/index',
     ],
     tabBar: {
       color: '#999999',

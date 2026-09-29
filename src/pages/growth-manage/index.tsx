@@ -554,6 +554,11 @@ export default function GrowthManagePage() {
           </Button>
         </View>
         <View style={{ flex: 1 }}>
+          <Button variant="ghost" className="w-full" onClick={() => Taro.navigateTo({ url: '/pages/growth-media-library/index' })}>
+            <Text className="text-primary">素材箱</Text>
+          </Button>
+        </View>
+        <View style={{ flex: 1 }}>
           <Button className="w-full" onClick={() => goEdit()}>
             <Text className="text-white">新增记录</Text>
           </Button>

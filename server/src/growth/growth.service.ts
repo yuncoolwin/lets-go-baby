@@ -343,6 +343,245 @@ export class GrowthService {
     return { url: signed?.signedUrl || null };
   }
 
+  /**
+   * 素材箱上传图片：复用 uploadImage 的 sharp 压缩 webp 逻辑，但存储到独立目录
+   * growth/library/images/{userId}/...，避免与成长档案 60 天清理互相误删。
+   */
+  async uploadLibraryImage(userId: string, body: { image: string; name?: string }) {
+    const identity = await this.getUserIdentity(userId);
+    if (!identity || identity.role_type === 'parent') {
+      return { error: true, code: 403, msg: '家长无权上传素材箱图片' };
+    }
+    if (!identity || !userId) {
+      return { error: true, code: 401, msg: '缺少角色身份' };
+    }
+
+    const { image } = body || {};
+    if (!image) return { error: true, code: 400, msg: 'image 不能为空' };
+
+    const match = image.match(/^data:image\/(?:png|jpeg|jpg|webp);base64,(.*)$/i);
+    if (!match) {
+      return { error: true, code: 415, msg: '仅支持 png/jpeg/jpg/webp 格式图片' };
+    }
+    const base64 = match[1];
+
+    let buffer: Buffer;
+    try {
+      buffer = Buffer.from(base64, 'base64');
+    } catch (e) {
+      return { error: true, code: 400, msg: '图片 base64 解析失败' };
+    }
+    if (buffer.length > IMAGE_BASE64_MAX) {
+      return { error: true, code: 413, msg: '图片过大，请控制在 10MB 以内' };
+    }
+
+    let compressed: Buffer;
+    try {
+      compressed = await sharp(buffer)
+        .rotate()
+        .resize({ width: 1080, height: 1080, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 75 })
+        .toBuffer();
+    } catch (e) {
+      return { error: true, code: 400, msg: `图片压缩失败: ${(e as Error).message}` };
+    }
+
+    const imgSafe = await this.wechat.checkImage(compressed);
+    if (!imgSafe) {
+      return { error: true, code: 400, msg: '图片包含违规内容，请更换' };
+    }
+
+    await this.ensureBucket();
+    const path = `growth/library/images/${userId}/${Date.now()}-${crypto.randomBytes(4).toString('hex')}.webp`;
+
+    const { error: uploadError } = await this.client.storage
+      .from('growth')
+      .upload(path, compressed, { contentType: 'image/webp' });
+
+    if (uploadError) {
+      return { error: true, code: 500, msg: `上传失败: ${uploadError.message}` };
+    }
+
+    const { data: signed } = await this.client.storage.from('growth').createSignedUrl(path, SIGNED_URL_TTL);
+    const signedUrl = signed?.signedUrl || null;
+
+    const { data: row, error: insertErr } = await this.client
+      .from('growth_media_library')
+      .insert({
+        media_type: 'image',
+        storage_path: path,
+        url: signedUrl || null,
+        uploader_id: userId,
+      })
+      .select()
+      .single();
+    if (insertErr) {
+      console.error('[Growth] library insert image error:', insertErr.message);
+      return { error: true, code: 500, msg: '素材记录写入失败' };
+    }
+
+    return { media: row };
+  }
+
+  /**
+   * 素材箱上传视频：复用 uploadVideo 的校验与存储，存储到 growth/library/videos/{userId}/...
+   */
+  async uploadLibraryVideo(userId: string, file: Express.Multer.File) {
+    const identity = await this.getUserIdentity(userId);
+    if (!identity || identity.role_type === 'parent') {
+      return { error: true, code: 403, msg: '家长无权上传素材箱视频' };
+    }
+    if (!identity || !userId) {
+      return { error: true, code: 401, msg: '缺少角色身份' };
+    }
+
+    if (!file) {
+      return { error: true, code: 400, msg: 'video 文件不能为空' };
+    }
+
+    const nameIsMp4 = (file.originalname || '').toLowerCase().endsWith('.mp4');
+    const buf = file.buffer;
+    const hasMp4Magic = !!buf && buf.length > 8 && buf.toString('latin1', 4, 8) === 'ftyp';
+    const okType =
+      file.mimetype === 'video/mp4' ||
+      nameIsMp4 ||
+      (hasMp4Magic && (!file.mimetype || file.mimetype === 'application/octet-stream' || file.mimetype === 'video/mp4'));
+    if (!okType) {
+      return { error: true, code: 400, msg: '仅支持 video/mp4 格式视频' };
+    }
+    if (file.size > VIDEO_SIZE_MAX) {
+      return { error: true, code: 413, msg: '视频过大，请控制在 50MB 以内' };
+    }
+
+    await this.ensureBucket();
+    const path = `growth/library/videos/${userId}/${Date.now()}-${crypto.randomBytes(4).toString('hex')}.mp4`;
+
+    const { error: uploadError } = await this.client.storage
+      .from('growth')
+      .upload(path, file.buffer, { contentType: 'video/mp4' });
+
+    if (uploadError) {
+      return { error: true, code: 500, msg: `上传失败: ${uploadError.message}` };
+    }
+
+    const { data: signed } = await this.client.storage.from('growth').createSignedUrl(path, VIDEO_SIGNED_URL_TTL);
+    const signedUrl = signed?.signedUrl || null;
+
+    const { data: row, error: insertErr } = await this.client
+      .from('growth_media_library')
+      .insert({
+        media_type: 'video',
+        storage_path: path,
+        url: signedUrl || null,
+        uploader_id: userId,
+      })
+      .select()
+      .single();
+    if (insertErr) {
+      console.error('[Growth] library insert video error:', insertErr.message);
+      return { error: true, code: 500, msg: '素材记录写入失败' };
+    }
+
+    return { media: row };
+  }
+
+  /**
+   * 素材箱列表：分页 + 按类型重新签名（图片 24h / 视频 7 天），重签失败的置为 unavailable。
+   * 仅教师/管理/超管可访问，家长 403。
+   */
+  async getLibrary(userId: string, page = 1, pageSize = 20) {
+    const identity = await this.getUserIdentity(userId);
+    if (!identity || identity.role_type === 'parent') {
+      return { error: true, code: 403, msg: '家长无权访问素材箱' };
+    }
+
+    const p = Math.max(1, Number(page) || 1);
+    const ps = Math.min(50, Math.max(1, Number(pageSize) || 20));
+
+    const from = (p - 1) * ps;
+    const to = from + ps - 1;
+
+    const { data: rows, error, count } = await this.client
+      .from('growth_media_library')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      console.error('[Growth] library list error:', error.message);
+      return { error: true, code: 500, msg: '素材列表查询失败' };
+    }
+
+    const items: Array<Record<string, any>> = [];
+    for (const row of rows || []) {
+      const ttl = row.media_type === 'video' ? VIDEO_SIGNED_URL_TTL : SIGNED_URL_TTL;
+      let signedUrl: string | null = null;
+      let unavailable = false;
+      if (row.storage_path) {
+        const { data: s } = await this.client.storage.from('growth').createSignedUrl(row.storage_path, ttl);
+        signedUrl = s?.signedUrl || null;
+        if (!signedUrl) unavailable = true;
+      }
+      const isAdmin = this.isAdminRole(identity.role_type);
+      items.push({
+        id: row.id,
+        media_type: row.media_type,
+        url: signedUrl || row.url,
+        unavailable,
+        uploader_id: row.uploader_id,
+        can_delete: isAdmin || row.uploader_id === userId,
+        created_at: row.created_at,
+      });
+    }
+
+    return { error: false, list: items, total: count ?? items.length, page: p, page_size: ps };
+  }
+
+  /**
+   * 删除素材：管理/超管可删除任意素材，教师仅能删除自己上传的，否则 403。
+   * 删除时从 storage 移除文件 + 删除表记录。
+   */
+  async deleteLibraryMedia(userId: string, id: string) {
+    const identity = await this.getUserIdentity(userId);
+    if (!identity || identity.role_type === 'parent') {
+      return { error: true, code: 403, msg: '家长无权删除素材箱素材' };
+    }
+
+    const { data: row, error: qErr } = await this.client
+      .from('growth_media_library')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (qErr || !row) {
+      return { error: true, code: 404, msg: '素材不存在' };
+    }
+
+    const isAdmin = this.isAdminRole(identity.role_type);
+    const isOwner = row.uploader_id === userId;
+    if (!isAdmin && !isOwner) {
+      return { error: true, code: 403, msg: '无权删除他人上传的素材' };
+    }
+
+    if (row.storage_path) {
+      try {
+        const { error: rmErr } = await this.client.storage.from('growth').remove([row.storage_path]);
+        if (rmErr) {
+          console.error(`[Growth] library delete file error (${id}):`, rmErr.message);
+        }
+      } catch (e) {
+        console.error(`[Growth] library delete file error (${id}):`, (e as Error)?.message);
+      }
+    }
+
+    const { error: delErr } = await this.client.from('growth_media_library').delete().eq('id', id);
+    if (delErr) {
+      console.error(`[Growth] library delete row error (${id}):`, delErr.message);
+      return { error: true, code: 500, msg: '素材删除失败' };
+    }
+
+    return { error: false, msg: 'success' };
+  }
+
   /** 写审计日志：失败仅告警，不阻断主流程 */
   private async logAudit(params: {
     userId: string | null;
@@ -722,6 +961,29 @@ export class GrowthService {
         .eq('id', record.id);
       if (updErr) {
         console.error(`[Growth] cleanup update record error (${record.id}):`, updErr.message);
+      }
+    }
+
+    // 素材箱清理：删除超过保留期（60 天）的上传素材（文件 + 记录，不留缩略图）
+    const libCutoff = new Date(Date.now() - MEDIA_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const { data: expiredLib } = await this.client
+      .from('growth_media_library')
+      .select('id, storage_path')
+      .lt('created_at', libCutoff);
+    for (const item of expiredLib || []) {
+      if (item.storage_path) {
+        try {
+          await this.client.storage.from('growth').remove([item.storage_path]);
+        } catch (e) {
+          console.error(`[Growth] cleanup library file error (${item.id}):`, (e as Error)?.message);
+        }
+      }
+      const { error: libErr } = await this.client
+        .from('growth_media_library')
+        .delete()
+        .eq('id', item.id);
+      if (libErr) {
+        console.error(`[Growth] cleanup library row error (${item.id}):`, libErr.message);
       }
     }
   }

@@ -278,6 +278,42 @@ export default function GrowthEditPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // 监听素材箱选择结果（从素材箱选 → 回填图片/视频）
+  useEffect(() => {
+    const handleSelect = (payload: { mediaType?: string; urls?: string[] }) => {
+      const list = Array.isArray(payload?.urls) ? payload.urls.filter((u) => !!u) : []
+      if (!list.length) return
+      if (payload?.mediaType === 'video') {
+        const limit = 2
+        const cur = videoUrls.length
+        setVideoUrls((prev) => [...prev, ...list].slice(0, limit))
+        const added = Math.max(0, limit - cur)
+        if (added < list.length) {
+          Taro.showToast({ title: '视频最多选用 2 个，已截取', icon: 'none' })
+        } else {
+          Taro.showToast({ title: `已选用 ${added} 个视频`, icon: 'success' })
+        }
+        setVideoExpired(false)
+      } else {
+        const limit = 9
+        const cur = images.length
+        setImages((prev) => [...prev, ...list].slice(0, limit))
+        const added = Math.max(0, limit - cur)
+        if (added < list.length) {
+          Taro.showToast({ title: '图片最多选用 9 张，已截取', icon: 'none' })
+        } else {
+          Taro.showToast({ title: `已选用 ${added} 张图片`, icon: 'success' })
+        }
+        setPhotoExpired(false)
+      }
+    }
+    Taro.eventCenter.on('GROWTH_LIBRARY_SELECT', handleSelect)
+    return () => {
+      Taro.eventCenter.off('GROWTH_LIBRARY_SELECT', handleSelect)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [images.length, videoUrls.length])
+
   const loadChildren = async () => {
     try {
       const res = await childrenApi.list({ pageSize: 200, status: 'active' })
@@ -743,6 +779,16 @@ export default function GrowthEditPage() {
               </View>
             )}
           </View>
+          {images.length < 9 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="mt-2"
+              onClick={() => Taro.navigateTo({ url: '/pages/growth-media-library/index?source=edit&mediaType=image' })}
+            >
+              <Text className="text-primary">从素材箱选图片</Text>
+            </Button>
+          )}
         </View>
 
         {/* 视频 */}
@@ -777,6 +823,16 @@ export default function GrowthEditPage() {
               </View>
             )}
           </View>
+          {videoUrls.length < 2 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="mt-2"
+              onClick={() => Taro.navigateTo({ url: '/pages/growth-media-library/index?source=edit&mediaType=video' })}
+            >
+              <Text className="text-primary">从素材箱选视频</Text>
+            </Button>
+          )}
         </View>
       </View>
 

@@ -424,4 +424,45 @@ export const growthApi = {
   // 删除记录（后端同步删除 Supabase Storage 图片）
   remove: (id: string, roleId?: string) =>
     request({ url: roleId ? `/api/growth-records/${id}?role_id=${roleId}` : `/api/growth-records/${id}`, method: 'DELETE' }),
+
+  // ============ 素材箱 ============
+  // 素材箱上传图片（base64 + 文件名，复用 sharp 压缩转 webp，存储隔离到 growth/library）
+  libraryUploadImage: (data: { image: string; name?: string }) =>
+    request({ url: '/api/growth-records/library/upload-image', method: 'POST', data }),
+
+  // 素材箱上传视频（multipart，mp4 + 50MB 上限）
+  libraryUploadVideo: async (filePath: string) => {
+    const parseBody = (raw: any): ApiResponse<{ media?: any }> | null => {
+      if (!raw) return null
+      if (typeof raw === 'object') return raw as ApiResponse<{ media?: any }>
+      if (typeof raw === 'string') {
+        try {
+          const parsed = JSON.parse(raw)
+          if (parsed && typeof parsed === 'object') return parsed as ApiResponse<{ media?: any }>
+        } catch (e) {
+          // 非 JSON，继续返回 null
+        }
+      }
+      return null
+    }
+    try {
+      const res = await Network.uploadFile({ url: '/api/growth-records/library/upload-video', filePath, name: 'video' })
+      return parseBody(res?.data) ?? { code: 500, msg: '视频上传失败', data: null }
+    } catch (err) {
+      const e = (err ?? {}) as Record<string, any>
+      const body = parseBody(e?.data) ?? parseBody(e?.response?.data) ?? parseBody(e?.response)
+      if (body) return body
+      const embedded = parseEmbeddedMsg(String(e?.errMsg || e?.message || ''))
+      if (embedded) return { code: 500, msg: embedded, data: null }
+      return { code: 500, msg: String(e?.errMsg || e?.message || '视频上传失败'), data: null }
+    }
+  },
+
+  // 素材箱列表（分页）
+  libraryList: (params?: { page?: number; page_size?: number }) =>
+    request({ url: '/api/growth-records/library', method: 'GET', data: params }),
+
+  // 删除素材（管理/超管删任意，教师删自己的）
+  libraryDelete: (id: string) =>
+    request({ url: `/api/growth-records/library/${id}`, method: 'DELETE' }),
 }

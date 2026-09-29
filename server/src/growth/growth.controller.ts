@@ -48,6 +48,70 @@ export class GrowthController {
     return { code: 200, msg: 'success', data };
   }
 
+  @Post('library/upload-image')
+  @HttpCode(200)
+  async uploadLibraryImage(@Req() req: Request, @Body() body: { image: string; name?: string }) {
+    const userId = (req as any).user?.userId;
+    const data = await this.growthService.uploadLibraryImage(userId, body);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
+    return { code: 200, msg: 'success', data };
+  }
+
+  @Post('library/upload-video')
+  @HttpCode(200)
+  @UseInterceptors(
+    FileInterceptor('video', {
+      storage: memoryStorage(),
+      limits: { fileSize: 50 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const nameIsMp4 = (file.originalname || '').toLowerCase().endsWith('.mp4');
+        const isMp4Mime = file.mimetype === 'video/mp4';
+        const isOpaque = !file.mimetype || file.mimetype === 'application/octet-stream';
+        if (!isMp4Mime && !(isOpaque && nameIsMp4)) {
+          return cb(new BadRequestException('仅支持 video/mp4 格式视频'), false);
+        }
+        return cb(null, true);
+      },
+    }),
+  )
+  @UseFilters(MulterExceptionFilter)
+  async uploadLibraryVideo(@Req() req: Request, @UploadedFile() file: Express.Multer.File) {
+    const userId = (req as any).user?.userId;
+    const data = await this.growthService.uploadLibraryVideo(userId, file);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
+    return { code: 200, msg: 'success', data };
+  }
+
+  @Get('library')
+  @HttpCode(200)
+  async getLibrary(
+    @Req() req: Request,
+    @Query('page') page?: string,
+    @Query('page_size') pageSize?: string,
+  ) {
+    const userId = (req as any).user?.userId;
+    const data = await this.growthService.getLibrary(userId, Number(page) || 1, Number(pageSize) || 20);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
+    return { code: 200, msg: 'success', data };
+  }
+
+  @Delete('library/:id')
+  @HttpCode(200)
+  async deleteLibraryMedia(@Req() req: Request, @Param('id') id: string) {
+    const userId = (req as any).user?.userId;
+    const data = await this.growthService.deleteLibraryMedia(userId, id);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
+    return { code: 200, msg: 'success', data };
+  }
+
   @Post('sign-urls')
   @HttpCode(200)
   async signUrls(@Req() req: Request, @Body() dto: { photo_urls?: string[] }) {
