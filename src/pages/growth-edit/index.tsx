@@ -456,9 +456,10 @@ export default function GrowthEditPage() {
           for (const item of qualities) {
             if (size <= 50 * 1024 * 1024) break
             try {
-              const compressed = await Taro.compressVideo({
+              const compressed = await (Taro.compressVideo as (
+                  opts: { src: string; bitrate: number; fps: number; resolution: number },
+                ) => Promise<{ tempFilePath: string; size?: number }>)({
                 src: tempFilePath,
-                quality: item.quality,
                 bitrate: item.bitrate,
                 fps: 24,
                 resolution: item.resolution,
