@@ -449,9 +449,9 @@ export default function GrowthEditPage() {
         try {
           // 大于 50MB 时依次降档压缩：high -> medium -> low
           const qualities: { quality: 'high' | 'medium' | 'low'; bitrate: number; resolution: number }[] = [
-            { quality: 'high', bitrate: 2500, resolution: 0.9 },
-            { quality: 'medium', bitrate: 1500, resolution: 0.7 },
-            { quality: 'low', bitrate: 800, resolution: 0.5 },
+            { quality: 'high', bitrate: 5000, resolution: 0.9 },
+            { quality: 'medium', bitrate: 3500, resolution: 0.7 },
+            { quality: 'low', bitrate: 2000, resolution: 0.5 },
           ]
           for (const item of qualities) {
             if (size <= 50 * 1024 * 1024) break
