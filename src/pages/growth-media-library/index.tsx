@@ -11,6 +11,7 @@ interface LibraryItem {
   id: string
   media_type: 'image' | 'video'
   url: string | null
+  storage_path?: string | null
   unavailable: boolean
   uploader_id: string
   can_delete: boolean
@@ -326,7 +327,7 @@ export default function GrowthMediaLibrary() {
     // 兜底截断：图片 ≤9、视频 ≤2，避免边界泄漏
     const imgItems = selectedItems.filter((it) => it.media_type === 'image').slice(0, 9)
     const vidItems = selectedItems.filter((it) => it.media_type === 'video').slice(0, 2)
-    const payloadItems = [...imgItems, ...vidItems].map((it) => ({ mediaType: it.media_type, url: it.url }))
+    const payloadItems = [...imgItems, ...vidItems].map((it) => ({ mediaType: it.media_type, url: it.url, storage_path: it.storage_path || '' }))
     Taro.eventCenter.trigger('GROWTH_LIBRARY_SELECT', { items: payloadItems })
     Taro.showToast({ title: `已选用 ${payloadItems.length} 个素材`, icon: 'success' })
     setTimeout(() => Taro.navigateBack(), 300)

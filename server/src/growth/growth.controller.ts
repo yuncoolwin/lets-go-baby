@@ -163,6 +163,51 @@ export class GrowthController {
     return { code: 200, msg: 'success', data };
   }
 
+  // ============ 云端草稿（教职身份，家长 403） ============
+  @Post('drafts')
+  @HttpCode(200)
+  async draftsUpSert(@Req() req: Request, @Body() body: any) {
+    const userId = (req as any).user?.userId;
+    const data = await this.growthService.draftsUpSert(userId, body);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
+    return { code: 200, msg: 'success', data };
+  }
+
+  @Get('drafts')
+  @HttpCode(200)
+  async draftsList(@Req() req: Request) {
+    const userId = (req as any).user?.userId;
+    const data = await this.growthService.draftsList(userId);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
+    return { code: 200, msg: 'success', data: data.drafts };
+  }
+
+  @Get('drafts/:id')
+  @HttpCode(200)
+  async draftsFindOne(@Req() req: Request, @Param('id') id: string) {
+    const userId = (req as any).user?.userId;
+    const data = await this.growthService.draftsFindOne(userId, id);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
+    return { code: 200, msg: 'success', data: data.draft };
+  }
+
+  @Delete('drafts/:id')
+  @HttpCode(200)
+  async draftsDelete(@Req() req: Request, @Param('id') id: string) {
+    const userId = (req as any).user?.userId;
+    const data = await this.growthService.draftsDelete(userId, id);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
+    return { code: 200, msg: 'success', data: null };
+  }
+
   @Get(':id')
   @HttpCode(200)
   async findOne(@Req() req: Request, @Param('id') id: string) {

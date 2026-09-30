@@ -156,8 +156,21 @@ export default function GrowthEditPage() {
   const [content, setContent] = useState('')
   const [images, setImages] = useState<string[]>([])
   const [videoUrls, setVideoUrls] = useState<string[]>([])
+  // 与 images/videoUrls 一一对应的 storage path（用于云端草稿持久化 + 发布重签）
+  const [photoPaths, setPhotoPaths] = useState<string[]>([])
+  const [videoPaths, setVideoPaths] = useState<string[]>([])
   const [photoExpired, setPhotoExpired] = useState(false)
   const [videoExpired, setVideoExpired] = useState(false)
+  // 媒体最短剩余保留天数（<7 天黄提示）
+  const [mediaRemainingDays, setMediaRemainingDays] = useState(60)
+  // 有媒体入选但已过期 → 禁用「发布」（保留「存草稿」）
+  const mediaExpiredDisable = (photoExpired && images.length > 0) || (videoExpired && videoUrls.length > 0)
+  const mediaNearExpiry = !mediaExpiredDisable && mediaRemainingDays > 0 && mediaRemainingDays < 7
+  const mediaNotice = mediaExpiredDisable
+    ? '照片/视频已过期，请重新上传'
+    : mediaNearExpiry
+      ? `媒体将于 ${mediaRemainingDays} 天后失效，请尽快发布`
+      : ''
   const [videoUploading, setVideoUploading] = useState(false)
   const [recordId, setRecordId] = useState('')
   const [draftId, setDraftId] = useState('')
@@ -280,17 +293,20 @@ export default function GrowthEditPage() {
 
   // 监听素材箱选择结果（从素材箱选 → 回填图片/视频）
   useEffect(() => {
-    const handleSelect = (payload: { items?: { mediaType?: string; url?: string }[] }) => {
+    const handleSelect = (payload: { items?: { mediaType?: string; url?: string; storage_path?: string }[] }) => {
       const items = Array.isArray(payload?.items) ? payload.items.filter((it) => !!it?.url) : []
       if (!items.length) return
       const imgSrc = (items.filter((it) => it.mediaType !== 'video').map((it) => it.url) as string[]).filter(Boolean)
+      const imgPaths = (items.filter((it) => it.mediaType !== 'video').map((it) => it.storage_path) as string[]).filter(Boolean)
       const vidSrc = (items.filter((it) => it.mediaType === 'video').map((it) => it.url) as string[]).filter(Boolean)
+      const vidPaths = (items.filter((it) => it.mediaType === 'video').map((it) => it.storage_path) as string[]).filter(Boolean)
 
       if (imgSrc.length) {
         const limit = 9
         const cur = images.length
         const addedCount = Math.min(imgSrc.length, Math.max(0, limit - cur))
         setImages((prev) => [...prev, ...imgSrc].slice(0, limit))
+        setPhotoPaths((prev) => [...prev, ...imgPaths].slice(0, prev.length + addedCount))
         setPhotoExpired(false)
         if (addedCount < imgSrc.length) {
           Taro.showToast({ title: '图片最多选用 9 张，已截取', icon: 'none' })
@@ -303,6 +319,7 @@ export default function GrowthEditPage() {
         const cur = videoUrls.length
         const addedCount = Math.min(vidSrc.length, Math.max(0, limit - cur))
         setVideoUrls((prev) => [...prev, ...vidSrc].slice(0, limit))
+        setVideoPaths((prev) => [...prev, ...vidPaths].slice(0, prev.length + addedCount))
         setVideoExpired(false)
         if (addedCount < vidSrc.length) {
           Taro.showToast({ title: '视频最多选用 2 个，已截取', icon: 'none' })
@@ -373,27 +390,49 @@ export default function GrowthEditPage() {
     }
   }
 
-  const loadDraft = (id: string) => {
-    const draft = loadDrafts().find((d) => d.id === id)
-    if (draft) {
-      setSelectedChildId(draft.child_id || '')
-      setSelectedChildName(draft.child_name || '')
-      setSelectedCourseId(draft.course_id || '')
-      setTitle(draft.title || '')
-      setContent(draft.content || '')
-      setImages(draft.photo_urls || [])
-      setVideoUrls(draft.video_urls || [])
-      setPhotoExpired(false)
-      setVideoExpired(false)
-      setDietOverall(draft.diet_overall || '')
-      setDietVegetable(draft.diet_vegetable || '')
-      setDietMeat(draft.diet_meat || '')
-      setDietSoup(draft.diet_soup || '')
-      setDietWater(draft.diet_water || '')
-      setNapStatus(draft.nap_status || '')
-      parseStool(draft.stool_status || '', setStoolStatus, setStoolTimes)
-      if (draft.record_date) setRecordDate(draft.record_date)
+  const applyDraft = (draft: any) => {
+    if (!draft) return
+    setSelectedChildId(draft.child_id || '')
+    setSelectedChildName(draft.child_name || '')
+    setSelectedCourseId(draft.course_id || '')
+    setTitle(draft.title || '')
+    setContent(draft.content || '')
+    const photoArr = Array.isArray(draft.photo_urls) ? draft.photo_urls : Array.isArray(draft.photo_paths) ? draft.photo_paths : []
+    const videoArr = Array.isArray(draft.video_urls) ? draft.video_urls : Array.isArray(draft.video_paths) ? draft.video_paths : []
+    setImages(draft.photo_expired ? [] : photoArr)
+    setVideoUrls(draft.video_expired ? [] : videoArr)
+    // 云端草稿存原始 path：编辑展示用重签 url，保存继续用 path
+    setPhotoPaths(Array.isArray(draft.photo_paths) ? draft.photo_paths : [])
+    setVideoPaths(Array.isArray(draft.video_paths) ? draft.video_paths : [])
+    setPhotoExpired(!!draft.photo_expired)
+    setVideoExpired(!!draft.video_expired)
+    if (typeof draft.media_remaining_days === 'number') setMediaRemainingDays(draft.media_remaining_days)
+    else setMediaRemainingDays(60)
+    setDietOverall(draft.diet_overall || '')
+    setDietVegetable(draft.diet_vegetable || '')
+    setDietMeat(draft.diet_meat || '')
+    setDietSoup(draft.diet_soup || '')
+    setDietWater(draft.diet_water || '')
+    setNapStatus(draft.nap_status || '')
+    parseStool(draft.stool_status || '', setStoolStatus, setStoolTimes)
+    if (draft.record_date) setRecordDate(draft.record_date)
+  }
+
+  // 加载草稿：优先云端（GET 单条，含重签 URL + 过期标记），失败/离线回退本地
+  const loadDraft = async (id: string) => {
+    try {
+      const res = await growthApi.draftsDetail(id)
+      const data = res?.data?.data || res?.data
+      if (data) {
+        setDraftId(data.id || id)
+        applyDraft(data)
+        return
+      }
+    } catch (err) {
+      console.error('[GrowthEdit] load cloud draft error, fallback local:', err)
     }
+    const localDraft = loadDrafts().find((d) => d.id === id)
+    if (localDraft) applyDraft(localDraft)
   }
 
   const openPicker = () => {
@@ -445,9 +484,11 @@ export default function GrowthEditPage() {
             const base64 = await readFileAsBase64(path, fileObj)
             const upload = await growthApi.uploadImage({ image: base64, name: 'growth.jpg' })
             const url = upload?.data?.url
+            const sp = upload?.data?.storage_path
             if (url) {
               setPhotoExpired(false)
               setImages((prev) => [...prev, url])
+              if (sp) setPhotoPaths((prev) => [...prev, sp])
             }
           } catch (err) {
             console.error('[GrowthEdit] upload image error:', err)
@@ -471,10 +512,12 @@ export default function GrowthEditPage() {
 
   const removeImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index))
+    setPhotoPaths((prev) => prev.filter((_, i) => i !== index))
   }
 
   const removeVideo = (index: number) => {
     setVideoUrls((prev) => prev.filter((_, i) => i !== index))
+    setVideoPaths((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handleChooseVideo = () => {
@@ -518,9 +561,11 @@ export default function GrowthEditPage() {
           }
           const upload = await growthApi.uploadVideo(tempFilePath)
           const url = upload?.data?.video_url
+          const sp = upload?.data?.storage_path
           if (url) {
             setVideoExpired(false)
             setVideoUrls((prev) => [...prev, url])
+            if (sp) setVideoPaths((prev) => [...prev, sp])
           } else {
             // 优先透传后端具体失败原因（业务失败：格式/大小/存储等）
             const reason = upload?.msg || ''
@@ -558,19 +603,29 @@ export default function GrowthEditPage() {
     })
   }
 
-  const handleSaveDraft = () => {
+  // 本地兜底：离线缓存草稿（结构保留，photo_urls 用重签 url 便于回退页展示）
+  const persistLocalDraft = (draft: any) => {
     const drafts = loadDrafts()
+    const idx = drafts.findIndex((d) => d.id === draft.id)
+    if (idx >= 0) drafts[idx] = draft
+    else drafts.unshift(draft)
+    saveDrafts(drafts)
+  }
+
+  const handleSaveDraft = async () => {
     const selectedCourse = courses.find((c) => c.id === selectedCourseId)
-    const draft = {
-      id: draftId || genDraftId(),
+    const draftIdNow = draftId || genDraftId()
+    // 云端草稿持久化用原始 storage path（不存签名 URL，避免过期）
+    const payload = {
+      id: draftIdNow,
       child_id: selectedChildId,
       child_name: selectedChildName,
       course_id: selectedCourseId,
       course_name: selectedCourse?.name || '',
       title,
       content,
-      photo_urls: images,
-      video_urls: videoUrls,
+      photo_paths: photoPaths,
+      video_paths: videoPaths,
       record_date: recordDate,
       diet_overall: dietOverall,
       diet_vegetable: dietVegetable,
@@ -579,16 +634,29 @@ export default function GrowthEditPage() {
       diet_water: dietWater,
       nap_status: napStatus,
       stool_status: formatStool(stoolStatus, stoolTimes),
-      updated_at: new Date().toISOString(),
     }
-    const idx = drafts.findIndex((d) => d.id === draft.id)
-    if (idx >= 0) {
-      drafts[idx] = draft
-    } else {
-      drafts.unshift(draft)
+    try {
+      const res = await growthApi.draftsUpsert(payload)
+      const d = res?.data?.data || res?.data
+      if (d?.id) {
+        setDraftId(d.id)
+        // 云端保存成功后可清理同 id 的本地旧缓存（保留最新一份做离线兜底）
+        persistLocalDraft({ ...payload, id: d.id, photo_urls: images, video_urls: videoUrls, updated_at: new Date().toISOString() })
+        Taro.showToast({ title: '已存草稿', icon: 'success' })
+      } else {
+        throw new Error('云端草稿保存失败')
+      }
+    } catch (err) {
+      console.error('[GrowthEdit] cloud save draft error, fallback local:', err)
+      persistLocalDraft({
+        ...payload,
+        id: draftIdNow,
+        photo_urls: images,
+        video_urls: videoUrls,
+        updated_at: new Date().toISOString(),
+      })
+      Taro.showToast({ title: '已存草稿(本地)', icon: 'success' })
     }
-    saveDrafts(drafts)
-    Taro.showToast({ title: '已存草稿', icon: 'success' })
     setTimeout(() => Taro.navigateBack(), 600)
   }
 
@@ -599,6 +667,10 @@ export default function GrowthEditPage() {
     }
     if (!title.trim()) {
       Taro.showToast({ title: '请输入标题', icon: 'none' })
+      return
+    }
+    if (mediaExpiredDisable) {
+      Taro.showToast({ title: '照片/视频已过期，请重新上传', icon: 'none', duration: 2500 })
       return
     }
     setSaving(true)
@@ -634,7 +706,10 @@ export default function GrowthEditPage() {
           },
           currentRole?.id,
         )
-        if (draftId) removeDraftById(draftId)
+        if (draftId) {
+          try { await growthApi.draftsDelete(draftId) } catch (e) { console.warn('[GrowthEdit] delete cloud draft warn:', e) }
+          removeDraftById(draftId)
+        }
       }
       Taro.showToast({ title: '已发布', icon: 'success' })
       setTimeout(() => Taro.navigateBack(), 600)
@@ -829,6 +904,18 @@ export default function GrowthEditPage() {
         </View>
       </View>
 
+      {mediaNotice && (
+        <View
+          className={`mx-4 mt-2 px-3 py-2 rounded-lg ${
+            mediaExpiredDisable ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'
+          }`}
+        >
+          <Text className={`block text-xs ${mediaExpiredDisable ? 'text-red-500' : 'text-amber-600'}`}>
+            {mediaNotice}
+          </Text>
+        </View>
+      )}
+
       {/* 底部操作栏 */}
       <View
         style={{
@@ -859,7 +946,7 @@ export default function GrowthEditPage() {
           </View>
         )}
         <View style={{ flex: 1 }}>
-          <Button className="w-full" onClick={() => { if (!isAgentAdmin) handleSave() }} disabled={isAgentAdmin || saving || uploading}>
+          <Button className="w-full" onClick={() => { if (!isAgentAdmin) handleSave() }} disabled={isAgentAdmin || saving || uploading || mediaExpiredDisable}>
             <Text className="text-white">{saving ? '发布中...' : '发布'}</Text>
           </Button>
         </View>

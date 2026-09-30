@@ -376,13 +376,13 @@ export const growthApi = {
   uploadVideo: async (filePath: string) => {
     // Taro.uploadFile 的 res.data 在小程序/H5 端均为【字符串】（未自动 JSON 解析），
     // 需先 parse 成 { code, msg, data } 才能取到具体失败原因
-    const parseBody = (raw: any): ApiResponse<{ video_url?: string }> | null => {
+    const parseBody = (raw: any): ApiResponse<{ video_url?: string; storage_path?: string }> | null => {
       if (!raw) return null
-      if (typeof raw === 'object') return raw as ApiResponse<{ video_url?: string }>
+      if (typeof raw === 'object') return raw as ApiResponse<{ video_url?: string; storage_path?: string }>
       if (typeof raw === 'string') {
         try {
           const parsed = JSON.parse(raw)
-          if (parsed && typeof parsed === 'object') return parsed as ApiResponse<{ video_url?: string }>
+          if (parsed && typeof parsed === 'object') return parsed as ApiResponse<{ video_url?: string; storage_path?: string }>
         } catch (e) {
           // 非 JSON，继续返回 null
         }
@@ -469,4 +469,18 @@ export const growthApi = {
   // 批量删除素材（管理/超管删任意，教师删自己的）
   libraryDeleteBatch: (ids: string[]) =>
     request({ url: '/api/growth-records/library/batch', method: 'DELETE', data: { ids } }),
+
+  // ============ 云端草稿 ============
+  // upsert（带 id 且属于本人则更新，否则新建；返回 { id, updated_at }）
+  draftsUpsert: (data: { id?: string; child_id?: string; child_name?: string; course_id?: string; course_name?: string; title?: string; content?: string; photo_paths?: string[]; video_paths?: string[]; record_date?: string; diet_overall?: string; diet_vegetable?: string; diet_meat?: string; diet_soup?: string; diet_water?: string; nap_status?: string; stool_status?: string }) =>
+    request({ url: '/api/growth-records/drafts', method: 'POST', data }),
+
+  // 草稿列表（updated_at 倒序，每条含重签 URL + expired 标记）
+  draftsList: () => request({ url: '/api/growth-records/drafts', method: 'GET' }),
+
+  // 草稿单条（含 photo_paths/video_paths + 重签 URL + expired + media_remaining_days）
+  draftsDetail: (id: string) => request({ url: `/api/growth-records/drafts/${id}`, method: 'GET' }),
+
+  // 删除草稿（仅本人）
+  draftsDelete: (id: string) => request({ url: `/api/growth-records/drafts/${id}`, method: 'DELETE' }),
 }

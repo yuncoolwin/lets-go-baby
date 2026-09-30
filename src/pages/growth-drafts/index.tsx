@@ -19,8 +19,22 @@ interface GrowthDraft {
   title?: string
   content?: string
   photo_urls?: string[]
+  video_urls?: string[]
+  photo_paths?: string[]
+  video_paths?: string[]
   record_date?: string
   updated_at?: string
+}
+
+const loadCloudDrafts = async (): Promise<GrowthDraft[] | null> => {
+  try {
+    const res = await Network.request({ url: '/api/growth-records/drafts', method: 'GET' })
+    const list = res?.data?.data
+    return Array.isArray(list) && list.length ? (list as GrowthDraft[]) : null
+  } catch (err) {
+    console.error('[GrowthDrafts] load cloud drafts error:', err)
+    return null
+  }
 }
 
 const loadDrafts = (): GrowthDraft[] => {
@@ -88,7 +102,25 @@ export default function GrowthDraftsPage() {
     }
   }, [])
 
-  const refresh = () => setDrafts(loadDrafts())
+  // 首次进入优先拉取云端草稿（updated_at 倒序），离线/失败回退本地
+  useEffect(() => {
+    let cancelled = false
+    const boot = async () => {
+      const cloud = await loadCloudDrafts()
+      if (!cancelled && cloud) setDrafts(cloud)
+    }
+    boot()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const refresh = async () => {
+    const cloud = await loadCloudDrafts()
+    if (cloud) setDrafts(cloud)
+    else setDrafts(loadDrafts())
+  }
 
   const handleDelete = (id: string) => {
     Taro.showModal({
@@ -96,6 +128,9 @@ export default function GrowthDraftsPage() {
       content: '确定删除这条草稿吗？',
       success: (res) => {
         if (res.confirm) {
+          Network.request({ url: `/api/growth-records/drafts/${id}`, method: 'DELETE' }).catch((e) =>
+            console.warn('[GrowthDrafts] delete cloud draft warn:', e),
+          )
           saveDrafts(loadDrafts().filter((d) => d.id !== id))
           refresh()
         }
@@ -109,8 +144,12 @@ export default function GrowthDraftsPage() {
       content: '确定清空所有草稿吗？该操作不可恢复。',
       success: (res) => {
         if (res.confirm) {
+          const local = loadDrafts()
+          local.forEach((d) => {
+            Network.request({ url: `/api/growth-records/drafts/${d.id}`, method: 'DELETE' }).catch(() => {})
+          })
           saveDrafts([])
-          refresh()
+          setDrafts([])
         }
       },
     })
@@ -126,9 +165,38 @@ export default function GrowthDraftsPage() {
       id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       updated_at: new Date().toISOString(),
     }
-    saveDrafts([newDraft, ...loadDrafts()])
-    refresh()
-    Taro.showToast({ title: '已复制草稿', icon: 'success' })
+    // 云端复制：基于 storage path 重新 upsert（生成新草稿）
+    Network.request({
+      url: '/api/growth-records/drafts',
+      method: 'POST',
+      data: {
+        id: newDraft.id,
+        child_id: draft.child_id,
+        child_name: draft.child_name,
+        course_id: draft.course_id,
+        course_name: draft.course_name,
+        title: draft.title,
+        content: draft.content,
+        photo_paths: draft.photo_paths || [],
+        video_paths: draft.video_paths || [],
+        record_date: draft.record_date,
+      },
+    })
+      .then((res) => {
+        const d = res?.data?.data
+        if (d?.id) {
+          saveDrafts([{ ...newDraft, id: d.id }, ...loadDrafts()])
+        } else {
+          saveDrafts([newDraft, ...loadDrafts()])
+        }
+        refresh()
+        Taro.showToast({ title: '已复制草稿', icon: 'success' })
+      })
+      .catch(() => {
+        saveDrafts([newDraft, ...loadDrafts()])
+        refresh()
+        Taro.showToast({ title: '已复制草稿', icon: 'success' })
+      })
   }
 
   return (

@@ -236,6 +236,181 @@ export class GrowthService {
     return { error: false, urls: res.urls, unavailable: res.unavailable };
   }
 
+  /** 为纯 storage path 列表重新签名 URL（图片 24h / 视频 7 天）。不可用的 path 进 unavailable（用于过期判定）。 */
+  private async signByPaths(paths: string[], ttl: number): Promise<{ urls: string[]; unavailable: string[] }> {
+    const list = (paths || []).filter((p) => typeof p === 'string' && p);
+    const urls: string[] = [];
+    const unavailable: string[] = [];
+    for (const p of list) {
+      const { data } = await this.client.storage.from('growth').createSignedUrl(p, ttl);
+      if (data?.signedUrl) urls.push(data.signedUrl);
+      else unavailable.push(p);
+    }
+    return { urls, unavailable };
+  }
+
+  /** 从 storage path 中解析媒体创建时间戳（毫秒）。image: growth/{ts}_x / video: growth/videos/{uid}/{ts}-x */
+  private parseStorageTs(thePath: string): number | null {
+    if (!thePath) return null;
+    const seg = (thePath.endsWith('/') ? thePath.slice(0, -1) : thePath).split('/').pop() || '';
+    const m = seg.match(/^(\d{13})/);
+    if (m) return Number(m[1]);
+    const top = thePath.split('/')[1] || '';
+    const m2 = top.match(/^(\d{13})/);
+    return m2 ? Number(m2[1]) : null;
+  }
+
+  /** 对草稿的 photo/video path 统一重签，返回可用 URL + 过期标记(任一失效即置过期) + 最短剩余保留天数 */
+  private async signDraftMedia(photoPaths: string[], videoPaths: string[]) {
+    const [pSign, vSign] = await Promise.all([
+      this.signByPaths(photoPaths || [], SIGNED_URL_TTL),
+      this.signByPaths(videoPaths || [], VIDEO_SIGNED_URL_TTL),
+    ]);
+    const photoExpired = (photoPaths || []).length > 0 && pSign.unavailable.length > 0;
+    const videoExpired = (videoPaths || []).length > 0 && vSign.unavailable.length > 0;
+    const remaining = [...(photoPaths || []), ...(videoPaths || [])].reduce((min, p) => {
+      const ts = this.parseStorageTs(p);
+      if (!ts) return min;
+      const days = Math.floor((MEDIA_RETENTION_DAYS * 24 * 60 * 60 * 1000 - (Date.now() - ts)) / (24 * 60 * 60 * 1000));
+      return Math.min(min, Math.max(0, days));
+    }, MEDIA_RETENTION_DAYS);
+    return {
+      photo_urls: pSign.urls,
+      video_urls: vSign.urls,
+      photo_expired: photoExpired,
+      video_expired: videoExpired,
+      media_remaining_days: remaining,
+    };
+  }
+
+  /** 云端草稿 upsert：教职身份；带 id 且属于本人则更新，否则新建。返回 { id, updated_at } */
+  async draftsUpSert(userId: string, body: any) {
+    const identity = await this.getUserIdentity(userId);
+    if (!identity || identity.role_type === 'parent') {
+      return { error: true, code: 403, msg: '家长无权保存草稿' };
+    }
+    const now = new Date().toISOString();
+    const fields: Record<string, any> = {
+      user_id: userId,
+      child_id: body?.child_id || null,
+      child_name: body?.child_name || null,
+      course_id: body?.course_id || null,
+      course_name: body?.course_name || null,
+      title: body?.title || null,
+      content: body?.content || null,
+      photo_paths: Array.isArray(body?.photo_paths) ? body.photo_paths : [],
+      video_paths: Array.isArray(body?.video_paths) ? body.video_paths : [],
+      record_date: body?.record_date || null,
+      diet_overall: body?.diet_overall || null,
+      diet_vegetable: body?.diet_vegetable || null,
+      diet_meat: body?.diet_meat || null,
+      diet_soup: body?.diet_soup || null,
+      diet_water: body?.diet_water || null,
+      nap_status: body?.nap_status || null,
+      stool_status: body?.stool_status || null,
+    };
+    if (body?.id) {
+      const { data: existing } = await this.client
+        .from('growth_drafts')
+        .select('id')
+        .eq('id', body.id)
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (existing) {
+        const { data, error } = await this.client
+          .from('growth_drafts')
+          .update({ ...fields, updated_at: now })
+          .eq('id', body.id)
+          .select('id, updated_at')
+          .single();
+        if (error) return { error: true, code: 500, msg: `草稿更新失败: ${error.message}` };
+        return { error: false, id: data.id, updated_at: data.updated_at };
+      }
+    }
+    const { data, error } = await this.client
+      .from('growth_drafts')
+      .insert({ ...(body?.id ? { id: body.id } : {}), ...fields, created_at: now, updated_at: now })
+      .select('id, updated_at')
+      .single();
+    if (error) return { error: true, code: 500, msg: `草稿保存失败: ${error.message}` };
+    return { error: false, id: data.id, updated_at: data.updated_at };
+  }
+
+  /** 云端草稿列表（当前用户，updated_at 倒序），每条附带重签 URL + 过期标记 */
+  async draftsList(userId: string) {
+    const identity = await this.getUserIdentity(userId);
+    if (!identity || identity.role_type === 'parent') {
+      return { error: true, code: 403, msg: '家长无权查看草稿' };
+    }
+    const { data, error } = await this.client
+      .from('growth_drafts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false });
+    if (error) return { error: true, code: 500, msg: `草稿加载失败: ${error.message}` };
+    const rows = data || [];
+    const drafts = await Promise.all(
+      rows.map(async (r) => {
+        const m = await this.signDraftMedia(r.photo_paths || [], r.video_paths || []);
+        return {
+          id: r.id, child_id: r.child_id, child_name: r.child_name, course_id: r.course_id, course_name: r.course_name,
+          title: r.title, content: r.content, photo_paths: r.photo_paths || [], video_paths: r.video_paths || [],
+          photo_urls: m.photo_urls, video_urls: m.video_urls, photo_expired: m.photo_expired, video_expired: m.video_expired,
+          record_date: r.record_date, diet_overall: r.diet_overall, diet_vegetable: r.diet_vegetable, diet_meat: r.diet_meat,
+          diet_soup: r.diet_soup, diet_water: r.diet_water, nap_status: r.nap_status, stool_status: r.stool_status,
+          created_at: r.created_at, updated_at: r.updated_at,
+        };
+      }),
+    );
+    return { error: false, drafts };
+  }
+
+  /** 云端草稿单条（本人），附带重签 URL + 过期标记 + 最短剩余天数 */
+  async draftsFindOne(userId: string, id: string) {
+    const identity = await this.getUserIdentity(userId);
+    if (!identity || identity.role_type === 'parent') {
+      return { error: true, code: 403, msg: '家长无权查看草稿' };
+    }
+    const { data, error } = await this.client
+      .from('growth_drafts')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) return { error: true, code: 500, msg: `草稿加载失败: ${error.message}` };
+    if (!data) return { error: true, code: 404, msg: '草稿不存在' };
+    const m = await this.signDraftMedia(data.photo_paths || [], data.video_paths || []);
+    return {
+      error: false,
+      draft: {
+        id: data.id, child_id: data.child_id, child_name: data.child_name, course_id: data.course_id, course_name: data.course_name,
+        title: data.title, content: data.content, photo_paths: data.photo_paths || [], video_paths: data.video_paths || [],
+        photo_urls: m.photo_urls, video_urls: m.video_urls, photo_expired: m.photo_expired, video_expired: m.video_expired,
+        media_remaining_days: m.media_remaining_days, record_date: data.record_date, diet_overall: data.diet_overall,
+        diet_vegetable: data.diet_vegetable, diet_meat: data.diet_meat, diet_soup: data.diet_soup, diet_water: data.diet_water,
+        nap_status: data.nap_status, stool_status: data.stool_status, created_at: data.created_at, updated_at: data.updated_at,
+      },
+    };
+  }
+
+  /** 云端草稿删除：仅本人可删 */
+  async draftsDelete(userId: string, id: string) {
+    const identity = await this.getUserIdentity(userId);
+    if (!identity || identity.role_type === 'parent') {
+      return { error: true, code: 403, msg: '家长无权删除草稿' };
+    }
+    const { data, error } = await this.client
+      .from('growth_drafts')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select('id')
+      .maybeSingle();
+    if (error) return { error: true, code: 500, msg: `草稿删除失败: ${error.message}` };
+    if (!data) return { error: true, code: 404, msg: '草稿不存在' };
+    return { error: false };
+  }
+
   /** 截取视频第一帧生成缩略图（后端 ffmpeg）。返回 { storagePath, signedUrl }；ffmpeg 不可用/失败时返回 null（不阻断上传）。 */
   private async generateVideoThumbnail(
     userId: string,
@@ -398,7 +573,7 @@ export class GrowthService {
       console.warn('[Growth] auto-library video insert warn:', (e as Error)?.message);
     }
 
-    return { video_url: videoUrl };
+    return { video_url: videoUrl, storage_path: path };
   }
 
   async uploadImage(userId: string, body: { image: string; name?: string }) {
@@ -475,7 +650,7 @@ export class GrowthService {
       console.warn('[Growth] auto-library image insert warn:', (e as Error)?.message);
     }
 
-    return { url };
+    return { url, storage_path: path };
   }
 
   /**
