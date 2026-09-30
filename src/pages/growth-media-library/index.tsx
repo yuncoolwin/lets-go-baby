@@ -668,7 +668,7 @@ export default function GrowthMediaLibrary() {
         >
           <Video src={playerUrl} autoplay controls className="w-full rounded-xl" style={{ height: '50vh', backgroundColor: '#FFF8F0' }} />
           <View style={{ display: 'flex', flexDirection: 'row', gap: 16, marginTop: 28 }}>
-            {!isH5 && (
+            {!isH5() && (
               <Button size="sm" variant="secondary" disabled={saving} onClick={saveVideoToAlbum}>
                 {saving ? '保存中...' : '保存到相册'}
               </Button>
