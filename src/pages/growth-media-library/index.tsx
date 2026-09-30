@@ -13,6 +13,7 @@ interface LibraryItem {
   unavailable: boolean
   uploader_id: string
   can_delete: boolean
+  thumbnail_url?: string | null
   created_at: string
 }
 
@@ -135,7 +136,7 @@ export default function GrowthMediaLibrary() {
 
   const handleChooseImage = () => {
     Taro.chooseImage({
-      count: 9,
+      count: 20,
       sizeType: ['compressed'],
       sourceType: ['album', 'camera'],
       success: async (res) => {
@@ -372,8 +373,16 @@ export default function GrowthMediaLibrary() {
                       {item.media_type === 'image' ? (
                         <Image src={item.url || ''} mode="aspectFill" className="w-full h-full rounded-lg" />
                       ) : (
-                        <View className="w-full h-full rounded-lg flex items-center justify-center overflow-hidden" style={{ backgroundColor: '#FFF8F0' }}>
-                          <Play size={28} color="#E8651A" />
+                        <View className="w-full h-full rounded-lg flex items-center justify-center overflow-hidden relative" style={{ backgroundColor: '#FFF8F0' }}>
+                          {item.thumbnail_url ? (
+                            <Image src={item.thumbnail_url} mode="aspectFill" className="w-full h-full absolute inset-0" />
+                          ) : null}
+                          <View
+                            className="rounded-full flex items-center justify-center relative"
+                            style={{ width: 40, height: 40, backgroundColor: 'rgba(0,0,0,0.35)' }}
+                          >
+                            <Play size={20} color="#fff" />
+                          </View>
                         </View>
                       )}
                     </View>

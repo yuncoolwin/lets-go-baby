@@ -7,6 +7,9 @@ import { WechatService } from '@/auth/wechat.service';
 import { getActiveChildIds, isChildActive } from '@/common/active-children.util';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const sharp = require('sharp');
+import { execSync } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const RECORD_TYPE = 'daily';
 /** 图片 base64 上限：4MB 原始体积（base64 膨胀约 1.37 倍） */
@@ -233,6 +236,48 @@ export class GrowthService {
     return { error: false, urls: res.urls, unavailable: res.unavailable };
   }
 
+  /** 截取视频第一帧生成缩略图（后端 ffmpeg）。返回 { storagePath, signedUrl }；ffmpeg 不可用/失败时返回 null（不阻断上传）。 */
+  private async generateVideoThumbnail(
+    userId: string,
+    mp4Buffer: Buffer,
+  ): Promise<{ storagePath: string; signedUrl: string | null } | null> {
+    const tmpVideo = path.join('/tmp', `thumb_${crypto.randomBytes(6).toString('hex')}.mp4`);
+    const tmpImg = path.join('/tmp', `thumb_${crypto.randomBytes(6).toString('hex')}.jpg`);
+    try {
+      fs.writeFileSync(tmpVideo, mp4Buffer);
+      execSync(
+        `ffmpeg -y -loglevel error -ss 0.1 -i "${tmpVideo}" -map 0:v:0 -frames:v 1 -vf "scale='min(480,iw)':-2" -q:v 4 "${tmpImg}"`,
+        { timeout: 20000, stdio: 'pipe' },
+      );
+      const img = fs.readFileSync(tmpImg);
+      if (!img || img.length === 0) return null;
+      const storagePath = `growth/library/thumbs/${userId}/${Date.now()}-${crypto.randomBytes(4).toString('hex')}.jpg`;
+      const { error } = await this.client.storage.from('growth').upload(storagePath, img, {
+        contentType: 'image/jpeg',
+      });
+      if (error) {
+        console.warn('[Growth] thumbnail upload warn:', error.message);
+        return null;
+      }
+      const { data: s } = await this.client.storage.from('growth').createSignedUrl(storagePath, VIDEO_SIGNED_URL_TTL);
+      return { storagePath, signedUrl: s?.signedUrl || null };
+    } catch (e) {
+      console.warn('[Growth] thumbnail generation warn:', (e as Error)?.message);
+      return null;
+    } finally {
+      try {
+        fs.unlinkSync(tmpVideo);
+      } catch {
+        /* ignore */
+      }
+      try {
+        fs.unlinkSync(tmpImg);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   async uploadVideo(userId: string, file: Express.Multer.File) {
     // 鉴权：家长/未登录 403（教师与管理员可传）
     const identity = await this.getUserIdentity(userId);
@@ -282,11 +327,14 @@ export class GrowthService {
 
     // 上传成功自动同步素材箱（写库失败仅告警，不阻断成长档案视频上传）
     try {
+      const thumb = await this.generateVideoThumbnail(userId, file.buffer);
       await this.client.from('growth_media_library').insert({
         media_type: 'video',
         storage_path: path,
         url: videoUrl || null,
         uploader_id: userId,
+        thumbnail_url: thumb ? thumb.signedUrl : null,
+        thumbnail_storage_path: thumb ? thumb.storagePath : null,
         created_at: new Date().toISOString(),
       });
     } catch (e) {
@@ -497,6 +545,8 @@ export class GrowthService {
     const { data: signed } = await this.client.storage.from('growth').createSignedUrl(path, VIDEO_SIGNED_URL_TTL);
     const signedUrl = signed?.signedUrl || null;
 
+    const thumb = await this.generateVideoThumbnail(userId, file.buffer);
+
     const { data: row, error: insertErr } = await this.client
       .from('growth_media_library')
       .insert({
@@ -504,6 +554,8 @@ export class GrowthService {
         storage_path: path,
         url: signedUrl || null,
         uploader_id: userId,
+        thumbnail_url: thumb ? thumb.signedUrl : null,
+        thumbnail_storage_path: thumb ? thumb.storagePath : null,
       })
       .select()
       .single();
@@ -552,6 +604,13 @@ export class GrowthService {
         signedUrl = s?.signedUrl || null;
         if (!signedUrl) unavailable = true;
       }
+      // 视频缩略图：单独重签（7 天），失败/为空则回退 null（前端回退占位样式）
+      let thumbUrl: string | null = null;
+      const thumbPath = row.thumbnail_storage_path || row.thumbnail_url;
+      if (row.media_type === 'video' && thumbPath) {
+        const { data: ts } = await this.client.storage.from('growth').createSignedUrl(thumbPath, VIDEO_SIGNED_URL_TTL);
+        thumbUrl = ts?.signedUrl || null;
+      }
       const isAdmin = this.isAdminRole(identity.role_type);
       items.push({
         id: row.id,
@@ -560,6 +619,7 @@ export class GrowthService {
         unavailable,
         uploader_id: row.uploader_id,
         can_delete: isAdmin || row.uploader_id === userId,
+        thumbnail_url: thumbUrl,
         created_at: row.created_at,
       });
     }
@@ -592,9 +652,12 @@ export class GrowthService {
       return { error: true, code: 403, msg: '无权删除他人上传的素材' };
     }
 
-    if (row.storage_path) {
+    const rmPaths: string[] = [];
+    if (row.storage_path) rmPaths.push(row.storage_path);
+    if (row.thumbnail_storage_path) rmPaths.push(row.thumbnail_storage_path);
+    if (rmPaths.length) {
       try {
-        const { error: rmErr } = await this.client.storage.from('growth').remove([row.storage_path]);
+        const { error: rmErr } = await this.client.storage.from('growth').remove(rmPaths);
         if (rmErr) {
           console.error(`[Growth] library delete file error (${id}):`, rmErr.message);
         }
@@ -998,12 +1061,15 @@ export class GrowthService {
     const libCutoff = new Date(Date.now() - MEDIA_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
     const { data: expiredLib } = await this.client
       .from('growth_media_library')
-      .select('id, storage_path')
+      .select('id, storage_path, thumbnail_storage_path')
       .lt('created_at', libCutoff);
     for (const item of expiredLib || []) {
-      if (item.storage_path) {
+      const rmPaths: string[] = [];
+      if (item.storage_path) rmPaths.push(item.storage_path);
+      if (item.thumbnail_storage_path) rmPaths.push(item.thumbnail_storage_path);
+      if (rmPaths.length) {
         try {
-          await this.client.storage.from('growth').remove([item.storage_path]);
+          await this.client.storage.from('growth').remove(rmPaths);
         } catch (e) {
           console.error(`[Growth] cleanup library file error (${item.id}):`, (e as Error)?.message);
         }

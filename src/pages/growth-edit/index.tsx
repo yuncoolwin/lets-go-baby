@@ -818,6 +818,17 @@ export default function GrowthEditPage() {
             )}
           </View>
         </View>
+
+        {/* 素材箱（独立一行，混选复用） */}
+        <View className="pt-4">
+          <Button
+            className="w-full"
+            variant="ghost"
+            onClick={() => Taro.navigateTo({ url: '/pages/growth-media-library/index?source=edit' })}
+          >
+            <Text className="text-primary">从素材箱选择</Text>
+          </Button>
+        </View>
       </View>
 
       {/* 底部操作栏 */}
@@ -837,15 +848,6 @@ export default function GrowthEditPage() {
           gap: '12px',
         }}
       >
-        <View style={{ flex: 1 }}>
-          <Button
-            variant="ghost"
-            className="w-full"
-            onClick={() => Taro.navigateTo({ url: '/pages/growth-media-library/index?source=edit' })}
-          >
-            <Text className="text-primary">素材箱</Text>
-          </Button>
-        </View>
         {!recordId && (
           <View style={{ flex: 1 }}>
             <Button
