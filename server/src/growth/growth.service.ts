@@ -278,7 +278,22 @@ export class GrowthService {
 
     // private bucket：返回签名 URL（7 天有效，读端会按需重新签名）
     const { data: signed } = await this.client.storage.from('growth').createSignedUrl(path, VIDEO_SIGNED_URL_TTL);
-    return { video_url: signed?.signedUrl || null };
+    const videoUrl = signed?.signedUrl || null;
+
+    // 上传成功自动同步素材箱（写库失败仅告警，不阻断成长档案视频上传）
+    try {
+      await this.client.from('growth_media_library').insert({
+        media_type: 'video',
+        storage_path: path,
+        url: videoUrl || null,
+        uploader_id: userId,
+        created_at: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.warn('[Growth] auto-library video insert warn:', (e as Error)?.message);
+    }
+
+    return { video_url: videoUrl };
   }
 
   async uploadImage(userId: string, body: { image: string; name?: string }) {
@@ -340,7 +355,22 @@ export class GrowthService {
 
     // private bucket：返回签名 URL（24 小时有效，读端会按需重新签名）
     const { data: signed } = await this.client.storage.from('growth').createSignedUrl(path, SIGNED_URL_TTL);
-    return { url: signed?.signedUrl || null };
+    const url = signed?.signedUrl || null;
+
+    // 上传成功自动同步素材箱（写库失败仅告警，不阻断成长档案上传）
+    try {
+      await this.client.from('growth_media_library').insert({
+        media_type: 'image',
+        storage_path: path,
+        url: url || null,
+        uploader_id: userId,
+        created_at: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.warn('[Growth] auto-library image insert warn:', (e as Error)?.message);
+    }
+
+    return { url };
   }
 
   /**

@@ -280,31 +280,35 @@ export default function GrowthEditPage() {
 
   // 监听素材箱选择结果（从素材箱选 → 回填图片/视频）
   useEffect(() => {
-    const handleSelect = (payload: { mediaType?: string; urls?: string[] }) => {
-      const list = Array.isArray(payload?.urls) ? payload.urls.filter((u) => !!u) : []
-      if (!list.length) return
-      if (payload?.mediaType === 'video') {
-        const limit = 2
-        const cur = videoUrls.length
-        setVideoUrls((prev) => [...prev, ...list].slice(0, limit))
-        const added = Math.max(0, limit - cur)
-        if (added < list.length) {
-          Taro.showToast({ title: '视频最多选用 2 个，已截取', icon: 'none' })
-        } else {
-          Taro.showToast({ title: `已选用 ${added} 个视频`, icon: 'success' })
-        }
-        setVideoExpired(false)
-      } else {
+    const handleSelect = (payload: { items?: { mediaType?: string; url?: string }[] }) => {
+      const items = Array.isArray(payload?.items) ? payload.items.filter((it) => !!it?.url) : []
+      if (!items.length) return
+      const imgSrc = (items.filter((it) => it.mediaType !== 'video').map((it) => it.url) as string[]).filter(Boolean)
+      const vidSrc = (items.filter((it) => it.mediaType === 'video').map((it) => it.url) as string[]).filter(Boolean)
+
+      if (imgSrc.length) {
         const limit = 9
         const cur = images.length
-        setImages((prev) => [...prev, ...list].slice(0, limit))
-        const added = Math.max(0, limit - cur)
-        if (added < list.length) {
+        const addedCount = Math.min(imgSrc.length, Math.max(0, limit - cur))
+        setImages((prev) => [...prev, ...imgSrc].slice(0, limit))
+        setPhotoExpired(false)
+        if (addedCount < imgSrc.length) {
           Taro.showToast({ title: '图片最多选用 9 张，已截取', icon: 'none' })
         } else {
-          Taro.showToast({ title: `已选用 ${added} 张图片`, icon: 'success' })
+          Taro.showToast({ title: `已选用 ${addedCount} 张图片`, icon: 'success' })
         }
-        setPhotoExpired(false)
+      }
+      if (vidSrc.length) {
+        const limit = 2
+        const cur = videoUrls.length
+        const addedCount = Math.min(vidSrc.length, Math.max(0, limit - cur))
+        setVideoUrls((prev) => [...prev, ...vidSrc].slice(0, limit))
+        setVideoExpired(false)
+        if (addedCount < vidSrc.length) {
+          Taro.showToast({ title: '视频最多选用 2 个，已截取', icon: 'none' })
+        } else {
+          Taro.showToast({ title: `已选用 ${addedCount} 个视频`, icon: 'success' })
+        }
       }
     }
     Taro.eventCenter.on('GROWTH_LIBRARY_SELECT', handleSelect)
@@ -779,16 +783,6 @@ export default function GrowthEditPage() {
               </View>
             )}
           </View>
-          {images.length < 9 && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="mt-2"
-              onClick={() => Taro.navigateTo({ url: '/pages/growth-media-library/index?source=edit&mediaType=image' })}
-            >
-              <Text className="text-primary">从素材箱选图片</Text>
-            </Button>
-          )}
         </View>
 
         {/* 视频 */}
@@ -823,16 +817,6 @@ export default function GrowthEditPage() {
               </View>
             )}
           </View>
-          {videoUrls.length < 2 && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="mt-2"
-              onClick={() => Taro.navigateTo({ url: '/pages/growth-media-library/index?source=edit&mediaType=video' })}
-            >
-              <Text className="text-primary">从素材箱选视频</Text>
-            </Button>
-          )}
         </View>
       </View>
 
@@ -853,6 +837,15 @@ export default function GrowthEditPage() {
           gap: '12px',
         }}
       >
+        <View style={{ flex: 1 }}>
+          <Button
+            variant="ghost"
+            className="w-full"
+            onClick={() => Taro.navigateTo({ url: '/pages/growth-media-library/index?source=edit' })}
+          >
+            <Text className="text-primary">素材箱</Text>
+          </Button>
+        </View>
         {!recordId && (
           <View style={{ flex: 1 }}>
             <Button
