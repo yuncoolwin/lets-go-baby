@@ -355,46 +355,56 @@ export default function GrowthMediaLibrary() {
   const saveVideoToAlbum = async () => {
     if (saving || !playerUrl) return
     setSaving(true)
-    try {
-      const { authSetting } = (await Taro.getSetting({})) as any
-      const granted = authSetting && (authSetting as any)['scope.writePhotosAlbum']
-      if (granted === false) {
-        const m = await Taro.showModal({
-          title: '需要相册权限',
-          content: '请在设置中开启「保存到相册」权限后重试',
-          confirmText: '去设置',
-          cancelText: '取消',
-        })
-        if (m.confirm) {
-          await Taro.openSetting({})
-        }
-        setSaving(false)
-        return
-      }
-      if (!granted) {
-        try {
-          await Taro.authorize({ scope: 'scope.writePhotosAlbum' })
-        } catch (e) {
-          Taro.showToast({ title: '未获得相册权限', icon: 'none' })
-          setSaving(false)
-          return
-        }
-      }
+    const download = async () => {
       const dl: any = await Network.downloadFile({ url: playerUrl })
       if (!dl || dl.statusCode !== 200 || !dl.tempFilePath) {
-        Taro.showToast({ title: '视频下载失败,请重试', icon: 'none' })
-        setSaving(false)
-        return
+        throw new Error('DOWNLOAD_FAIL')
       }
+      return dl.tempFilePath
+    }
+    const save = (filePath: string) => Taro.saveVideoToPhotosAlbum({ filePath })
+    const isPermError = (e: any) =>
+      !!(e && e.errMsg && /auth.*deny|auth.*fail|denied|deny|permission|scope|authoriz/.test(e.errMsg))
+    try {
+      // 优先直接保存：saveVideoToPhotosAlbum 内部会处理授权（已授权直接成功，
+      // 未授权弹出授权框），避免对已授权 scope 调 authorize 被 reject 而误判
       try {
-        await Taro.saveVideoToPhotosAlbum({ filePath: dl.tempFilePath })
+        await save(await download())
         Taro.showToast({ title: '已保存到相册', icon: 'success' })
+        return
       } catch (e: any) {
-        const denied = e && e.errMsg && /auth|denied|permission|authoriz/i.test(e.errMsg)
-        Taro.showToast({ title: denied ? '未获得相册权限' : '保存失败,请重试', icon: 'none' })
+        if (!isPermError(e)) {
+          Taro.showToast({ title: '保存失败,请重试', icon: 'none' })
+          return
+        }
+        // 权限类失败：先引导授权，再重试保存一次
+        try {
+          await Taro.authorize({ scope: 'scope.writePhotosAlbum' })
+          await save(await download())
+          Taro.showToast({ title: '已保存到相册', icon: 'success' })
+          return
+        } catch (e2: any) {
+          if (isPermError(e2)) {
+            const m = await Taro.showModal({
+              title: '需要相册权限',
+              content: '请在设置中开启「保存到相册」权限后重试',
+              confirmText: '去设置',
+              cancelText: '取消',
+            })
+            if (m.confirm) {
+              await Taro.openSetting({})
+            }
+          }
+          Taro.showToast({ title: '未获得相册权限', icon: 'none' })
+        }
       }
     } catch (e) {
-      Taro.showToast({ title: '视频下载失败,请重试', icon: 'none' })
+      // downloadFile 抛 DL_FAIL
+      if (e instanceof Error && e.message === 'DOWNLOAD_FAIL') {
+        Taro.showToast({ title: '视频下载失败,请重试', icon: 'none' })
+      } else if (!(e instanceof Error && e.message === 'PERM_HANDLED')) {
+        Taro.showToast({ title: '保存失败,请重试', icon: 'none' })
+      }
     } finally {
       setSaving(false)
     }
