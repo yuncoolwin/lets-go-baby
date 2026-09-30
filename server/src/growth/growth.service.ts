@@ -675,6 +675,53 @@ export class GrowthService {
     return { error: false, msg: 'success' };
   }
 
+  /**
+   * 批量删除素材：管理/超管删任意，教师仅删自己上传的；事务内清理 storage 文件 + 表记录。
+   */
+  async deleteLibraryMediaBatch(userId: string, ids: unknown[]) {
+    const identity = await this.getUserIdentity(userId);
+    if (!identity || identity.role_type === 'parent') {
+      return { error: true, code: 403, msg: '家长无权删除素材箱素材' };
+    }
+
+    const arr = (Array.isArray(ids) ? ids : []).filter((x): x is string => typeof x === 'string');
+    if (!arr.length) {
+      return { error: true, code: 400, msg: '请选择要删除的素材' };
+    }
+
+    const { data: rows, error: qErr } = await this.client.from('growth_media_library').select('*').in('id', arr);
+    if (qErr) {
+      console.error('[Growth] library batch query error:', qErr.message);
+      return { error: true, code: 500, msg: '查询素材失败' };
+    }
+
+    const isAdmin = this.isAdminRole(identity.role_type);
+    const allowed = (rows || []).filter((r) => isAdmin || r.uploader_id === userId);
+
+    // 清理 storage 文件（含缩略图）
+    for (const r of allowed) {
+      const rmPaths: string[] = [];
+      if (r.storage_path) rmPaths.push(r.storage_path);
+      if (r.thumbnail_storage_path) rmPaths.push(r.thumbnail_storage_path);
+      if (!rmPaths.length) continue;
+      try {
+        const { error: rmErr } = await this.client.storage.from('growth').remove(rmPaths);
+        if (rmErr) console.error(`[Growth] library batch remove file (${r.id}):`, rmErr.message);
+      } catch (e) {
+        console.error(`[Growth] library batch remove file (${r.id}):`, (e as Error)?.message);
+      }
+    }
+
+    const allowedIds = allowed.map((r) => r.id);
+    const { error: delErr } = await this.client.from('growth_media_library').delete().in('id', allowedIds);
+    if (delErr) {
+      console.error('[Growth] library batch delete row error:', delErr.message);
+      return { error: true, code: 500, msg: '批量删除失败' };
+    }
+
+    return { error: false, deleted: allowedIds.length, msg: 'success' };
+  }
+
   /** 写审计日志：失败仅告警，不阻断主流程 */
   private async logAudit(params: {
     userId: string | null;

@@ -101,6 +101,17 @@ export class GrowthController {
     return { code: 200, msg: 'success', data };
   }
 
+  @Delete('library/batch')
+  @HttpCode(200)
+  async deleteLibraryMediaBatch(@Req() req: Request, @Body() body: { ids?: string[] }) {
+    const userId = (req as any).user?.userId;
+    const data = await this.growthService.deleteLibraryMediaBatch(userId, body?.ids ?? []);
+    if (data?.error) {
+      return { code: data.code, msg: data.msg, data: null };
+    }
+    return { code: 200, msg: 'success', data };
+  }
+
   @Delete('library/:id')
   @HttpCode(200)
   async deleteLibraryMedia(@Req() req: Request, @Param('id') id: string) {

@@ -465,4 +465,8 @@ export const growthApi = {
   // 删除素材（管理/超管删任意，教师删自己的）
   libraryDelete: (id: string) =>
     request({ url: `/api/growth-records/library/${id}`, method: 'DELETE' }),
+
+  // 批量删除素材（管理/超管删任意，教师删自己的）
+  libraryDeleteBatch: (ids: string[]) =>
+    request({ url: '/api/growth-records/library/batch', method: 'DELETE', data: { ids } }),
 }

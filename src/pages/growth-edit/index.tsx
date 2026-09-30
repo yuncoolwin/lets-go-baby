@@ -756,7 +756,16 @@ export default function GrowthEditPage() {
 
         {/* 图片 */}
         <View>
-          <Text className="block text-sm text-muted-foreground mb-2">照片（{images.length}/9）</Text>
+          <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+            <Text className="block text-sm text-muted-foreground">日常反馈（选填）</Text>
+            <View
+              className="px-3 py-1 rounded-full bg-orange-500 flex items-center"
+              onClick={() => Taro.navigateTo({ url: '/pages/growth-media-library/index?source=edit' })}
+            >
+              <Text className="block text-xs text-white font-medium">从素材箱选择</Text>
+            </View>
+          </View>
+          <Text className="block text-sm text-muted-foreground mt-2 mb-2">照片（{images.length}/9）</Text>
           <View className="flex flex-wrap gap-2">
             {images.map((url, idx) => (
               <View key={idx} className="relative">
@@ -817,17 +826,6 @@ export default function GrowthEditPage() {
               </View>
             )}
           </View>
-        </View>
-
-        {/* 素材箱（独立一行，混选复用） */}
-        <View className="pt-4">
-          <Button
-            className="w-full"
-            variant="ghost"
-            onClick={() => Taro.navigateTo({ url: '/pages/growth-media-library/index?source=edit' })}
-          >
-            <Text className="text-primary">从素材箱选择</Text>
-          </Button>
         </View>
       </View>
 

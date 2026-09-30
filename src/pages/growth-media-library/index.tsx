@@ -73,6 +73,10 @@ export default function GrowthMediaLibrary() {
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
 
+  // 批量删除模式
+  const [deleteMode, setDeleteMode] = useState(false)
+  const [deleteSelected, setDeleteSelected] = useState<string[]>([])
+
   // 视频全屏播放（参考成长档案视频放大交互）
   const [playerUrl, setPlayerUrl] = useState<string | null>(null)
 
@@ -121,8 +125,56 @@ export default function GrowthMediaLibrary() {
     setSelected([])
   }
 
-  const toggleSelect = (id: string) => {
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  const toggleSelect = (id: string, mediaType: 'image' | 'video') => {
+    setSelected((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id)
+      const countOfType = prev.filter((x) => items.find((i) => i.id === x)?.media_type === mediaType).length
+      if (mediaType === 'image' && countOfType >= 9) {
+        Taro.showToast({ title: '最多选择 9 张图片', icon: 'none' })
+        return prev
+      }
+      if (mediaType === 'video' && countOfType >= 2) {
+        Taro.showToast({ title: '最多选择 2 个视频', icon: 'none' })
+        return prev
+      }
+      return [...prev, id]
+    })
+  }
+
+  const toggleDelete = (id: string) =>
+    setDeleteSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+
+  const enterDeleteMode = () => {
+    setDeleteSelected([])
+    setDeleteMode(true)
+  }
+
+  const exitDeleteMode = () => {
+    setDeleteMode(false)
+    setDeleteSelected([])
+  }
+
+  const handleBatchDelete = () => {
+    if (!deleteSelected.length) return
+    Taro.showModal({
+      title: '确认删除',
+      content: `确定删除选中的 ${deleteSelected.length} 个素材吗？删除后不可恢复`,
+      confirmText: '删除',
+      confirmColor: '#ef4444',
+      cancelText: '取消',
+      success: async (res) => {
+        if (!res.confirm) return
+        try {
+          await growthApi.libraryDeleteBatch(deleteSelected)
+          Taro.showToast({ title: '已删除', icon: 'success' })
+          exitDeleteMode()
+          refresh()
+        } catch (e) {
+          console.error('[GrowthLibrary] batch delete error:', e)
+          Taro.showToast({ title: '删除失败，请重试', icon: 'none' })
+        }
+      },
+    })
   }
 
   const formatTime = (t?: string) => {
@@ -270,15 +322,22 @@ export default function GrowthMediaLibrary() {
 
   const handleConfirm = () => {
     const selectedItems = items.filter((it) => selected.includes(it.id) && !it.unavailable && it.url)
-    const payloadItems = selectedItems.map((it) => ({ mediaType: it.media_type, url: it.url }))
+    // 兜底截断：图片 ≤9、视频 ≤2，避免边界泄漏
+    const imgItems = selectedItems.filter((it) => it.media_type === 'image').slice(0, 9)
+    const vidItems = selectedItems.filter((it) => it.media_type === 'video').slice(0, 2)
+    const payloadItems = [...imgItems, ...vidItems].map((it) => ({ mediaType: it.media_type, url: it.url }))
     Taro.eventCenter.trigger('GROWTH_LIBRARY_SELECT', { items: payloadItems })
     Taro.showToast({ title: `已选用 ${payloadItems.length} 个素材`, icon: 'success' })
     setTimeout(() => Taro.navigateBack(), 300)
   }
 
   const handleTileClick = (item: LibraryItem) => {
+    if (deleteMode) {
+      if (item.can_delete && !item.unavailable) toggleDelete(item.id)
+      return
+    }
     if (selectMode) {
-      if (!item.unavailable && item.url) toggleSelect(item.id)
+      if (!item.unavailable && item.url) toggleSelect(item.id, item.media_type)
       return
     }
     if (item.unavailable || !item.url) return
@@ -313,6 +372,17 @@ export default function GrowthMediaLibrary() {
             <Text className="text-muted-foreground">取消</Text>
           </Button>
         )}
+        {!selectMode && deleteMode && (
+          <Button size="sm" variant="ghost" className="ml-2 flex-shrink-0" onClick={exitDeleteMode}>
+            <Text className="text-muted-foreground">退出</Text>
+          </Button>
+        )}
+        {!selectMode && !deleteMode && (
+          <Button size="sm" variant="ghost" className="ml-2 flex-shrink-0" onClick={enterDeleteMode}>
+            <Trash2 size={14} color="#ef4444" />
+            <Text className="ml-1 text-red-500">批量删除</Text>
+          </Button>
+        )}
       </View>
 
       {/* 类型切换（非选择模式） */}
@@ -344,7 +414,7 @@ export default function GrowthMediaLibrary() {
       {/* 列表 */}
       <ScrollView
         scrollY
-        style={{ height: selectMode ? 'calc(100vh - 70px)' : 'calc(100vh - 148px)' }}
+        style={{ height: deleteMode || selectMode ? 'calc(100vh - 70px)' : 'calc(100vh - 148px)' }}
         onScrollToLower={loadMore}
       >
         <View className="px-4">
@@ -364,7 +434,7 @@ export default function GrowthMediaLibrary() {
 
           <View className="flex flex-wrap gap-2 pb-40">
             {list.map((item) => {
-              const checked = selected.includes(item.id)
+              const checked = deleteMode ? deleteSelected.includes(item.id) : selected.includes(item.id)
               const disabled = item.unavailable || !item.url
               return (
                 <View key={item.id} style={squareStyle} className="relative">
@@ -394,13 +464,31 @@ export default function GrowthMediaLibrary() {
                       </View>
                     )}
 
-                    {/* 删除（非选择模式，按权限） */}
-                    {!selectMode && item.can_delete && (
+                    {/* 批量删除勾选标记（可勾选，权限内） */}
+                    {deleteMode && item.can_delete && (
+                      <View
+                        className={`absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center z-10 ${
+                          checked ? 'bg-red-500' : 'bg-black bg-opacity-40'
+                        }`}
+                      >
+                        {checked && <Check size={12} color="#fff" />}
+                      </View>
+                    )}
+
+                    {/* 删除（非选择/非批量模式，按权限） */}
+                    {!selectMode && !deleteMode && item.can_delete && (
                       <View
                         className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black bg-opacity-60 flex items-center justify-center z-10"
                         onClick={(e) => { e.stopPropagation?.(); handleDelete(item) }}
                       >
                         <Trash2 size={12} color="#fff" />
+                      </View>
+                    )}
+
+                    {/* 批量模式下不可删素材置灰 */}
+                    {deleteMode && !item.can_delete && (
+                      <View className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center rounded-lg z-10">
+                        <Text className="block text-xs text-white">无权删除</Text>
                       </View>
                     )}
 
@@ -418,8 +506,8 @@ export default function GrowthMediaLibrary() {
         </View>
       </ScrollView>
 
-      {/* 底部上传栏（非选择模式，fixed） */}
-      {!selectMode && (
+      {/* 底部上传栏（非选择/非批量模式，fixed） */}
+      {!selectMode && !deleteMode && (
         <View
           style={{
             position: 'fixed',
@@ -475,6 +563,37 @@ export default function GrowthMediaLibrary() {
           </View>
           <Button className="w-32" disabled={selected.length === 0} onClick={handleConfirm}>
             <Text className="text-white">确定使用</Text>
+          </Button>
+        </View>
+      )}
+
+      {/* 底部批量删除栏（批量模式，fixed） */}
+      {deleteMode && (
+        <View
+          style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: '#fff',
+            borderTop: '1px solid #f0f0f0',
+            padding: '12px 16px',
+            paddingBottom: 'calc(12px + env(safe-area-inset-bottom))',
+            zIndex: 100,
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text className="block text-sm text-muted-foreground">已选 {deleteSelected.length} 个素材</Text>
+          </View>
+          <Button size="sm" variant="ghost" onClick={exitDeleteMode}>
+            <Text className="text-muted-foreground">退出</Text>
+          </Button>
+          <Button size="sm" variant="destructive" className="w-24" disabled={deleteSelected.length === 0} onClick={handleBatchDelete}>
+            <Text className="text-white">删除</Text>
           </Button>
         </View>
       )}
