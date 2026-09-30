@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { View, Text, Image, Video, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
+import { Network } from '@/network'
 import { Button } from '@/components/ui/button'
 import { growthApi } from '@/utils/api'
 import { isH5 } from '@/lib/platform'
@@ -350,6 +351,55 @@ export default function GrowthMediaLibrary() {
 
   const closePlayer = () => setPlayerUrl(null)
 
+  const [saving, setSaving] = useState(false)
+  const saveVideoToAlbum = async () => {
+    if (saving || !playerUrl) return
+    setSaving(true)
+    try {
+      const { authSetting } = (await Taro.getSetting({})) as any
+      const granted = authSetting && (authSetting as any)['scope.writePhotosAlbum']
+      if (granted === false) {
+        const m = await Taro.showModal({
+          title: '需要相册权限',
+          content: '请在设置中开启「保存到相册」权限后重试',
+          confirmText: '去设置',
+          cancelText: '取消',
+        })
+        if (m.confirm) {
+          await Taro.openSetting({})
+        }
+        setSaving(false)
+        return
+      }
+      if (!granted) {
+        try {
+          await Taro.authorize({ scope: 'scope.writePhotosAlbum' })
+        } catch (e) {
+          Taro.showToast({ title: '未获得相册权限', icon: 'none' })
+          setSaving(false)
+          return
+        }
+      }
+      const dl: any = await Network.downloadFile({ url: playerUrl })
+      if (!dl || dl.statusCode !== 200 || !dl.tempFilePath) {
+        Taro.showToast({ title: '视频下载失败,请重试', icon: 'none' })
+        setSaving(false)
+        return
+      }
+      try {
+        await Taro.saveVideoToPhotosAlbum({ filePath: dl.tempFilePath })
+        Taro.showToast({ title: '已保存到相册', icon: 'success' })
+      } catch (e: any) {
+        const denied = e && e.errMsg && /auth|denied|permission|authoriz/i.test(e.errMsg)
+        Taro.showToast({ title: denied ? '未获得相册权限' : '保存失败,请重试', icon: 'none' })
+      }
+    } catch (e) {
+      Taro.showToast({ title: '视频下载失败,请重试', icon: 'none' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const list = activeItems()
   // 方形格子：3 列，gap-2 两道 8px 间隙
   const squareStyle = { width: 'calc((100% - 16px) / 3)', aspectRatio: '1' } as const
@@ -618,6 +668,11 @@ export default function GrowthMediaLibrary() {
         >
           <Video src={playerUrl} autoplay controls className="w-full rounded-xl" style={{ height: '50vh', backgroundColor: '#FFF8F0' }} />
           <View style={{ display: 'flex', flexDirection: 'row', gap: 16, marginTop: 28 }}>
+            {!isH5 && (
+              <Button size="sm" variant="secondary" disabled={saving} onClick={saveVideoToAlbum}>
+                {saving ? '保存中...' : '保存到相册'}
+              </Button>
+            )}
             <Button size="sm" onClick={closePlayer}>缩小</Button>
           </View>
         </View>
