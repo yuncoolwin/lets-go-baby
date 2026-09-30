@@ -756,10 +756,10 @@ export default function GrowthEditPage() {
 
         {/* 图片 */}
         <View>
-          <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-            <Text className="block text-sm text-muted-foreground">日常反馈（选填）</Text>
+          <View className="flex flex-row items-center gap-2">
+            <Text className="block text-sm text-foreground font-medium">日常反馈</Text>
             <View
-              className="px-3 py-1 rounded-full bg-orange-500 flex items-center"
+              className="px-3 py-1 rounded-full bg-primary flex items-center"
               onClick={() => Taro.navigateTo({ url: '/pages/growth-media-library/index?source=edit' })}
             >
               <Text className="block text-xs text-white font-medium">从素材箱选择</Text>
