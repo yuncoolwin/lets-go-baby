@@ -76,6 +76,8 @@ export default function GrowthMediaLibrary() {
   // 批量删除模式
   const [deleteMode, setDeleteMode] = useState(false)
   const [deleteSelected, setDeleteSelected] = useState<string[]>([])
+  const [imgFailed, setImgFailed] = useState<Record<string, boolean>>({})
+  const onImgError = (id: string) => setImgFailed((p) => ({ ...p, [id]: true }))
 
   // 视频全屏播放（参考成长档案视频放大交互）
   const [playerUrl, setPlayerUrl] = useState<string | null>(null)
@@ -447,11 +449,29 @@ export default function GrowthMediaLibrary() {
                   <View className="relative w-full h-full" onClick={() => handleTileClick(item)}>
                     <View className="absolute inset-0">
                       {item.media_type === 'image' ? (
-                        <Image src={item.url || ''} mode="aspectFill" className="w-full h-full rounded-lg" />
+                        imgFailed[item.id] ? (
+                          <View className="w-full h-full rounded-lg bg-gray-100 flex items-center justify-center">
+                            <Text className="block text-xs text-gray-400">图片加载失败</Text>
+                          </View>
+                        ) : (
+                          <Image
+                            src={item.url || ''}
+                            mode="aspectFill"
+                            style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+                            className="w-full h-full rounded-lg"
+                            onError={() => onImgError(item.id)}
+                          />
+                        )
                       ) : (
                         <View className="w-full h-full rounded-lg flex items-center justify-center overflow-hidden relative" style={{ backgroundColor: '#FFF8F0' }}>
-                          {item.thumbnail_url ? (
-                            <Image src={item.thumbnail_url} mode="aspectFill" className="w-full h-full absolute inset-0" />
+                          {item.thumbnail_url && !imgFailed[item.id] ? (
+                            <Image
+                              src={item.thumbnail_url}
+                              mode="aspectFill"
+                              style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+                              className="w-full h-full absolute inset-0"
+                              onError={() => onImgError(item.id)}
+                            />
                           ) : null}
                           <View
                             className="rounded-full flex items-center justify-center relative"
