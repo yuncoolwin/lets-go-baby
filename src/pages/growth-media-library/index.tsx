@@ -76,8 +76,6 @@ export default function GrowthMediaLibrary() {
   // 批量删除模式
   const [deleteMode, setDeleteMode] = useState(false)
   const [deleteSelected, setDeleteSelected] = useState<string[]>([])
-  const [imgFailed, setImgFailed] = useState<Record<string, boolean>>({})
-  const onImgError = (id: string) => setImgFailed((p) => ({ ...p, [id]: true }))
 
   // 视频全屏播放（参考成长档案视频放大交互）
   const [playerUrl, setPlayerUrl] = useState<string | null>(null)
@@ -177,6 +175,15 @@ export default function GrowthMediaLibrary() {
         }
       },
     })
+  }
+
+  const formatTime = (t?: string) => {
+    if (!t) return ''
+    const d = new Date(t)
+    if (Number.isNaN(d.getTime())) return ''
+    const m = `${d.getMonth() + 1}`.padStart(2, '0')
+    const day = `${d.getDate()}`.padStart(2, '0')
+    return `${d.getFullYear()}-${m}-${day}`
   }
 
   const handleChooseImage = () => {
@@ -344,14 +351,6 @@ export default function GrowthMediaLibrary() {
   const closePlayer = () => setPlayerUrl(null)
 
   const list = activeItems()
-  // 按 created_at 的日期(YYYY-MM-DD)分组，新日期在上（list 已倒序）
-  const groups: { date: string; list: LibraryItem[] }[] = []
-  list.forEach((it) => {
-    const d = it.created_at ? it.created_at.slice(0, 10) : '未知日期'
-    const g = groups[groups.length - 1]
-    if (g && g.date === d) g.list.push(it)
-    else groups.push({ date: d, list: [it] })
-  })
   // 方形格子：3 列，gap-2 两道 8px 间隙
   const squareStyle = { width: 'calc((100% - 16px) / 3)', aspectRatio: '1' } as const
 
@@ -434,44 +433,19 @@ export default function GrowthMediaLibrary() {
           )}
 
           <View className="flex flex-wrap gap-2 pb-40">
-            {groups.map((grp) => (
-              <View key={grp.date} className="mb-2">
-                <View className="flex items-center gap-3">
-                  <Text className="block text-xs text-gray-500">{grp.date}</Text>
-                  <View className="flex-1 h-px bg-gray-200" />
-                </View>
-                <View className="flex flex-wrap gap-2 mt-1">
-                  {grp.list.map((item) => {
-                    const checked = deleteMode ? deleteSelected.includes(item.id) : selected.includes(item.id)
-                    const disabled = item.unavailable || !item.url
-                    return (
-                      <View key={item.id} style={squareStyle} className="relative">
+            {list.map((item) => {
+              const checked = deleteMode ? deleteSelected.includes(item.id) : selected.includes(item.id)
+              const disabled = item.unavailable || !item.url
+              return (
+                <View key={item.id} style={squareStyle} className="relative">
                   <View className="relative w-full h-full" onClick={() => handleTileClick(item)}>
                     <View className="absolute inset-0">
                       {item.media_type === 'image' ? (
-                        imgFailed[item.id] ? (
-                          <View className="w-full h-full rounded-lg bg-gray-100 flex items-center justify-center">
-                            <Text className="block text-xs text-gray-400">图片加载失败</Text>
-                          </View>
-                        ) : (
-                          <Image
-                            src={item.url || ''}
-                            mode="aspectFill"
-                            style={{ objectFit: 'cover', width: '100%', height: '100%' }}
-                            className="w-full h-full rounded-lg"
-                            onError={() => onImgError(item.id)}
-                          />
-                        )
+                        <Image src={item.url || ''} mode="aspectFill" className="w-full h-full rounded-lg" />
                       ) : (
                         <View className="w-full h-full rounded-lg flex items-center justify-center overflow-hidden relative" style={{ backgroundColor: '#FFF8F0' }}>
-                          {item.thumbnail_url && !imgFailed[item.id] ? (
-                            <Image
-                              src={item.thumbnail_url}
-                              mode="aspectFill"
-                              style={{ objectFit: 'cover', width: '100%', height: '100%' }}
-                              className="w-full h-full absolute inset-0"
-                              onError={() => onImgError(item.id)}
-                            />
+                          {item.thumbnail_url ? (
+                            <Image src={item.thumbnail_url} mode="aspectFill" className="w-full h-full absolute inset-0" />
                           ) : null}
                           <View
                             className="rounded-full flex items-center justify-center relative"
@@ -524,13 +498,11 @@ export default function GrowthMediaLibrary() {
                       </View>
                     )}
                   </View>
+                  <Text className="block text-xs text-gray-500 mt-1">{formatTime(item.created_at)}</Text>
                 </View>
-                  )
-                })}
-                </View>
-              </View>
-            ))}
-        </View>
+              )
+            })}
+          </View>
         </View>
       </ScrollView>
 
