@@ -217,8 +217,8 @@ export class EnrollmentsService {
     // 根据课程日期计算规则判断上课日类型（date_calc_rule = 周六 / 工作日）
     const dateCalcRule = await this.resolveDateCalcRule(enr);
     const isSaturdayCourse = dateCalcRule === '周六';
-    // 固定月数课程（1个月/3个月/6个月/12个月）：法定节假日不顺延
-    const isMonthlyDuration = ['1个月', '3个月', '6个月', '12个月'].includes(enr.duration_type);
+    // 月数课程：新数据统一判 '计月'；历史 1个月/3个月/6个月/12个月 仍按月数课程兼容
+    const isMonthlyDuration = enr.duration_type === '计月' || ['1个月', '3个月', '6个月', '12个月'].includes(enr.duration_type);
 
     // ===== 冻结机制 =====
     // 自动明细冻结占位（kind='frozen_auto'）：存被冻结自动明细的【展示类型::名称::区间】稳定标识。
@@ -655,11 +655,45 @@ export class EnrollmentsService {
 
     
 
-    // ====== 请假顺延逻辑（仅全日托/半日托） ======
-    const isFullOrHalfDay = enr.course_type === '全日托' || enr.course_type === '半日托';
-    if (isFullOrHalfDay) {
-      // 查询该报读记录在课程区间内的请假记录（按 enrollment_id 精确匹配当前报读）
-      const { data: leaveRecords, error: leaveError } = await manualCut(
+    // ====== 请假顺延逻辑（按报读时长口径执行：计月 / 计日等非周六课程） ======
+    // 适用对象重定义：不再用 course_type==='全日托'||'半日托' 判断，改按 enr.duration_type：
+    //  - 月数课程(duration_type === '计月'，历史 1/3/6/12个月 仍兼容)：单段连续请假自然日跨度≥5 计入顺延
+    //  - 计日课程(duration_type === '计日')：无门槛，每一段连续请假都计入顺延
+    //  - 周六托(isSaturdayCourse 为真)：不做本块处理，走上方"周六请假顺延分支"，避免重复双算
+    //  - 其余工作日/非周六课程：统一走本块（非月数非计日按 ≥5 门槛保守处理，维持原有行为）
+    if (!isSaturdayCourse) {
+      // 原始区间内法定节假日集合（无论月数/计日均用于统计"段内实际上课日"与连续性判定）
+      const statutorySet = new Set<string>();
+      const origStartYear = parseInt(startDate.substring(0, 4));
+      const origEndYear = parseInt(endDate.substring(0, 4));
+      for (let y = origStartYear; y <= origEndYear; y++) {
+        const { data: origOldHolidays } = await manualCut(
+          this.client
+            .from('holidays_old')
+            .select('date')
+            .eq('type', 'holiday')
+            .eq('year', y),
+        );
+        for (const h of origOldHolidays || []) {
+          const d = String(h.date || '').substring(0, 10);
+          if (d && d >= startDate && d <= endDate) statutorySet.add(d);
+        }
+      }
+      // 原始区间内"非实际上课日"集合：全园/班级/个人假期 + 法定节假日（用于连续性判定与 N 统计）
+      const nonClassSet = new Set<string>(holidaySet);
+      for (const s of statutorySet) nonClassSet.add(s);
+      const isOriginalClassDay = (d: string) => !isWeekend(d) && !nonClassSet.has(d);
+      // 未来延伸区间"实际上课日"判定：调休补班/园区补课算上课；周末、法定节假日、园/班/个人停课日排除
+      const isFutureClassDay = (d: string) => {
+        if (futureWorkWeekendSet.has(d) || makeupDaySet.has(d)) return true;
+        if (isWeekend(d)) return false;
+        if (futureHolidaySet.has(d)) return false;
+        return true;
+      };
+      // 请假统计范围：仅落在原始报读区间 [start_date, end_date]（原始结课日期，不含顺延部分）内的
+      // status='leave' 日期；查询上界用 enr.end_date（不再用 extended_end_date），
+      // 位于 end_date 之后延伸区间内发生的请假不参与顺延天数计算。
+      const { data: leaveRecords } = await manualCut(
         this.client
           .from('attendance')
           .select('date')
@@ -667,79 +701,98 @@ export class EnrollmentsService {
           .eq('course_type', enr.course_type)
           .eq('status', 'leave')
           .gte('date', startDate)
-          .lte('date', enr.extended_end_date || enr.end_date)
+          .lte('date', enr.end_date)
           .order('date', { ascending: true }),
       );
 
       if (leaveRecords && leaveRecords.length > 0) {
-        // 按日期排序，识别连续请假段
-        const leaveDates = leaveRecords.map(r => r.date?.substring(0, 10)).filter(Boolean).sort() as string[];
-        const segments: { startDate: string; endDate: string; days: number }[] = [];
-        let segStart = leaveDates[0];
-        let segEnd = leaveDates[0];
-        let segCount = 1;
-        for (let i = 1; i < leaveDates.length; i++) {
-          const prev = leaveDates[i - 1];
-          const curr = leaveDates[i];
-          // 判断是否连续（工作日连续：相邻日历日，或中间只隔周六日）
-          const diff = (new Date(curr).getTime() - new Date(prev).getTime()) / 86400000;
-          let isConsecutive = diff === 1;
-          if (!isConsecutive && diff > 1) {
-            let gapAllWeekend = true;
-            let d = addDays(prev, 1);
-            while (d < curr) {
-              if (!isWeekend(d)) { gapAllWeekend = false; break; }
+        // 仅保留原始区间内"实际上课日"的请假日（排除落在周末/假日上的记录），再升序分段
+        const leaveDates = (leaveRecords
+          .map(r => String(r.date || '').substring(0, 10))
+          .filter(Boolean) as string[]).filter(d => isOriginalClassDay(d)).sort();
+
+        // 连续性判定：把请假日按自然日做"波"分段；相邻请假日中间只要是"周末 或法定/园/班/个人停课日"即视为同一次连续请假
+        const segments: { startDate: string; endDate: string; span: number; n: number }[] = [];
+        if (leaveDates.length > 0) {
+          let segStart = leaveDates[0];
+          let segEnd = leaveDates[0];
+          const flush = (s: string, e: string) => {
+            const span = Math.max(1, Math.round((new Date(e).getTime() - new Date(s).getTime()) / 86400000) + 1);
+            let n = 0;
+            let d = s;
+            while (d <= e) {
+              if (isOriginalClassDay(d)) n++;
               d = addDays(d, 1);
             }
-            isConsecutive = gapAllWeekend;
-          }
-          if (isConsecutive) {
-            segEnd = curr;
-            segCount++;
-          } else {
-            if (segCount >= 5) {
-              segments.push({ startDate: segStart, endDate: segEnd, days: segCount });
+            segments.push({ startDate: s, endDate: e, span, n });
+          };
+          for (let i = 1; i < leaveDates.length; i++) {
+            const prev = leaveDates[i - 1];
+            const curr = leaveDates[i];
+            const diff = (new Date(curr).getTime() - new Date(prev).getTime()) / 86400000;
+            let isConsecutive = diff === 1;
+            if (!isConsecutive && diff > 1) {
+              let gapOk = true;
+              let d = addDays(prev, 1);
+              while (d < curr) {
+                if (!isWeekend(d) && !nonClassSet.has(d)) { gapOk = false; break; }
+                d = addDays(d, 1);
+              }
+              isConsecutive = gapOk;
             }
-            segStart = curr;
-            segEnd = curr;
-            segCount = 1;
+            if (isConsecutive) {
+              segEnd = curr;
+            } else {
+              flush(segStart, segEnd);
+              segStart = curr;
+              segEnd = curr;
+            }
           }
-        }
-        // 处理最后一个段
-        if (segCount >= 5) {
-          segments.push({ startDate: segStart, endDate: segEnd, days: segCount });
+          flush(segStart, segEnd);
         }
 
-        if (segments.length > 0) {
-          // 冻结的请假段不参与顺延天数计算，但仍展示并标记 frozen
-          const activeSegs = segments.filter((s) => !frozenKeys.has(`个人::请假::${s.startDate}~${s.endDate}`));
-          const totalLeaveDays = activeSegs.reduce((sum, s) => sum + s.days, 0);
-          // 在已有顺延基础上再叠加请假天数
-          if (totalLeaveDays > 0) {
-            let currentExtDate = result.extended_end_date || endDate;
-            let remaining = totalLeaveDays;
-            while (remaining > 0) {
-              currentExtDate = addDays(currentExtDate, 1);
-              if (isWeekend(currentExtDate) && !futureWorkWeekendSet.has(currentExtDate) && !makeupDaySet.has(currentExtDate)) continue;
-              if (holidaySet.has(currentExtDate) || futureHolidaySet.has(currentExtDate)) continue;
-              remaining--;
-            }
-            result.extended_end_date = currentExtDate;
-          }
+        // 触发门槛：月数课程单段连续请假"自然日跨度≥5"才计入顺延（跨度<5 忽略）；
+        // 计日课程无门槛，每一段都计入。
+        const needThreshold = enr.duration_type !== '计日';
+        const countedSegs = segments.filter((s) => {
+          if (frozenKeys.has(`个人::请假::${s.startDate}~${s.endDate}`)) return false;
+          if (needThreshold && s.span < 5) return false;
+          return true;
+        });
+        // 顺延天数 = 计入顺延各段"段内实际上课日天数"之和（非自然日跨度）
+        const totalLeaveDays = countedSegs.reduce((sum, s) => sum + s.n, 0);
 
-          // 添加请假顺延详情（含冻结段：仍展示但置灰）
-          for (const seg of segments) {
-            const frz = frozenKeys.has(`个人::请假::${seg.startDate}~${seg.endDate}`);
-            result.details.push({
-              name: '请假',
-              type: '个人',
-              startDate: seg.startDate,
-              endDate: seg.endDate,
-              overlapDays: seg.days,
-              ...(frz ? { isFrozen: true } : {}),
-            });
+        if (totalLeaveDays > 0) {
+          // 落点推进（逐日数上课日，统一口径）：从 result.extended_end_date || endDate 起逐日遍历未来日期，
+          // 凡属"该课程实际上课日"就累计，数满 N 即停；周末（非补班/补课）、法定节假日、园/班/个人停课日均
+          // 跳过、不作为落点。最终 extended_end_date 天然落在合法实际上课日上，不会落在周日或法定节假日。
+          // 计日：直接逐日数上课日推进 N 天；计月：按 N 个实际上课日推进并校正落点至合法上课日。
+          // 延伸区间(end_date 之后)内的请假不推进、不计顺延天数。
+          let currentExtDate = result.extended_end_date || endDate;
+          let remaining = totalLeaveDays;
+          while (remaining > 0) {
+            currentExtDate = addDays(currentExtDate, 1);
+            if (!isFutureClassDay(currentExtDate)) continue;
+            remaining--;
           }
-          // 重新排序
+          result.extended_end_date = currentExtDate;
+        }
+
+        // 添加请假顺延详情：计入顺延的段 overlapDays 填"段内实际上课日天数"（非自然日）；
+        // 命中 个人::请假::startDate~endDate 冻结的段不参与推进但仍展示并标 frozen；跨度<5 的非冻结段忽略
+        for (const seg of segments) {
+          const frz = frozenKeys.has(`个人::请假::${seg.startDate}~${seg.endDate}`);
+          if (!countedSegs.includes(seg) && !frz) continue;
+          result.details.push({
+            name: '请假',
+            type: '个人',
+            startDate: seg.startDate,
+            endDate: seg.endDate,
+            overlapDays: seg.n,
+            ...(frz ? { isFrozen: true } : {}),
+          });
+        }
+        if (result.details.length) {
           result.details.sort((a, b) => { const as = String((a as any).startDate || ''); const bs = String((b as any).startDate || ''); if (!as && bs) return 1; if (as && !bs) return -1; return as.localeCompare(bs) });
         }
       }

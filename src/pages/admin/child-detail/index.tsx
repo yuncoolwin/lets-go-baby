@@ -135,6 +135,7 @@ export default function ChildDetailPage() {
   const [formCourseType, setFormCourseType] = useState('')
   const [formDurationType, setFormDurationType] = useState('计日')
   const [formDurationDays, setFormDurationDays] = useState('')
+  const [formDurationMonths, setFormDurationMonths] = useState('')
   const [formStartDate, setFormStartDate] = useState('')
   const [formEndDate, setFormEndDate] = useState('')
   const [formStatus, setFormStatus] = useState('进行中')
@@ -484,6 +485,7 @@ export default function ChildDetailPage() {
     setFormCourseType('')
     setFormDurationType('计日')
     setFormDurationDays('')
+    setFormDurationMonths('')
     const today = new Date()
     const dateStr = today.toISOString().split('T')[0]
     setFormStartDate(dateStr)
@@ -503,6 +505,7 @@ export default function ChildDetailPage() {
     setFormCourseType(enr.course_type || '')
     setFormDurationType(enr.duration_type || '计日')
     setFormDurationDays(enr.duration_days ? String(enr.duration_days) : '')
+    setFormDurationMonths(enr.duration_type === '计月' ? String(enr.duration_days || '') : '')
     setFormStartDate(enr.start_date || '')
     setFormEndDate(enr.end_date || '')
     setFormStatus(enr.status || '进行中')
@@ -530,7 +533,7 @@ export default function ChildDetailPage() {
       const res = await childrenApi.calcEndDate({
         course_type: courseType,
         enrollment_duration: durationType,
-        custom_days: durationType === '计日' ? durationDays : '',
+        custom_days: durationType === '计日' || durationType === '计月' ? durationDays : '',
         start_date: startDate,
         date_calc_rule: course?.date_calc_rule || '工作日',
       })
@@ -568,7 +571,7 @@ export default function ChildDetailPage() {
         course_type: formCourseType,
         course_id: (courses.find(c => c.name === formCourseType)?.id) || null,
         duration_type: formDurationType,
-        duration_days: formDurationType === '计日' ? (parseInt(formDurationDays) || 0) : 0,
+        duration_days: formDurationType === '计日' ? (parseInt(formDurationDays) || 0) : formDurationType === '计月' ? (parseInt(formDurationMonths) || 0) : 0,
         notes: formNotes.trim() || undefined,
         start_date: formStartDate,
         end_date: formEndDate || null,
@@ -909,7 +912,7 @@ export default function ChildDetailPage() {
   const currentCourse = courses.find((c) => c.name === formCourseType)
   const currentDurationOptions: string[] = currentCourse?.duration_options?.length
     ? currentCourse.duration_options
-    : ['一周体验', '1个月', '3个月', '6个月', '12个月', '计日', '一学期', '一学年']
+    : ['一周体验', '计日', '计月', '一学期', '一学年']
 
   return (
     <View className="min-h-screen bg-background pb-20">
@@ -1156,7 +1159,7 @@ export default function ChildDetailPage() {
                     </View>
                   )}
                   <Text className="block text-xs text-gray-500">
-                    时长：{enr.duration_type === '计日' ? `${enr.duration_days}天` : enr.duration_type}
+                    时长：{enr.duration_type === '计日' ? `${enr.duration_days}天` : enr.duration_type === '计月' ? `${enr.duration_days}个月` : enr.duration_type}
                   </Text>
                   {enr.attendance_stats && (
                     <Text className="block text-xs text-gray-500 mt-1">
@@ -1342,6 +1345,28 @@ export default function ChildDetailPage() {
                   ))}
                 </View>
               </View>
+              {formDurationType === '计月' && (
+                <View>
+                  <Text className="block text-sm font-medium text-foreground mb-1">月份</Text>
+                  <View className="bg-gray-50 rounded-xl px-4 py-3">
+                    <Input
+                      className="w-full bg-transparent"
+                      type="number"
+                      placeholder="输入月数,1=1个月"
+                      value={formDurationMonths}
+                      onInput={(e) => {
+                        const val = e.detail.value
+                        setFormDurationMonths(val)
+                        if (val && parseInt(val) > 0) {
+                          calcEndDate(formCourseType, formDurationType, val, formStartDate)
+                        } else {
+                          setFormEndDate('')
+                        }
+                      }}
+                    />
+                  </View>
+                </View>
+              )}
               <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">开始日期</Text>
                 <View className="bg-gray-50 rounded-xl px-4 py-3" onClick={() => setShowDiCalendar('diStart')}>
@@ -1466,10 +1491,12 @@ export default function ChildDetailPage() {
                           if (newType === '兴趣班' || rules.includes('工作日')) {
                             setFormDurationType('计日')
                             setFormDurationDays('')
+                            setFormDurationMonths('')
                             // 计日天数未输入时不计算结束日期
                           } else {
                             setFormDurationType('计日')
                             setFormDurationDays('')
+                            setFormDurationMonths('')
                             // 计日天数未输入时不计算结束日期
                           }
                         } else if (newType === '兴趣班') {
@@ -1477,7 +1504,7 @@ export default function ChildDetailPage() {
                           setFormDurationDays('')
                           // 计日天数未输入时不计算结束日期
                         } else {
-                          calcEndDate(newType, formDurationType, formDurationDays, formStartDate)
+                          calcEndDate(newType, formDurationType, formDurationType === '计月' ? formDurationMonths : formDurationDays, formStartDate)
                         }
                       }}
                     >
@@ -1502,7 +1529,8 @@ export default function ChildDetailPage() {
                             const newDuration = t
                             setFormDurationType(newDuration)
                             setFormDurationDays('')
-                            if (newDuration === '计日') {
+                            setFormDurationMonths('')
+                            if (newDuration === '计日' || newDuration === '计月') {
                               setFormEndDate('')
                             } else if (['一学期', '一学年'].includes(newDuration)) {
                               setFormEndDate('')

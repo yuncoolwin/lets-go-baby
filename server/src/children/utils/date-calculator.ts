@@ -102,17 +102,21 @@ export function createDateCalculator(
   function getDurationDays(duration: string, customDays: string): number {
     switch (duration) {
       case '一周体验': return 5
+      case '计日': return parseInt(customDays) || 0
+      // 计月：customDays 承载输入月数，1=1个月
+      case '计月': return parseInt(customDays) || 0
+      // 历史月数选项（已不再新增此类别，仅兼容存量数据）
       case '1个月': return 1
       case '3个月': return 3
       case '6个月': return 6
       case '12个月': return 12
-      case '计日': return parseInt(customDays) || 0
       default: return 0
     }
   }
 
   function isCalendarMonthDuration(duration: string): boolean {
-    return ['1个月', '3个月', '6个月', '12个月'].includes(duration)
+    // 新数据统一走 '计月'；历史 1/3/6/12个月 仍按月数课程兼容
+    return duration === '计月' || ['1个月', '3个月', '6个月', '12个月'].includes(duration)
   }
 
   function calculateEndDate(

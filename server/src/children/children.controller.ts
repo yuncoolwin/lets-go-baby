@@ -48,6 +48,10 @@ export class ChildrenController {
     if (body.enrollment_duration === '计日' && (!body.custom_days || parseInt(body.custom_days) <= 0)) {
       return { code: 400, msg: '计日天数不能为空', data: { end_date: '' } };
     }
+    // 计月类型必须传入月数
+    if (body.enrollment_duration === '计月' && (!body.custom_days || parseInt(body.custom_days) <= 0)) {
+      return { code: 400, msg: '计月月数不能为空', data: { end_date: '' } };
+    }
     // 从数据库读取节假日数据
     try {
       const year = body.start_date ? parseDate(body.start_date).getUTCFullYear() : 2026;
