@@ -278,6 +278,62 @@ export class GrowthService {
     }
   }
 
+  /**
+   * 视频统一转码为 H.264/AAC（iOS 相册保存失败根治）。ffprobe 检测编码，
+   * 仅当视频非 h264 或音频非 aac 时才转码；原生 H.264 直接返回原 buffer。
+   * 任一环节失败（ffprobe/ffmpeg 缺失、超时）则降级返回原 buffer，不阻塞、不报错。
+   */
+  private transcodeToH264(buffer: Buffer): Buffer {
+    const tmpIn = path.join('/tmp', `tr_${crypto.randomBytes(6).toString('hex')}.mp4`);
+    const tmpOut = path.join('/tmp', `tr_${crypto.randomBytes(6).toString('hex')}.mp4`);
+    try {
+      fs.writeFileSync(tmpIn, buffer);
+      let vCodec = '';
+      let aCodec = '';
+      try {
+        vCodec = execSync(
+          `ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "${tmpIn}"`,
+          { timeout: 30000, stdio: 'pipe' },
+        ).toString().trim();
+      } catch {
+        vCodec = '';
+      }
+      try {
+        aCodec = execSync(
+          `ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "${tmpIn}"`,
+          { timeout: 30000, stdio: 'pipe' },
+        ).toString().trim();
+      } catch {
+        aCodec = '';
+      }
+      const needVideo = vCodec !== '' && vCodec !== 'h264';
+      const needAudio = aCodec !== '' && aCodec !== 'aac' && aCodec !== 'mp4a';
+      if (!needVideo && !needAudio) {
+        return buffer; // 原生 H.264（含兼容音频）直接复用，不无谓耗时
+      }
+      execSync(
+        `ffmpeg -y -loglevel error -i "${tmpIn}" -c:v libx264 -preset medium -crf 23 -c:a aac -b:a 128k -movflags +faststart "${tmpOut}"`,
+        { timeout: 120000, stdio: 'pipe' },
+      );
+      const out = fs.readFileSync(tmpOut);
+      return out && out.length > 0 ? out : buffer;
+    } catch (e) {
+      console.warn('[Growth] transcodeToH264 warn (using original):', (e as Error)?.message);
+      return buffer;
+    } finally {
+      try {
+        fs.unlinkSync(tmpIn);
+      } catch {
+        /* ignore */
+      }
+      try {
+        fs.unlinkSync(tmpOut);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   async uploadVideo(userId: string, file: Express.Multer.File) {
     // 鉴权：家长/未登录 403（教师与管理员可传）
     const identity = await this.getUserIdentity(userId);
@@ -312,10 +368,11 @@ export class GrowthService {
 
     await this.ensureBucket();
     const path = `growth/videos/${userId}/${Date.now()}-${crypto.randomBytes(4).toString('hex')}.mp4`;
+    const transBuf = this.transcodeToH264(file.buffer);
 
     const { error: uploadError } = await this.client.storage
       .from('growth')
-      .upload(path, file.buffer, { contentType: 'video/mp4' });
+      .upload(path, transBuf, { contentType: 'video/mp4' });
 
     if (uploadError) {
       return { error: true, code: 500, msg: `上传失败: ${uploadError.message}` };
@@ -327,7 +384,7 @@ export class GrowthService {
 
     // 上传成功自动同步素材箱（写库失败仅告警，不阻断成长档案视频上传）
     try {
-      const thumb = await this.generateVideoThumbnail(userId, file.buffer);
+      const thumb = await this.generateVideoThumbnail(userId, transBuf);
       await this.client.from('growth_media_library').insert({
         media_type: 'video',
         storage_path: path,
@@ -533,10 +590,11 @@ export class GrowthService {
 
     await this.ensureBucket();
     const path = `growth/library/videos/${userId}/${Date.now()}-${crypto.randomBytes(4).toString('hex')}.mp4`;
+    const transBuf = this.transcodeToH264(file.buffer);
 
     const { error: uploadError } = await this.client.storage
       .from('growth')
-      .upload(path, file.buffer, { contentType: 'video/mp4' });
+      .upload(path, transBuf, { contentType: 'video/mp4' });
 
     if (uploadError) {
       return { error: true, code: 500, msg: `上传失败: ${uploadError.message}` };
@@ -545,7 +603,7 @@ export class GrowthService {
     const { data: signed } = await this.client.storage.from('growth').createSignedUrl(path, VIDEO_SIGNED_URL_TTL);
     const signedUrl = signed?.signedUrl || null;
 
-    const thumb = await this.generateVideoThumbnail(userId, file.buffer);
+    const thumb = await this.generateVideoThumbnail(userId, transBuf);
 
     const { data: row, error: insertErr } = await this.client
       .from('growth_media_library')

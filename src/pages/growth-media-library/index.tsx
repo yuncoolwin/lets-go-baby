@@ -364,7 +364,7 @@ export default function GrowthMediaLibrary() {
     }
     const save = (filePath: string) => Taro.saveVideoToPhotosAlbum({ filePath })
     const isPermError = (e: any) =>
-      !!(e && e.errMsg && /auth.*deny|auth.*fail|denied|deny|permission|scope|authoriz/.test(e.errMsg))
+      !!(e && e.errMsg && /auth.*deny|auth.*fail|denied|authorize|scope\.writePhotosAlbum/i.test(e.errMsg))
     try {
       // 优先直接保存：saveVideoToPhotosAlbum 内部会处理授权（已授权直接成功，
       // 未授权弹出授权框），避免对已授权 scope 调 authorize 被 reject 而误判
@@ -374,7 +374,8 @@ export default function GrowthMediaLibrary() {
         return
       } catch (e: any) {
         if (!isPermError(e)) {
-          Taro.showToast({ title: '保存失败,请重试', icon: 'none' })
+          console.error('[saveVideoToAlbum] 保存失败(非权限):', e)
+          Taro.showToast({ title: '该视频格式无法保存,请重试', icon: 'none' })
           return
         }
         // 权限类失败：先引导授权，再重试保存一次
