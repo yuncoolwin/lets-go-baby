@@ -364,8 +364,27 @@ export default function GrowthMediaLibrary() {
     }
     const save = (filePath: string) => Taro.saveVideoToPhotosAlbum({ filePath })
     const isPermError = (e: any) =>
-      !!(e && e.errMsg && /auth.*deny|auth.*fail|denied|authorize|scope\.writePhotosAlbum/i.test(e.errMsg))
+      !!(e && e.errMsg && /auth.*deny|auth.*fail|denied|authorize|scope\.writePhotosAlbum|privacy/i.test(e.errMsg))
+    // 微信隐私保护指引未声明相册(写入)导致 saveVideoToPhotosAlbum 被平台拦截
+    const isPrivacyBlockError = (e: any) =>
+      !!(e && e.errMsg && /privacy|scope\s+is\s+not\s+declared/i.test(e.errMsg))
+    const guardPrivacy = async () => {
+      const api = (Taro as any).requirePrivacyAuthorize
+      if (typeof api !== 'function') return
+      try {
+        await api()
+      } catch (e: any) {
+        if (!isPrivacyBlockError(e)) return // 非隐私拦截，交给后续相册权限流程
+        Taro.showToast({
+          title: '请在微信后台配置“相册/摄像头”隐私声明后重试',
+          icon: 'none',
+          duration: 2500,
+        })
+        throw e
+      }
+    }
     try {
+      await guardPrivacy()
       // 优先直接保存：saveVideoToPhotosAlbum 内部会处理授权（已授权直接成功，
       // 未授权弹出授权框），避免对已授权 scope 调 authorize 被 reject 而误判
       try {
@@ -385,6 +404,15 @@ export default function GrowthMediaLibrary() {
           Taro.showToast({ title: '已保存到相册', icon: 'success' })
           return
         } catch (e2: any) {
+          if (isPrivacyBlockError(e2)) {
+            // 已授权但平台因隐私声明缺失拦截：引导去后台配置，而非开系统设置
+            Taro.showToast({
+              title: '请在微信后台配置“相册/摄像头”隐私声明后重试',
+              icon: 'none',
+              duration: 2500,
+            })
+            return
+          }
           if (isPermError(e2)) {
             const m = await Taro.showModal({
               title: '需要相册权限',
