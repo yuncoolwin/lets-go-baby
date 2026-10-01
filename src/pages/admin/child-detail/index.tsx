@@ -149,6 +149,21 @@ export default function ChildDetailPage() {
   const [showEnrollmentForm, setShowEnrollmentForm] = useState(false)
   const [showCalendar, setShowCalendar] = useState<'birthDate' | 'startDate' | 'endDate' | null>(null)
   const [courses, setCourses] = useState<any[]>([])
+  const COURSE_TYPE_ORDER: Record<string, number> = {
+    全日托: 0,
+    半日托: 1,
+    周六托: 2,
+    晚间托: 3,
+    暑假班: 4,
+    寒假班: 5,
+    兴趣班: 6,
+  }
+  // 启用课程按类型顺序排列（全日托→半日托→周六托→晚间托→暑假班→寒假班→兴趣班，未列出类型排其后），同组保持原相对顺序
+  const sortedActiveCourses = courses
+    .filter((c) => c.status === '启用')
+    .map((c, idx) => ({ c, idx }))
+    .sort((a, b) => ((COURSE_TYPE_ORDER[a.c.name] ?? 7) - (COURSE_TYPE_ORDER[b.c.name] ?? 7)) || (a.idx - b.idx))
+    .map((s) => s.c)
   const [extendDetails, setExtendDetails] = useState<any[]>([])
   const [extendTotalDays, setExtendTotalDays] = useState(0)
   const [showDropInForm, setShowDropInForm] = useState(false)
@@ -1344,7 +1359,7 @@ export default function ChildDetailPage() {
               <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">课程类型</Text>
                 <View className="flex flex-wrap gap-2">
-                  {courses.filter(c => c.status === '启用').map((c) => (
+                  {sortedActiveCourses.map((c) => (
                     <View
                       key={c.id}
                       className={`px-3 py-2 rounded-lg text-sm ${diCourseType === c.name ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600'}`}
@@ -1460,7 +1475,7 @@ export default function ChildDetailPage() {
               <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">课程类型</Text>
                 <View className="flex flex-wrap gap-2">
-                  {courses.filter(c => c.status === '启用').map((c) => (
+                  {sortedActiveCourses.map((c) => (
                     <View
                       key={c.id}
                       className={`px-3 py-2 rounded-lg text-sm ${
@@ -1785,6 +1800,7 @@ export default function ChildDetailPage() {
       <CalendarOverlay
         visible={!!extendEditCalendar}
         onClose={() => setExtendEditCalendar(null)}
+        zIndex={10020}
         value={
           extendEditCalendar ? extendEditList[extendEditCalendar.row]?.[extendEditCalendar.field] || '' : ''
         }

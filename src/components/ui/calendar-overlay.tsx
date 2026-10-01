@@ -11,6 +11,7 @@ interface CalendarOverlayProps {
   disabled?: (date: Date) => boolean
   showAllDates?: boolean
   fromYear?: number
+  zIndex?: number
 }
 
 export function CalendarOverlay({
@@ -21,6 +22,7 @@ export function CalendarOverlay({
   disabled,
   showAllDates,
   fromYear,
+  zIndex = 9999,
 }: CalendarOverlayProps) {
   const [show, setShow] = useState(false)
   const [animating, setAnimating] = useState<'open' | 'close' | 'idle'>('idle')
@@ -81,7 +83,7 @@ export function CalendarOverlay({
 
   return (
     <View
-      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
+      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex, backgroundColor: 'rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
       onClick={handleClose}
       catchMove
     >
