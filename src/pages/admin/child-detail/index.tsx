@@ -524,8 +524,18 @@ export default function ChildDetailPage() {
       setFormEndDate('')
       return
     }
-    if (!courseType || !durationType || !startDate) {
+    if (!courseType) {
       setFormEndDate('')
+      Taro.showToast({ title: '请先选择课程', icon: 'none' })
+      return
+    }
+    if (!durationType) {
+      setFormEndDate('')
+      return
+    }
+    if (!startDate) {
+      setFormEndDate('')
+      Taro.showToast({ title: '请先选择开始日期', icon: 'none' })
       return
     }
     const course = courses.find((c: any) => c.name === courseType)
