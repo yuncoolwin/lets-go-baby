@@ -1730,7 +1730,8 @@ export default function ChildDetailPage() {
         value={formStartDate}
         onChange={(dateStr) => {
           setFormStartDate(dateStr)
-          calcEndDate(formCourseType, formDurationType, formDurationDays, dateStr)
+          const durVal = formDurationType === '计月' ? formDurationMonths : formDurationType === '计日' ? formDurationDays : ''
+          calcEndDate(formCourseType, formDurationType, durVal, dateStr)
         }}
         disabled={(date) => {
           const selectedCourse = courses.find(c => c.name === formCourseType)
