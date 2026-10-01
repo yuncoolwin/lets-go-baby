@@ -1544,7 +1544,7 @@ export default function ChildDetailPage() {
               )}
               {formDurationType === '计月' && (
                 <View>
-                  <Text className="block text-sm font-medium text-foreground mb-1">月份</Text>
+                  <Text className="block text-sm font-medium text-foreground mb-1">月数</Text>
                   <View className="bg-gray-50 rounded-xl px-4 py-3">
                     <Input
                       className="w-full bg-transparent"
@@ -1555,7 +1555,12 @@ export default function ChildDetailPage() {
                         const val = e.detail.value
                         setFormDurationMonths(val)
                         if (val && parseInt(val) > 0) {
-                          calcEndDate(formCourseType, '计月', val, formStartDate)
+                          if (!formStartDate) {
+                            Taro.showToast({ title: '请先选择开始日期', icon: 'none' })
+                            setFormEndDate('')
+                          } else {
+                            calcEndDate(formCourseType, '计月', val, formStartDate)
+                          }
                         } else {
                           setFormEndDate('')
                         }
