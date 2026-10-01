@@ -1345,28 +1345,6 @@ export default function ChildDetailPage() {
                   ))}
                 </View>
               </View>
-              {formDurationType === '计月' && (
-                <View>
-                  <Text className="block text-sm font-medium text-foreground mb-1">月份</Text>
-                  <View className="bg-gray-50 rounded-xl px-4 py-3">
-                    <Input
-                      className="w-full bg-transparent"
-                      type="number"
-                      placeholder="输入月数,1=1个月"
-                      value={formDurationMonths}
-                      onInput={(e) => {
-                        const val = e.detail.value
-                        setFormDurationMonths(val)
-                        if (val && parseInt(val) > 0) {
-                          calcEndDate(formCourseType, formDurationType, val, formStartDate)
-                        } else {
-                          setFormEndDate('')
-                        }
-                      }}
-                    />
-                  </View>
-                </View>
-              )}
               <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">开始日期</Text>
                 <View className="bg-gray-50 rounded-xl px-4 py-3" onClick={() => setShowDiCalendar('diStart')}>
@@ -1559,6 +1537,28 @@ export default function ChildDetailPage() {
                         const val = e.detail.value
                         setFormDurationDays(val)
                         calcEndDate(formCourseType, formDurationType, val, formStartDate)
+                      }}
+                    />
+                  </View>
+                </View>
+              )}
+              {formDurationType === '计月' && (
+                <View>
+                  <Text className="block text-sm font-medium text-foreground mb-1">月份</Text>
+                  <View className="bg-gray-50 rounded-xl px-4 py-3">
+                    <Input
+                      className="w-full bg-transparent"
+                      type="number"
+                      placeholder="输入月数,1=1个月"
+                      value={formDurationMonths}
+                      onInput={(e) => {
+                        const val = e.detail.value
+                        setFormDurationMonths(val)
+                        if (val && parseInt(val) > 0) {
+                          calcEndDate(formCourseType, '计月', val, formStartDate)
+                        } else {
+                          setFormEndDate('')
+                        }
                       }}
                     />
                   </View>
