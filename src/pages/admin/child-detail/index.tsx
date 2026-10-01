@@ -1555,11 +1555,12 @@ export default function ChildDetailPage() {
               {formDurationType === '计月' && (
                 <View>
                   <Text className="block text-sm font-medium text-foreground mb-1">月数</Text>
-                  <View className="bg-gray-50 rounded-xl px-4 py-3">
+                  <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', backgroundColor: '#f9fafb', borderRadius: '12px', padding: '0 16px' }}>
                     <Input
-                      className="w-full bg-transparent"
+                      style={{ flex: 1, minHeight: '44px' }}
                       type="number"
-                      placeholder="输入月数,1=1个月"
+                      placeholder="输入月数"
+                      placeholderStyle="color:#9ca3af"
                       value={formDurationMonths}
                       onInput={(e) => {
                         const val = e.detail.value
@@ -1576,6 +1577,7 @@ export default function ChildDetailPage() {
                         }
                       }}
                     />
+                    <Text className="text-sm text-foreground" style={{ flexShrink: 0, marginLeft: '8px' }}>个月</Text>
                   </View>
                 </View>
               )}
