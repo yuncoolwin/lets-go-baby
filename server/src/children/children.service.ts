@@ -414,6 +414,7 @@ export class ChildrenService {
           start_date: enr.start_date,
           end_date: enr.end_date,
           extended_end_date: enr.extended_end_date,
+          judge_end_date: enr.judge_end_date || null,
           status: enr.status,
           class_name: enr.class_id ? (enrClassMap[enr.class_id] || null) : null,
           payment_amount: enr.payment_amount,
