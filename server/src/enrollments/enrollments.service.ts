@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { AuthzService } from '@/auth/authz.service';
 import { WechatService } from '@/auth/wechat.service';
-import { addDays, isWeekend, isSaturday } from '@/utils/date.util';
+import { addDays, isWeekend, isSaturday, getTodayStr } from '@/utils/date.util';
 import { collectMakeupClassDays } from '@/children/utils/holiday-helper';
 import { festivalBaseName } from '@/children/utils/date-calculator';
 import { resolveAttendEndDate } from '@/children/utils/attendance-dates';
@@ -120,7 +120,7 @@ export class EnrollmentsService {
   }
 
   private async syncExpiredStatus(): Promise<void> {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getTodayStr();
     const { data: actives, error: actErr } = await this.client
       .from('enrollments')
       .select('id, start_date, end_date, extended_end_date, judge_end_date, status')
@@ -833,7 +833,7 @@ export class EnrollmentsService {
               .lte('date', upperBound),
           );
           const presentSet = new Set((attRows || []).map(r => String(r.date || '').substring(0, 10)));
-          const todayStr = this.toDateStr(new Date().toISOString().slice(0, 10));
+          const todayStr = getTodayStr();
           let dd = startDate;
           while (dd <= upperBound) {
             if (isWeekend(dd) && makeupDateToName.has(dd) && isClassDay(dd) && dd < todayStr && !presentSet.has(dd)) missedMakeup++;

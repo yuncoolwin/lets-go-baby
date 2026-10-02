@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { EnrollmentsService } from '@/enrollments/enrollments.service';
-import { parseDate } from '@/utils/date.util';
+import { parseDate, getTodayStr } from '@/utils/date.util';
 
 @Injectable()
 export class HolidaysService {
@@ -144,7 +144,7 @@ export class HolidaysService {
   }
 
   async findByChild(childId: string) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayStr();
 
     // 先查幼儿所在班级
     const { data: child } = await this.supabase

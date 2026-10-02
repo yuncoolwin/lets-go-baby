@@ -51,6 +51,14 @@ export function diffDays(start: string, end: string): number {
 }
 
 /**
+ * 获取北京时间（UTC+8）的"今天"日期字符串（YYYY-MM-DD）
+ * 返回 new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
+ */
+export function getTodayStr(): string {
+  return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/**
  * 获取 Asia/Shanghai 时区的"今天"日期字符串（YYYY-MM-DD）
  * 避免使用 toISOString（UTC）在凌晨（北京时间 0:00-8:00）偏一天
  */

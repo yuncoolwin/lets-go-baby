@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
-import { isSaturday, isWeekend } from '@/utils/date.util';
+import { isSaturday, isWeekend, getTodayStr, addDays } from '@/utils/date.util';
 import { buildMakeupLayers } from '@/children/utils/holiday-helper';
 import { resolveAttendEndDate } from '@/children/utils/attendance-dates';
 
@@ -190,11 +190,8 @@ export class TeacherService {
     let todayAttendance = 0;
     if (classId) {
       // 使用 UTC 日期
-      const now = new Date();
-      const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-      const tomorrowUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
-      const today = todayUTC.toISOString().split('T')[0];
-      const tomorrowStr = tomorrowUTC.toISOString().split('T')[0];
+      const today = getTodayStr();
+      const tomorrowStr = addDays(today, 1);
       const { count: attCount } = await this.client
         .from('attendance')
         .select('id', { count: 'exact', head: true })
@@ -294,11 +291,8 @@ export class TeacherService {
     });
 
     // 查询当天该班级的考勤人数
-    const now = new Date();
-    const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    const tomorrowUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
-    const today = todayUTC.toISOString().split('T')[0];
-    const tomorrowStr = tomorrowUTC.toISOString().split('T')[0];
+    const today = getTodayStr();
+    const tomorrowStr = addDays(today, 1);
     const { data: attendance, error: attError } = await this.client
       .from('attendance')
       .select('id, status')
@@ -331,7 +325,7 @@ export class TeacherService {
       : (teacherData?.class_id ? [teacherData.class_id] : []));
     if (classIds.length === 0) return [];
 
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    const targetDate = date || getTodayStr();
 
     // 全园假期（holidays type='all'）——循环外统一判断
     const { data: allHolidays } = await this.client
@@ -401,7 +395,7 @@ export class TeacherService {
     const enrollmentList = enrollments || [];
 
     // 考勤查询日期（优先使用所选日期，其次今天）
-    const queryDate = date || new Date().toISOString().split('T')[0];
+    const queryDate = date || getTodayStr();
 
     // 补课日判定：一次查询命中目标日期的全部补课记录，构建两层集合（global all+class / personal per-child）
     const isSaturdayDate = isSaturday(queryDate);
@@ -640,7 +634,7 @@ export class TeacherService {
   async getGroupedOverviewByClass(classId: string, date?: string) {
     if (!classId) return [];
 
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    const targetDate = date || getTodayStr();
 
     // 班级假期（holidays type='class' 且 target_id=当前班级 id）
     const { data: classHolidays } = await this.client
@@ -679,7 +673,7 @@ export class TeacherService {
     const enrollmentList = enrollments || [];
 
     // 考勤查询日期（优先使用所选日期，其次今天）
-    const queryDate = date || new Date().toISOString().split('T')[0];
+    const queryDate = date || getTodayStr();
 
     // 补课日判定：一次查询命中目标日期的全部补课记录，构建两层集合（global all+class / personal per-child）
     const isSaturdayDate = isSaturday(queryDate);
@@ -926,7 +920,7 @@ export class TeacherService {
     if (!children || children.length === 0) return [];
 
     // 查询当天考勤记录（使用日期字符串匹配）
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getTodayStr();
     const { data: attendanceData } = await this.client
       .from('attendance')
       .select('child_id, status')
@@ -1037,7 +1031,7 @@ export class TeacherService {
 
   async getFeedbacks(teacherRoleId?: string, feedbackDate?: string) {
     // 默认查询今天的记录
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayStr();
     const date = feedbackDate || today;
 
     // 从数据库查询真实记录
@@ -1121,7 +1115,7 @@ export class TeacherService {
     records: Array<{ child_id: string; class_id: string; status: string }>;
     teacher_role_id?: string;
   }) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayStr();
     const insertData = data.records.map((r) => ({
       child_id: r.child_id,
       class_id: r.class_id,
@@ -1169,7 +1163,7 @@ export class TeacherService {
     activities?: string;
     notes?: string;
   }) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayStr();
     const groupId = data.group_id || '';
     
     const { data: saved, error } = await this.client
@@ -1341,10 +1335,8 @@ export class TeacherService {
       studentCount = count || 0;
 
       // 查询当天该班级的考勤人数（使用UTC日期）
-      const utcNow = new Date();
-      const utcDate = new Date(Date.UTC(utcNow.getUTCFullYear(), utcNow.getUTCMonth(), utcNow.getUTCDate()));
-      const todayStart = utcDate.toISOString().split('T')[0];
-      const todayEnd = new Date(Date.UTC(utcNow.getUTCFullYear(), utcNow.getUTCMonth(), utcNow.getUTCDate() + 1)).toISOString().split('T')[0];
+      const todayStart = getTodayStr();
+      const todayEnd = addDays(todayStart, 1);
       
       // 查询出勤人数
       const { count: presentCount } = await this.client

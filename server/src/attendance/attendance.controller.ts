@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Query, HttpCode, Param, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { AttendanceService } from './attendance.service';
+import { getTodayStr } from '@/utils/date.util';
 
 @Controller('attendance')
 export class AttendanceController {
@@ -55,7 +56,7 @@ export class AttendanceController {
     @Query('date') date?: string,
   ) {
     const userId = (req as any).user?.userId;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayStr();
     const data = await this.attendanceService.findByClassAndDate(userId, classId, date || today);
     return { code: 200, msg: 'success', data };
   }
