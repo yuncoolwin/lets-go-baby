@@ -2333,6 +2333,10 @@ export default function ChildDetailPage() {
                         <Text className="text-sm px-1 rounded-sm" style={{ color: '#E8651A', border: '1px solid #E8651A', backgroundColor: '#FFF8F0', lineHeight: '16px' }}>放假</Text>
                         <Text className="text-sm text-gray-500">放假</Text>
                       </View>
+                      <View className="flex items-center gap-1">
+                        <Text className="text-sm px-1 rounded-sm" style={{ color: '#3B82F6', border: '1px solid #3B82F6', backgroundColor: '#F0F7FF', lineHeight: '16px' }}>补课</Text>
+                        <Text className="text-sm text-gray-500">补课</Text>
+                      </View>
                     </View>
 
                     {/* 底部说明 */}

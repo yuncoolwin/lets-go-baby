@@ -208,7 +208,15 @@ export class AttendanceService {
         .eq('year', year)
         .eq('type', 'work_weekend');
       const hit = (work || []).find(h => h.date?.substring(0, 10) === date);
-      const name = hit ? festivalBaseName(String(hit.name || '')) : '';
+      if (!hit) return { name: null, dates: [] };
+      // 按节日全名集对补班日归一化名做模糊匹配（兼容历史简名：国庆调休→国庆节、中秋调休→中秋节）
+      const { data: holNames } = await this.client
+        .from('holidays_old')
+        .select('name')
+        .eq('year', year)
+        .eq('type', 'holiday');
+      const festivalNames = new Set<string>((holNames || []).map(h => String(h.name || '')).filter(Boolean));
+      const name = festivalBaseName(String(hit.name || ''), festivalNames);
       if (!name) return { name: null, dates: [] };
       const { data: hol } = await this.client
         .from('holidays_old')

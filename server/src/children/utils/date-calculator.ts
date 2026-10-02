@@ -26,12 +26,22 @@ const DEFAULT_WORK_WEEKENDS = new Set<string>([
 ])
 
 /**
- * 节日名称归一化：去掉尾部"调休"，得到对应法定节假日全名。
- * 如"中秋调休/中秋节调休 → 中秋节"、"国庆节调休 → 国庆节"。
- * 补班日(work_weekend)的名称与法定节假日(holiday)全名口径统一后，据此建立关联。
+ * 节日名称归一化：去掉尾部"调休"，得到能匹配到法定节假日全名的基准名。
+ * 如"中秋调休/中秋节调休 → 中秋节"、"国庆调休 → 国庆节"、"清明节调休 → 清明节"。
+ * - 仅去除尾部"调休"后（base），若 holiday 全集(festivalNames)中存在 name===base 则直接用 base；
+ * - 否则遍历节日名全集，取「name 以 base 结尾 或 name 去末尾'节'后 === base」的节日名（base='国庆'→'国庆节'、'中秋'→'中秋节'）。
+ * 传 festivalNames 时可对历史简名（国庆调休/中秋调休）做模糊匹配；不传则仅去"调休"。
  */
-export function festivalBaseName(name: string): string {
-  return name.endsWith('调休') ? name.slice(0, -2) : name
+export function festivalBaseName(name: string, festivalNames?: Iterable<string>): string {
+  const base = name.endsWith('调休') ? name.slice(0, -2) : name
+  if (!festivalNames || !base) return base
+  const set = new Set<string>()
+  for (const n of festivalNames) set.add(n)
+  if (set.has(base)) return base
+  for (const n of set) {
+    if (n.endsWith(base) || n.replace(/节$/, '') === base) return n
+  }
+  return base
 }
 
 /**

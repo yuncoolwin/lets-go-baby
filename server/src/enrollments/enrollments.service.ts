@@ -632,6 +632,11 @@ export class EnrollmentsService {
       const { data: festivalRows } = await this.client
         .from('holidays_old')
         .select('date, type, name, year');
+      // 先收集节日名全集（用于补班日名称模糊归一化）
+      const festivalNames = new Set<string>();
+      for (const r of festivalRows || []) {
+        if (r.type === 'holiday' && String(r.name || '')) festivalNames.add(String(r.name));
+      }
       for (const r of festivalRows || []) {
         const y = Number(r.year);
         const d = String(r.date || '').substring(0, 10);
@@ -643,7 +648,7 @@ export class EnrollmentsService {
           festivalDatesByName.get(nm)!.push(d);
         } else if (r.type === 'work_weekend') {
           // 补班日 name 为空或匹配不到节假日，一律按非上课日处理；归一到节日全名后与 festivalDatesByName 关联
-          if (String(r.name || '')) makeupDateToName.set(d, festivalBaseName(String(r.name)));
+          if (String(r.name || '')) makeupDateToName.set(d, festivalBaseName(String(r.name), festivalNames));
         }
       }
     }
@@ -1016,6 +1021,32 @@ export class EnrollmentsService {
     return { extended_end_date: extendedDate, judge_end_date: judgeEndDate, details, actualExtendDays };
   }
 
+  /**
+   * 判定上界（判节日/划补课区间）读取，缺失时惰性重算并落库回填 judge_end_date（沿用 calcExtendedEndDateAndPersist），
+   * 确保补课日（如调休补班日国庆 10-10）能进入考勤日历与考勤统计，而非退回原始结束日期导致不显示。
+   * @returns { judge, extended } —— 判定上界与顺延落点（可能被回填更新）
+   */
+  private async ensureJudgeUpper(enr: {
+    id?: string;
+    start_date?: string | null;
+    end_date?: string | null;
+    extended_end_date?: string | null;
+    judge_end_date?: string | null;
+  }): Promise<{ judge: string | null; extended: string | null }> {
+    const oriEnd = enr.end_date || '';
+    const extNow = enr.extended_end_date || oriEnd;
+    if (enr.judge_end_date) return { judge: enr.judge_end_date, extended: enr.extended_end_date || null };
+    if (enr.id) {
+      try {
+        const r = await this.calcExtendedEndDateAndPersist(enr.id);
+        return { judge: r.judge_end_date || extNow, extended: r.extended_end_date };
+      } catch (e) {
+        console.log(`[JudgeUpper] backfill failed for ${enr.id}, fallback to extended`, (e as Error)?.message || e);
+      }
+    }
+    return { judge: extNow, extended: enr.extended_end_date || null };
+  }
+
   async findByChild(userId: string, childId: string): Promise<Enrollment[]> {
     await this.checkChildAccess(userId, childId);
     await this.syncExpiredStatus();
@@ -1052,7 +1083,16 @@ export class EnrollmentsService {
 
     const dateCalcRule = await this.resolveDateCalcRule(enr);
     const isSaturdayCourse = dateCalcRule === '周六';
-    const attEndDate = enr.extended_end_date || enr.end_date;
+    // 考勤统计上界：默认顺延落点；judge_end_date 缺失时惰性重算回填，覆盖可能的补课日（调休补班日）
+    const oriStatEnd = enr.extended_end_date || enr.end_date;
+    let attEndDate = oriStatEnd;
+    try {
+      const { judge: judgeUp, extended: extUp } = await this.ensureJudgeUpper(enr);
+      const extRef = extUp || enr.extended_end_date || enr.end_date;
+      attEndDate = judgeUp && judgeUp > extRef ? judgeUp : extRef;
+    } catch (e) {
+      attEndDate = oriStatEnd;
+    }
     const attStartDate = enr.start_date;
 
     // 法定节假日（type=holiday）与调休补班日（type=work_weekend），跨 start~attEndDate 查询
@@ -1093,6 +1133,11 @@ export class EnrollmentsService {
       if (!dates || dates.length === 0) return false;
       return dates.some((d) => d >= attStartDate && d <= attEndDate);
     };
+    // 用节日全名集对补班日归一化名做模糊匹配（兼容历史简名：国庆调休→国庆节）
+    const festivalNames = new Set<string>(Object.keys(festivalDatesByName));
+    for (const wd of Object.keys(makeupDateToName)) {
+      makeupDateToName[wd] = festivalBaseName(makeupDateToName[wd], festivalNames);
+    }
     for (const wd of [...transferWorkdaySet]) {
       const nm = makeupDateToName[wd];
       if (!nm || !inReadRange(nm)) transferWorkdaySet.delete(wd);
@@ -1787,10 +1832,12 @@ export class EnrollmentsService {
     if (!startDate) return [];
     // 原始结束/默认观察窗口
     const oriEnd = enr.end_date || new Date(Date.now() + 730 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    // 判定上界与顺延落点：judge_end_date 缺失时惰性重算回填，避免补课日不进日历
+    const { judge: judgeBack, extended: extBack } = await this.ensureJudgeUpper(enr);
     // 判定上界（判节日在读区间用）
-    const judgeRef = enr.judge_end_date || oriEnd;
+    const judgeRef = judgeBack || oriEnd;
     // 顺延至上界（普通实际上课日仅到此处为止）
-    const extScope = enr.extended_end_date || oriEnd;
+    const extScope = extBack || oriEnd;
     // 日历区间上界：覆盖到能显示所需补课日的上界，取 max(extended_end_date, judge_end_date)
     const endDate = extScope > judgeRef ? extScope : judgeRef;
 
@@ -1859,6 +1906,11 @@ export class EnrollmentsService {
       }
     }
     // 仅当补班日对应节假日在判定上界 [start_date, judgeRef] 内时，该补班日(调休补班)才作为该幼儿的补课日
+    // 用节日全名集对补班日归一化名做模糊匹配（兼容历史简名：国庆调休→国庆节）
+    const fNames = new Set(festivalDatesByName.keys());
+    for (const dt of makeupDateToName.keys()) {
+      makeupDateToName.set(dt, festivalBaseName(makeupDateToName.get(dt)!, fNames));
+    }
     for (const dt of makeupDateToName.keys()) {
       const nm = makeupDateToName.get(dt)!;
       const fd = festivalDatesByName.get(nm);
