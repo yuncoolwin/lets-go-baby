@@ -165,7 +165,7 @@ export default function ChildDetailPage() {
     .sort((a, b) => ((COURSE_TYPE_ORDER[a.c.name] ?? 7) - (COURSE_TYPE_ORDER[b.c.name] ?? 7)) || (a.idx - b.idx))
     .map((s) => s.c)
   const [extendDetails, setExtendDetails] = useState<any[]>([])
-  const [extendTotalDays, setExtendTotalDays] = useState(0)
+  const [extendActualDays, setExtendActualDays] = useState(0)
   const [showDropInForm, setShowDropInForm] = useState(false)
   const [editingDropIn, setEditingDropIn] = useState<any | null>(null)
   const [diCourseType, setDiCourseType] = useState('')
@@ -251,7 +251,7 @@ export default function ChildDetailPage() {
       setShowExtendDialog(false)
       setExtendAnim('idle')
       setExtendDetails([])
-      setExtendTotalDays(0)
+      setExtendActualDays(0)
       setExtendToDate('')
       setExtendEditMode(false)
       setExtendEditList([])
@@ -365,7 +365,7 @@ export default function ChildDetailPage() {
       if (actual && actual.extended_end_date) {
         Taro.showToast({ title: '保存成功，顺延至 ' + actual.extended_end_date, icon: 'none', duration: 3000 })
         setExtendToDate(actual.extended_end_date)
-        setExtendTotalDays((actual.details || []).filter((x: any) => x && (x.isAuto === false || !x.isFrozen)).reduce((sum: number, x: any) => sum + (Number(x.overlapDays) || 0), 0))
+        setExtendActualDays(Number(actual.actualExtendDays ?? (actual.details || []).reduce((sum: number, x: any) => sum + (Number(x.overlapDays) || 0), 0)) || 0)
         setExtendDetails(actual.details || payload)
       } else {
         // 后端未返回时刷新计算接口
@@ -722,7 +722,7 @@ export default function ChildDetailPage() {
       if (actualData && actualData.details) {
         setExtendDetails(actualData.details)
         const total = actualData.details.filter((d: any) => d && (d.isAuto === false || !d.isFrozen)).reduce((sum: number, d: any) => sum + (d.overlapDays || 0), 0)
-        setExtendTotalDays(total)
+        setExtendActualDays(Number(actualData.actualExtendDays ?? total) || 0)
         setExtendToDate(actualData.extended_end_date || '')
         setShowExtendDialog(true)
       } else {
@@ -1989,7 +1989,7 @@ export default function ChildDetailPage() {
             <View className="pt-3" style={{ borderTop: '1px solid #e5e5e5' }}>
               <Text className="block text-xs text-gray-400 text-center mb-1">规则：连续请假5天或以上，按请假天数顺延</Text>
               <Text className="block text-sm text-gray-500 text-center">
-                共顺延 <Text className="font-bold text-orange-500">{extendEditMode ? extendEditList.filter((d) => d && (d.isAuto === false || !d.isFrozen)).reduce((s, d) => s + (Number((d as any).overlapDays) || 0), 0) : extendTotalDays}</Text> 天，顺延至 <Text className="font-bold text-orange-500">{extendToDate || '无'}</Text>
+                实际顺延 <Text className="font-bold text-orange-500">{extendEditMode ? extendEditList.filter((d) => d && (d.isAuto === false || !d.isFrozen)).reduce((s, d) => s + (Number((d as any).overlapDays) || 0), 0) : extendActualDays}</Text> 天，顺延至 <Text className="font-bold text-orange-500">{extendToDate || '无'}</Text>
               </Text>
             </View>
           </View>

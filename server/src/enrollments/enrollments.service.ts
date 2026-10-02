@@ -145,8 +145,8 @@ export class EnrollmentsService {
     enrollmentId: string,
     previewManualRows?: Array<{ name?: string; source_type?: string; start_date?: string | null; end_date?: string | null; overlap_days?: number }>,
     previewFrozen?: Array<{ type?: string; name?: string; startDate?: string | null; endDate?: string | null }>,
-  ): Promise<{ extended_end_date: string | null; details: HolidayDetail[] }> {
-    const result = { extended_end_date: null as string | null, details: [] as HolidayDetail[] };
+  ): Promise<{ extended_end_date: string | null; details: HolidayDetail[]; actualExtendDays: number }> {
+    const result = { extended_end_date: null as string | null, details: [] as HolidayDetail[], actualExtendDays: 0 } as { extended_end_date: string | null; details: HolidayDetail[]; actualExtendDays: number };
 
     // 手动顺延明细（基准）：用户在顺延原因弹窗中编辑保存的明细。
     // 提前查询，使下方所有提前 return 分支都能合并手动明细（保证再打开能回显）。
@@ -790,10 +790,35 @@ export class EnrollmentsService {
         const totalLeaveDays = countedSegs.reduce((sum, s) => sum + s.n, 0);
         finalSegments = segments;
         finalCounted = countedSegs;
-        // 落点推进（逐日数上课日，统一口径）：假期/手动/请假累计 N 天一起从 endDate 逐日推进，
+
+        // ====== 缺课补偿（missedMakeup） ======
+        // 在顺延后在读区间 [start_date, upperBound] 内，按 isClassDay 找出所有应上课的法定调休补班日；
+        // 其中日期 < 计算当天系统日期的每个补班日：当天无考勤记录 → missedMakeup += 1（已提前补课的不计）；
+        // 日期 ≥ 今天的补班日不计。missedMakeup 只影响落点延伸与补课日安排，不影响 actualExtendDays。
+        let missedMakeup = 0;
+        if (upperBound) {
+          const { data: attRows } = await manualCut(
+            this.client
+              .from('attendance')
+              .select('date')
+              .eq('child_id', enr.child_id)
+              .eq('course_type', enr.course_type)
+              .gte('date', startDate)
+              .lte('date', upperBound),
+          );
+          const presentSet = new Set((attRows || []).map(r => String(r.date || '').substring(0, 10)));
+          const todayStr = this.toDateStr(new Date().toISOString().slice(0, 10));
+          let dd = startDate;
+          while (dd <= upperBound) {
+            if (isWeekend(dd) && makeupDateToName.has(dd) && isClassDay(dd) && dd < todayStr && !presentSet.has(dd)) missedMakeup++;
+            dd = addDays(dd, 1);
+          }
+        }
+
+        // 落点推进（逐日数上课日，统一口径）：假期/手动/请假累计 + 缺课补偿一起从 endDate 逐日推进，
         // 凡属"该课程实际上课日"就累计，数满即停；多出的周一~五、补班日均按 isClassDay 判定，
         // 节假日/普通周末跳过。最终 extended_end_date 天然落在合法实际上课日上。
-        const combined = totalExtendBase + totalLeaveDays;
+        const combined = totalExtendBase + totalLeaveDays + missedMakeup;
         let ext = endDate;
         let rem = combined;
         while (rem > 0) {
@@ -824,6 +849,32 @@ export class EnrollmentsService {
       if (result.details.length) {
         result.details.sort((a, b) => { const as = String((a as any).startDate || ''); const bs = String((b as any).startDate || ''); if (!as && bs) return 1; if (as && !bs) return -1; return as.localeCompare(bs) });
       }
+    }
+
+    // ====== 实际顺延天数（展示口径） ======
+    // totalExtendDays = details 各条 overlapDays 之和
+    // 取顺延后在读区间 [end_date, extended_end_date]，遍历其中出现的法定节假日组（任一天在区间即整组计入）：
+    //   H = 该节假日在读区间内全部法定日期数；MW = 该节假日全部调休补班日数；SW = 该节假日法定日期落在周六/周日数
+    // actualExtendDays = totalExtendDays - Σ(H - MW - SW) - ΣMW = totalExtendDays - Σ(H - SW)，结果 <0 归 0
+    {
+      const detailsSum = result.details.reduce((sum, x) => sum + (Number((x as any).overlapDays) || 0), 0);
+      const extEnd = result.extended_end_date || endDate;
+      const makeupCountByName = new Map<string, number>();
+      for (const mwDate of makeupDateToName.keys()) {
+        const nm = makeupDateToName.get(mwDate)!;
+        makeupCountByName.set(nm, (makeupCountByName.get(nm) || 0) + 1);
+      }
+      let festAdj = 0;
+      let sumMW = 0;
+      for (const [name, dates] of festivalDatesByName.entries()) {
+        if (!dates.some((d) => d >= startDate && d <= extEnd)) continue;
+        const H = dates.length;
+        const MW = makeupCountByName.get(name) || 0;
+        const SW = dates.filter((d) => isWeekend(d)).length;
+        festAdj += H - MW - SW;
+        sumMW += MW;
+      }
+      result.actualExtendDays = Math.max(0, detailsSum - festAdj - sumMW);
     }
 
     return result;
@@ -859,7 +910,7 @@ export class EnrollmentsService {
           frozenAuto?: Array<{ name?: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>;
         }
       | Array<{ name?: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>,
-  ): Promise<{ extended_end_date: string | null }> {
+  ): Promise<{ extended_end_date: string | null; actualExtendDays: number }> {
     // 仅计算预览结果，不落库；以编辑中的临时明细作为手动基准
     const details = Array.isArray(payload) ? payload : payload.manualDetails || [];
     const frozenAuto = Array.isArray(payload) ? [] : payload.frozenAuto || [];
@@ -878,8 +929,8 @@ export class EnrollmentsService {
       startDate: d.startDate,
       endDate: d.endDate,
     }));
-    const { extended_end_date: extendedDate } = await this.calculateExtendedEndDate(enrollmentId, rows, frozenPreview);
-    return { extended_end_date: extendedDate };
+    const { extended_end_date: extendedDate, actualExtendDays } = await this.calculateExtendedEndDate(enrollmentId, rows, frozenPreview);
+    return { extended_end_date: extendedDate, actualExtendDays };
   }
 
   async saveManualExtensions(
@@ -890,7 +941,7 @@ export class EnrollmentsService {
           frozenAuto?: Array<{ name: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>;
         }
       | Array<{ name: string; type?: string; startDate?: string; endDate?: string; overlapDays?: number }>,
-  ): Promise<{ extended_end_date: string | null; details: HolidayDetail[] }> {
+  ): Promise<{ extended_end_date: string | null; details: HolidayDetail[]; actualExtendDays: number }> {
     // 兼容旧形态：直接传手动明细数组
     const manualDetails = Array.isArray(payload) ? payload : payload?.manualDetails || [];
     const frozenAuto = Array.isArray(payload) ? [] : (payload as any)?.frozenAuto || [];
@@ -950,8 +1001,8 @@ export class EnrollmentsService {
     return this.calcExtendedEndDateAndPersist(enrollmentId);
   }
 
-  async calcExtendedEndDateAndPersist(enrollmentId: string): Promise<{ extended_end_date: string | null; details: HolidayDetail[] }> {
-    const { extended_end_date: extendedDate, details } = await this.calculateExtendedEndDate(enrollmentId);
+  async calcExtendedEndDateAndPersist(enrollmentId: string): Promise<{ extended_end_date: string | null; details: HolidayDetail[]; actualExtendDays: number }> {
+    const { extended_end_date: extendedDate, details, actualExtendDays } = await this.calculateExtendedEndDate(enrollmentId);
     if (extendedDate) {
       await this.client
         .from('enrollments')
@@ -963,7 +1014,7 @@ export class EnrollmentsService {
         .update({ extended_end_date: null })
         .eq('id', enrollmentId);
     }
-    return { extended_end_date: extendedDate, details };
+    return { extended_end_date: extendedDate, details, actualExtendDays };
   }
 
   async findByChild(userId: string, childId: string): Promise<Enrollment[]> {
@@ -1775,8 +1826,11 @@ export class EnrollmentsService {
     const makeupDaySet = collectMakeupClassDays(matchingHolidays, rule === '周六', startDate, endDate);
 
     // 法定节假日（type=holiday）与调休补班日（type=work_weekend），跨年查询
+    // 调休补班日是否上课，取决于其对应法定节假日是否落在幼儿在读课程区间 [start_date, endDate(顺延后)]
     const startYear = parseInt(startDate.substring(0, 4));
     const endYear = parseInt(endDate.substring(0, 4));
+    const festivalDatesByName = new Map<string, string[]>();
+    const makeupDateToName = new Map<string, string>();
     for (let y = startYear; y <= endYear; y++) {
       const { data: oldHolidays } = await this.client
         .from('holidays_old')
@@ -1789,10 +1843,21 @@ export class EnrollmentsService {
         if (h.type === 'holiday') {
           holidaySet.add(dateStr);
           if (!holidayNameMap.has(dateStr)) holidayNameMap.set(dateStr, h.name || '法定节假日');
+          const nm = String(h.name || '');
+          if (nm) {
+            if (!festivalDatesByName.has(nm)) festivalDatesByName.set(nm, []);
+            festivalDatesByName.get(nm)!.push(dateStr);
+          }
         } else if (h.type === 'work_weekend') {
-          transferWorkdaySet.add(dateStr);
+          if (String(h.name || '')) makeupDateToName.set(dateStr, String(h.name));
         }
       }
+    }
+    // 仅当补班日对应节假日在读区间 [start_date, endDate] 内时，该补班日才作为实际上课日
+    for (const dt of makeupDateToName.keys()) {
+      const nm = makeupDateToName.get(dt)!;
+      const fd = festivalDatesByName.get(nm);
+      if (fd && fd.some((x) => x >= startDate && x <= endDate)) transferWorkdaySet.add(dt);
     }
 
     // 查询出勤记录（按 child_id+course_type 关联，兼容 enrollment_id 为 null/错配的历史考勤），构建状态映射
