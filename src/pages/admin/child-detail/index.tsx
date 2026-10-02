@@ -935,9 +935,26 @@ export default function ChildDetailPage() {
   }
 
   const currentCourse = courses.find((c) => c.name === formCourseType)
-  const currentDurationOptions: string[] = currentCourse?.duration_options?.length
-    ? currentCourse.duration_options
-    : ['一周体验', '计日', '计月', '一学期', '一学年']
+  // 兼容历史数据：把旧月数选项 1/3/6/12个月 过滤掉，改以新的「计月」替代；
+  // 其余选项（一周体验/计日/一学期/一学年等）按原顺序保留，页面不再展示旧月数选项
+  const LEGACY_MONTH_OPTIONS = ['1个月', '3个月', '6个月', '12个月']
+  const currentDurationOptions: string[] = (() => {
+    const raw: string[] = currentCourse?.duration_options?.length
+      ? currentCourse.duration_options
+      : ['一周体验', '计日', '计月', '一学期', '一学年']
+    const cleaned: string[] = []
+    let hadMonthly = false
+    for (const opt of raw) {
+      if (LEGACY_MONTH_OPTIONS.includes(opt)) {
+        hadMonthly = true
+        continue
+      }
+      if (opt === '计月') hadMonthly = true
+      if (!cleaned.includes(opt)) cleaned.push(opt)
+    }
+    if (hadMonthly && !cleaned.includes('计月')) cleaned.push('计月')
+    return cleaned
+  })()
 
   return (
     <View className="min-h-screen bg-background pb-20">
