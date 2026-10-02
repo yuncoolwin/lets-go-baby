@@ -1535,7 +1535,8 @@ export default function ChildDetailPage() {
                 <Text className="block text-sm font-medium text-foreground mb-1">报读时长</Text>
                 <View className="flex flex-wrap gap-2">
                   {currentDurationOptions.map((t) => {
-                    const disabled = currentCourse?.duration_options?.length ? false : ['周六托', '兴趣班'].includes(formCourseType) && t !== '计日'
+                    // 周六托/暑假班/寒假班仅可选「计日」，其余时长选项置灰不可选
+                    const disabled = ['周六托', '暑假班', '寒假班'].includes(formCourseType) && t !== '计日'
                     return (
                       <View
                         key={t}
