@@ -91,27 +91,33 @@ export class AttendanceService {
       recordMap[key] = r;
     });
 
+    // 调休补班日（周六或周日被调休上班）按工作日处理，需在 isSun/isSat 判定之前查询
+    const isMakeup = await this.isMakeupWorkWeekend(targetDate);
+
     // 查询该班级在所选日期区间内的报读记录（按日期范围过滤，不限制状态）
-    const enrollmentList: Array<{ child_id: string; course_type: string; start_date: string; end_date: string; extended_end_date: string | null }> = [];
+    const enrollmentList: Array<{ child_id: string; course_type: string; start_date: string; end_date: string; extended_end_date: string | null; judge_end_date: string | null }> = [];
     if (childIds.length > 0) {
       const { data: enrollments } = await this.client
         .from('enrollments')
-        .select('child_id, course_type, start_date, end_date, extended_end_date')
+        .select('child_id, course_type, start_date, end_date, extended_end_date, judge_end_date')
         .in('child_id', childIds)
         .eq('class_id', classId);
       (enrollments || []).forEach(e => {
-        // 所选日期在 start_date 到 extended_end_date（或 end_date）区间内才返回
-        const effectiveEnd = e.extended_end_date || e.end_date;
-        if (e.start_date && targetDate >= e.start_date && targetDate <= effectiveEnd) {
-          enrollmentList.push({ child_id: e.child_id, course_type: e.course_type, start_date: e.start_date, end_date: e.end_date, extended_end_date: e.extended_end_date });
+        // 所选日期在 start_date 到 effectiveEnd（或顺延后）区间内才返回
+        const effectiveEnd = e.extended_end_date || e.end_date || '';
+        // 判定上界：调休补班日仅在判定上界内的补课日纳入该幼儿可点名
+        const judge = e.judge_end_date || effectiveEnd;
+        const inEffective = e.start_date && targetDate >= e.start_date && (!effectiveEnd || targetDate <= effectiveEnd);
+        const inJudge = e.start_date && targetDate >= e.start_date && (!judge || targetDate <= judge);
+        // 普通上课日按 effectiveEnd；调休补班日放宽到判定上界（补课入口）
+        if (inEffective || (isMakeup && inJudge)) {
+          enrollmentList.push({ child_id: e.child_id, course_type: e.course_type, start_date: e.start_date, end_date: e.end_date, extended_end_date: e.extended_end_date, judge_end_date: e.judge_end_date });
         }
       });
     }
 
     // 按星期几过滤课程类型：普通周六只显示周六托，补班周六/补班周日按工作日处理（显示非周六托），普通周日报空
     const isSaturdayDate = isSaturday(targetDate);
-    // 调休补班日（周六或周日被调休上班）按工作日处理，需在 isSun/isSat 判定之前查询
-    const isMakeup = await this.isMakeupWorkWeekend(targetDate);
     // 补班日→法定节假日映射（用于按幼儿在读区间细分是否上课）
     const makeupFest = await this.getMakeupFestivalRange(targetDate);
     // 补课日判定：一次查询命中目标日期的全部补课记录，构建两层集合（global all+class / personal per-child）
@@ -144,6 +150,7 @@ export class AttendanceService {
         avatar_url: child.avatar_url,
         allergies: child.allergies,
         course_type: e.course_type,
+        is_makeup: !!isMakeup && e.course_type !== '周六托',
         attendance_id: record?.id || null,
         attendance_status: record?.status || null,
         updated_at: record?.updated_at || null,
@@ -215,18 +222,19 @@ export class AttendanceService {
   }
 
   /**
-   * 某幼儿某课程在目标调休补班日是否为实际上课日：取决于该补班日所属法定节假日是否落在
-   * 该幼儿报读在读区间 [start_date, extended_end_date || end_date] 内。
+   * 某幼儿某课程在目标调休补班日是否为实际上课日（补课日）：取决于该补班日所属法定节假日是否落在
+   * 该幼儿报读在读区间 [start_date, judge_end_date || extended_end_date || end_date] 内。
    */
   private makeupClassForEnrollment(
-    enrollment: { start_date: string | null; end_date: string | null; extended_end_date: string | null },
+    enrollment: { start_date: string | null; end_date: string | null; extended_end_date: string | null; judge_end_date?: string | null },
     isMakeup: boolean,
     fest: { name: string | null; dates: string[] },
   ): boolean {
     if (!isMakeup) return true; // 非补班日，由外层星期判断
+
     if (!fest.name || fest.dates.length === 0) return false;
     if (!enrollment.start_date) return false;
-    const end = enrollment.extended_end_date || enrollment.end_date;
+    const end = enrollment.judge_end_date || enrollment.extended_end_date || enrollment.end_date;
     if (!end) return false;
     return fest.dates.some(d => d >= enrollment.start_date! && d <= end);
   }
@@ -329,7 +337,7 @@ export class AttendanceService {
     // 查询该班级在所选日期区间内的报读记录（按日期范围过滤，不限制状态）
     const { data: enrollments } = await this.client
       .from('enrollments')
-      .select('id, child_id, course_type, course_id, status, start_date, end_date, extended_end_date')
+      .select('id, child_id, course_type, course_id, status, start_date, end_date, extended_end_date, judge_end_date')
       .eq('class_id', classId);
 
     const enrollmentList = enrollments || [];
@@ -360,6 +368,8 @@ export class AttendanceService {
       start_date: string | null;
       end_date: string | null;
       extended_end_date: string | null;
+      judge_end_date?: string | null;
+      is_makeup?: boolean;
       is_drop_in?: boolean;
       drop_in_id?: string;
     }>>();
@@ -379,7 +389,9 @@ export class AttendanceService {
       if (!activeChildIds.has(e.child_id)) continue;
       if (queryDate && e.start_date && queryDate < e.start_date) continue;
       const effectiveEnd = e.extended_end_date || e.end_date;
-      if (queryDate && effectiveEnd && queryDate > effectiveEnd) continue;
+      const judge = e.judge_end_date || effectiveEnd;
+      // 普通上课日限定在 effectiveEnd 内；调休补班日放宽到判定上界（提供补课入口）
+      if (queryDate && effectiveEnd && queryDate > effectiveEnd && !(isMakeup && judge && queryDate <= judge)) continue;
       const personal = makeupLayers.personal[e.child_id] || { workday: false, saturday: false };
       // 调休补班日仅当其对应节假日在当前幼儿在读区间内时才算该幼儿上课日
       const makeupOk = this.makeupClassForEnrollment(e, isMakeup, makeupFest);
@@ -399,6 +411,8 @@ export class AttendanceService {
         start_date: e.start_date,
         end_date: e.end_date,
         extended_end_date: e.extended_end_date || e.end_date,
+        judge_end_date: e.judge_end_date || null,
+        is_makeup: isMakeup && ct !== '周六托' && makeupOk,
       });
     }
     // 附加临时来园幼儿（不在报读中，但当天有临时课程记录；支持区间匹配）
