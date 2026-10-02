@@ -498,7 +498,7 @@ export default function ChildDetailPage() {
   const openAddEnrollment = () => {
     setEditingEnrollment(null)
     setFormCourseType('')
-    setFormDurationType('计日')
+    setFormDurationType('')
     setFormDurationDays('')
     setFormDurationMonths('')
     const today = new Date()
@@ -1544,18 +1544,25 @@ export default function ChildDetailPage() {
                           disabled ? 'bg-gray-100 text-gray-300' : formDurationType === t ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600'
                         }`}
                         onClick={() => {
-                          if (!disabled) {
-                            const newDuration = t
-                            setFormDurationType(newDuration)
+                          if (disabled) return
+                          // 再次点击已选中项则取消选择
+                          if (formDurationType === t) {
+                            setFormDurationType('')
                             setFormDurationDays('')
                             setFormDurationMonths('')
-                            if (newDuration === '计日' || newDuration === '计月') {
-                              setFormEndDate('')
-                            } else if (['一学期', '一学年'].includes(newDuration)) {
-                              setFormEndDate('')
-                            } else {
-                              calcEndDate(formCourseType, newDuration, '', formStartDate)
-                            }
+                            setFormEndDate('')
+                            return
+                          }
+                          const newDuration = t
+                          setFormDurationType(newDuration)
+                          setFormDurationDays('')
+                          setFormDurationMonths('')
+                          if (newDuration === '计日' || newDuration === '计月') {
+                            setFormEndDate('')
+                          } else if (['一学期', '一学年'].includes(newDuration)) {
+                            setFormEndDate('')
+                          } else {
+                            calcEndDate(formCourseType, newDuration, '', formStartDate)
                           }
                         }}
                       >
