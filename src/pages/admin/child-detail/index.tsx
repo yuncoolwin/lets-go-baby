@@ -508,7 +508,8 @@ export default function ChildDetailPage() {
     setFormStatus('进行中')
     setFormPaymentAmount('')
     setFormPaymentChannel('')
-    setFormClassId('')
+    const icClass = classes.find((cl: any) => (cl.name || '').includes('IC'))
+    setFormClassId(icClass ? String(icClass.id) : '')
     setFormNotes('')
     isStatusAutoRef.current = true
     autoCalculatedStatusRef.current = '进行中'
@@ -1501,28 +1502,18 @@ export default function ChildDetailPage() {
                       onClick={() => {
                         const newType = c.name
                         setFormCourseType(newType)
+                        // 周六托/暑假班/寒假班：默认计日并清空天数；其余课程不默认，保持手动选择
+                        if (['周六托', '暑假班', '寒假班'].includes(newType)) {
+                          setFormDurationType('计日')
+                          setFormDurationDays('')
+                          setFormDurationMonths('')
+                          setFormEndDate('')
+                        }
                         const rules = (c.date_calc_rule || '').split(',')
                         // 如果包含周六规则，默认开始日期为下周六
                         if (rules.includes('周六')) {
                           const saturdayDate = getNextSaturday()
                           setFormStartDate(saturdayDate)
-                          if (newType === '兴趣班' || rules.includes('工作日')) {
-                            setFormDurationType('计日')
-                            setFormDurationDays('')
-                            setFormDurationMonths('')
-                            // 计日天数未输入时不计算结束日期
-                          } else {
-                            setFormDurationType('计日')
-                            setFormDurationDays('')
-                            setFormDurationMonths('')
-                            // 计日天数未输入时不计算结束日期
-                          }
-                        } else if (newType === '兴趣班') {
-                          setFormDurationType('计日')
-                          setFormDurationDays('')
-                          // 计日天数未输入时不计算结束日期
-                        } else {
-                          calcEndDate(newType, formDurationType, formDurationType === '计月' ? formDurationMonths : formDurationDays, formStartDate)
                         }
                       }}
                     >
@@ -1574,10 +1565,11 @@ export default function ChildDetailPage() {
               </View>
               {formDurationType === '计日' && (
                 <View>
-                  <Text className="block text-sm font-medium text-foreground mb-1">计日天数</Text>
-                  <View className="bg-gray-50 rounded-xl px-4 py-3">
+                  <Text className="block text-sm font-medium text-foreground mb-1">报读天数</Text>
+                  <View className="bg-gray-50 rounded-xl px-4 py-3" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
                     <Input
                       className="w-full bg-transparent"
+                      style={{ flex: 1 }}
                       type="number"
                       placeholder="请输入天数"
                       value={formDurationDays}
@@ -1587,15 +1579,17 @@ export default function ChildDetailPage() {
                         calcEndDate(formCourseType, formDurationType, val, formStartDate)
                       }}
                     />
+                    <Text className="text-sm text-gray-400" style={{ flexShrink: 0, marginLeft: '8px' }}>天</Text>
                   </View>
                 </View>
               )}
               {formDurationType === '计月' && (
                 <View>
-                  <Text className="block text-sm font-medium text-foreground mb-1">月数</Text>
-                  <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', backgroundColor: '#f9fafb', borderRadius: '12px', padding: '0 16px' }}>
+                  <Text className="block text-sm font-medium text-foreground mb-1">报读月数</Text>
+                  <View className="bg-gray-50 rounded-xl px-4 py-3" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
                     <Input
-                      style={{ flex: 1, minHeight: '44px' }}
+                      className="w-full bg-transparent"
+                      style={{ flex: 1 }}
                       type="number"
                       placeholder="输入月数"
                       placeholderStyle="color:#9ca3af"
@@ -1615,7 +1609,7 @@ export default function ChildDetailPage() {
                         }
                       }}
                     />
-                    <Text className="text-sm text-foreground" style={{ flexShrink: 0, marginLeft: '8px' }}>个月</Text>
+                    <Text className="text-sm text-gray-400" style={{ flexShrink: 0, marginLeft: '8px' }}>个月</Text>
                   </View>
                 </View>
               )}
@@ -1656,16 +1650,6 @@ export default function ChildDetailPage() {
               <View>
                 <Text className="block text-sm font-medium text-foreground mb-1">所在班级</Text>
                 <View className="flex flex-wrap gap-2">
-                  <View
-                    className={`px-3 py-2 rounded-lg text-sm ${
-                      !formClassId
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}
-                    onClick={() => setFormClassId('')}
-                  >
-                    <Text>未分班</Text>
-                  </View>
                   {classes.map((c: any) => (
                     <View
                       key={c.id}
@@ -1679,6 +1663,16 @@ export default function ChildDetailPage() {
                       <Text>{c.name}{c.room ? `（${c.room}）` : ''}</Text>
                     </View>
                   ))}
+                  <View
+                    className={`px-3 py-2 rounded-lg text-sm ${
+                      !formClassId
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}
+                    onClick={() => setFormClassId('')}
+                  >
+                    <Text>未分班</Text>
+                  </View>
                 </View>
               </View>
               <View>
