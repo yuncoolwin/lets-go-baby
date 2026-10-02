@@ -81,7 +81,7 @@ export class ParentService {
     // 在读课程列表（status=进行中报读，含班级/课程名与日期, 按 start_date 升序）
     const { data: enrList } = await this.client
       .from('enrollments')
-      .select('class_id, course_id, course_type, start_date, end_date, extended_end_date')
+      .select('class_id, course_id, course_type, start_date, end_date, extended_end_date, judge_end_date')
       .eq('child_id', childId)
       .eq('status', '进行中');
 
@@ -106,6 +106,7 @@ export class ParentService {
           start_date: e.start_date,
           end_date: e.end_date,
           extended_end_date: e.extended_end_date,
+          judge_end_date: e.judge_end_date || null,
         }))
         .filter(c => c.course_name)
         .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
@@ -259,7 +260,7 @@ export class ParentService {
     // 补报读日期字段：course_id 优先，空则按 course_type 关联
     const { data: enrs } = await this.client
       .from('enrollments')
-      .select('course_id, course_type, start_date, end_date, extended_end_date')
+      .select('course_id, course_type, start_date, end_date, extended_end_date, judge_end_date')
       .eq('child_id', childId)
       .eq('status', '进行中');
     const enrByCourseId = new Map<string, any>();
@@ -291,6 +292,7 @@ export class ParentService {
         start_date: en?.start_date ?? null,
         end_date: en?.end_date ?? null,
         extended_end_date: en?.extended_end_date ?? null,
+        judge_end_date: en?.judge_end_date ?? null,
       };
     });
   }

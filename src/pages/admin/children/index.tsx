@@ -19,6 +19,7 @@ interface Enrollment {
   start_date: string | null
   end_date: string | null
   extended_end_date: string | null
+  judge_end_date: string | null
   status: string
   class_name: string | null
   payment_amount: number | null
@@ -262,22 +263,29 @@ export default function ChildrenManagePage() {
                   </View>
                 ) : child.enrollments && child.enrollments.length > 0 ? (
                   <View className="space-y-1">
-                    {child.enrollments.map((enr) => (
-                      <View
-                        key={enr.id}
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs ${courseTypeColors[enr.course_type] || 'bg-cyan-50 text-cyan-700 border-cyan-200'}`}
-                      >
-                        <Text className="text-xs font-medium">{enr.course_type}</Text>
-                        {enr.class_name && (
-                          <Text className="text-xs opacity-80">| {enr.class_name}</Text>
-                        )}
-                        {enr.start_date && (
-                          <Text className="text-xs opacity-70">
-                            {enr.start_date}{(enr.extended_end_date || enr.end_date) ? ` ~ ${enr.extended_end_date || enr.end_date}` : '起'}
-                          </Text>
-                        )}
-                      </View>
-                    ))}
+                    {child.enrollments.map((enr) => {
+                      const lastDate = [enr.judge_end_date, enr.extended_end_date].filter(Boolean).sort().pop() || enr.extended_end_date || enr.end_date || ''
+                      const now = new Date()
+                      const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+                      // 已结课（考勤最后上课日已过）则隐藏该在读课程
+                      if (lastDate && lastDate < todayKey) return null
+                      return (
+                        <View
+                          key={enr.id}
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs ${courseTypeColors[enr.course_type] || 'bg-cyan-50 text-cyan-700 border-cyan-200'}`}
+                        >
+                          <Text className="text-xs font-medium">{enr.course_type}</Text>
+                          {enr.class_name && (
+                            <Text className="text-xs opacity-80">| {enr.class_name}</Text>
+                          )}
+                          {enr.start_date && (
+                            <Text className="text-xs opacity-70">
+                              {enr.start_date}{lastDate ? ` ~ ${lastDate}` : '起'}
+                            </Text>
+                          )}
+                        </View>
+                      )
+                    })}
                   </View>
                 ) : (
                   <View className="flex items-center gap-1">

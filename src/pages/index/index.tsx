@@ -34,6 +34,7 @@ interface BabyStatus {
     start_date: string | null
     end_date: string | null
     extended_end_date: string | null
+    judge_end_date: string | null
   }[]
 }
 
@@ -71,6 +72,7 @@ interface GroupOverview {
     start_date: string | null
     end_date: string | null
     extended_end_date: string | null
+    judge_end_date: string | null
     is_drop_in?: boolean
   }>
 }
@@ -711,10 +713,14 @@ export default function IndexPage() {
                   <Text className="block text-sm font-medium text-foreground mb-2">在读课程</Text>
                   <View className="space-y-2">
                     {babyStatus.courses.map((course, idx) => {
-                      const endDateStr = course.extended_end_date || course.end_date
-                      const expiryTag = buildExpiryTag(endDateStr)
+                      const lastDate = [course.judge_end_date, course.extended_end_date].filter(Boolean).sort().pop() || course.extended_end_date || course.end_date || ''
+                      const now = new Date()
+                      const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+                      // 已结课（考勤最后上课日已过）则隐藏该在读课程
+                      if (lastDate && lastDate < todayKey) return null
+                      const expiryTag = buildExpiryTag(lastDate || null)
                       const startTxt = (course.start_date || '').slice(0, 10)
-                      const endTxt = (endDateStr || '').slice(0, 10)
+                      const endTxt = (lastDate || '').slice(0, 10)
                       return (
                         <View key={idx} className="py-1">
                           <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -992,11 +998,17 @@ export default function IndexPage() {
                                 leave: { label: '请假', bg: 'bg-red-100', text: 'text-red-700' },
                               }
                               const config = statusConfig[child.attendance_status] || { label: '未考勤', bg: 'bg-gray-100', text: 'text-gray-500' }
+                              const lastDate = [child.judge_end_date, child.extended_end_date].filter(Boolean).sort().pop() || child.extended_end_date || child.end_date || ''
+                              const now0 = new Date()
+                              now0.setHours(0, 0, 0, 0)
+                              const todayKey = `${now0.getFullYear()}-${String(now0.getMonth() + 1).padStart(2, '0')}-${String(now0.getDate()).padStart(2, '0')}`
+                              // 已结课（考勤最后上课日已过）则隐藏该在读课程条目
+                              if (lastDate && lastDate < todayKey) return null
                               const dateRange = child.start_date
-                                ? `${child.start_date}${child.extended_end_date || child.end_date ? ` ~ ${child.extended_end_date || child.end_date}` : '起'}`
+                                ? `${child.start_date}${lastDate ? ` ~ ${lastDate}` : '起'}`
                                 : null
                               // 到期标签
-                              const endDateStr = child.extended_end_date || child.end_date
+                              const endDateStr = lastDate || null
                               let expiryTag: { text: string; className: string } | null = null
                               if (endDateStr) {
                                 const endDate = new Date(endDateStr)

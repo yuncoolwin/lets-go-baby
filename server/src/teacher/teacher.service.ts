@@ -394,7 +394,7 @@ export class TeacherService {
     // 查询该班级的全部报读（通过 enrollments.class_id，关联 courses 获取课程名称）
     const { data: enrollments } = await this.client
       .from('enrollments')
-      .select('id, child_id, course_type, course_id, status, start_date, end_date, extended_end_date')
+      .select('id, child_id, course_type, course_id, status, start_date, end_date, extended_end_date, judge_end_date')
       .eq('class_id', teacherClassId);
 
     const enrollmentList = enrollments || [];
@@ -439,6 +439,7 @@ export class TeacherService {
       end_date: string | null;
       nickname: string;
       extended_end_date: string | null;
+      judge_end_date: string | null;
       is_drop_in?: boolean;
       drop_in_id?: string;
     }>>();
@@ -458,6 +459,7 @@ export class TeacherService {
         nickname: childrenMap[e.child_id]?.nickname || '' ,
         end_date: e.end_date,
         extended_end_date: e.extended_end_date || e.end_date,
+        judge_end_date: e.judge_end_date || null,
       });
     }
 
@@ -502,6 +504,7 @@ export class TeacherService {
             nickname: childrenMap[d.child_id]?.nickname || '',
             end_date: null,
             extended_end_date: null,
+            judge_end_date: null,
             is_drop_in: true,
           });
         }
@@ -651,7 +654,7 @@ export class TeacherService {
     // 查询该班级的进行中报读
     const { data: enrollments } = await this.client
       .from('enrollments')
-      .select('id, child_id, course_type, course_id, status, start_date, end_date, extended_end_date')
+      .select('id, child_id, course_type, course_id, status, start_date, end_date, extended_end_date, judge_end_date')
       .eq('class_id', classId)
       .eq('status', '进行中');
 
@@ -696,6 +699,7 @@ export class TeacherService {
       end_date: string | null;
       nickname: string;
       extended_end_date: string | null;
+      judge_end_date: string | null;
       is_drop_in?: boolean;
     }>>();
 
@@ -713,6 +717,7 @@ export class TeacherService {
         nickname: childrenMap[e.child_id]?.nickname || '' ,
         end_date: e.end_date,
         extended_end_date: e.extended_end_date || e.end_date,
+        judge_end_date: e.judge_end_date || null,
       });
     }
 
@@ -747,6 +752,7 @@ export class TeacherService {
             nickname: childrenMap[d.child_id]?.nickname || '',
             end_date: null,
             extended_end_date: null,
+            judge_end_date: null,
             is_drop_in: true,
           });
         }
