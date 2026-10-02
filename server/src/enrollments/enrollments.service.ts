@@ -648,7 +648,7 @@ export class EnrollmentsService {
     }
     // 节假日是否落在在读区间 [start_date, upper]（upper 随顺延结束日期动态推进）
     const isFestivalInReadRange = (name: string, upper: string): boolean => {
-      const dates = this.resolveFestDates(festivalDatesByName, name);
+      const dates = festivalDatesByName.get(name);
       if (!dates || dates.length === 0) return false;
       for (const d of dates) if (d >= startDate && d <= upper) return true;
       return false;
@@ -848,19 +848,7 @@ export class EnrollmentsService {
       const makeupCountByName = new Map<string, number>();
       for (const mwDate of makeupDateToName.keys()) {
         const nm = makeupDateToName.get(mwDate)!;
-        // 用"精确优先+包含回退"将补班日归组到其实际命中的法定节假日 name（规避"国庆调休"vs"国庆节"不一致）
-        let countKey: string | null = null;
-        if (festivalDatesByName.has(nm)) {
-          countKey = nm;
-        } else {
-          const rally = nm.replace(/调休|放假|上班/g, '');
-          if (rally) {
-            for (const [k, ds] of festivalDatesByName.entries()) {
-              if (ds.length && (k.includes(rally) || rally.includes(k))) { countKey = k; break; }
-            }
-          }
-        }
-        if (countKey) makeupCountByName.set(countKey, (makeupCountByName.get(countKey) || 0) + 1);
+        makeupCountByName.set(nm, (makeupCountByName.get(nm) || 0) + 1);
       }
       let festAdj = 0;
       let sumMW = 0;
@@ -1100,7 +1088,7 @@ export class EnrollmentsService {
     // 调休补班日上课条件化：仅当该补班日所属节假日落在在读区间 [start_date, 顺延结束时间(attEndDate)] 内才算上课日，
     // 否则按普通周末处理（不计入应出勤）
     const inReadRange = (name: string) => {
-      const dates = this.resolveFestDates(festivalDatesByName, name);
+      const dates = festivalDatesByName[name];
       if (!dates || dates.length === 0) return false;
       return dates.some((d) => d >= attStartDate && d <= attEndDate);
     };
@@ -1778,32 +1766,6 @@ export class EnrollmentsService {
   }
 
   /**
-   * 解析某调休补班日 name 所对应的法定节假日日期集合。
-   * 优先精确匹配；但因数据里补班日 name（如"国庆调休"）与法定节假日 name（如"国庆节"）可能不一致，
-   * 精确未命中时做"包含回退"：规约掉常见词缀（调休/放假/上班）后与已知节假日名做双向包含匹配，取第一个命中。
-   * 返回 undefined 表示匹配不到（该补班日按非上课日处理）。
-   */
-  private resolveFestDates(
-    byName: Map<string, string[]> | Record<string, string[]>,
-    name: string,
-  ): string[] | undefined {
-    const isMap = byName instanceof Map;
-    const getK = (k: string): string[] | undefined =>
-      isMap ? (byName as Map<string, string[]>).get(k) : (byName as Record<string, string[]>)[k];
-    const keys = isMap ? Array.from((byName as Map<string, string[]>).keys()) : Object.keys(byName);
-    const exact = getK(name);
-    if (exact && exact.length) return exact;
-    const rally = String(name || '').replace(/调休|放假|上班/g, '');
-    if (!rally) return undefined;
-    for (const k of keys) {
-      if (k === name) continue;
-      const ds = getK(k);
-      if (ds && ds.length && (k.includes(rally) || rally.includes(k))) return ds;
-    }
-    return undefined;
-  }
-
-  /**
    * 获取考勤日历数据
    * 返回 start_date 到 extended_end_date（或 end_date）完整区间，每个日期标记是否上课日
    */
@@ -1898,7 +1860,7 @@ export class EnrollmentsService {
     // 仅当补班日对应节假日在判定上界 [start_date, judgeRef] 内时，该补班日(调休补班)才作为该幼儿的补课日
     for (const dt of makeupDateToName.keys()) {
       const nm = makeupDateToName.get(dt)!;
-      const fd = this.resolveFestDates(festivalDatesByName, nm);
+      const fd = festivalDatesByName.get(nm);
       if (fd && fd.some((x) => x >= startDate && x <= judgeRef)) transferWorkdaySet.add(dt);
     }
 

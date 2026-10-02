@@ -207,36 +207,15 @@ export class AttendanceService {
         .eq('year', year)
         .eq('type', 'work_weekend');
       const hit = (work || []).find(h => h.date?.substring(0, 10) === date);
-      const rawName = hit ? String(hit.name || '') : '';
-      if (!rawName) return { name: null, dates: [] };
+      const name = hit ? String(hit.name || '') : '';
+      if (!name) return { name: null, dates: [] };
       const { data: hol } = await this.client
         .from('holidays_old')
-        .select('date, name')
+        .select('date')
         .eq('year', year)
-        .eq('type', 'holiday');
-      // 按 name 归组
-      const byName = new Map<string, string[]>();
-      (hol || []).forEach(h => {
-        const n = String(h.name || '');
-        const d = h.date?.substring(0, 10);
-        if (!n || !d) return;
-        if (!byName.has(n)) byName.set(n, []);
-        byName.get(n)!.push(d);
-      });
-      // 精确优先
-      let name = rawName;
-      let dates = byName.get(rawName) || [];
-      // 包含回退：补班日 name（如"国庆调休"）与法定节假日 name（如"国庆节"）可能不一致
-      if (dates.length === 0) {
-        const rally = rawName.replace(/调休|放假|上班/g, '');
-        if (rally) {
-          for (const [k, ds] of byName.entries()) {
-            if (ds.length && (k.includes(rally) || rally.includes(k))) { name = k; dates = ds; break; }
-          }
-        }
-      }
-      if (dates.length === 0) return { name: null, dates: [] };
-      return { name, dates };
+        .eq('type', 'holiday')
+        .eq('name', name);
+      return { name, dates: (hol || []).map(h => h.date?.substring(0, 10)).filter(Boolean) as string[] };
     } catch (e) {
       return { name: null, dates: [] };
     }
