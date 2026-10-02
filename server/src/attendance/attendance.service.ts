@@ -4,6 +4,7 @@ import { getShanghaiToday, isSaturday, isWeekend } from '@/utils/date.util';
 import { AuthzService } from '@/auth/authz.service';
 import { buildMakeupLayers } from '@/children/utils/holiday-helper';
 import { getActiveChildIds, isChildActive } from '@/common/active-children.util';
+import { festivalBaseName } from '@/children/utils/date-calculator';
 
 /**
  * 判断某天是否属于某课程类型的上课日：
@@ -207,7 +208,7 @@ export class AttendanceService {
         .eq('year', year)
         .eq('type', 'work_weekend');
       const hit = (work || []).find(h => h.date?.substring(0, 10) === date);
-      const name = hit ? String(hit.name || '') : '';
+      const name = hit ? festivalBaseName(String(hit.name || '')) : '';
       if (!name) return { name: null, dates: [] };
       const { data: hol } = await this.client
         .from('holidays_old')

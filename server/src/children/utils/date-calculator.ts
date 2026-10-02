@@ -20,10 +20,19 @@ const DEFAULT_HOLIDAYS = new Set<string>([
 const DEFAULT_WORK_WEEKENDS = new Set<string>([
   '2026-02-14', // 春节调休
   '2026-02-28', // 春节调休
-  '2026-03-28', // 清明调休
+  '2026-03-28', // 清明节调休
   '2026-05-09', // 劳动节调休
-  '2026-10-10', // 国庆调休
+  '2026-10-10', // 国庆节调休
 ])
+
+/**
+ * 节日名称归一化：去掉尾部"调休"，得到对应法定节假日全名。
+ * 如"中秋调休/中秋节调休 → 中秋节"、"国庆节调休 → 国庆节"。
+ * 补班日(work_weekend)的名称与法定节假日(holiday)全名口径统一后，据此建立关联。
+ */
+export function festivalBaseName(name: string): string {
+  return name.endsWith('调休') ? name.slice(0, -2) : name
+}
 
 /**
  * 创建日期计算器实例

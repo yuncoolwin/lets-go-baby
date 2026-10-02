@@ -4,6 +4,7 @@ import { AuthzService } from '@/auth/authz.service';
 import { WechatService } from '@/auth/wechat.service';
 import { addDays, isWeekend, isSaturday } from '@/utils/date.util';
 import { collectMakeupClassDays } from '@/children/utils/holiday-helper';
+import { festivalBaseName } from '@/children/utils/date-calculator';
 import { isChildActive } from '@/common/active-children.util';
 
 export interface HolidayDetail {
@@ -641,8 +642,8 @@ export class EnrollmentsService {
           if (!festivalDatesByName.has(nm)) festivalDatesByName.set(nm, []);
           festivalDatesByName.get(nm)!.push(d);
         } else if (r.type === 'work_weekend') {
-          // 补班日 name 为空或匹配不到节假日，一律按非上课日处理
-          if (String(r.name || '')) makeupDateToName.set(d, String(r.name));
+          // 补班日 name 为空或匹配不到节假日，一律按非上课日处理；归一到节日全名后与 festivalDatesByName 关联
+          if (String(r.name || '')) makeupDateToName.set(d, festivalBaseName(String(r.name)));
         }
       }
     }
@@ -1080,7 +1081,7 @@ export class EnrollmentsService {
             festivalDatesByName[nm].push(dateStr);
           }
         } else if (h.type === 'work_weekend') {
-          if (String(h.name || '')) makeupDateToName[dateStr] = String(h.name);
+          if (String(h.name || '')) makeupDateToName[dateStr] = festivalBaseName(String(h.name));
           transferWorkdaySet.add(dateStr);
         }
       }
@@ -1853,7 +1854,7 @@ export class EnrollmentsService {
             festivalDatesByName.get(nm)!.push(dateStr);
           }
         } else if (h.type === 'work_weekend') {
-          if (String(h.name || '')) makeupDateToName.set(dateStr, String(h.name));
+          if (String(h.name || '')) makeupDateToName.set(dateStr, festivalBaseName(String(h.name)));
         }
       }
     }
