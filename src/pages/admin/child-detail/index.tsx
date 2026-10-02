@@ -665,11 +665,18 @@ export default function ChildDetailPage() {
       const res: any = await enrollmentApi.getAttendanceCalendar(enr.id)
       console.log('[AttendanceCalendar] open calendar, response:', res.data)
       const data = res.data || []
-      setCurrentAttendanceCalendar(prev => prev ? { ...prev, attendanceData: data } : null)
-      // 默认显示月份：取考勤记录中（排除放假/无记录）最晚日期所在月，全部为放假或无记录则取开始日期所在月
+      // 日历区间上界：后端已按 judge_end_date 延伸，覆盖补课日（如调休补班日 10-10）。
+      // 不能在 startDate..extended_end_date 处截断，否则超出顺延落点的补课日不显示。
+      const maxDate = (data || []).reduce(
+        (mx: string, it: any) => (it?.date && it.date > mx ? it.date : mx),
+        enr.extended_end_date || enr.end_date || '9999-12-31',
+      )
+      setCurrentAttendanceCalendar(prev => prev ? { ...prev, attendanceData: data, endDate: maxDate } : null)
+      // 默认显示月份：取考勤记录（排除放假/无记录）及补课日中（排除放假/无记录）最晚日期所在月，
+      // 全部为放假或无记录则取开始日期所在月
       const validStatuses = ['full', 'half', 'present', 'leave', 'absent']
       const validDates = data
-        .filter((item: any) => item.date && validStatuses.includes(item.status))
+        .filter((item: any) => item.date && (validStatuses.includes(item.status) || item.is_makeup === true))
         .map((item: any) => item.date)
       if (validDates.length > 0) {
         validDates.sort()
