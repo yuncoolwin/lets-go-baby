@@ -1,6 +1,7 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { createDateCalculator } from './utils/date-calculator';
+import { resolveAttendEndDate } from './utils/attendance-dates';
 import { HolidaysService } from '@/holidays/holidays.service';
 import { parseDate } from '@/utils/date.util';
 import { AuthzService } from '@/auth/authz.service';
@@ -390,7 +391,7 @@ export class ChildrenService {
         .from('enrollments')
         .select('*')
         .in('child_id', pagedIds)
-        .eq('status', '进行中');
+        .in('status', ['进行中', '已结束']);
 
       // 收集所有 enrollments 中的 class_id，批量查询班级名称
       const enrClassIds = [...new Set((enrollments || []).map(e => e.class_id).filter(Boolean))];
@@ -405,7 +406,22 @@ export class ChildrenService {
         }
       }
 
-      for (const enr of enrollments || []) {
+      const today = new Date().toISOString().slice(0, 10);
+      const resolved = await Promise.all(
+        (enrollments || []).map(async (enr) => {
+          try {
+            const attend = await resolveAttendEndDate(this.client, enr);
+            return { enr, attend, active: !!attend && attend >= today };
+          } catch {
+            const attend = enr.extended_end_date || enr.end_date || '';
+            return { enr, attend, active: !!attend && attend >= today };
+          }
+        }),
+      );
+
+      for (const { enr, attend, active } of resolved) {
+        // 最后上课日已过 → 判定已结课，不展示该在读课程
+        if (!active) continue;
         if (!enrollmentsMap[enr.child_id]) enrollmentsMap[enr.child_id] = [];
         enrollmentsMap[enr.child_id].push({
           id: enr.id,
@@ -415,6 +431,7 @@ export class ChildrenService {
           end_date: enr.end_date,
           extended_end_date: enr.extended_end_date,
           judge_end_date: enr.judge_end_date || null,
+          attend_end_date: attend || enr.extended_end_date || enr.end_date || null,
           status: enr.status,
           class_name: enr.class_id ? (enrClassMap[enr.class_id] || null) : null,
           payment_amount: enr.payment_amount,

@@ -20,6 +20,7 @@ interface Enrollment {
   end_date: string | null
   extended_end_date: string | null
   judge_end_date: string | null
+  attend_end_date?: string | null
   status: string
   class_name: string | null
   payment_amount: number | null
@@ -264,7 +265,7 @@ export default function ChildrenManagePage() {
                 ) : child.enrollments && child.enrollments.length > 0 ? (
                   <View className="space-y-1">
                     {child.enrollments.map((enr) => {
-                      const lastDate = [enr.judge_end_date, enr.extended_end_date].filter(Boolean).sort().pop() || enr.extended_end_date || enr.end_date || ''
+                      const lastDate = enr.attend_end_date || enr.extended_end_date || enr.end_date || ''
                       const now = new Date()
                       const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
                       // 已结课（考勤最后上课日已过）则隐藏该在读课程

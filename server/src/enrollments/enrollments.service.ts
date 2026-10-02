@@ -5,6 +5,7 @@ import { WechatService } from '@/auth/wechat.service';
 import { addDays, isWeekend, isSaturday } from '@/utils/date.util';
 import { collectMakeupClassDays } from '@/children/utils/holiday-helper';
 import { festivalBaseName } from '@/children/utils/date-calculator';
+import { resolveAttendEndDate } from '@/children/utils/attendance-dates';
 import { isChildActive } from '@/common/active-children.util';
 
 export interface HolidayDetail {
@@ -120,13 +121,45 @@ export class EnrollmentsService {
 
   private async syncExpiredStatus(): Promise<void> {
     const today = new Date().toISOString().slice(0, 10);
-    const { error } = await this.client
+    const { data: actives, error: actErr } = await this.client
       .from('enrollments')
-      .update({ status: '已结束', updated_at: new Date().toISOString() })
-      .eq('status', '进行中')
-      .lt('end_date', today);
+      .select('id, start_date, end_date, extended_end_date, judge_end_date, status')
+      .in('status', ['进行中', '已结束']);
 
-    if (error) console.error('自动更新过期报读状态失败:', error.message);
+    if (actErr) {
+      console.error('自动更新过期报读状态失败(查询):', actErr.message);
+      return;
+    }
+
+    const fromExpired: string[] = []; // 应置为已结束（最后上课日已过）
+    const reviveActive: string[] = []; // 应恢复为进行中（最后上课日未过，含补课日）
+    for (const e of actives || []) {
+      try {
+        const attend = await resolveAttendEndDate(this.client, e);
+        const activeNow = !!attend && attend >= today;
+        if (!activeNow && e.status === '进行中') fromExpired.push(e.id);
+        else if (activeNow && e.status === '已结束') reviveActive.push(e.id);
+      } catch (err) {
+        // 单条计算失败不影响整体，沿用原状态
+      }
+    }
+
+    if (fromExpired.length) {
+      const { error } = await this.client
+        .from('enrollments')
+        .update({ status: '已结束', updated_at: new Date().toISOString() })
+        .in('id', fromExpired)
+        .eq('status', '进行中');
+      if (error) console.error('自动更新过期报读状态失败:', error.message);
+    }
+    if (reviveActive.length) {
+      const { error } = await this.client
+        .from('enrollments')
+        .update({ status: '进行中', updated_at: new Date().toISOString() })
+        .in('id', reviveActive)
+        .eq('status', '已结束');
+      if (error) console.error('恢复进行中报读状态失败:', error.message);
+    }
   }
 
   /**

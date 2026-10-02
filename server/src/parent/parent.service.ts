@@ -3,6 +3,7 @@ import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { AuthzService } from '@/auth/authz.service';
 import { isChildActive } from '@/common/active-children.util';
 import { signGrowthUrlsDetailed } from '@/common/growth-media.util';
+import { resolveAttendEndDate } from '@/children/utils/attendance-dates';
 
 @Injectable()
 export class ParentService {
@@ -78,17 +79,31 @@ export class ParentService {
       .limit(1)
       .maybeSingle();
 
-    // 在读课程列表（status=进行中报读，含班级/课程名与日期, 按 start_date 升序）
+    // 在读课程列表（status=进行中 + 未结课的已结束报读，按考勤最后上课日判活跃, 按 start_date 升序）
     const { data: enrList } = await this.client
       .from('enrollments')
       .select('class_id, course_id, course_type, start_date, end_date, extended_end_date, judge_end_date')
       .eq('child_id', childId)
-      .eq('status', '进行中');
+      .in('status', ['进行中', '已结束']);
+
+    const today = new Date().toISOString().slice(0, 10);
+    const activeEnrList = await Promise.all(
+      (enrList || []).map(async (e) => {
+        try {
+          const attend = await resolveAttendEndDate(this.client, e);
+          return { ...e, attend_end_date: attend, active: !!attend && attend >= today };
+        } catch {
+          const attend = e.extended_end_date || e.end_date || '';
+          return { ...e, attend_end_date: attend, active: !!attend && attend >= today };
+        }
+      }),
+    );
 
     let courses: any[] = [];
-    if (enrList && enrList.length) {
-      const classIds = [...new Set(enrList.map(e => e.class_id).filter(Boolean))];
-      const courseIds = [...new Set(enrList.map(e => e.course_id).filter(Boolean))];
+    if (activeEnrList.length) {
+      const activeSet = activeEnrList.filter(e => e.active);
+      const classIds = [...new Set(activeSet.map(e => e.class_id).filter(Boolean))];
+      const courseIds = [...new Set(activeSet.map(e => e.course_id).filter(Boolean))];
       const classMap: Record<string, string> = {};
       const courseNameMap: Record<string, string> = {};
       if (classIds.length) {
@@ -99,7 +114,7 @@ export class ParentService {
         const { data: courseRows } = await this.client.from('courses').select('id, name').in('id', courseIds);
         if (courseRows) courseRows.forEach(c => { courseNameMap[c.id] = c.name; });
       }
-      courses = enrList
+      courses = activeSet
         .map(e => ({
           class_name: e.class_id ? (classMap[e.class_id] || null) : null,
           course_name: (e.course_id && courseNameMap[e.course_id]) || e.course_type || null,
@@ -107,6 +122,7 @@ export class ParentService {
           end_date: e.end_date,
           extended_end_date: e.extended_end_date,
           judge_end_date: e.judge_end_date || null,
+          attend_end_date: e.attend_end_date || e.extended_end_date || e.end_date || null,
         }))
         .filter(c => c.course_name)
         .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
@@ -293,6 +309,7 @@ export class ParentService {
         end_date: en?.end_date ?? null,
         extended_end_date: en?.extended_end_date ?? null,
         judge_end_date: en?.judge_end_date ?? null,
+        attend_end_date: en?.attend_end_date ?? en?.extended_end_date ?? en?.end_date ?? null,
       };
     });
   }

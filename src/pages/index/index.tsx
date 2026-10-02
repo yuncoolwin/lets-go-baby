@@ -35,6 +35,7 @@ interface BabyStatus {
     end_date: string | null
     extended_end_date: string | null
     judge_end_date: string | null
+    attend_end_date?: string | null
   }[]
 }
 
@@ -73,6 +74,7 @@ interface GroupOverview {
     end_date: string | null
     extended_end_date: string | null
     judge_end_date: string | null
+    attend_end_date?: string | null
     is_drop_in?: boolean
   }>
 }
@@ -713,7 +715,7 @@ export default function IndexPage() {
                   <Text className="block text-sm font-medium text-foreground mb-2">在读课程</Text>
                   <View className="space-y-2">
                     {babyStatus.courses.map((course, idx) => {
-                      const lastDate = [course.judge_end_date, course.extended_end_date].filter(Boolean).sort().pop() || course.extended_end_date || course.end_date || ''
+                      const lastDate = course.attend_end_date || course.extended_end_date || course.end_date || ''
                       const now = new Date()
                       const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
                       // 已结课（考勤最后上课日已过）则隐藏该在读课程
@@ -998,7 +1000,7 @@ export default function IndexPage() {
                                 leave: { label: '请假', bg: 'bg-red-100', text: 'text-red-700' },
                               }
                               const config = statusConfig[child.attendance_status] || { label: '未考勤', bg: 'bg-gray-100', text: 'text-gray-500' }
-                              const lastDate = [child.judge_end_date, child.extended_end_date].filter(Boolean).sort().pop() || child.extended_end_date || child.end_date || ''
+                              const lastDate = child.attend_end_date || child.extended_end_date || child.end_date || ''
                               const now0 = new Date()
                               now0.setHours(0, 0, 0, 0)
                               const todayKey = `${now0.getFullYear()}-${String(now0.getMonth() + 1).padStart(2, '0')}-${String(now0.getDate()).padStart(2, '0')}`

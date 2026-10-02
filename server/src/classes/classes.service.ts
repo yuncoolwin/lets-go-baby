@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { AuthzService } from '@/auth/authz.service';
 import type { CreateClassDto, UpdateClassDto, ClassQueryDto } from './dto/create-class.dto';
+import { resolveAttendEndDate } from '@/children/utils/attendance-dates';
 
 @Injectable()
 export class ClassesService {
@@ -397,11 +398,13 @@ export class ClassesService {
         course_type,
         start_date,
         end_date,
+        extended_end_date,
+        judge_end_date,
         status,
         children!inner(id, name, gender, birth_date)
       `)
       .eq('class_id', classId)
-      .eq('status', '进行中');
+      .in('status', ['进行中', '已结束']);
 
     if (courseType) {
       query = query.eq('course_type', courseType);
@@ -413,9 +416,24 @@ export class ClassesService {
       return { error: true, code: 500, msg: `查询失败: ${error.message}` };
     }
 
+    // 按考勤最后上课日过滤「在读」：最后上课日已过则隐藏该条
+    const today = new Date().toISOString().slice(0, 10);
+    const resolved = await Promise.all(
+      (data || []).map(async (row) => {
+        try {
+          const attend = await resolveAttendEndDate(this.client, row);
+          return { row, attend, active: !!attend && attend >= today };
+        } catch {
+          const attend = row.extended_end_date || row.end_date || '';
+          return { row, attend, active: !!attend && attend >= today };
+        }
+      }),
+    );
+
     // 按 course_type 分组
     const groups: Record<string, { course_type: string; students: any[] }> = {};
-    for (const row of data || []) {
+    for (const { row, attend, active } of resolved) {
+      if (!active) continue;
       const ct = row.course_type || '其他';
       if (!groups[ct]) {
         groups[ct] = { course_type: ct, students: [] };
@@ -429,6 +447,9 @@ export class ClassesService {
         birth_date: child.birth_date,
         start_date: row.start_date,
         end_date: row.end_date,
+        extended_end_date: row.extended_end_date,
+        judge_end_date: row.judge_end_date || null,
+        attend_end_date: attend || row.extended_end_date || row.end_date || null,
       });
     }
 

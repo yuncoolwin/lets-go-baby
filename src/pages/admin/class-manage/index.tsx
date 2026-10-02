@@ -43,6 +43,9 @@ interface EnrollmentGroup {
     birth_date?: string
     start_date: string | null
     end_date: string | null
+    extended_end_date?: string | null
+    judge_end_date?: string | null
+    attend_end_date?: string | null
   }[]
 }
 
@@ -356,7 +359,7 @@ export default function ClassManagePage() {
                                         <Text className="text-xs text-gray-400">{child.gender === 'male' ? '男' : '女'}</Text>
                                         <Text className="text-xs text-gray-400">{calcAge(child.birth_date)}</Text>
                                       </View>
-                                      <Text className="text-xs text-gray-400 text-right">{child.start_date ? `${child.start_date}${child.end_date ? ` ~ ${child.end_date}` : '起'}` : ''}</Text>
+                                      <Text className="text-xs text-gray-400 text-right">{child.start_date ? `${child.start_date}${child.attend_end_date ? ` ~ ${child.attend_end_date}` : child.end_date ? ` ~ ${child.end_date}` : '起'}` : ''}</Text>
                                     </View>
                                   ))}
                                 </View>

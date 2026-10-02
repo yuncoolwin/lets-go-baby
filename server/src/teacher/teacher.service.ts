@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { isSaturday, isWeekend } from '@/utils/date.util';
 import { buildMakeupLayers } from '@/children/utils/holiday-helper';
+import { resolveAttendEndDate } from '@/children/utils/attendance-dates';
 
 /**
  * 判断某天是否属于某课程类型的上课日（与 attendance.service 保持一致）：
@@ -440,9 +441,24 @@ export class TeacherService {
       nickname: string;
       extended_end_date: string | null;
       judge_end_date: string | null;
+      attend_end_date: string | null;
       is_drop_in?: boolean;
       drop_in_id?: string;
     }>>();
+
+    // 预计算每个报读的考勤最后上课日（attend_end_date），用于前端在读日期展示
+    const attendByEnrId = new Map<string, string | null>();
+    await Promise.all(
+      (filteredEnrollments || []).map(async (e) => {
+        if (!e.id) return;
+        try {
+          const a = await resolveAttendEndDate(this.client, e);
+          if (a) attendByEnrId.set(e.id, a);
+        } catch {
+          /* 忽略单条失败 */
+        }
+      }),
+    );
 
     for (const e of filteredEnrollments) {
       const ct = e.course_type;
@@ -460,6 +476,7 @@ export class TeacherService {
         end_date: e.end_date,
         extended_end_date: e.extended_end_date || e.end_date,
         judge_end_date: e.judge_end_date || null,
+        attend_end_date: attendByEnrId.get(e.id) || e.extended_end_date || e.end_date || null,
       });
     }
 
@@ -505,6 +522,7 @@ export class TeacherService {
             end_date: null,
             extended_end_date: null,
             judge_end_date: null,
+            attend_end_date: null,
             is_drop_in: true,
           });
         }
@@ -700,8 +718,23 @@ export class TeacherService {
       nickname: string;
       extended_end_date: string | null;
       judge_end_date: string | null;
+      attend_end_date: string | null;
       is_drop_in?: boolean;
     }>>();
+
+    // 预计算每个报读的考勤最后上课日
+    const attendByEnrId = new Map<string, string | null>();
+    await Promise.all(
+      (filteredEnrollments || []).map(async (e) => {
+        if (!e.id) return;
+        try {
+          const a = await resolveAttendEndDate(this.client, e);
+          if (a) attendByEnrId.set(e.id, a);
+        } catch {
+          /* ignore */
+        }
+      }),
+    );
 
     for (const e of filteredEnrollments) {
       const ct = e.course_type;
@@ -718,6 +751,7 @@ export class TeacherService {
         end_date: e.end_date,
         extended_end_date: e.extended_end_date || e.end_date,
         judge_end_date: e.judge_end_date || null,
+        attend_end_date: attendByEnrId.get(e.id) || e.extended_end_date || e.end_date || null,
       });
     }
 
@@ -753,6 +787,7 @@ export class TeacherService {
             end_date: null,
             extended_end_date: null,
             judge_end_date: null,
+            attend_end_date: null,
             is_drop_in: true,
           });
         }
